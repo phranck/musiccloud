@@ -276,16 +276,29 @@ describe("Audius: searchTrack", () => {
     expect(result.confidence).toBe(0);
   });
 
-  it("should return not found on HTTP error", async () => {
+  /**
+   * Audius answers a search without results with an empty list, so an error
+   * status is an outage. Returning "not found" would make the resolver skip
+   * Audius for that track for a month.
+   */
+  it("throws when the search fails rather than answering not found", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
-    const result = await audiusAdapter.searchTrack({
-      title: "Test",
-      artist: "Test",
-    });
+    await expect(audiusAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/500/);
+  });
 
-    expect(result.found).toBe(false);
-    expect(result.confidence).toBe(0);
+  it("throws when the album search fails rather than answering not found", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 429 }));
+
+    await expect(audiusAdapter.searchAlbum({ title: "Test", artist: "Test" })).rejects.toThrow(/429/);
+  });
+
+  it("answers not found for an empty search result", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({ data: [] }));
+
+    await expect(audiusAdapter.searchTrack({ title: "Test", artist: "Test" })).resolves.toMatchObject({
+      found: false,
+    });
   });
 
   it("should use combined query when title equals artist (free text)", async () => {

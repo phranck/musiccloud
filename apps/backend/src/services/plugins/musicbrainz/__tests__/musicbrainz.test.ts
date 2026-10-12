@@ -159,14 +159,46 @@ describe("MusicBrainz: findByIsrc", () => {
     expect(track).toBeNull();
   });
 
-  it("returns null on HTTP error", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse("server error", 500));
-    expect(await musicbrainzAdapter.findByIsrc("XX")).toBeNull();
+  it("returns null when MusicBrainz has no recording for the ISRC", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "Not Found" }, 404));
+    expect(await musicbrainzAdapter.findByIsrc("ZZZZZ9999999")).toBeNull();
   });
 
-  it("returns null when the ISRC response has malformed JSON", async () => {
+  /**
+   * An error status is an outage. Answering null would make the resolver
+   * record a miss and skip MusicBrainz for that track for a month.
+   */
+  it("throws on HTTP error", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse("server error", 500));
+    await expect(musicbrainzAdapter.findByIsrc("GBDUW0000059")).rejects.toThrow(/500/);
+  });
+
+  it("throws when MusicBrainz is still busy after the retry", async () => {
+    vi.useFakeTimers();
+    fetchMock
+      .mockResolvedValueOnce(responseWithHeaders({ error: "busy" }, 503, { "Retry-After": "0" }))
+      .mockResolvedValueOnce(responseWithHeaders({ error: "busy" }, 503, { "Retry-After": "0" }));
+
+    const lookup = expect(musicbrainzAdapter.findByIsrc("GBDUW0000059")).rejects.toThrow(/503/);
+    await vi.advanceTimersByTimeAsync(1200);
+    await lookup;
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws when the request fails", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    await expect(musicbrainzAdapter.findByIsrc("GBDUW0000059")).rejects.toThrow();
+  });
+
+  it("throws when the ISRC response has malformed JSON", async () => {
     fetchMock.mockResolvedValueOnce(malformedJsonResponse());
-    expect(await musicbrainzAdapter.findByIsrc("XX")).toBeNull();
+    await expect(musicbrainzAdapter.findByIsrc("GBDUW0000059")).rejects.toThrow(/not JSON/);
+  });
+
+  it("throws when the ISRC response has no recordings list", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "unexpected" }));
+    await expect(musicbrainzAdapter.findByIsrc("GBDUW0000059")).rejects.toThrow(/without the recordings list/);
   });
 });
 
@@ -212,14 +244,37 @@ describe("MusicBrainz: searchTrackWithCandidates", () => {
     expect(result.candidates).toEqual([]);
   });
 
-  it("returns found:false when search returns malformed JSON", async () => {
+  it("throws instead of returning empty candidates when the search fails", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "server error" }, 500));
+    await expect(musicbrainzAdapter.searchTrackWithCandidates({ title: "Nothing", artist: "Nobody" })).rejects.toThrow(
+      /500/,
+    );
+  });
+
+  it("throws when the search request fails", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    await expect(
+      musicbrainzAdapter.searchTrackWithCandidates({ title: "Nothing", artist: "Nobody" }),
+    ).rejects.toThrow();
+  });
+
+  it("throws when search returns malformed JSON", async () => {
     fetchMock.mockResolvedValueOnce(malformedJsonResponse());
-    const result = await musicbrainzAdapter.searchTrackWithCandidates({
-      title: "Nothing",
-      artist: "Nobody",
-    });
-    expect(result.bestMatch.found).toBe(false);
-    expect(result.candidates).toEqual([]);
+    await expect(musicbrainzAdapter.searchTrackWithCandidates({ title: "Nothing", artist: "Nobody" })).rejects.toThrow(
+      /not JSON/,
+    );
+  });
+
+  it("throws when the search body has no recordings list", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "unexpected" }));
+    await expect(musicbrainzAdapter.searchTrackWithCandidates({ title: "Nothing", artist: "Nobody" })).rejects.toThrow(
+      /without the recordings list/,
+    );
+  });
+
+  it("searchTrack throws when the search fails", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "server error" }, 500));
+    await expect(musicbrainzAdapter.searchTrack({ title: "Nothing", artist: "Nobody" })).rejects.toThrow(/500/);
   });
 
   it("emits limit=10 and Lucene-style query string", async () => {
@@ -258,6 +313,39 @@ describe("MusicBrainz: findAlbumByUpc + getAlbum", () => {
     expect(album?.upc).toBe("724384960728");
     expect(album?.label).toBe("Virgin");
     expect(album?.artworkUrl).toBe(`https://coverartarchive.org/release/${RELEASE_MBID}/front-500.jpg`);
+  });
+
+  it("findAlbumByUpc returns null when no release carries the barcode", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ count: 0, offset: 0, releases: [] }));
+    expect(await musicbrainzAdapter.findAlbumByUpc("0000000000000")).toBeNull();
+  });
+
+  it("findAlbumByUpc throws on HTTP error", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "server error" }, 500));
+    await expect(musicbrainzAdapter.findAlbumByUpc("724384960728")).rejects.toThrow(/500/);
+  });
+
+  it("findAlbumByUpc throws when the body has no releases list", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "unexpected" }));
+    await expect(musicbrainzAdapter.findAlbumByUpc("724384960728")).rejects.toThrow(/without the releases list/);
+  });
+
+  it("searchAlbum returns found:false when no release matches", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ count: 0, offset: 0, releases: [] }));
+    const result = await musicbrainzAdapter.searchAlbum({ title: "Nothing", artist: "Nobody" });
+    expect(result.found).toBe(false);
+  });
+
+  it("searchAlbum throws on HTTP error", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "server error" }, 500));
+    await expect(musicbrainzAdapter.searchAlbum({ title: "Discovery", artist: "Daft Punk" })).rejects.toThrow(/500/);
+  });
+
+  it("searchAlbum throws when the body is not JSON", async () => {
+    fetchMock.mockResolvedValueOnce(malformedJsonResponse());
+    await expect(musicbrainzAdapter.searchAlbum({ title: "Discovery", artist: "Daft Punk" })).rejects.toThrow(
+      /not JSON/,
+    );
   });
 
   it("getAlbum throws on 404", async () => {
@@ -316,6 +404,22 @@ describe("MusicBrainz: searchArtist + getArtist", () => {
       expect(result.artist?.isni).toBe("0000000122996059");
       expect(result.artist?.genres).toEqual(["electronic", "house"]);
     }
+  });
+
+  it("searchArtist returns found:false when no artist matches", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ count: 0, offset: 0, artists: [] }));
+    const result = await musicbrainzAdapter.searchArtist({ name: "Nobody" });
+    expect(result.found).toBe(false);
+  });
+
+  it("searchArtist throws on HTTP error", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "server error" }, 500));
+    await expect(musicbrainzAdapter.searchArtist({ name: "Daft Punk" })).rejects.toThrow(/500/);
+  });
+
+  it("searchArtist throws when the body has no artists list", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "unexpected" }));
+    await expect(musicbrainzAdapter.searchArtist({ name: "Daft Punk" })).rejects.toThrow(/without the artists list/);
   });
 
   it("getArtist returns NormalizedArtist", async () => {

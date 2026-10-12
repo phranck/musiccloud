@@ -1,6 +1,7 @@
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
+import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
@@ -48,7 +49,19 @@ import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
  * is attempted once; that single retry covers cases where Qobuz
  * invalidated the token early (on password change, server cycle,
  * etc.). Login request coalescing via `authTokenPromise` ensures a
- * burst of resolves does not re-login N times on cache miss.
+ * burst of resolves does not re-login N times on cache miss. A login that
+ * fails keeps the token it had, or none. A request refused for want of a
+ * token answers 401 and throws, so it never becomes a stored miss.
+ *
+ * ## Failure is not "not found"
+ *
+ * Lookups and searches return `null` or `{ found: false }` only when Qobuz
+ * answered and has no match: a search without hits answers 200 with an empty
+ * `items` list, and an unknown album id or UPC answers 404. An error status,
+ * a timeout, a body that is not JSON and a search answer without its list
+ * all throw. The resolver stores a returned miss and skips Qobuz for that
+ * track for a month, so a failure reported as "not found" hides the link long
+ * after Qobuz is back.
  *
  * ## Available regardless of config
  *
@@ -126,6 +139,9 @@ async function fetchAuthToken(): Promise<string | null> {
 
   const appId = getAppId();
 
+  // A failed login keeps the token it had, or none. The catalog answers
+  // without a token too, and a request that then fails throws on its own
+  // status, so a refused login costs the token and never a stored miss.
   try {
     const response = await fetchWithTimeout(
       `${API_BASE}/user/login`,
@@ -146,7 +162,7 @@ async function fetchAuthToken(): Promise<string | null> {
       return cachedAuthToken;
     }
 
-    const data = (await response.json()) as QobuzLoginResponse;
+    const data = await readJson<QobuzLoginResponse>(response, "login");
     if (data.user_auth_token) {
       cachedAuthToken = data.user_auth_token;
       authTokenFetchedAt = Date.now();
@@ -156,8 +172,8 @@ async function fetchAuthToken(): Promise<string | null> {
 
     log.error("Qobuz", "Login response missing user_auth_token");
     return cachedAuthToken;
-  } catch (err) {
-    log.error("Qobuz", "Login error:", err instanceof Error ? err.message : "Unknown");
+  } catch (error) {
+    log.error("Qobuz", "Login error:", error instanceof Error ? error.message : "Unknown");
     return cachedAuthToken;
   }
 }
@@ -194,6 +210,48 @@ async function qobuzApiFetch(endpoint: string): Promise<Response> {
   return response;
 }
 
+/**
+ * Reads the JSON object Qobuz answered with.
+ *
+ * @param response - An answer that already passed the status check.
+ * @param what - What the request was for, which the error names.
+ * @returns The parsed body.
+ * @throws {UpstreamUnavailableError} When the body is not JSON or not an
+ *   object, because an answer Qobuz did not give cannot be a "not found".
+ */
+async function readJson<T extends object>(response: Response, what: string): Promise<T> {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch (error) {
+    throw new UpstreamUnavailableError("qobuz", `${what} answered a body that is not JSON`, error);
+  }
+  if (typeof body !== "object" || body === null) {
+    throw new UpstreamUnavailableError("qobuz", `${what} answered JSON that is not an object`);
+  }
+  return body as T;
+}
+
+/**
+ * Reads the list of hits out of a search answer.
+ *
+ * @param response - An answer that already passed the status check.
+ * @param key - The list the endpoint answers under, one per search endpoint.
+ * @param what - What the search was for, which the error names.
+ * @returns The hits, an empty array when Qobuz found nothing.
+ * @throws {UpstreamUnavailableError} When the body is unreadable or has no
+ *   `items` list under `key`. Qobuz answers a search without hits with an
+ *   empty list, so a body without one is not an answer.
+ */
+async function readSearchItems<T>(response: Response, key: SearchListKey, what: string): Promise<T[]> {
+  const body = await readJson<Partial<Record<SearchListKey, QobuzSearchList<T>>>>(response, what);
+  const items = body[key]?.items;
+  if (!Array.isArray(items)) {
+    throw new UpstreamUnavailableError("qobuz", `${what} answered without a ${key} list`);
+  }
+  return items;
+}
+
 // --- Response types ---
 
 interface QobuzTrack {
@@ -214,11 +272,12 @@ interface QobuzTrack {
   parental_warning?: boolean;
 }
 
-interface QobuzSearchResponse {
-  tracks?: {
-    items?: QobuzTrack[];
-    total?: number;
-  };
+/** The key each search endpoint answers its hits under. */
+type SearchListKey = "tracks" | "albums" | "artists";
+
+interface QobuzSearchList<T> {
+  items?: T[];
+  total?: number;
 }
 
 interface QobuzAlbumTrack {
@@ -241,24 +300,10 @@ interface QobuzAlbum {
   tracks?: { items?: QobuzAlbumTrack[] };
 }
 
-interface QobuzAlbumSearchResponse {
-  albums?: {
-    items?: QobuzAlbum[];
-    total?: number;
-  };
-}
-
 interface QobuzArtist {
   id?: number;
   name?: string;
   image?: { small?: string; medium?: string; large?: string };
-}
-
-interface QobuzArtistSearchResponse {
-  artists?: {
-    items?: QobuzArtist[];
-    total?: number;
-  };
 }
 
 function mapAlbum(data: QobuzAlbum): NormalizedAlbum {
@@ -355,7 +400,7 @@ export const qobuzAdapter = {
       throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Track, trackId);
     }
 
-    const data = (await response.json()) as QobuzTrack;
+    const data = await readJson<QobuzTrack>(response, `track ${trackId}`);
     if (!data.title) {
       throw serviceNotFoundError(Service.Qobuz, ResourceKind.Track, trackId);
     }
@@ -364,79 +409,68 @@ export const qobuzAdapter = {
   },
 
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
-    try {
-      const response = await qobuzApiFetch(`/track/search?query=${encodeURIComponent(isrc)}&limit=3`);
-      if (!response.ok) return null;
-
-      const result = (await response.json()) as QobuzSearchResponse;
-      const items = result.tracks?.items ?? [];
-
-      const match = items.find((t) => t.isrc === isrc);
-      if (!match?.title) return null;
-
-      return mapTrack(match);
-    } catch {
-      return null;
+    const response = await qobuzApiFetch(`/track/search?query=${encodeURIComponent(isrc)}&limit=3`);
+    if (!response.ok) {
+      throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Track, isrc, Operation.IsrcLookup);
     }
+
+    const items = await readSearchItems<QobuzTrack>(response, "tracks", `ISRC lookup for ${isrc}`);
+
+    const match = items.find((candidate) => candidate.isrc === isrc);
+    if (!match?.title) return null;
+
+    return mapTrack(match);
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = searchText(query);
 
-    try {
-      const response = await qobuzApiFetch(`/track/search?query=${encodeURIComponent(q)}&limit=5`);
+    const response = await qobuzApiFetch(`/track/search?query=${encodeURIComponent(q)}&limit=5`);
+    if (!response.ok) {
+      throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Track, q, Operation.Search);
+    }
 
-      if (!response.ok) {
-        log.debug("Qobuz", "Search API failed:", response.status);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
+    const items = await readSearchItems<QobuzTrack>(response, "tracks", `track search for "${q}"`);
 
-      const result = (await response.json()) as QobuzSearchResponse;
-      const items = result.tracks?.items ?? [];
-
-      if (items.length === 0) {
-        log.debug("Qobuz", "Search returned no tracks for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Qobuz", `Search returned ${items.length} tracks for: ${q}`);
-
-      let bestMatch: NormalizedTrack | null = null;
-      let bestConfidence = 0;
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (!item.title) continue;
-
-        const track = mapTrack(item);
-        const confidence = scoreSearchCandidate(query, track, i);
-
-        log.debug(
-          "Qobuz",
-          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-        );
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        log.debug("Qobuz", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return {
-        found: true,
-        track: bestMatch,
-        confidence: bestConfidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("Qobuz", "Search failed:", error instanceof Error ? error.message : error);
+    if (items.length === 0) {
+      log.debug("Qobuz", "Search returned no tracks for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Qobuz", `Search returned ${items.length} tracks for: ${q}`);
+
+    let bestMatch: NormalizedTrack | null = null;
+    let bestConfidence = 0;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item.title) continue;
+
+      const track = mapTrack(item);
+      const confidence = scoreSearchCandidate(query, track, i);
+
+      log.debug(
+        "Qobuz",
+        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = track;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("Qobuz", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
   },
   // --- Album support ---
 
@@ -460,7 +494,7 @@ export const qobuzAdapter = {
       throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Album, albumId);
     }
 
-    const data = (await response.json()) as QobuzAlbum;
+    const data = await readJson<QobuzAlbum>(response, `album ${albumId}`);
     if (!data.title) {
       throw serviceNotFoundError(Service.Qobuz, ResourceKind.Album, albumId);
     }
@@ -470,67 +504,59 @@ export const qobuzAdapter = {
 
   async findAlbumByUpc(upc: string): Promise<NormalizedAlbum | null> {
     // Qobuz accepts UPC as album_id in the album/get endpoint
-    try {
-      const response = await qobuzApiFetch(`/album/get?album_id=${encodeURIComponent(upc)}`);
+    const response = await qobuzApiFetch(`/album/get?album_id=${encodeURIComponent(upc)}`);
 
-      if (!response.ok) {
-        log.debug("Qobuz", "UPC album lookup failed:", response.status);
-        return null;
-      }
-
-      const data = (await response.json()) as QobuzAlbum;
-      if (!data.title) return null;
-
-      return mapAlbum(data);
-    } catch {
-      return null;
+    // An id Qobuz does not know answers 404 with a JSON error body, which is
+    // the service saying it has no such album. Any other error status is a failure.
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Album, upc, Operation.UpcLookup);
     }
+
+    const data = await readJson<QobuzAlbum>(response, `UPC lookup for ${upc}`);
+    if (!data.title) {
+      throw new UpstreamUnavailableError("qobuz", `UPC lookup for ${upc} answered an album without a title`);
+    }
+
+    return mapAlbum(data);
   },
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
 
-    try {
-      const response = await qobuzApiFetch(`/album/search?query=${encodeURIComponent(q)}&limit=5`);
+    const response = await qobuzApiFetch(`/album/search?query=${encodeURIComponent(q)}&limit=5`);
+    if (!response.ok) {
+      throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Album, q, Operation.Search);
+    }
 
-      if (!response.ok) {
-        log.debug("Qobuz", "Album search failed:", response.status);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
+    const items = await readSearchItems<QobuzAlbum>(response, "albums", `album search for "${q}"`);
 
-      const result = (await response.json()) as QobuzAlbumSearchResponse;
-      const items = result.albums?.items ?? [];
-
-      if (items.length === 0) {
-        log.debug("Qobuz", "Album search returned no results for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      let bestAlbum: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
-
-      for (const item of items) {
-        if (!item.title) continue;
-        const album = mapAlbum(item);
-        const confidence = scoreAlbumCandidate(query, album);
-
-        log.debug("Qobuz", `  Album "${album.title}" by ${album.artists.join(", ")} -> ${confidence.toFixed(3)}`);
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestAlbum = album;
-        }
-      }
-
-      if (!bestAlbum || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("Qobuz", "Album search failed:", error instanceof Error ? error.message : error);
+    if (items.length === 0) {
+      log.debug("Qobuz", "Album search returned no results for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    let bestAlbum: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const item of items) {
+      if (!item.title) continue;
+      const album = mapAlbum(item);
+      const confidence = scoreAlbumCandidate(query, album);
+
+      log.debug("Qobuz", `  Album "${album.title}" by ${album.artists.join(", ")} -> ${confidence.toFixed(3)}`);
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestAlbum = album;
+      }
+    }
+
+    if (!bestAlbum || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
   },
 
   // --- Artist support ---
@@ -551,7 +577,7 @@ export const qobuzAdapter = {
       throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Artist, artistId);
     }
 
-    const data = (await response.json()) as QobuzArtist;
+    const data = await readJson<QobuzArtist>(response, `artist ${artistId}`);
     if (!data.name) {
       throw serviceNotFoundError(Service.Qobuz, ResourceKind.Artist, artistId);
     }
@@ -567,55 +593,47 @@ export const qobuzAdapter = {
   },
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
-    try {
-      const response = await qobuzApiFetch(`/artist/search?query=${encodeURIComponent(query.name)}&limit=5`);
+    const response = await qobuzApiFetch(`/artist/search?query=${encodeURIComponent(query.name)}&limit=5`);
+    if (!response.ok) {
+      throw serviceHttpError(Service.Qobuz, response.status, ResourceKind.Artist, query.name, Operation.Search);
+    }
 
-      if (!response.ok) {
-        log.debug("Qobuz", "Artist search failed:", response.status);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
+    const items = await readSearchItems<QobuzArtist>(response, "artists", `artist search for "${query.name}"`);
 
-      const result = (await response.json()) as QobuzArtistSearchResponse;
-      const items = result.artists?.items ?? [];
-
-      if (items.length === 0) {
-        log.debug("Qobuz", "Artist search returned no results for:", query.name);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      let bestArtist: NormalizedArtist | null = null;
-      let bestConfidence = 0;
-
-      for (const item of items) {
-        if (!item.name) continue;
-
-        const confidence = calculateArtistNameConfidence(query.name, item.name);
-
-        const id = String(item.id ?? "");
-        log.debug("Qobuz", `  Artist "${item.name}" -> confidence=${confidence.toFixed(3)}`);
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestArtist = {
-            sourceService: "qobuz",
-            sourceId: id,
-            name: item.name,
-            imageUrl: item.image?.large ?? item.image?.medium ?? item.image?.small,
-            webUrl: `https://open.qobuz.com/artist/${id}`,
-          };
-        }
-      }
-
-      if (!bestArtist || bestConfidence < 0.6) {
-        log.debug("Qobuz", `Best artist confidence ${bestConfidence.toFixed(3)} below threshold 0.6`);
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("Qobuz", "Artist search failed:", error instanceof Error ? error.message : error);
+    if (items.length === 0) {
+      log.debug("Qobuz", "Artist search returned no results for:", query.name);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    let bestArtist: NormalizedArtist | null = null;
+    let bestConfidence = 0;
+
+    for (const item of items) {
+      if (!item.name) continue;
+
+      const confidence = calculateArtistNameConfidence(query.name, item.name);
+
+      const id = String(item.id ?? "");
+      log.debug("Qobuz", `  Artist "${item.name}" -> confidence=${confidence.toFixed(3)}`);
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestArtist = {
+          sourceService: "qobuz",
+          sourceId: id,
+          name: item.name,
+          imageUrl: item.image?.large ?? item.image?.medium ?? item.image?.small,
+          webUrl: `https://open.qobuz.com/artist/${id}`,
+        };
+      }
+    }
+
+    if (!bestArtist || bestConfidence < 0.6) {
+      log.debug("Qobuz", `Best artist confidence ${bestConfidence.toFixed(3)} below threshold 0.6`);
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
 

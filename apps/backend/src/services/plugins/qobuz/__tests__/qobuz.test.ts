@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { _resetAppIdCache, _setAppIdForTest, qobuzAdapter } from "../adapter";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
+import { _resetAppIdCache, _resetAuthTokenCache, _setAppIdForTest, qobuzAdapter } from "../adapter";
 
 // =============================================================================
 // Mock data
@@ -66,14 +67,30 @@ function mockResponse(body: unknown, status = 200): Response {
   } as unknown as Response;
 }
 
+/** An answer whose body is not JSON, such as an HTML error page behind a 200. */
+function mockUnreadableResponse(status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.reject(new SyntaxError("Unexpected token < in JSON at position 0")),
+    text: () => Promise.resolve("<html>Bad gateway</html>"),
+    headers: new Headers(),
+  } as unknown as Response;
+}
+
 // =============================================================================
 // Tests
 // =============================================================================
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  fetchMock.mockReset();
   _resetAppIdCache();
   _setAppIdForTest("123456789");
+  _resetAuthTokenCache();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("Qobuz: detectUrl", () => {
@@ -157,6 +174,12 @@ describe("Qobuz: getTrack", () => {
     await expect(qobuzAdapter.getTrack("123")).rejects.toThrow("Qobuz: Track not found: 123");
   });
 
+  it("should throw when the body is not JSON", async () => {
+    fetchMock.mockResolvedValueOnce(mockUnreadableResponse());
+
+    await expect(qobuzAdapter.getTrack("59954869")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
   it("should handle missing album artwork gracefully", async () => {
     fetchMock.mockResolvedValueOnce(
       mockResponse({
@@ -171,9 +194,66 @@ describe("Qobuz: getTrack", () => {
 });
 
 describe("Qobuz: findByIsrc", () => {
-  it("should return null (no ISRC lookup endpoint)", async () => {
-    const result = await qobuzAdapter.findByIsrc("USNLR1100709");
-    expect(result).toBeNull();
+  it("should find the track whose ISRC matches", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse(MOCK_SEARCH_RESPONSE));
+
+    const track = await qobuzAdapter.findByIsrc("USNLR1100709");
+
+    expect(track?.sourceId).toBe("59954869");
+    expect(track?.title).toBe("Bridge Of Light");
+  });
+
+  it("should return null when the answer holds no track with that ISRC", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse(MOCK_SEARCH_RESPONSE));
+
+    await expect(qobuzAdapter.findByIsrc("GBXXX0000000")).resolves.toBeNull();
+  });
+
+  it("should return null when Qobuz answers with an empty list", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ tracks: { items: [], total: 0 } }));
+
+    await expect(qobuzAdapter.findByIsrc("GBXXX0000000")).resolves.toBeNull();
+  });
+
+  /**
+   * A returned null is stored as a miss, and the resolver then skips Qobuz for
+   * that track for a month. A lookup that failed must throw so that is not
+   * recorded as a fact about the track.
+   */
+  it("should throw on an error status instead of answering not found", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({}, 500));
+
+    await expect(qobuzAdapter.findByIsrc("USNLR1100709")).rejects.toThrow(/isrc-lookup failed: 500/);
+  });
+
+  it("should throw when Qobuz refuses the request as unauthorized", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ status: "error", code: 401 }, 401));
+
+    await expect(qobuzAdapter.findByIsrc("USNLR1100709")).rejects.toThrow(/isrc-lookup failed: 401/);
+  });
+
+  it("should throw when Qobuz rate-limits the request", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({}, 429));
+
+    await expect(qobuzAdapter.findByIsrc("USNLR1100709")).rejects.toThrow(/rate-limited/);
+  });
+
+  it("should throw when the request fails", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("socket hang up"));
+
+    await expect(qobuzAdapter.findByIsrc("USNLR1100709")).rejects.toThrow();
+  });
+
+  it("should throw when the body is not JSON", async () => {
+    fetchMock.mockResolvedValueOnce(mockUnreadableResponse());
+
+    await expect(qobuzAdapter.findByIsrc("USNLR1100709")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
+  it("should throw when the answer has no track list", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ status: "error", message: "Service unavailable" }));
+
+    await expect(qobuzAdapter.findByIsrc("USNLR1100709")).rejects.toBeInstanceOf(UpstreamUnavailableError);
   });
 });
 
@@ -199,12 +279,38 @@ describe("Qobuz: searchTrack", () => {
     expect(result.confidence).toBe(0);
   });
 
-  it("should return not found on HTTP error", async () => {
+  it("should throw on an error status instead of answering not found", async () => {
     fetchMock.mockResolvedValueOnce(mockResponse({}, 500));
 
-    const result = await qobuzAdapter.searchTrack({ title: "Test", artist: "Test" });
+    await expect(qobuzAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/search failed: 500/);
+  });
 
-    expect(result.found).toBe(false);
+  it("should throw when Qobuz rate-limits the search", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({}, 429));
+
+    await expect(qobuzAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/rate-limited/);
+  });
+
+  it("should throw when the search request fails", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("socket hang up"));
+
+    await expect(qobuzAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow();
+  });
+
+  it("should throw when the body is not JSON", async () => {
+    fetchMock.mockResolvedValueOnce(mockUnreadableResponse());
+
+    await expect(qobuzAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
+  });
+
+  it("should throw when the answer has no track list", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({}));
+
+    await expect(qobuzAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
   });
 
   it("should pick best match from multiple results", async () => {
@@ -240,5 +346,189 @@ describe("Qobuz: searchTrack", () => {
     if (result.found && result.track) {
       expect(result.track.durationMs).toBe(180000);
     }
+  });
+});
+
+describe("Qobuz: findAlbumByUpc", () => {
+  it("should find the album for a UPC", async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockResponse({ id: "0060253780968", title: "Happy Feet Two", upc: "0060253780968" }),
+    );
+
+    const album = await qobuzAdapter.findAlbumByUpc("0060253780968");
+
+    expect(album?.title).toBe("Happy Feet Two");
+    expect(album?.sourceId).toBe("0060253780968");
+  });
+
+  it("should return null when Qobuz answers 404 for the UPC", async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockResponse({ status: "error", code: 404, message: "No result matching given argument" }, 404),
+    );
+
+    await expect(qobuzAdapter.findAlbumByUpc("0000000000000")).resolves.toBeNull();
+  });
+
+  it("should throw on any other error status", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({}, 503));
+
+    await expect(qobuzAdapter.findAlbumByUpc("0060253780968")).rejects.toThrow(/upc-lookup failed: 503/);
+  });
+
+  it("should throw when Qobuz rate-limits the lookup", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({}, 429));
+
+    await expect(qobuzAdapter.findAlbumByUpc("0060253780968")).rejects.toThrow(/rate-limited/);
+  });
+
+  it("should throw when the lookup request fails", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("socket hang up"));
+
+    await expect(qobuzAdapter.findAlbumByUpc("0060253780968")).rejects.toThrow();
+  });
+
+  it("should throw when the body is not JSON", async () => {
+    fetchMock.mockResolvedValueOnce(mockUnreadableResponse());
+
+    await expect(qobuzAdapter.findAlbumByUpc("0060253780968")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
+  it("should throw when the answer is not an album", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ status: "error", message: "Service unavailable" }));
+
+    await expect(qobuzAdapter.findAlbumByUpc("0060253780968")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+});
+
+describe("Qobuz: searchAlbum", () => {
+  const query = { title: "Happy Feet Two", artist: "Various Artists" };
+
+  it("should find an album", async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockResponse({
+        albums: { items: [{ id: "abc123", title: "Happy Feet Two", artist: { name: "Various Artists" } }], total: 1 },
+      }),
+    );
+
+    const result = await qobuzAdapter.searchAlbum(query);
+
+    expect(result.found).toBe(true);
+    expect(result.album?.sourceId).toBe("abc123");
+  });
+
+  it("should return not found for empty results", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ albums: { items: [], total: 0 } }));
+
+    const result = await qobuzAdapter.searchAlbum(query);
+
+    expect(result.found).toBe(false);
+    expect(result.confidence).toBe(0);
+  });
+
+  it("should throw on an error status instead of answering not found", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({}, 500));
+
+    await expect(qobuzAdapter.searchAlbum(query)).rejects.toThrow(/album search failed: 500/);
+  });
+
+  it("should throw when the search request fails", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("socket hang up"));
+
+    await expect(qobuzAdapter.searchAlbum(query)).rejects.toThrow();
+  });
+
+  it("should throw when the body is not JSON", async () => {
+    fetchMock.mockResolvedValueOnce(mockUnreadableResponse());
+
+    await expect(qobuzAdapter.searchAlbum(query)).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
+  it("should throw when the answer has no album list", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({}));
+
+    await expect(qobuzAdapter.searchAlbum(query)).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+});
+
+describe("Qobuz: searchArtist", () => {
+  it("should find an artist", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ artists: { items: [{ id: 118671, name: "P!nk" }], total: 1 } }));
+
+    const result = await qobuzAdapter.searchArtist({ name: "P!nk" });
+
+    expect(result.found).toBe(true);
+    expect(result.artist?.sourceId).toBe("118671");
+  });
+
+  it("should return not found for empty results", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ artists: { items: [], total: 0 } }));
+
+    const result = await qobuzAdapter.searchArtist({ name: "Nobody" });
+
+    expect(result.found).toBe(false);
+    expect(result.confidence).toBe(0);
+  });
+
+  it("should throw on an error status instead of answering not found", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({}, 500));
+
+    await expect(qobuzAdapter.searchArtist({ name: "P!nk" })).rejects.toThrow(/artist search failed: 500/);
+  });
+
+  it("should throw when the search request fails", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("socket hang up"));
+
+    await expect(qobuzAdapter.searchArtist({ name: "P!nk" })).rejects.toThrow();
+  });
+
+  it("should throw when the body is not JSON", async () => {
+    fetchMock.mockResolvedValueOnce(mockUnreadableResponse());
+
+    await expect(qobuzAdapter.searchArtist({ name: "P!nk" })).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
+  it("should throw when the answer has no artist list", async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({}));
+
+    await expect(qobuzAdapter.searchArtist({ name: "P!nk" })).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+});
+
+describe("Qobuz: login", () => {
+  beforeEach(() => {
+    vi.stubEnv("QOBUZ_EMAIL", "qobuz-test@example.invalid");
+    vi.stubEnv("QOBUZ_PASSWORD", "not-a-real-password");
+  });
+
+  it("should send the user token with the request once logged in", async () => {
+    fetchMock
+      .mockResolvedValueOnce(mockResponse({ user_auth_token: "test-user-token" }))
+      .mockResolvedValueOnce(mockResponse({ tracks: { items: [], total: 0 } }));
+
+    await qobuzAdapter.searchTrack({ title: "Test", artist: "Test" });
+
+    const [, searchInit] = fetchMock.mock.calls[1];
+    expect(searchInit.headers["X-User-Auth-Token"]).toBe("test-user-token");
+  });
+
+  /**
+   * The catalog answers without a token, so a refused login costs the token
+   * and nothing else. The request's own answer decides, and a request that
+   * then fails throws on its own status.
+   */
+  it("goes on without a token when the login is refused", async () => {
+    fetchMock
+      .mockResolvedValueOnce(mockResponse({ status: "error", code: 401 }, 401))
+      .mockResolvedValueOnce(mockResponse({ tracks: { items: [], total: 0 } }));
+
+    await expect(qobuzAdapter.searchTrack({ title: "Test", artist: "Test" })).resolves.toMatchObject({ found: false });
+    const [, searchInit] = fetchMock.mock.calls[1];
+    expect(searchInit.headers["X-User-Auth-Token"]).toBeUndefined();
+  });
+
+  it("goes on without a token when the login body is not JSON, and the request's failure still throws", async () => {
+    fetchMock.mockResolvedValueOnce(mockUnreadableResponse()).mockResolvedValueOnce(mockResponse({}, 503));
+
+    await expect(qobuzAdapter.findByIsrc("USNLR1100709")).rejects.toThrow(/503/);
   });
 });

@@ -206,15 +206,30 @@ describe("Boomplay: searchTrack", () => {
     expect(result.found).toBe(false);
   });
 
-  it("should return not found on search page HTTP error", async () => {
-    mockFetch.mockReturnValueOnce(notOk(500));
+  /**
+   * A search Boomplay has nothing for is a page without result ids, so an
+   * error status, such as the 403 Boomplay gives a client it refuses, is an
+   * outage. Answering "not found" would make the resolver skip Boomplay for
+   * that track for a month.
+   */
+  it("throws when the search page fails", async () => {
+    mockFetch.mockReturnValueOnce(notOk(403));
 
-    const result = await boomplayAdapter.searchTrack({
-      title: "Test",
-      artist: "Test",
-    });
+    await expect(boomplayAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/403/);
+  });
 
-    expect(result.found).toBe(false);
+  it("throws when every song page of a search fails", async () => {
+    mockFetch.mockReturnValueOnce(ok(buildSearchPage(["111", "222"]))).mockReturnValue(notOk(503));
+
+    await expect(boomplayAdapter.searchTrack({ title: "Take on Me", artist: "a-ha" })).rejects.toThrow(/503/);
+  });
+
+  it("throws when the album search page fails", async () => {
+    mockFetch.mockReturnValueOnce(notOk(429));
+
+    await expect(boomplayAdapter.searchAlbum?.({ title: "Hunting High and Low", artist: "a-ha" })).rejects.toThrow(
+      /429/,
+    );
   });
 
   it("should handle failed individual song page fetches", async () => {

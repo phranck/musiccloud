@@ -58,6 +58,43 @@ describe("Bugs!: searchTrack", () => {
     const result = await bugsAdapter.searchTrack({ title: "Nonexistent", artist: "Nobody" });
     expect(result.found).toBe(false);
   });
+
+  /**
+   * A search Bugs! has nothing for answers 200 without track links, so an
+   * error status is an outage. Answering "not found" would make the resolver
+   * skip Bugs! for that track for a month.
+   */
+  it("throws when the search page fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Busy", { status: 503 }));
+
+    await expect(bugsAdapter.searchTrack({ title: "Dynamite", artist: "BTS" })).rejects.toThrow(/503/);
+  });
+
+  it("throws when every candidate page fails", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response('<a href="/track/1"></a><a href="/track/2"></a>', { status: 200 }))
+      .mockResolvedValue(new Response("Busy", { status: 503 }));
+
+    await expect(bugsAdapter.searchTrack({ title: "Dynamite", artist: "BTS" })).rejects.toThrow(/503/);
+  });
+
+  it("answers from the candidate pages that did load when others fail", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response('<a href="/track/1"></a><a href="/track/2"></a>', { status: 200 }))
+      .mockResolvedValueOnce(new Response("Busy", { status: 503 }))
+      .mockResolvedValueOnce(new Response(`<meta property="og:title" content="Dynamite / BTS">`, { status: 200 }));
+
+    await expect(bugsAdapter.searchTrack({ title: "Dynamite", artist: "BTS" })).resolves.toMatchObject({
+      found: true,
+      track: { sourceId: "2" },
+    });
+  });
+
+  it("throws when the album search page fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Busy", { status: 429 }));
+
+    await expect(bugsAdapter.searchAlbum?.({ title: "BE", artist: "BTS" })).rejects.toThrow(/429/);
+  });
 });
 
 describe("Bugs!: adapter metadata", () => {

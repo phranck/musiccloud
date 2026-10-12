@@ -1,5 +1,5 @@
 /**
- * @file MusicBrainz adapter — first canonical-identity source.
+ * @file MusicBrainz adapter, the first canonical-identity source.
  *
  * MusicBrainz is community-curated metadata, not a streaming target.
  * The adapter exists to harvest cross-platform identifiers (MBID for
@@ -22,11 +22,19 @@
  * request, no 404 handling here. If the image is missing, the share
  * page's existing artwork-backfill logic in album-resolver.ts kicks
  * in and pulls cover art from another adapter.
+ *
+ * Failure versus no match: a lookup or search answers "nothing" only when
+ * MusicBrainz answered with an empty result list, or with 404 for an ISRC no
+ * recording carries. An error status (503 when the server is busy included), a
+ * body that is not JSON and a body without the result list all throw, because
+ * the resolver records a returned miss and skips the service for that track
+ * for a month.
  */
 
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
+import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -172,16 +180,6 @@ interface MbRecording {
   score?: number;
 }
 
-interface MbRecordingSearchResponse {
-  recordings?: MbRecording[];
-  count?: number;
-}
-
-interface MbIsrcResponse {
-  isrc?: string;
-  recordings?: MbRecording[];
-}
-
 interface MbReleaseDetail {
   id: string;
   title: string;
@@ -201,11 +199,6 @@ interface MbReleaseGroupDetail {
   releases?: MbReleaseRef[];
 }
 
-interface MbReleaseSearchResponse {
-  releases?: MbReleaseDetail[];
-  count?: number;
-}
-
 interface MbArtist {
   id: string;
   name: string;
@@ -214,9 +207,32 @@ interface MbArtist {
   score?: number;
 }
 
-interface MbArtistSearchResponse {
-  artists?: MbArtist[];
-  count?: number;
+/** The keys under which MusicBrainz answers the result list of a search or an ISRC lookup. */
+type MbResultList = "recordings" | "releases" | "artists";
+
+/**
+ * Reads the result list of a MusicBrainz answer that came back with status 200.
+ *
+ * MusicBrainz always carries the list, so a search without matches is an empty
+ * list. A body without the list is not that answer.
+ *
+ * @param response - A successful response.
+ * @param listKey - The key of the list in the answer.
+ * @param context - What was requested, for the error message.
+ * @returns The list, empty when nothing matched.
+ * @throws {UpstreamUnavailableError} When the body is not JSON or has no such list.
+ */
+async function readResultList<T>(response: Response, listKey: MbResultList, context: string): Promise<T[]> {
+  const data = await parseMusicBrainzJson<Partial<Record<MbResultList, unknown>>>(response, context);
+  if (data === null || typeof data !== "object") {
+    throw new UpstreamUnavailableError(Service.MusicBrainz, `${context} answered a body that is not JSON`);
+  }
+
+  const list = data[listKey];
+  if (!Array.isArray(list)) {
+    throw new UpstreamUnavailableError(Service.MusicBrainz, `${context} answered without the ${listKey} list`);
+  }
+  return list as T[];
 }
 
 function recordingArtistNames(rec: MbRecording): string[] {
@@ -349,14 +365,14 @@ export const musicbrainzAdapter = {
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
     const response = await mbFetch(`/isrc/${encodeURIComponent(isrc)}?inc=artists+releases+work-rels&fmt=json`);
 
+    // MusicBrainz answers 404 for an ISRC that no recording carries, which is an
+    // answer. Any other error status is a failure.
+    if (response.status === 404) return null;
     if (!response.ok) {
-      log.debug("MusicBrainz", "ISRC lookup failed:", response.status, isrc);
-      return null;
+      throw serviceHttpError(Service.MusicBrainz, response.status, ResourceKind.Track, isrc, Operation.IsrcLookup);
     }
 
-    const data = await parseMusicBrainzJson<MbIsrcResponse>(response, `isrc/${isrc}`);
-    if (!data) return null;
-    const recording = data.recordings?.[0];
+    const recording = (await readResultList<MbRecording>(response, "recordings", `isrc/${isrc}`))[0];
     if (!recording) return null;
 
     const mapped = mapRecording(recording);
@@ -386,21 +402,10 @@ export const musicbrainzAdapter = {
     );
 
     if (!response.ok) {
-      log.debug("MusicBrainz", "searchTrack failed:", response.status);
-      return {
-        bestMatch: { found: false, confidence: 0, matchMethod: "search" },
-        candidates: [],
-      };
+      throw serviceHttpError(Service.MusicBrainz, response.status, ResourceKind.Track, queryString, Operation.Search);
     }
 
-    const data = await parseMusicBrainzJson<MbRecordingSearchResponse>(response, "recording search");
-    if (!data) {
-      return {
-        bestMatch: { found: false, confidence: 0, matchMethod: "search" },
-        candidates: [],
-      };
-    }
-    const recordings = data.recordings ?? [];
+    const recordings = await readResultList<MbRecording>(response, "recordings", "recording search");
 
     if (recordings.length === 0) {
       return {
@@ -473,13 +478,10 @@ export const musicbrainzAdapter = {
     const response = await mbFetch(`/release?query=${encodeURIComponent(queryString)}&limit=1&fmt=json`);
 
     if (!response.ok) {
-      log.debug("MusicBrainz", "UPC lookup failed:", response.status, upc);
-      return null;
+      throw serviceHttpError(Service.MusicBrainz, response.status, ResourceKind.Album, upc, Operation.UpcLookup);
     }
 
-    const data = await parseMusicBrainzJson<MbReleaseSearchResponse>(response, `release barcode/${upc}`);
-    if (!data) return null;
-    const release = data.releases?.[0];
+    const release = (await readResultList<MbReleaseDetail>(response, "releases", `release barcode/${upc}`))[0];
     if (!release) return null;
 
     return mapRelease(release);
@@ -497,13 +499,10 @@ export const musicbrainzAdapter = {
     const response = await mbFetch(`/release?query=${encodeURIComponent(queryString)}&limit=${SEARCH_LIMIT}&fmt=json`);
 
     if (!response.ok) {
-      log.debug("MusicBrainz", "searchAlbum failed:", response.status);
-      return { found: false, confidence: 0, matchMethod: "search" };
+      throw serviceHttpError(Service.MusicBrainz, response.status, ResourceKind.Album, queryString, Operation.Search);
     }
 
-    const data = await parseMusicBrainzJson<MbReleaseSearchResponse>(response, "release search");
-    if (!data) return { found: false, confidence: 0, matchMethod: "search" };
-    const release = data.releases?.[0];
+    const release = (await readResultList<MbReleaseDetail>(response, "releases", "release search"))[0];
     if (!release) {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
@@ -549,13 +548,10 @@ export const musicbrainzAdapter = {
     const response = await mbFetch(`/artist?query=${encodeURIComponent(queryString)}&limit=${SEARCH_LIMIT}&fmt=json`);
 
     if (!response.ok) {
-      log.debug("MusicBrainz", "searchArtist failed:", response.status);
-      return { found: false, confidence: 0, matchMethod: "search" };
+      throw serviceHttpError(Service.MusicBrainz, response.status, ResourceKind.Artist, query.name, Operation.Search);
     }
 
-    const data = await parseMusicBrainzJson<MbArtistSearchResponse>(response, "artist search");
-    if (!data) return { found: false, confidence: 0, matchMethod: "search" };
-    const artist = data.artists?.[0];
+    const artist = (await readResultList<MbArtist>(response, "artists", "artist search"))[0];
     if (!artist) {
       return { found: false, confidence: 0, matchMethod: "search" };
     }

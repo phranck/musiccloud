@@ -26,10 +26,10 @@
  * `splitArtistNames` from `_shared`) because Audiomack is the only
  * adapter that also needs to split on `feat.`.
  */
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -120,21 +120,23 @@ async function searchSongs(query: string): Promise<AudiomackSong[]> {
   // Audiomack public search endpoint (no OAuth needed for search)
   const searchUrl = `https://api.audiomack.com/v1/music/search?q=${encodeURIComponent(query)}&show=songs&limit=5`;
   const response = await audiomackFetch(searchUrl);
-  if (!response.ok) return [];
-
-  try {
-    const data = (await response.json()) as AudiomackSearchResponse;
-    return data.results ?? [];
-  } catch {
-    return [];
+  // A search without results is an empty list, so an error status or an
+  // unreadable body is a failure rather than an answer.
+  if (!response.ok) {
+    throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Track, query, Operation.Search);
   }
+  const data = (await response.json()) as AudiomackSearchResponse;
+  return data.results ?? [];
 }
 
 async function fetchTrackPage(artistSlug: string, trackSlug: string): Promise<NormalizedTrack | null> {
   // Fetch track page for OG tags as fallback
   const url = `https://audiomack.com/${artistSlug}/song/${trackSlug}`;
   const response = await audiomackFetch(url);
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Track, `${artistSlug}/${trackSlug}`);
+  }
 
   const html = await response.text();
 
@@ -181,7 +183,10 @@ function mapAlbumResult(album: AudiomackAlbumResult): NormalizedAlbum {
 async function fetchAlbumPage(artistSlug: string, albumSlug: string): Promise<NormalizedAlbum | null> {
   const url = `https://audiomack.com/${artistSlug}/album/${albumSlug}`;
   const response = await audiomackFetch(url);
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Album, `${artistSlug}/${albumSlug}`);
+  }
 
   const html = await response.text();
   const ogTitle = /<meta\s+(?:property|name)="og:title"\s+content="([^"]*)"[^>]*>/i.exec(html)?.[1];
@@ -210,14 +215,11 @@ async function fetchAlbumPage(artistSlug: string, albumSlug: string): Promise<No
 async function searchAudiomackAlbums(query: string): Promise<AudiomackAlbumResult[]> {
   const searchUrl = `https://api.audiomack.com/v1/music/search?q=${encodeURIComponent(query)}&show=albums&limit=5`;
   const response = await audiomackFetch(searchUrl);
-  if (!response.ok) return [];
-
-  try {
-    const data = (await response.json()) as AudiomackAlbumSearchResponse;
-    return data.results ?? [];
-  } catch {
-    return [];
+  if (!response.ok) {
+    throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Album, query, Operation.Search);
   }
+  const data = (await response.json()) as AudiomackAlbumSearchResponse;
+  return data.results ?? [];
 }
 
 export const audiomackAdapter: ServiceAdapter = {
@@ -254,51 +256,46 @@ export const audiomackAdapter: ServiceAdapter = {
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = searchText(query);
 
-    try {
-      const songs = await searchSongs(q);
-      if (songs.length === 0) {
-        log.debug("Audiomack", "Search returned no results for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Audiomack", `Search returned ${songs.length} results for: ${q}`);
-
-      let bestMatch: NormalizedTrack | null = null;
-      let bestConfidence = 0;
-
-      for (let i = 0; i < songs.length; i++) {
-        const song = songs[i];
-        if (!song.id || !song.title) continue;
-
-        const track = mapSong(song);
-        const confidence = scoreSearchCandidate(query, track, i);
-
-        log.debug(
-          "Audiomack",
-          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-        );
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        log.debug("Audiomack", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return {
-        found: true,
-        track: bestMatch,
-        confidence: bestConfidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("Audiomack", "Search failed:", error instanceof Error ? error.message : error);
+    const songs = await searchSongs(q);
+    if (songs.length === 0) {
+      log.debug("Audiomack", "Search returned no results for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Audiomack", `Search returned ${songs.length} results for: ${q}`);
+
+    let bestMatch: NormalizedTrack | null = null;
+    let bestConfidence = 0;
+
+    for (let i = 0; i < songs.length; i++) {
+      const song = songs[i];
+      if (!song.id || !song.title) continue;
+
+      const track = mapSong(song);
+      const confidence = scoreSearchCandidate(query, track, i);
+
+      log.debug(
+        "Audiomack",
+        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = track;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("Audiomack", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
   },
 
   albumCapabilities: {
@@ -323,36 +320,31 @@ export const audiomackAdapter: ServiceAdapter = {
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
-    try {
-      const results = await searchAudiomackAlbums(q);
-      if (results.length === 0) {
-        log.debug("Audiomack", "Album search returned no results for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Audiomack", `Album search returned ${results.length} results for: ${q}`);
-
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
-
-      for (const r of results) {
-        if (!r.id || !r.title) continue;
-        const album = mapAlbumResult(r);
-        const confidence = scoreAlbumCandidate(query, album);
-        log.debug("Audiomack", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = album;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("Audiomack", "Album search failed:", error instanceof Error ? error.message : error);
+    const results = await searchAudiomackAlbums(q);
+    if (results.length === 0) {
+      log.debug("Audiomack", "Album search returned no results for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Audiomack", `Album search returned ${results.length} results for: ${q}`);
+
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const r of results) {
+      if (!r.id || !r.title) continue;
+      const album = mapAlbumResult(r);
+      const confidence = scoreAlbumCandidate(query, album);
+      log.debug("Audiomack", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = album;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

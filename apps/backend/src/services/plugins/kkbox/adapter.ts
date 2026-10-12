@@ -37,11 +37,19 @@
  * Failure of the track-listing call is tolerated (empty array
  * fallback); the album still resolves but without per-track ISRCs,
  * so downstream ISRC-based inference skips it.
+ *
+ * ## Failure versus no match
+ *
+ * A lookup or search answers "nothing" only when KKBOX answered with an
+ * empty list. An error status, a body that is not JSON and a body without
+ * the requested list all throw, because the resolver records a returned
+ * miss and skips the service for that track for a month.
  */
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
+import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
@@ -98,13 +106,6 @@ interface KkboxTrackResponse {
   };
 }
 
-interface KkboxSearchResponse {
-  tracks?: {
-    data: KkboxTrackResponse[];
-    paging?: { offset: number; limit: number; total?: number };
-  };
-}
-
 interface KkboxAlbumTrack {
   id: string;
   name: string;
@@ -128,12 +129,6 @@ interface KkboxAlbumResponse {
   total_tracks?: number;
 }
 
-interface KkboxAlbumSearchResponse {
-  albums?: {
-    data: KkboxAlbumResponse[];
-  };
-}
-
 interface KkboxArtistResponse {
   id: string;
   name: string;
@@ -141,11 +136,8 @@ interface KkboxArtistResponse {
   images?: Array<{ url: string; width: number; height: number }>;
 }
 
-interface KkboxArtistSearchResponse {
-  artists?: {
-    data: KkboxArtistResponse[];
-  };
-}
+/** The `type` values of a KKBOX search that this adapter uses. */
+type KkboxSearchType = "track" | "album" | "artist";
 
 /** Reset token cache. For testing only. */
 export function _resetTokenCache(): void {
@@ -212,7 +204,10 @@ function mapAlbum(raw: KkboxAlbumResponse, tracks?: KkboxAlbumTrack[]): Normaliz
 async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const territory = getTerritory();
   const response = await kkboxFetch(`/albums/${encodeURIComponent(albumId)}?territory=${territory}`);
-  if (!response.ok) return null;
+  // A 404 means KKBOX has no such album, which is an answer. Any other error
+  // status is a failure.
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.KKBox, response.status, ResourceKind.Album, albumId);
 
   const album: KkboxAlbumResponse = await response.json();
 
@@ -242,13 +237,60 @@ async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   return mapAlbum(album, tracks);
 }
 
-async function searchKkboxAlbums(query: string): Promise<KkboxAlbumResponse[]> {
-  const territory = getTerritory();
-  const response = await kkboxFetch(`/search?q=${encodeURIComponent(query)}&type=album&territory=${territory}&limit=5`);
-  if (!response.ok) return [];
+/**
+ * Reads the list a KKBOX search answered with.
+ *
+ * KKBOX documents `data` as required on every list of a search answer, so a
+ * search without matches carries an empty `data`. A body without the list is
+ * not that answer.
+ *
+ * @param response - A successful search response.
+ * @param type - The `type` the search asked for, which names the list as `tracks`, `albums` or `artists`.
+ * @param query - The search text, for the error message.
+ * @returns The items of the list, empty when nothing matched.
+ * @throws {UpstreamUnavailableError} When the body is not JSON or has no list.
+ */
+async function readSearchList<T>(response: Response, type: KkboxSearchType, query: string): Promise<T[]> {
+  const listName = `${type}s` as const;
 
-  const data: KkboxAlbumSearchResponse = await response.json();
-  return data.albums?.data ?? [];
+  let body: Partial<Record<typeof listName, { data?: unknown }>> | null;
+  try {
+    body = await response.json();
+  } catch (error) {
+    throw new UpstreamUnavailableError(Service.KKBox, `search for "${query}" answered a body that is not JSON`, error);
+  }
+
+  const items = body?.[listName]?.data;
+  if (!Array.isArray(items)) {
+    throw new UpstreamUnavailableError(Service.KKBox, `search for "${query}" answered without the ${listName} list`);
+  }
+  return items as T[];
+}
+
+/**
+ * Runs a KKBOX search for one kind of result.
+ *
+ * @param query - The search text, which is the ISRC for an ISRC lookup.
+ * @param type - What to search for, which is also the list the answer carries.
+ * @param kind - What the search is for, which an error names.
+ * @param operation - Which lookup the search serves, which an error names.
+ * @returns The matches, an empty list when KKBOX found none.
+ * @throws When the request fails, answers with an error status, or answers
+ *   with a body that is not JSON or lacks the list, because each of those is
+ *   a failure rather than a search without matches.
+ */
+async function searchKkbox<T>(
+  query: string,
+  type: KkboxSearchType,
+  kind: ResourceKind,
+  operation: Operation,
+): Promise<T[]> {
+  const response = await kkboxFetch(
+    `/search?q=${encodeURIComponent(query)}&type=${type}&territory=${getTerritory()}&limit=5`,
+  );
+  if (!response.ok) throw serviceHttpError(Service.KKBox, response.status, kind, query, operation);
+
+  return readSearchList<T>(response, type, query);
 }
 
 export const kkboxAdapter = {
@@ -278,18 +320,15 @@ export const kkboxAdapter = {
   },
 
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
-    const territory = getTerritory();
-    const response = await kkboxFetch(
-      `/search?q=${encodeURIComponent(isrc)}&type=track&territory=${territory}&limit=5`,
+    // KKBOX searches the ISRC field only behind the `isrc:` prefix
+    // (`q=isrc:TWB670602208` in its OpenAPI description); a bare code is a
+    // text search that rarely finds the track.
+    const tracks = await searchKkbox<KkboxTrackResponse>(
+      `isrc:${isrc}`,
+      "track",
+      ResourceKind.Track,
+      Operation.IsrcLookup,
     );
-
-    if (!response.ok) {
-      log.debug("KKBOX", "ISRC lookup failed:", response.status);
-      return null;
-    }
-
-    const data: KkboxSearchResponse = await response.json();
-    const tracks = data.tracks?.data ?? [];
 
     if (tracks.length === 0) {
       log.debug("KKBOX", "ISRC not found:", isrc);
@@ -297,7 +336,7 @@ export const kkboxAdapter = {
     }
 
     // Find exact ISRC match in search results
-    const match = tracks.find((t) => t.isrc === isrc);
+    const match = tracks.find((candidate) => candidate.isrc === isrc);
     if (!match) {
       log.debug("KKBOX", "ISRC not found in results:", isrc);
       return null;
@@ -307,18 +346,9 @@ export const kkboxAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const territory = getTerritory();
     const q = searchText(query);
 
-    const response = await kkboxFetch(`/search?q=${encodeURIComponent(q)}&type=track&territory=${territory}&limit=5`);
-
-    if (!response.ok) {
-      log.debug("KKBOX", "Search API failed:", response.status);
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const data: KkboxSearchResponse = await response.json();
-    const items = data.tracks?.data ?? [];
+    const items = await searchKkbox<KkboxTrackResponse>(q, "track", ResourceKind.Track, Operation.Search);
 
     if (items.length === 0) {
       log.debug("KKBOX", `Search returned no tracks for: ${q}`);
@@ -377,44 +407,51 @@ export const kkboxAdapter = {
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
 
-    try {
-      const results = await searchKkboxAlbums(q);
-      if (results.length === 0) {
-        log.debug("KKBOX", `Album search returned no results for: ${q}`);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("KKBOX", `Album search returned ${results.length} results for: ${q}`);
-
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
-
-      for (const raw of results) {
-        const candidate = mapAlbum(raw);
-        const confidence = scoreAlbumCandidate(query, candidate);
-        log.debug("KKBOX", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = candidate;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      // Fetch full album with track listing for the best match
-      const fullAlbum = await getAlbumById(bestMatch.sourceId);
-      return {
-        found: true,
-        album: fullAlbum ?? bestMatch,
-        confidence: bestConfidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("KKBOX", "Album search failed:", error instanceof Error ? error.message : error);
+    const results = await searchKkbox<KkboxAlbumResponse>(q, "album", ResourceKind.Album, Operation.Search);
+    if (results.length === 0) {
+      log.debug("KKBOX", `Album search returned no results for: ${q}`);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("KKBOX", `Album search returned ${results.length} results for: ${q}`);
+
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const raw of results) {
+      const candidate = mapAlbum(raw);
+      const confidence = scoreAlbumCandidate(query, candidate);
+      log.debug("KKBOX", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = candidate;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    // The search already found the album, so a failed fetch of its track
+    // listing keeps the search result instead of turning the match into a failure.
+    const fullAlbum = await getAlbumById(bestMatch.sourceId).catch((error: unknown) => {
+      log.deviation(
+        {
+          component: "KKBOX",
+          errorCode: "MC-API-0004",
+          operation: "album_search_enrichment",
+          outcome: "search_result_kept",
+        },
+        error,
+      );
+      return null;
+    });
+    return {
+      found: true,
+      album: fullAlbum ?? bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
   },
   // --- Artist support ---
 
@@ -449,16 +486,7 @@ export const kkboxAdapter = {
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
     const territory = getTerritory();
-    const response = await kkboxFetch(
-      `/search?q=${encodeURIComponent(query.name)}&type=artist&territory=${territory}&limit=5`,
-    );
-
-    if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const data: KkboxArtistSearchResponse = await response.json();
-    const items = data.artists?.data ?? [];
+    const items = await searchKkbox<KkboxArtistResponse>(query.name, "artist", ResourceKind.Artist, Operation.Search);
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };

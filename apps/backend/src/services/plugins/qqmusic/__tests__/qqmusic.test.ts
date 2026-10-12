@@ -20,8 +20,11 @@ describe("QQ Music: detectUrl", () => {
 });
 
 describe("QQ Music: searchTrack", () => {
+  // Shaped like QQ Music's answer on 2026-10-12: the envelope and the module
+  // both carry `code: 0` when the search ran.
   it("should find track with search API", async () => {
     const mockResponse = {
+      code: 0,
       "music.search.SearchCgiService": {
         data: {
           body: {
@@ -53,6 +56,7 @@ describe("QQ Music: searchTrack", () => {
 
   it("should return not found for empty results", async () => {
     const mockResponse = {
+      code: 0,
       "music.search.SearchCgiService": {
         data: { body: { song: { list: [] } } },
         code: 0,
@@ -65,11 +69,28 @@ describe("QQ Music: searchTrack", () => {
     expect(result.found).toBe(false);
   });
 
-  it("should return not found on HTTP error", async () => {
+  /**
+   * An error status or a non-zero `code` is an outage. Answering "not found"
+   * would make the resolver skip QQ Music for that track for a month.
+   */
+  it("throws on an error status", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
-    const result = await qqmusicAdapter.searchTrack({ title: "Test", artist: "Test" });
-    expect(result.found).toBe(false);
+    await expect(qqmusicAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/500/);
+  });
+
+  it("throws when QQ Music refuses the call with a non-zero code", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({ code: 500001, ts: 1791824180694 }));
+
+    await expect(qqmusicAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/500001/);
+  });
+
+  it("throws when the album search fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 503 }));
+
+    await expect(qqmusicAdapter.searchAlbum?.({ title: "Hunting High and Low", artist: "a-ha" })).rejects.toThrow(
+      /503/,
+    );
   });
 });
 
