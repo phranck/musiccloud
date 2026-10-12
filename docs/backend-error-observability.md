@@ -27,7 +27,7 @@ Only an explicit backend 404 across both content and share namespaces redirects 
 
 The browser-facing content proxy preserves the upstream status and complete error JSON. It does not convert backend failures to empty bodies or generic 404/503 responses.
 
-Every sentence a visitor reads comes from the registry in `packages/shared/src/error-codes.ts`. The landing page renders the registry sentence for a code the registry knows, and the response's `message` for any other code. A failure the site's own routes produce, such as a missing parameter or an unreachable backend, is built with `createApiErrorBody` from `packages/shared/src/api.ts`, so it carries a code and an `errorId` like a backend failure. The site reads every error body with `parseApiErrorResponse`, which keeps only the fields that are present and well typed.
+Every sentence a visitor reads comes from the registry in `packages/shared/src/error-codes.ts`. The landing page renders the registry sentence for a code the registry knows, and the response's `message` for any other code. A failure the site's or the developer portal's own routes produce, such as a missing parameter, an unknown proxy path or an unreachable backend, is built with `createApiErrorBody` from `packages/shared/src/api.ts`, so it carries a code and an `errorId` like a backend failure. The site, the developer portal and the dashboard read error bodies with `parseApiErrorResponse`, which keeps only the fields that are present and well typed.
 
 ## Structured backend logs
 

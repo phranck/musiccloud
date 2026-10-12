@@ -11,6 +11,7 @@ import {
   NavigationSystemKey,
   NavigationTargetKind,
   NavTarget,
+  parseApiErrorResponse,
   type SingleNavigationArea,
 } from "@musiccloud/shared";
 import { backendUrl, internalHeaders } from "./api";
@@ -69,13 +70,9 @@ function syntheticFailure(status: number, message: string, code = "MC-SYS-0001")
 }
 
 function errorPayload(value: unknown, status: number): EditorialFailure | null {
-  if (typeof value !== "object" || value === null) return null;
-  if (!("error" in value) || !("errorId" in value) || !("message" in value)) return null;
-  if (typeof value.error !== "string" || typeof value.errorId !== "string" || typeof value.message !== "string") {
-    return null;
-  }
-  if (!value.error || !value.errorId || !value.message) return null;
-  return { code: value.error, errorId: value.errorId, message: value.message, status };
+  const body = parseApiErrorResponse(value);
+  if (!body.error || !body.errorId || !body.message) return null;
+  return { code: body.error, errorId: body.errorId, message: body.message, status };
 }
 
 async function responsePayload(response: Response): Promise<unknown> {

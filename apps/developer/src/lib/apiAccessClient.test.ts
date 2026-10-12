@@ -61,3 +61,34 @@ describe("the API-access transport", () => {
     expect(lastInit(fetchMock).credentials).toBe("same-origin");
   });
 });
+
+describe("a refused API-access request", () => {
+  it("carries the code, the message, the error ID and the wait from the error body", async () => {
+    stubFetch(429, {
+      error: "MC-API-0003",
+      message: "Too many requests. (MC-API-0003)",
+      errorId: "err-rate",
+      context: { limit: 10, windowSeconds: 60, retryAfterSeconds: 5 },
+    });
+
+    await expect(listDeveloperProjects()).resolves.toEqual({
+      ok: false,
+      status: 429,
+      code: "MC-API-0003",
+      message: "Too many requests. (MC-API-0003)",
+      errorId: "err-rate",
+      retryAfterSeconds: 5,
+    });
+  });
+
+  it("leaves every field unset for a body that is not an error body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<html>Bad Gateway</html>", { status: 502 })),
+    );
+
+    const result = await listDeveloperProjects();
+
+    expect(result).toEqual({ ok: false, status: 502 });
+  });
+});

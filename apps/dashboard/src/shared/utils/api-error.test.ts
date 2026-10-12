@@ -21,4 +21,25 @@ describe("createApiRequestError", () => {
       details: [{ section: "pages", index: 0, message: "reserved" }],
     });
   });
+
+  it("leaves a missing field empty and takes the caller's fallback message", async () => {
+    const error = await createApiRequestError(
+      {
+        status: 502,
+        json: async () => {
+          throw new SyntaxError("Unexpected token '<'");
+        },
+      },
+      "The page could not be saved.",
+    );
+
+    expect(error).toMatchObject({
+      message: "The page could not be saved.",
+      status: 502,
+      responseMessage: null,
+      errorCode: null,
+      errorId: null,
+      details: null,
+    });
+  });
 });
