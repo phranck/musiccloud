@@ -7,17 +7,15 @@
  * for its skeletons, so a fast load never flashes it. Astro's island loader
  * fetches without a timeout and keeps the fallback silently when the island
  * answers anything but a page (a component error, a props key from another
- * build, a network failure). After {@link SHARE_ISLAND_TIMEOUT_MS} the spinner
- * therefore gives way to a message and a reload button, so a failed island
- * never leaves the visitor looking at a logo. The timeout sits above the 20 s
- * the island itself gives the backend (`fetchShareData`), because within that
- * budget the island answers with an error page of its own.
+ * build, a network failure). After a timeout the spinner therefore gives way
+ * to a message and a reload button, so a failed island never leaves the
+ * visitor looking at a logo. The script and its timeout live in
+ * `lib/inline-scripts.ts`.
  */
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { commonCopy } from "@/copy/common";
 import { shareCopy } from "@/copy/share";
-
-const SHARE_ISLAND_TIMEOUT_MS = 25000;
+import { SHARE_LOADING_TIMEOUT_SCRIPT } from "@/lib/inline-scripts";
 ---
 
 <div class="mc-share-loading" data-share-loading role="status">
@@ -33,14 +31,4 @@ const SHARE_ISLAND_TIMEOUT_MS = 25000;
   </div>
 </div>
 
-<script is:inline define:vars={{ timeoutMs: SHARE_ISLAND_TIMEOUT_MS }}>
-  (function () {
-    var state = document.querySelector("[data-share-loading]");
-    if (!state) return;
-    var reload = state.querySelector("[data-share-reload]");
-    if (reload) reload.addEventListener("click", function () { location.reload(); });
-    setTimeout(function () {
-      if (state.isConnected) state.setAttribute("data-timed-out", "true");
-    }, timeoutMs);
-  })();
-</script>
+<script is:inline set:html={SHARE_LOADING_TIMEOUT_SCRIPT}></script>

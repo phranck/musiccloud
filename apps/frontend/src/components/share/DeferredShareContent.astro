@@ -71,21 +71,15 @@ const pageTitle = notFound
 const artworkUrl = contentPage ? null : (ccPageProps?.artworkUrl ?? shareView?.artworkUrl);
 ---
 
-{notFound && <script is:inline>window.location.replace("/404");</script>}
+{/* Markers, not scripts: this island's markup comes from its own response, whose
+    inline scripts the page's content policy does not name. The page acts on
+    them through `lib/share/share-island-document.ts`. */}
+{notFound && <div hidden data-share-not-found></div>}
 
 {routeError && <ShareErrorShell client:load error={routeError} labels={errorLabels} />}
 
 {!notFound && !routeError && pageTitle && (
-  <script is:inline define:vars={{ pageTitle, artworkUrl: artworkUrl ?? null }}>
-    document.title = pageTitle;
-    if (artworkUrl) {
-      var link = document.createElement("link");
-      link.rel = "preload";
-      link.as = "image";
-      link.href = artworkUrl;
-      document.head.appendChild(link);
-    }
-  </script>
+  <div hidden data-share-document data-title={pageTitle} data-artwork={artworkUrl ?? undefined}></div>
 )}
 
 {!notFound && !routeError && contentPage && contentPage.displayMode === "fullscreen" && (

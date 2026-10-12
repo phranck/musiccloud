@@ -1,9 +1,10 @@
 ---
-import { ENDPOINTS, SITE_ORIGIN } from "@musiccloud/shared";
+import { SITE_ORIGIN } from "@musiccloud/shared";
 import { fetchCcRandomExample, fetchNavigation, fetchRandomExample } from "@/api/client";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { SHARE_REDIRECT_SCRIPT } from "@/lib/inline-scripts";
 
 // Independent calls, requested together: the first byte waits for the slowest
 // of them, not for their sum.
@@ -57,15 +58,8 @@ const shareImageUrl = `${SITE_ORIGIN.site}/og/musiccloud.jpg`;
     })} />
   </Fragment>
 
-  <!-- Redirect ?share=<streaming-url> to the share page via the backend. Runs before React hydration.
-       The param name must not be "url" because Vite's dev server intercepts `/?url=...` as an
-       asset-URL import query and returns 403 before Astro can handle the request. -->
-  <script is:inline define:vars={{ redirectEndpoint: ENDPOINTS.frontend.redirect }}>
-    (function () {
-      var u = new URLSearchParams(location.search).get("share");
-      if (u) location.replace(redirectEndpoint + "?url=" + encodeURIComponent(u));
-    })();
-  </script>
+  <!-- Redirect ?share=<streaming-url> to the share page before React hydration. See `lib/inline-scripts.ts`. -->
+  <script is:inline set:html={SHARE_REDIRECT_SCRIPT}></script>
 
   <div class="min-h-dvh flex flex-col">
     <LandingPage client:idle footerNav={footerNav} exampleShortId={exampleShortId} ccExampleShortId={ccExampleShortId} />

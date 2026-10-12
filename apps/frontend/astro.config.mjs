@@ -22,4 +22,8 @@ export default defineConfig({
     },
   },
   site: SITE_ORIGIN.site,
+  // Astro hashes every script and style it emits into a `content-security-policy`
+  // header. The middleware replaces it with the site's complete policy, which
+  // carries those hashes.
+  experimental: { csp: true },
 });

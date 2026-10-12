@@ -29,6 +29,7 @@ import ShareResultPlaceholder from "@/components/share/ShareResultPlaceholder.as
 import { ShareLayout } from "@/components/share/ShareLayout";
 import { commonCopy } from "@/copy/common";
 import { shareCopy } from "@/copy/share";
+import { SHARE_MEDIA_VIEW_SCRIPT } from "@/lib/inline-scripts";
 import { isBot } from "@/lib/isBot";
 import { resolveShortRouteResults } from "@/lib/share/short-route-result";
 import BaseLayout from "@/layouts/BaseLayout.astro";
@@ -125,16 +126,7 @@ if (treatAsBot) {
   preloadImage={treatAsBot ? (artworkUrl ?? undefined) : undefined}
 >
   <Fragment slot="head">
-    <script is:inline>
-      (function () {
-        try {
-          var view = window.localStorage.getItem("musiccloud:share-media-view");
-          if (view === "cover" || view === "turntable") {
-            document.documentElement.dataset.shareMediaView = view;
-          }
-        } catch (e) {}
-      })();
-    </script>
+    <script is:inline set:html={SHARE_MEDIA_VIEW_SCRIPT}></script>
   </Fragment>
 
   {treatAsBot && og && (
@@ -255,6 +247,12 @@ if (treatAsBot) {
 
     <DeferredFooter server:defer />
   </div>
+
+  <script>
+    // Acts on the markers the deferred share content leaves. A bot render has none.
+    import { watchShareIslandMarkers } from "@/lib/share/share-island-document";
+    watchShareIslandMarkers();
+  </script>
 
   {/* Always-on overlay host so nav clicks on overlay-mode pages open
       client-side without a full reload. Bot path needs it here (symmetric

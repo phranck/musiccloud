@@ -4,9 +4,8 @@ import { prefersReducedMotion, setupMotion } from "./setup";
 
 /**
  * GSAP-driven page transitions on Astro's ClientRouter lifecycle (plan
- * MC-029 Task 3.1). The default view-transition animation is disabled in
- * `BaseLayout.astro` (`transition:animate="none"` on the body); these
- * listeners take over:
+ * MC-029 Task 3.1). The browser's own view transition of the page swaps
+ * instantly (`styles/global.css`), and these listeners take over:
  *
  * - `astro:before-preparation` — the OUT phase. Astro exposes the document
  *   loader on the event for exactly this wrapping pattern; the wrapped
@@ -118,12 +117,36 @@ function animatePageIn(): void {
   );
 }
 
+/** The loader script Astro writes for every server island on a page. */
+const SERVER_ISLAND_SCRIPT_SELECTOR = "script[data-island-id]";
+
+/**
+ * Whether the next page brings its content through a server island, which
+ * means it has to be loaded in full rather than swapped in.
+ *
+ * A swap runs the next page's scripts under the current page's content policy.
+ * An island's loader script carries values Astro encrypts for each render, so
+ * no policy written before that render can name it, and the browser refuses
+ * it: the page would arrive without its content. A full load gives the page
+ * its own policy, which does name it. Cancelling the preparation is how
+ * Astro's router hands the navigation to the browser.
+ *
+ * @param nextDocument - The parsed next page, or the current one when the
+ *   load did not produce a document.
+ * @returns `true` when the next page holds a server island.
+ */
+export function loadsThroughServerIsland(nextDocument: Document): boolean {
+  return nextDocument !== document && nextDocument.querySelector(SERVER_ISLAND_SCRIPT_SELECTOR) !== null;
+}
+
 /**
  * Installs the ClientRouter lifecycle listeners. Called once from the
  * BaseLayout module script (which runs once per real page load — module
  * scripts are not re-executed on ClientRouter swaps, and document-level
  * listeners survive them). Idempotent via a document-level flag so HMR or a
- * second import cannot stack duplicate listeners.
+ * second import cannot stack duplicate listeners. A next page that holds a
+ * server island is loaded in full after the out tween, see
+ * {@link loadsThroughServerIsland}.
  */
 export function initPageTransitions(): void {
   setupMotion();
@@ -132,12 +155,13 @@ export function initPageTransitions(): void {
   holder[INIT_FLAG] = true;
 
   document.addEventListener("astro:before-preparation", (event) => {
-    const preparation = event as Event & { loader: () => Promise<void> };
+    const preparation = event as Event & { loader: () => Promise<void>; newDocument: Document };
     const originalLoader = preparation.loader;
     preparation.loader = async function wrappedLoader(this: unknown, ...args: []) {
       const out = animatePageOut();
       // Animation and document load run concurrently; the swap waits for both.
       await Promise.all([out, originalLoader.apply(this, args)]);
+      if (loadsThroughServerIsland(preparation.newDocument)) preparation.preventDefault();
     };
   });
 
