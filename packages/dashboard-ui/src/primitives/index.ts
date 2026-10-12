@@ -6,6 +6,7 @@ export * from "./fieldPrimitiveClasses.js";
 export * from "./ListboxOption.js";
 export * from "./ListboxPopover.js";
 export * from "./ListboxPrimitives.js";
+export * from "./loadUsageChartFigure.js";
 export * from "./SegmentedControlPrimitive.js";
 export * from "./SegmentedControlPrimitiveTypes.js";
 export * from "./UsageChart.js";

@@ -15,6 +15,7 @@ import path from "node:path";
 import { UsageChart } from "@musiccloud/dashboard-ui";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { preloadUsageChart } from "./preloadUsageChart";
 
 const POINTS = [
   { startedAt: "2026-08-30T13:00:00.000Z", total: 500 },
@@ -27,32 +28,22 @@ const CHART_SOURCE = readFileSync(
   "utf8",
 );
 
-/**
- * How long to wait for the chart's own chunk.
- *
- * The drawing half arrives through `React.lazy`, so the figure appears once
- * that chunk resolves rather than on the first render. The default second is
- * enough on an idle machine and not enough under `pnpm test:run`, where five
- * workspaces build and run at once: the wait then times out and the suite reads
- * as flaky, which is worse than one slow test because it teaches everybody to
- * wave a red run through.
- */
-const CHUNK_WAIT = { timeout: 10_000 };
+preloadUsageChart();
 
 describe("UsageChart", () => {
   it("describes what it shows for a reader who cannot see it", async () => {
     render(<UsageChart points={POINTS} bucket="hour" label="1,200 requests in the last day" />);
 
     // The drawing half arrives through `lazy`, so the figure appears once the
-    // chunk has resolved rather than on the first render.
-    const figure = await screen.findByRole("figure", {}, CHUNK_WAIT);
+    // already loaded chunk has resolved rather than on the first render.
+    const figure = await screen.findByRole("figure");
     expect(figure.getAttribute("aria-label")).toBe("1,200 requests in the last day");
   });
 
   it("carries the class name each surface paints against", async () => {
     const { container } = render(<UsageChart points={POINTS} bucket="hour" label="usage" />);
 
-    await screen.findByRole("figure", {}, CHUNK_WAIT);
+    await screen.findByRole("figure");
     expect(container.querySelector(".mc-usage-chart")).not.toBeNull();
   });
 

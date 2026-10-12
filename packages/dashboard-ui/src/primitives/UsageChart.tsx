@@ -1,14 +1,9 @@
 import { lazy, Suspense } from "react";
+import { loadUsageChartFigure } from "./loadUsageChartFigure.js";
 import { UsageChartClass, type UsageChartProps } from "./usageChartContract.js";
 
-/**
- * The drawing half, loaded when a chart is actually rendered.
- *
- * The charting library is the heaviest thing either app depends on, and most
- * screens draw nothing. Splitting it here keeps it out of every bundle that
- * merely imports something else from this package.
- */
-const UsageChartFigure = lazy(() => import("./UsageChartFigure.js"));
+/** The drawing half, loaded when a chart is first rendered. */
+const UsageChartFigure = lazy(loadUsageChartFigure);
 
 /**
  * A bar chart of API requests over time.

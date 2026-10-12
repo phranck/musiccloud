@@ -10,6 +10,9 @@ vi.mock("@/features/developer/api", async (importOriginal) => ({
 }));
 
 import { ProjectUsageSection } from "./ProjectUsageSection";
+import { preloadUsageChart } from "./preloadUsageChart";
+
+preloadUsageChart();
 
 /** A usage report the tests override piece by piece. */
 function makeUsage(overrides: Record<string, unknown> = {}) {
