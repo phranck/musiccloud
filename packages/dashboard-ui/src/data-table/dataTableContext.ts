@@ -5,7 +5,7 @@ import {
   type ReactNode,
   useContext,
 } from "react";
-import type { SortState } from "./useTableSort.js";
+import type { SortState } from "../dashboard/tableSort.js";
 
 /**
  * Which of the four mutually exclusive things a table is showing. Every state
@@ -43,7 +43,19 @@ export interface ColumnDef<T> {
   className?: string;
   headerClassName?: string;
   cellClassName?: string;
+  /**
+   * The value the table sorts this column on in the browser. Read only while
+   * the table holds its own sort, and a column without it has no sort control
+   * there.
+   */
   sortKey?: (row: T) => string | number;
+  /**
+   * The name the server sorts this column under, sent as `sortBy`. Read only
+   * while the caller holds the sort through `onSortChange`, and a column
+   * without it has no sort control there, because a sort over the loaded rows
+   * alone would not be the order of the whole list.
+   */
+  serverSort?: string;
 }
 
 /**
@@ -66,6 +78,8 @@ export interface DataTableContextValue<T> {
   getRowKey: (row: T) => string | number;
   getRowClassName?: (row: T) => string;
   sort: SortState | null;
+  /** The ids of the columns whose header carries a sort control. */
+  sortableColumnIds: ReadonlySet<string>;
   toggleSort: (columnId: string) => void;
   columnWidths: Record<string, number>;
   startResize: (event: ReactMouseEvent, leftColumnIndex: number) => void;

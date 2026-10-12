@@ -1,6 +1,6 @@
 import { type ComponentType, type HTMLAttributes, type ReactNode, useCallback, useMemo } from "react";
 import { TableSortHeader } from "../dashboard/DashboardControls.js";
-import { getTableSortAriaSort } from "../dashboard/tableSort.js";
+import { getTableSortAriaSort, type SortState } from "../dashboard/tableSort.js";
 
 import {
   type ColumnDef,
@@ -12,7 +12,7 @@ import {
   useDataTable,
 } from "./dataTableContext.js";
 import { useColumnWidths } from "./useColumnWidths.js";
-import { type SortState, useTableSort } from "./useTableSort.js";
+import { useTableSort } from "./useTableSort.js";
 
 export type { ColumnDef, DataTableRowProps } from "./dataTableContext.js";
 export { DataTableScroll, DataTableState } from "./dataTableContext.js";
@@ -22,10 +22,18 @@ interface DataTableProps<T> {
   data: T[];
   getRowKey: (row: T) => string | number;
   getRowClassName?: (row: T) => string;
-  /** Which column the table sorts by before anybody clicks a header. */
+  /** Which column the table sorts by before anybody clicks a header, while it holds its own sort. */
   defaultSort?: SortState | null;
   /** Whether a third click on the same header returns the rows to their given order. */
   allowUnsorted?: boolean;
+  /** The sort the caller holds. Read only together with `onSortChange`. */
+  sort?: SortState | null;
+  /**
+   * Receives the sort a header click leads to, which makes the caller the
+   * holder of the sort. The rows then render in the order given, and a column
+   * is sortable when it names a `serverSort`.
+   */
+  onSortChange?: (sort: SortState | null) => void;
   /** Overrides the row element, for instance with a drag-and-drop wrapper. */
   RowComponent?: ComponentType<DataTableRowProps<T>>;
   /**
@@ -52,8 +60,13 @@ interface DataTableProps<T> {
  * @param getRowKey - Returns the React key of a row.
  * @param getRowClassName - Returns extra classes for a row, for selection or
  *   for a row on its way out.
- * @param defaultSort - The sort applied before any header is clicked.
+ * @param defaultSort - The sort applied before any header is clicked, while
+ *   the table holds its own sort.
  * @param allowUnsorted - Whether the sort cycle includes the unsorted step.
+ * @param sort - The sort the caller holds, read with `onSortChange`.
+ * @param onSortChange - Receives the next sort on a header click. Given, the
+ *   caller holds the sort and orders the rows itself, so the table renders
+ *   them as given and offers a sort only on columns with a `serverSort`.
  * @param RowComponent - Replaces the default row element.
  * @param state - What the table is showing, if the caller tracks loading and
  *   errors itself.
@@ -66,6 +79,8 @@ export function DataTable<T>({
   getRowClassName,
   defaultSort = null,
   allowUnsorted = true,
+  sort: callerSort,
+  onSortChange,
   RowComponent,
   state,
   errorMessage,
@@ -74,11 +89,28 @@ export function DataTable<T>({
   const columnIds = useMemo(() => columns.map((column) => column.id), [columns]);
   const { columnWidths, startResize } = useColumnWidths(columnIds);
 
+  const callerHoldsSort = onSortChange !== undefined;
+  const sortableColumnIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const column of columns) {
+      const sortable = callerHoldsSort ? column.serverSort !== undefined : column.sortKey !== undefined;
+      if (sortable) ids.add(column.id);
+    }
+    return ids;
+  }, [columns, callerHoldsSort]);
   const getSortKey = useCallback(
     (columnId: string) => columns.find((column) => column.id === columnId)?.sortKey,
     [columns],
   );
-  const { sort, toggleSort, sortedRows } = useTableSort({ rows: data, defaultSort, allowUnsorted, getSortKey });
+  const { sort, toggleSort, sortedRows } = useTableSort({
+    rows: data,
+    defaultSort,
+    allowUnsorted,
+    sortableColumnIds,
+    getSortKey,
+    sort: callerSort,
+    onSortChange,
+  });
 
   const resolvedState = state ?? (data.length === 0 ? DataTableState.Empty : DataTableState.Ready);
 
@@ -89,6 +121,7 @@ export function DataTable<T>({
       getRowKey,
       getRowClassName,
       sort,
+      sortableColumnIds,
       toggleSort,
       columnWidths,
       startResize,
@@ -102,6 +135,7 @@ export function DataTable<T>({
       getRowKey,
       getRowClassName,
       sort,
+      sortableColumnIds,
       toggleSort,
       columnWidths,
       startResize,
@@ -193,49 +227,50 @@ function DataTableViewport({ scroll = DataTableScroll.Ancestor, className = "", 
  *   whilst the rows pass underneath.
  */
 function DataTableHead({ sticky = false }: { sticky?: boolean }) {
-  const { columns, sort, toggleSort, columnWidths, startResize } = useDataTable();
+  const { columns, sort, sortableColumnIds, toggleSort, columnWidths, startResize } = useDataTable();
 
   return (
     <thead className={`text-left ${sticky ? "sticky top-0 z-10 shadow-[0_1px_0_var(--ds-border)]" : ""}`}>
       <tr className="hover:bg-transparent">
-        {columns.map((column, index) => (
-          <th
-            key={column.id}
-            aria-sort={column.sortKey ? getTableSortAriaSort(sort?.id === column.id ? sort.dir : null) : undefined}
-            className={`section-header px-4 ${column.headerClassName ?? column.className ?? ""} ${
-              column.sortKey ? "select-none" : ""
-            }`}
-            style={
-              columnWidths[column.id]
-                ? { width: columnWidths[column.id], minWidth: columnWidths[column.id] }
-                : undefined
-            }
-          >
-            <div className="relative -mx-1 px-1">
-              {column.sortKey ? (
-                <TableSortHeader
-                  direction={sort?.id === column.id ? sort.dir : null}
-                  onClick={() => toggleSort(column.id)}
-                >
-                  {column.header}
-                </TableSortHeader>
-              ) : (
-                column.header
-              )}
-              {index < columns.length - 1 && (
-                <>
-                  <div
-                    role="presentation"
-                    onMouseDown={(event) => startResize(event, index)}
-                    className="absolute top-0 right-[-6px] h-full w-3 cursor-col-resize z-20"
-                    aria-hidden
-                  />
-                  <div className="absolute top-1/2 -translate-y-1/2 right-0 h-4 w-px bg-[var(--ds-border-strong)] opacity-0 pointer-events-none" />
-                </>
-              )}
-            </div>
-          </th>
-        ))}
+        {columns.map((column, index) => {
+          const sortable = sortableColumnIds.has(column.id);
+          const direction = sort?.id === column.id ? sort.dir : null;
+          return (
+            <th
+              key={column.id}
+              aria-sort={sortable ? getTableSortAriaSort(direction) : undefined}
+              className={`section-header px-4 ${column.headerClassName ?? column.className ?? ""} ${
+                sortable ? "select-none" : ""
+              }`}
+              style={
+                columnWidths[column.id]
+                  ? { width: columnWidths[column.id], minWidth: columnWidths[column.id] }
+                  : undefined
+              }
+            >
+              <div className="relative -mx-1 px-1">
+                {sortable ? (
+                  <TableSortHeader direction={direction} onClick={() => toggleSort(column.id)}>
+                    {column.header}
+                  </TableSortHeader>
+                ) : (
+                  column.header
+                )}
+                {index < columns.length - 1 && (
+                  <>
+                    <div
+                      role="presentation"
+                      onMouseDown={(event) => startResize(event, index)}
+                      className="absolute top-0 right-[-6px] h-full w-3 cursor-col-resize z-20"
+                      aria-hidden
+                    />
+                    <div className="absolute top-1/2 -translate-y-1/2 right-0 h-4 w-px bg-[var(--ds-border-strong)] opacity-0 pointer-events-none" />
+                  </>
+                )}
+              </div>
+            </th>
+          );
+        })}
       </tr>
     </thead>
   );

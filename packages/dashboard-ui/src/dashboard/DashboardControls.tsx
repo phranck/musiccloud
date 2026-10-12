@@ -12,7 +12,7 @@ import {
 } from "../primitives/FieldPrimitives.js";
 import type { SegmentedControlPrimitiveProps } from "../primitives/SegmentedControlPrimitive.js";
 import { SegmentedControlPrimitive } from "../primitives/SegmentedControlPrimitive.js";
-import { type TableSortDirection, TableSortDirectionValue } from "./tableSort.js";
+import { SortDirection } from "./tableSort.js";
 
 export type DashboardFieldProps = FieldShellProps;
 
@@ -92,7 +92,8 @@ export function DashboardTextarea({
 
 export interface TableSortHeaderProps extends Omit<ComponentPropsWithoutRef<"button">, "children"> {
   children: ReactNode;
-  direction?: TableSortDirection;
+  /** The column's direction, or `null` while another column or none is sorted. */
+  direction?: SortDirection | null;
 }
 
 export function TableSortHeader({
@@ -114,13 +115,9 @@ export function TableSortHeader({
   );
 }
 
-function TableSortIcon({ direction }: { direction: TableSortDirection }) {
+function TableSortIcon({ direction }: { direction: SortDirection | null }) {
   const Icon =
-    direction === TableSortDirectionValue.Asc
-      ? CaretUpIcon
-      : direction === TableSortDirectionValue.Desc
-        ? CaretDownIcon
-        : CaretUpDownIcon;
+    direction === SortDirection.Asc ? CaretUpIcon : direction === SortDirection.Desc ? CaretDownIcon : CaretUpDownIcon;
 
   return <Icon weight="duotone" className={cx("w-3 h-3 shrink-0", direction === null && "opacity-40")} />;
 }
