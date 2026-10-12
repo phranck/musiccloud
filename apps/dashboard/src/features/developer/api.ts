@@ -1,9 +1,10 @@
 import type {
+  ApiTier,
   BillingPeriodValue,
   CreemModeValue,
-  OfferCurrencyValue,
-  TaxCategoryValue,
-  TaxModeValue,
+  CreemProductMapping,
+  SellingModeReadiness,
+  TierOffer,
 } from "@musiccloud/shared";
 import {
   type ApiClientStatusValue,
@@ -303,46 +304,23 @@ export function fetchDeveloperAccounts(): Promise<{ accounts: DeveloperAccountRe
   return api.get<{ accounts: DeveloperAccountResponse[] }>(ENDPOINTS.admin.developer.accounts);
 }
 
-export interface TierResponse {
-  id: string;
-  name: string;
-  requestsPerMinute: number;
-  requestsPerDay: number;
-  attributionRequired: boolean;
-  color: string;
-  /** Iconsax icon name for the tier (one of the shared `TIER_ICONS`), or `null` for none. */
-  icon: string | null;
-  /** Custom label for the pricing-card CTA button, or `null` to use the portal default. */
-  buttonLabel: string | null;
-  description: string;
-  enabled: boolean;
-  disableReason: string;
-  /** Whether this tier is the highlighted "recommended" one on the pricing page. At most one tier is recommended at a time (server-enforced); may be none. */
-  recommended: boolean;
-  sortOrder: number;
-  /** Ordered feature labels shown on the public pricing card. At most 12 non-empty strings. */
-  features: string[];
-  createdAt: number;
-  updatedAt: number;
-}
-
 /**
  * A plan as the admin plan list returns it, with its offers.
  *
  * The offers are the plan's price, one per billing period, so a plan with none
  * is free.
  */
-export type TierListItem = TierResponse & { offers: TierOffer[] };
+export type TierListItem = ApiTier & { offers: TierOffer[] };
 
 export function fetchTiers(): Promise<TierListItem[]> {
   return api.get<TierListItem[]>(ENDPOINTS.admin.developer.tiers);
 }
 
 export function createTier(
-  body: Pick<TierResponse, "name" | "requestsPerMinute" | "requestsPerDay"> &
+  body: Pick<ApiTier, "name" | "requestsPerMinute" | "requestsPerDay"> &
     Partial<
       Pick<
-        TierResponse,
+        ApiTier,
         | "attributionRequired"
         | "color"
         | "icon"
@@ -355,15 +333,15 @@ export function createTier(
         | "features"
       >
     >,
-): Promise<TierResponse> {
-  return api.post<TierResponse>(ENDPOINTS.admin.developer.tiers, body);
+): Promise<ApiTier> {
+  return api.post<ApiTier>(ENDPOINTS.admin.developer.tiers, body);
 }
 
 export function updateTier(
   id: string,
   body: Partial<
     Pick<
-      TierResponse,
+      ApiTier,
       | "name"
       | "requestsPerMinute"
       | "requestsPerDay"
@@ -379,23 +357,12 @@ export function updateTier(
       | "features"
     >
   >,
-): Promise<TierResponse> {
-  return api.patch<TierResponse>(ENDPOINTS.admin.developer.tierDetail(id), body);
+): Promise<ApiTier> {
+  return api.patch<ApiTier>(ENDPOINTS.admin.developer.tierDetail(id), body);
 }
 
 export function deleteTier(id: string): Promise<void> {
   return api.delete(ENDPOINTS.admin.developer.tierDetail(id));
-}
-
-/** One tier's Creem product in one environment. */
-export interface CreemProductMapping {
-  tierId: string;
-  /** The offer's billing period, in Creem's own spelling. */
-  billingPeriod: BillingPeriodValue;
-  /** Which Creem environment holds this product. */
-  mode: CreemModeValue;
-  /** The Creem product id. */
-  creemProductId: string;
 }
 
 /**
@@ -468,20 +435,11 @@ export function archiveCreemProduct(
   return api.delete(ENDPOINTS.admin.developer.creemProductDetail(tierId, billingPeriod, mode));
 }
 
-/** Whether one Creem environment could be sold from, and what is missing if not. */
-export interface CreemModeReadiness {
-  mode: CreemModeValue;
-  /** Whether this deployment holds an API key for that environment. */
-  hasKey: boolean;
-  /** Buyable plans that have no product there yet, named for the operator. */
-  missingProducts: string[];
-}
-
 /** Which environment the shop sells from, and what each one would need. */
 export interface CreemSellingModeResponse {
   sellingMode: CreemModeValue;
   configuredModes: CreemModeValue[];
-  readiness: CreemModeReadiness[];
+  readiness: SellingModeReadiness[];
 }
 
 export function fetchCreemSellingMode(): Promise<CreemSellingModeResponse> {
@@ -499,39 +457,6 @@ export function fetchCreemSellingMode(): Promise<CreemSellingModeResponse> {
  */
 export function updateCreemSellingMode(sellingMode: CreemModeValue): Promise<CreemSellingModeResponse> {
   return api.patch<CreemSellingModeResponse>(ENDPOINTS.admin.developer.creemSellingMode, { sellingMode });
-}
-
-/** One extra question asked at the Creem checkout. */
-export interface OfferCustomField {
-  key: string;
-  label: string;
-  optional: boolean;
-}
-
-/**
- * What a plan costs, as one thing a customer can buy.
- *
- * This is exactly what Creem calls a product, so every field Creem accepts has
- * a home here rather than being invented when the product is created.
- */
-export interface TierOffer {
-  id: string;
-  tierId: string;
-  billingPeriod: BillingPeriodValue;
-  /** The amount in the smallest currency unit, which is what Creem takes. */
-  priceCents: number;
-  currency: OfferCurrencyValue;
-  /** `null` leaves the decision to Creem. */
-  taxMode: TaxModeValue | null;
-  /** `null` leaves the decision to Creem. */
-  taxCategory: TaxCategoryValue | null;
-  imageUrl: string | null;
-  successUrl: string | null;
-  customFields: OfferCustomField[];
-  abandonedCartRecovery: boolean;
-  payWhatYouWant: boolean;
-  suggestedPriceCents: number | null;
-  sortOrder: number;
 }
 
 /** The fields an offer is created with. The rest take their default. */

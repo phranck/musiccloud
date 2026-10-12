@@ -1,7 +1,8 @@
 /**
  * @file The billing vocabulary: the periods Creem sells over, the currency and
  * the tax settings an offer carries, the two Creem environments, and the
- * states of a project's subscription.
+ * states of a project's subscription. Beside it stand the shapes built from
+ * it: an offer, a Creem product mapping and the selling readiness.
  *
  * The database checks, the backend routes and the admin dashboard read these
  * values from here, so a value the database accepts is one every interface
@@ -102,4 +103,72 @@ export const SUBSCRIPTION_STATUSES: readonly SubscriptionStatusValue[] = Object.
 /** Whether a request value is a {@link SubscriptionStatus}. */
 export function isSubscriptionStatus(value: unknown): value is SubscriptionStatusValue {
   return belongsTo(SUBSCRIPTION_STATUSES, value);
+}
+
+/** One extra question asked at the Creem checkout. */
+export interface OfferCustomField {
+  key: string;
+  label: string;
+  optional: boolean;
+}
+
+/**
+ * What a plan costs, as one thing a customer can buy.
+ *
+ * This is exactly what Creem calls a product, so every field Creem accepts has
+ * a home here rather than being invented when the product is created.
+ */
+export interface TierOffer {
+  id: string;
+  tierId: string;
+  billingPeriod: BillingPeriodValue;
+  /** The amount in the smallest currency unit, which is what Creem takes. */
+  priceCents: number;
+  currency: OfferCurrencyValue;
+  /** `null` leaves the decision to Creem. */
+  taxMode: TaxModeValue | null;
+  /** `null` leaves the decision to Creem. */
+  taxCategory: TaxCategoryValue | null;
+  imageUrl: string | null;
+  successUrl: string | null;
+  customFields: OfferCustomField[];
+  abandonedCartRecovery: boolean;
+  /** Only meaningful on a `once` offer. */
+  payWhatYouWant: boolean;
+  suggestedPriceCents: number | null;
+  sortOrder: number;
+}
+
+/**
+ * One plan's Creem product in one environment, as `tier_creem_products` holds
+ * it.
+ *
+ * The link lives on our side because Creem products carry no metadata field,
+ * which `creem@1.5.3` and `docs.creem.io` confirmed on 2026-07-09. Keeping it
+ * in our own table also means a change of payment provider needs no
+ * back-references seeded at the provider.
+ */
+export interface CreemProductMapping {
+  /** The plan, such as `tier_club`. */
+  tierId: string;
+  /** The offer's billing period, in Creem's own spelling. */
+  billingPeriod: BillingPeriodValue;
+  /**
+   * The Creem environment this product lives in. Test and live are separate
+   * accounts, so the same plan and period carries a different product id in
+   * each, and a product id is only meaningful against its own environment.
+   */
+  mode: CreemModeValue;
+  /** The product id Creem returned when the product was created. */
+  creemProductId: string;
+}
+
+/** Whether the shop could sell from one Creem environment right now, and what stands in the way. */
+export interface SellingModeReadiness {
+  /** The environment. */
+  mode: CreemModeValue;
+  /** Whether this deployment holds an API key for it. */
+  hasKey: boolean;
+  /** The plans and periods that have no product there, labelled for an operator. */
+  missingProducts: string[];
 }

@@ -13,7 +13,8 @@ import { ApiContent } from "@/components/docs/ApiContent";
 import { PlanPanel } from "@/components/dashboard/PlanPanel";
 import { backendUrl, internalHeaders } from "@/lib/api";
 import { DashboardTab } from "@/lib/dashboardTabs";
-import { type PublicTier, toPlanOptions } from "@/lib/planOptions";
+import type { PublicTier } from "@musiccloud/shared";
+import { toPlanOptions } from "@/lib/planOptions";
 import { getDeveloperSession } from "@/lib/session";
 import { ENDPOINTS } from "@musiccloud/shared";
 

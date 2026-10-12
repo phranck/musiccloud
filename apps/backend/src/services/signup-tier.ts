@@ -9,8 +9,8 @@
  * free and enabled.
  */
 
+import type { ApiTier, TierOffer } from "@musiccloud/shared";
 import { getTierRepository } from "../db/index.js";
-import type { Tier, TierOffer } from "../db/tiers-repository.js";
 
 /**
  * The canonical id of the free tier as seeded in migration
@@ -32,7 +32,7 @@ export const TIER_FREE_ID = "tier_free";
  * @param offers - Offers of any plans; only those of `tier` count.
  * @returns `true` when the plan has no offer.
  */
-export function isFreeTier(tier: Pick<Tier, "id">, offers: readonly Pick<TierOffer, "tierId">[]): boolean {
+export function isFreeTier(tier: Pick<ApiTier, "id">, offers: readonly Pick<TierOffer, "tierId">[]): boolean {
   return !offers.some((offer) => offer.tierId === tier.id);
 }
 
@@ -48,7 +48,7 @@ export function isFreeTier(tier: Pick<Tier, "id">, offers: readonly Pick<TierOff
  * @returns `true` when the plan is enabled and free.
  */
 export function isSelfServiceAssignableTier(
-  tier: Pick<Tier, "id" | "enabled">,
+  tier: Pick<ApiTier, "id" | "enabled">,
   offers: readonly Pick<TierOffer, "tierId">[],
 ): boolean {
   return tier.enabled && isFreeTier(tier, offers);
@@ -60,7 +60,7 @@ export function isSelfServiceAssignableTier(
  *
  * @returns The plans in catalogue order and all offers.
  */
-async function readPlansWithOffers(): Promise<{ tiers: Tier[]; offers: TierOffer[] }> {
+async function readPlansWithOffers(): Promise<{ tiers: ApiTier[]; offers: TierOffer[] }> {
   const repo = await getTierRepository();
   const [tiers, offers] = await Promise.all([repo.listTiers(), repo.listAllOffers()]);
   return { tiers, offers };
@@ -71,7 +71,7 @@ async function readPlansWithOffers(): Promise<{ tiers: Tier[]; offers: TierOffer
  *
  * @returns Every enabled plan without an offer.
  */
-export async function listSelfServiceAssignableTiers(): Promise<Tier[]> {
+export async function listSelfServiceAssignableTiers(): Promise<ApiTier[]> {
   const { tiers, offers } = await readPlansWithOffers();
   return tiers.filter((tier) => isSelfServiceAssignableTier(tier, offers));
 }

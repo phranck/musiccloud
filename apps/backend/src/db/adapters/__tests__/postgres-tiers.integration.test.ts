@@ -1,6 +1,7 @@
+import type { ApiTier } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Tier, TierCreateData } from "../../tiers-repository.js";
+import type { TierCreateData } from "../../tiers-repository.js";
 import { PostgresTierRepository } from "../postgres-tiers.js";
 
 /**
@@ -43,7 +44,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tiers recommended invariant (integra
     return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
   }
 
-  async function createTracked(data: Partial<TierCreateData> = {}): Promise<Tier> {
+  async function createTracked(data: Partial<TierCreateData> = {}): Promise<ApiTier> {
     const tier = await repo.createTier({
       name: unique("mc106-tier"),
       requestsPerMinute: 60,
@@ -54,7 +55,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tiers recommended invariant (integra
     return tier;
   }
 
-  async function recommendedTiers(): Promise<Tier[]> {
+  async function recommendedTiers(): Promise<ApiTier[]> {
     return (await repo.listTiers()).filter((t) => t.recommended);
   }
 

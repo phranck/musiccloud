@@ -6,6 +6,7 @@ import {
   DataTable,
   DataTableScroll,
 } from "@musiccloud/dashboard-ui";
+import type { ApiTier } from "@musiccloud/shared";
 import {
   DEFAULT_TIER_COLOR,
   isRequestLimit,
@@ -33,7 +34,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { TierListItem, TierResponse } from "@/features/developer/api";
+import type { TierListItem } from "@/features/developer/api";
 import { TierFeatureBulletsEditor } from "@/features/developer/components/TierFeatureBulletsEditor";
 import { TierIconGlyph, TierIconPicker } from "@/features/developer/components/TierIconPicker";
 import { type FormFeatureBullet, toFeatureLabels } from "@/features/developer/featureBullets";
@@ -628,7 +629,7 @@ export function TierEditorPage() {
   // Editing a plan is a page of its own, because a plan carries an unbounded
   // list of offers and every field Creem accepts. The dialog is left with the
   // one thing a page cannot do, which is bring a plan into being.
-  const openEdit = useCallback((tier: TierResponse) => navigate(`/developer/plans/${tier.id}`), [navigate]);
+  const openEdit = useCallback((tier: ApiTier) => navigate(`/developer/plans/${tier.id}`), [navigate]);
   const confirmDelete = useCallback((id: string) => dispatch({ type: TierEditorActionType.ConfirmDelete, id }), []);
 
   const columns = useTierColumns(dm, cm, openEdit, confirmDelete);

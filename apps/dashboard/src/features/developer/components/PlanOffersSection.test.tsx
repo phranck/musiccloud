@@ -16,8 +16,8 @@ vi.mock("@/features/developer/api", async (importOriginal) => ({
   deletePlanOffer: mocks.deletePlanOffer,
 }));
 
+import type { TierOffer } from "@musiccloud/shared";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { TierOffer } from "@/features/developer/api";
 import { PlanOffersSection } from "./PlanOffersSection";
 
 const dm = dashboardCopy.developer;

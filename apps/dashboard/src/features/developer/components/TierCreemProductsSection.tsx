@@ -4,6 +4,7 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
+import type { ApiTier, CreemProductMapping, TierOffer } from "@musiccloud/shared";
 import { CreemMode, type CreemModeValue } from "@musiccloud/shared";
 import { CurrencyEur as CurrencyEurIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
@@ -11,7 +12,6 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { CreemProductMapping, TierOffer, TierResponse } from "@/features/developer/api";
 import {
   useArchiveCreemProduct,
   useCreateCreemProduct,
@@ -27,7 +27,7 @@ const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /** Props for {@link TierCreemProductRow}. */
 interface TierCreemProductRowProps {
-  tier: TierResponse;
+  tier: ApiTier;
   /** The offer this row is about. Every row corresponds to one. */
   offer: TierOffer;
   /** The environment on show, which every action here acts in. */
@@ -171,7 +171,7 @@ function TierCreemProductRow({ tier, offer, mode, mapping, writable }: TierCreem
 /** Props for {@link TierCreemProductsSection}. */
 export interface TierCreemProductsSectionProps {
   /** The plan whose products are shown. */
-  tier: TierResponse;
+  tier: ApiTier;
   /** Its offers. Every row of this section corresponds to one of them. */
   offers: TierOffer[];
 }

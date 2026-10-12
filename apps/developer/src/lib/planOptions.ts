@@ -9,20 +9,7 @@
  * says why.
  */
 
-/** A plan as the public catalogue serves it. Only the fields this screen reads. */
-export interface PublicTier {
-  id: string;
-  name: string;
-  requestsPerMinute: number;
-  requestsPerDay: number;
-  enabled: boolean;
-  /** Whether the plan costs nothing. */
-  free: boolean;
-  /** Whether a developer may put a project on it themselves. */
-  selfServiceAssignable: boolean;
-  /** The operator's own reason for a plan that is not offered, or an empty string. */
-  disableReason?: string;
-}
+import type { PublicTier } from "@musiccloud/shared";
 
 /** A plan as the plan step describes it. */
 export interface PlanOption {
@@ -57,6 +44,6 @@ export function toPlanOptions(tiers: readonly PublicTier[]): PlanOption[] {
       ? ""
       : tier.enabled && !tier.free
         ? PAID_PLAN_REASON
-        : tier.disableReason?.trim() || DISABLED_PLAN_REASON,
+        : tier.disableReason.trim() || DISABLED_PLAN_REASON,
   }));
 }

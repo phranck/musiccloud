@@ -1,4 +1,5 @@
 import { DashboardActionId } from "@musiccloud/dashboard-ui";
+import type { SellingModeReadiness } from "@musiccloud/shared";
 import { CreemMode, type CreemModeValue } from "@musiccloud/shared";
 import { CreditCard as CreditCardIcon } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
@@ -6,7 +7,6 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { CreemModeReadiness } from "@/features/developer/api";
 import { useCreemSellingMode, useUpdateCreemSellingMode } from "@/features/developer/hooks/useDeveloperData";
 import { CREEM_MODE_OPTIONS, creemModeLabel } from "@/features/developer/offerFormat";
 
@@ -22,7 +22,7 @@ const dm = messages.developer;
  * @param readiness - What the server reported about that environment.
  * @returns The reason, or `null` when the environment is ready.
  */
-function blockingReason(readiness: CreemModeReadiness | undefined): string | null {
+function blockingReason(readiness: SellingModeReadiness | undefined): string | null {
   if (!readiness) return null;
   if (!readiness.hasKey) return dm.creemSellingNoKey.replaceAll("{mode}", creemModeLabel(readiness.mode));
   if (readiness.missingProducts.length > 0) {

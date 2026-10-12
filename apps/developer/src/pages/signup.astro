@@ -25,7 +25,8 @@ import { SignupForm } from "@/components/auth/SignupForm";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { backendUrl } from "@/lib/api";
 import { getDeveloperSession } from "@/lib/session";
-import { type SignupCatalogueTier, type SignupTier, selectSignupTier } from "@/lib/signupTier";
+import type { PublicTier } from "@musiccloud/shared";
+import { type SignupTier, selectSignupTier } from "@/lib/signupTier";
 import { ENDPOINTS } from "@musiccloud/shared";
 
 export const prerender = false;
@@ -42,7 +43,7 @@ let selectedTier: SignupTier | null = null;
 try {
   const res = await fetch(backendUrl(ENDPOINTS.v1.tiers));
   if (res.ok) {
-    selectedTier = selectSignupTier((await res.json()) as SignupCatalogueTier[], tierParam);
+    selectedTier = selectSignupTier((await res.json()) as PublicTier[], tierParam);
   }
 } catch {
   // The backend is unreachable. Fail safe: redirect to /pricing below.

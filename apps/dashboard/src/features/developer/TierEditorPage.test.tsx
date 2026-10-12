@@ -10,8 +10,9 @@ vi.mock("@/features/developer/api", async (importOriginal) => ({
   fetchTiers: mocks.fetchTiers,
 }));
 
+import type { TierOffer } from "@musiccloud/shared";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { TierListItem, TierOffer } from "@/features/developer/api";
+import type { TierListItem } from "@/features/developer/api";
 import { formatOfferPrice, periodLabel } from "@/features/developer/offerFormat";
 import { TierEditorPage } from "./TierEditorPage";
 

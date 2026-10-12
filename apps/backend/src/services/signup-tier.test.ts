@@ -6,10 +6,10 @@
  * a price: an absent, unknown or priced request resolves to `tier_free`.
  */
 
+import type { ApiTier, TierOffer } from "@musiccloud/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
 import { getTierRepository } from "../db/index.js";
-import type { Tier, TierOffer, TierRepository } from "../db/tiers-repository.js";
+import type { TierRepository } from "../db/tiers-repository.js";
 import {
   isFreeTier,
   isSelfServiceAssignableTier,
@@ -29,7 +29,7 @@ vi.mock("../db/index.js", () => ({
  * @param overrides - Partial tier fields to override the defaults.
  * @returns A fully populated tier DTO.
  */
-function makeTier(overrides: Partial<Tier> = {}): Tier {
+function makeTier(overrides: Partial<ApiTier> = {}): ApiTier {
   return {
     id: "tier_free",
     name: "Free",
@@ -57,7 +57,7 @@ function makeTier(overrides: Partial<Tier> = {}): Tier {
  * @param tiers - Plans to return from `listTiers()`.
  * @param offers - Offers to return from `listAllOffers()`; none by default.
  */
-function mockListTiers(tiers: Tier[], offers: Array<Pick<TierOffer, "tierId">> = []): void {
+function mockListTiers(tiers: ApiTier[], offers: Array<Pick<TierOffer, "tierId">> = []): void {
   vi.mocked(getTierRepository).mockResolvedValue({
     listTiers: vi.fn(async () => tiers),
     listAllOffers: vi.fn(async () => offers),

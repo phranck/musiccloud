@@ -2,8 +2,8 @@
  * @file Unit tests for the Creem price enrichment helper (MC-114).
  */
 
+import type { ApiTier, TierOffer } from "@musiccloud/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Tier, TierOffer } from "../db/tiers-repository.js";
 import { requireCreemApiKey } from "../lib/creem-config.js";
 
 vi.mock("./creem-catalog.js", async (importOriginal) => ({
@@ -42,7 +42,7 @@ function makeOffer(tierId: string, billingPeriod: string, priceCents: number): T
 }
 
 /** Builds a minimal Tier for tests, overriding only the relevant fields. */
-function makeTier(overrides: Partial<Tier>): Tier {
+function makeTier(overrides: Partial<ApiTier>): ApiTier {
   return {
     id: "tier_x",
     name: "X",

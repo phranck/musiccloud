@@ -19,13 +19,13 @@ vi.mock("@/features/developer/api", async (importOriginal) => ({
   fetchCreemProducts: mocks.fetchCreemProducts,
 }));
 
+import type { ApiTier, TierOffer } from "@musiccloud/shared";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { TierOffer, TierResponse } from "@/features/developer/api";
 import { PlanDetailPage } from "./PlanDetailPage";
 
 const dm = dashboardCopy.developer;
 
-function makePlan(overrides: Partial<TierResponse> = {}): TierResponse {
+function makePlan(overrides: Partial<ApiTier> = {}): ApiTier {
   return {
     id: "tier_club",
     name: "Club",

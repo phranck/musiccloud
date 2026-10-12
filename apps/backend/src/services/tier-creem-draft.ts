@@ -8,8 +8,8 @@
  * are paying for.
  */
 
+import type { ApiTier, TierOffer } from "@musiccloud/shared";
 import { BillingPeriod, type BillingPeriodValue } from "@musiccloud/shared";
-import type { Tier, TierOffer } from "../db/tiers-repository.js";
 import type { CreemProductDraft } from "./creem-products.js";
 
 /** The word that appears in the product name and description per period. */
@@ -44,7 +44,7 @@ export function creemProductName(tierName: string, period: BillingPeriodValue): 
  * @param offer - What is being sold.
  * @returns The draft to send to Creem.
  */
-export function draftCreemProductForOffer(tier: Tier, offer: TierOffer): CreemProductDraft {
+export function draftCreemProductForOffer(tier: ApiTier, offer: TierOffer): CreemProductDraft {
   const label = PERIOD_LABEL[offer.billingPeriod];
   return {
     name: creemProductName(tier.name, offer.billingPeriod),

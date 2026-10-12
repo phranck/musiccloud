@@ -1,4 +1,4 @@
-import type { BillingPeriodValue, CreemModeValue } from "@musiccloud/shared";
+import type { BillingPeriodValue, CreemModeValue, TierOffer } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type ApiAccessOverview,
@@ -28,7 +28,6 @@ import {
   fetchTiers,
   type ProjectUsageResponse,
   type TierListItem,
-  type TierOffer,
   type TierOfferCreate,
   updateCreemProductPrice,
   updateCreemSellingMode,

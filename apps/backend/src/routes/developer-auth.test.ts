@@ -25,13 +25,13 @@
 
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
+import type { ApiTier } from "@musiccloud/shared";
 import { EmailAction, EmailRecipientKind, ENDPOINTS, MAX_DISPLAY_NAME_LENGTH } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { DeveloperAccount, DeveloperEmailToken, DeveloperRepository } from "../db/developer-repository.js";
 import { getDeveloperRepository, getTierRepository } from "../db/index.js";
-import type { Tier, TierRepository } from "../db/tiers-repository.js";
+import type { TierRepository } from "../db/tiers-repository.js";
 import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
 import authPlugin from "../plugins/auth.js";
 import { hashEmailToken, hashPassword, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
@@ -233,7 +233,7 @@ beforeEach(() => {
  * @param overrides - Partial tier fields to override the defaults.
  * @returns A fully populated tier DTO.
  */
-function makeTier(overrides: Partial<Tier> = {}): Tier {
+function makeTier(overrides: Partial<ApiTier> = {}): ApiTier {
   return {
     id: "tier-pro",
     name: "Pro",

@@ -8,8 +8,8 @@
  * yearly euro string, either of them `null` when that period is not sold.
  */
 
+import type { ApiTier, TierOffer } from "@musiccloud/shared";
 import { BillingPeriod, type BillingPeriodValue } from "@musiccloud/shared";
-import type { Tier, TierOffer } from "../db/tiers-repository.js";
 import { CreemKeyMissingError } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { type CreemCatalog, CreemPriceOutcome, getCreemCatalog } from "./creem-catalog.js";
@@ -23,7 +23,7 @@ import { type CreemCatalog, CreemPriceOutcome, getCreemCatalog } from "./creem-c
  * @property priceYearly - The yearly price in the same shape, or `null` when
  *   the plan sells nothing yearly.
  */
-export type PricedTier = Tier & { price: string | null; priceYearly: string | null };
+export type PricedTier = ApiTier & { price: string | null; priceYearly: string | null };
 
 /**
  * Formats an integer cent amount as the euro string the public tier list
@@ -59,7 +59,7 @@ export function centsToEuroString(cents: number): string {
  *   it judges the same tiers by the same offers.
  * @returns The tiers with their prices.
  */
-export async function enrichTiersWithCreemPrices(tiers: Tier[], offers: TierOffer[]): Promise<PricedTier[]> {
+export async function enrichTiersWithCreemPrices(tiers: ApiTier[], offers: TierOffer[]): Promise<PricedTier[]> {
   let catalog: CreemCatalog;
   try {
     catalog = await getCreemCatalog();
@@ -105,7 +105,7 @@ export async function enrichTiersWithCreemPrices(tiers: Tier[], offers: TierOffe
  * @param catalog - The live prices, empty when Creem could not be read.
  * @returns The plans with their displayed prices.
  */
-function priceFromOffers(tiers: Tier[], offers: TierOffer[], catalog: CreemCatalog): PricedTier[] {
+function priceFromOffers(tiers: ApiTier[], offers: TierOffer[], catalog: CreemCatalog): PricedTier[] {
   return tiers.map((tier) => {
     const own = offers.filter((offer) => offer.tierId === tier.id);
     const live = catalog[tier.id];

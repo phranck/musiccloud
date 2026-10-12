@@ -12,7 +12,7 @@
  * an operator is looking at; this says what a customer pays.
  */
 
-import { CreemMode, type CreemModeValue } from "@musiccloud/shared";
+import { CREEM_MODES, CreemMode, type CreemModeValue, type SellingModeReadiness } from "@musiccloud/shared";
 import { getTierRepository } from "../db/index.js";
 import { configuredCreemModes } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
@@ -88,16 +88,6 @@ export async function sellablePlanProducts(): Promise<{ label: string; modes: Cr
   return needed;
 }
 
-/** Whether the shop could sell from one environment right now, and what stands in the way. */
-export interface SellingModeReadiness {
-  /** The environment. */
-  mode: CreemModeValue;
-  /** Whether this deployment holds a key for it. */
-  hasKey: boolean;
-  /** The plans and intervals that have no product there, labelled for an operator. */
-  missingProducts: string[];
-}
-
 /**
  * Which environments could be sold from right now, and what is missing in the
  * ones that could not.
@@ -111,7 +101,7 @@ export interface SellingModeReadiness {
 export async function sellingModeReadiness(): Promise<SellingModeReadiness[]> {
   const configured = configuredCreemModes();
   const needed = await sellablePlanProducts();
-  return Object.values(CreemMode).map((mode) => ({
+  return CREEM_MODES.map((mode) => ({
     mode,
     hasKey: configured.includes(mode),
     missingProducts: needed.filter((entry) => !entry.modes.includes(mode)).map((entry) => entry.label),

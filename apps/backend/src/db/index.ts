@@ -91,4 +91,4 @@ export type {
   SharePageDbResult,
   TrackRepository,
 } from "./repository.js";
-export type { Tier, TierCreateData, TierRepository, TierUpdateData } from "./tiers-repository.js";
+export type { TierCreateData, TierRepository, TierUpdateData } from "./tiers-repository.js";

@@ -1,14 +1,11 @@
+import type { PublicTier } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
-import { type SignupCatalogueTier, selectSignupTier } from "./signupTier";
+import { makePublicTier } from "./__fixtures__/public-tier";
+import { selectSignupTier } from "./signupTier";
 
-function makeTier(overrides: Partial<SignupCatalogueTier> = {}): SignupCatalogueTier {
-  return {
-    id: "tier_free",
-    name: "Free",
-    color: "#38bdf8",
-    selfServiceAssignable: true,
-    ...overrides,
-  };
+/** A catalogue plan with the accent color the signup form carries over. */
+function makeTier(overrides: Partial<PublicTier> = {}): PublicTier {
+  return makePublicTier({ color: "#38bdf8", ...overrides });
 }
 
 describe("selectSignupTier", () => {

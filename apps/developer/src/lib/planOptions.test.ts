@@ -1,25 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { type PublicTier, toPlanOptions } from "./planOptions";
-
-function makeTier(overrides: Partial<PublicTier> = {}): PublicTier {
-  return {
-    id: "tier_free",
-    name: "Free",
-    requestsPerMinute: 60,
-    requestsPerDay: 10000,
-    enabled: true,
-    free: true,
-    selfServiceAssignable: true,
-    disableReason: "",
-    ...overrides,
-  };
-}
+import { makePublicTier } from "./__fixtures__/public-tier";
+import { toPlanOptions } from "./planOptions";
 
 describe("toPlanOptions", () => {
   it("takes assignability from the catalogue rather than deciding it here", () => {
     const [free, pro] = toPlanOptions([
-      makeTier(),
-      makeTier({ id: "tier_pro", name: "Pro", free: false, selfServiceAssignable: false }),
+      makePublicTier(),
+      makePublicTier({ id: "tier_pro", name: "Pro", free: false, selfServiceAssignable: false }),
     ]);
 
     expect(free?.assignable).toBe(true);
@@ -29,7 +16,7 @@ describe("toPlanOptions", () => {
 
   it("says a plan with a price is waiting on billing, because the catalogue calls it not free", () => {
     const [pro] = toPlanOptions([
-      makeTier({ id: "tier_pro", name: "Pro", enabled: true, free: false, selfServiceAssignable: false }),
+      makePublicTier({ id: "tier_pro", name: "Pro", enabled: true, free: false, selfServiceAssignable: false }),
     ]);
 
     expect(pro?.unavailableReason).toBe("Not available yet. Paid plans arrive with billing.");
@@ -37,7 +24,7 @@ describe("toPlanOptions", () => {
 
   it("prefers the operator's own reason for a plan that is not offered", () => {
     const [retired] = toPlanOptions([
-      makeTier({
+      makePublicTier({
         id: "tier_legacy",
         name: "Legacy",
         enabled: false,
@@ -52,7 +39,7 @@ describe("toPlanOptions", () => {
 
   it("falls back to a plain reason when a disabled plan publishes none", () => {
     const [retired] = toPlanOptions([
-      makeTier({
+      makePublicTier({
         id: "tier_legacy",
         name: "Legacy",
         enabled: false,

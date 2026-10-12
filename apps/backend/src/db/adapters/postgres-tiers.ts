@@ -1,19 +1,19 @@
 import {
+  type ApiTier,
   type BillingPeriodValue,
   type CreemModeValue,
+  type CreemProductMapping,
   DEFAULT_TIER_COLOR,
   type OfferCurrencyValue,
+  type OfferCustomField,
+  type TierOffer,
 } from "@musiccloud/shared";
 import { nanoid } from "nanoid";
 import type { Pool } from "pg";
 import { log } from "../../lib/infra/logger.js";
 import type {
-  OfferCustomField,
-  Tier,
   TierCreateData,
   TierCreemProductKey,
-  TierCreemProductMapping,
-  TierOffer,
   TierOfferCreateData,
   TierOfferUpdateData,
   TierRepository,
@@ -40,7 +40,7 @@ interface TierRow {
   updated_at: Date;
 }
 
-function toTier(row: TierRow): Tier {
+function toTier(row: TierRow): ApiTier {
   return {
     id: row.id,
     name: row.name,
@@ -123,7 +123,7 @@ function toOffer(row: TierOfferRow): TierOffer {
  * `chk_tier_creem_products_mode` check constraint, so the cast reflects what
  * the database already guarantees.
  */
-function toCreemProductMapping(row: TierCreemProductMappingRow): TierCreemProductMapping {
+function toCreemProductMapping(row: TierCreemProductMappingRow): CreemProductMapping {
   return {
     tierId: row.tier_id,
     billingPeriod: row.interval as BillingPeriodValue,
@@ -139,12 +139,12 @@ export class PostgresTierRepository implements TierRepository {
     this.#pool = pool;
   }
 
-  async listTiers(): Promise<Tier[]> {
+  async listTiers(): Promise<ApiTier[]> {
     const { rows } = await this.#pool.query<TierRow>("SELECT * FROM tiers ORDER BY sort_order ASC");
     return rows.map(toTier);
   }
 
-  async createTier(data: TierCreateData): Promise<Tier> {
+  async createTier(data: TierCreateData): Promise<ApiTier> {
     const id = nanoid();
     const recommended = data.recommended ?? false;
     const sql = `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, color, icon, button_label, description, enabled, disable_reason, recommended, sort_order, features)
@@ -189,7 +189,7 @@ export class PostgresTierRepository implements TierRepository {
    * @param values - Parameters for `sql`.
    * @returns The written tier.
    */
-  async #writeAndClearOtherRecommendations(id: string, sql: string, values: unknown[]): Promise<Tier> {
+  async #writeAndClearOtherRecommendations(id: string, sql: string, values: unknown[]): Promise<ApiTier> {
     const client = await this.#pool.connect();
     try {
       await client.query("BEGIN");
@@ -221,7 +221,7 @@ export class PostgresTierRepository implements TierRepository {
     }
   }
 
-  async updateTier(id: string, data: TierUpdateData): Promise<Tier> {
+  async updateTier(id: string, data: TierUpdateData): Promise<ApiTier> {
     const fields: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
@@ -317,7 +317,7 @@ export class PostgresTierRepository implements TierRepository {
    * @param mode - The Creem environment whose rows are wanted.
    * @returns Array of the mapping rows for that environment.
    */
-  async listCreemProductMappings(mode: CreemModeValue): Promise<TierCreemProductMapping[]> {
+  async listCreemProductMappings(mode: CreemModeValue): Promise<CreemProductMapping[]> {
     const { rows } = await this.#pool.query<TierCreemProductMappingRow>(
       "SELECT tier_id, interval, mode, creem_product_id FROM tier_creem_products WHERE mode = $1",
       [mode],
@@ -331,7 +331,7 @@ export class PostgresTierRepository implements TierRepository {
    *
    * @returns Array of all tier-to-Creem-product mapping rows.
    */
-  async listAllCreemProductMappings(): Promise<TierCreemProductMapping[]> {
+  async listAllCreemProductMappings(): Promise<CreemProductMapping[]> {
     const { rows } = await this.#pool.query<TierCreemProductMappingRow>(
       "SELECT tier_id, interval, mode, creem_product_id FROM tier_creem_products ORDER BY tier_id, interval, mode",
     );
@@ -344,7 +344,7 @@ export class PostgresTierRepository implements TierRepository {
    * @param key - Which mapping is wanted.
    * @returns The mapping, or `null` when that combination has no product.
    */
-  async findCreemProductMapping(key: TierCreemProductKey): Promise<TierCreemProductMapping | null> {
+  async findCreemProductMapping(key: TierCreemProductKey): Promise<CreemProductMapping | null> {
     const { rows } = await this.#pool.query<TierCreemProductMappingRow>(
       "SELECT tier_id, interval, mode, creem_product_id FROM tier_creem_products WHERE tier_id = $1 AND interval = $2 AND mode = $3",
       [key.tierId, key.billingPeriod, key.mode],
@@ -362,7 +362,7 @@ export class PostgresTierRepository implements TierRepository {
    *
    * @param mapping - The tier, interval, environment and product id.
    */
-  async createCreemProductMapping(mapping: TierCreemProductMapping): Promise<void> {
+  async createCreemProductMapping(mapping: CreemProductMapping): Promise<void> {
     await this.#pool.query(
       "INSERT INTO tier_creem_products (id, tier_id, interval, mode, creem_product_id) VALUES ($1, $2, $3, $4, $5)",
       [nanoid(), mapping.tierId, mapping.billingPeriod, mapping.mode, mapping.creemProductId],

@@ -8,14 +8,7 @@
  * none, which is what following "Sign up" does.
  */
 
-/** A plan as the public catalogue serves it. Only the fields signup reads. */
-export interface SignupCatalogueTier {
-  id: string;
-  name: string;
-  color: string;
-  /** Whether a developer may put themselves on it. */
-  selfServiceAssignable: boolean;
-}
+import type { PublicTier } from "@musiccloud/shared";
 
 /** The plan the signup form signs an account up for. */
 export interface SignupTier {
@@ -37,10 +30,7 @@ export interface SignupTier {
  * @param requestedTierId - The plan named in the query string, if any.
  * @returns The plan to sign up on, or `null` when there is none to offer.
  */
-export function selectSignupTier(
-  tiers: readonly SignupCatalogueTier[],
-  requestedTierId?: string | null,
-): SignupTier | null {
+export function selectSignupTier(tiers: readonly PublicTier[], requestedTierId?: string | null): SignupTier | null {
   const assignable = tiers.filter((tier) => tier.selfServiceAssignable);
   const chosen = requestedTierId ? assignable.find((tier) => tier.id === requestedTierId) : assignable[0];
 
