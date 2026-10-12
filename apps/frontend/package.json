@@ -26,6 +26,7 @@
     "@fortawesome/free-regular-svg-icons": "^7.2.0",
     "@fortawesome/react-fontawesome": "^3.3.1",
     "@gsap/react": "^2.1.2",
+    "@musiccloud/dashboard-ui": "workspace:*",
     "@musiccloud/shared": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "astro": "5.17.3",

@@ -1,7 +1,9 @@
-import type {
-  ArtistProfileCacheState,
-  ArtistProfileCacheStatus as ArtistProfileCacheStatusValue,
-  ArtistProfileProvider,
+import {
+  type ArtistProfileCacheState,
+  type ArtistProfileCacheStatus as ArtistProfileCacheStatusValue,
+  type ArtistProfileProvider,
+  getPlatformLabel,
+  Service,
 } from "@musiccloud/shared";
 import type { ComponentPropsWithoutRef } from "react";
 
@@ -28,9 +30,10 @@ const STATE_CLASS: Record<ArtistProfileCacheState, string> = {
   [ArtistProfileCacheStateValue.Failed]: "text-[var(--ds-danger-text)]",
 };
 
+/** Spotify and Deezer are streaming services with a shared label. Last.fm is a profile source only. */
 const PROVIDER_LABEL: Record<ArtistProfileProvider, string> = {
-  spotify: "Spotify",
-  deezer: "Deezer",
+  spotify: getPlatformLabel(Service.Spotify),
+  deezer: getPlatformLabel(Service.Deezer),
   lastfm: "Last.fm",
 };
 
