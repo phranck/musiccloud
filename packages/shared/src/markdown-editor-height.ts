@@ -10,17 +10,19 @@
  * own is one that gets tested.
  */
 
-/** Where a remembered height is kept, with the editor's own id after it. */
+/** Where a remembered height is kept, with the caller's identity after it. */
 const HEIGHT_STORAGE_PREFIX = "musiccloud.markdown-editor.height.";
 
 /**
- * Shortest an editor may be remembered at, in pixels.
+ * Shortest an editor may be dragged to and remembered at, in pixels.
  *
  * Two lines and the footer. Below that the editor is a slot rather than
  * something to write in, and a stored height that small is far more likely to
- * be a stray drag than a decision.
+ * be a stray drag than a decision. The editor uses the same figure as the
+ * minimum height of its frame, so it cannot be dragged to a height it would
+ * then refuse to remember.
  */
-const MIN_REMEMBERED_HEIGHT = 96;
+export const EDITOR_MIN_HEIGHT_PX = 96;
 
 /**
  * Tallest an editor may be remembered at, in pixels.
@@ -31,16 +33,17 @@ const MIN_REMEMBERED_HEIGHT = 96;
 const MAX_REMEMBERED_HEIGHT = 4000;
 
 /**
- * Where one editor's height is stored.
+ * Where a remembered height is stored.
  *
- * @param id - The editor's own id, as the call site gives it.
- * @returns The storage key, or `null` for an editor without an id.
+ * @param id - The identity the call site gives the editor's height.
+ * @returns The storage key, or `null` where the call site gives none.
  *
  * @remarks
- * Per editor rather than one height for all of them: a description and a
- * one-line note are not the same thing to whoever sizes them. An editor with no
- * id cannot be told apart from another, so it remembers nothing rather than
- * sharing somebody else's height.
+ * Kept per identity rather than one height for every editor, because a
+ * description and a one-line note are not the same thing to whoever sizes
+ * them. Editors given the same identity share one height, which is how every
+ * text block of an email template opens at the size last dragged to. An editor
+ * given none remembers nothing rather than taking somebody else's height.
  */
 export function editorHeightKey(id: string | undefined): string | null {
   return id ? `${HEIGHT_STORAGE_PREFIX}${id}` : null;
@@ -63,7 +66,7 @@ export function readStoredEditorHeight(stored: string | null): string | null {
 
   const pixels = Number(stored);
   if (!Number.isFinite(pixels)) return null;
-  if (pixels < MIN_REMEMBERED_HEIGHT || pixels > MAX_REMEMBERED_HEIGHT) return null;
+  if (pixels < EDITOR_MIN_HEIGHT_PX || pixels > MAX_REMEMBERED_HEIGHT) return null;
 
   return `${Math.round(pixels)}px`;
 }
@@ -84,7 +87,7 @@ export function readStoredEditorHeight(stored: string | null): string | null {
  */
 export function shouldStoreEditorHeight(pixels: number, stored: string | null): boolean {
   if (!Number.isFinite(pixels)) return false;
-  if (pixels < MIN_REMEMBERED_HEIGHT || pixels > MAX_REMEMBERED_HEIGHT) return false;
+  if (pixels < EDITOR_MIN_HEIGHT_PX || pixels > MAX_REMEMBERED_HEIGHT) return false;
 
   return String(Math.round(pixels)) !== stored;
 }

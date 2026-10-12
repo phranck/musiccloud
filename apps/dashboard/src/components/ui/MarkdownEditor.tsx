@@ -1,12 +1,16 @@
 import type { DecorationSet, ViewUpdate } from "@codemirror/view";
 import {
+  EDITOR_MIN_HEIGHT_PX,
+  editorHeightKey,
   highlightShortcodes,
+  readStoredEditorHeight,
   SHORTCODE_HIGHLIGHT_BOLD_KIND,
   SHORTCODE_HIGHLIGHT_VARIABLES,
   type ShortcodeHighlightKind,
   type ShortcodePasteRewrite,
   shortcodeIndentFor,
   shortcodePasteRewrite,
+  shouldStoreEditorHeight,
 } from "@musiccloud/shared";
 import { BracketsSquareIcon, DotOutlineIcon, ListNumbersIcon, TextAlignJustifyIcon } from "@phosphor-icons/react";
 import * as React from "react";
@@ -30,10 +34,11 @@ export interface MarkdownEditorProps {
    */
   bare?: boolean;
   /**
-   * When set together with {@link MarkdownEditorProps.resizable}, the height the
-   * user drags to is persisted to `localStorage` under this key and restored on
-   * the next mount. All editors sharing a key share one remembered height.
-   * Without a key the resize is session-only (reset on reload).
+   * With {@link MarkdownEditorProps.resizable}, the identity under which the
+   * height somebody drags the editor to is remembered and restored on the next
+   * mount. `editorHeightKey` turns it into the storage key, and editors given
+   * the same identity share one height. Without it a dragged height lasts until
+   * the editor unmounts.
    */
   storageKey?: string;
   /**
@@ -634,6 +639,39 @@ const LINE_NUMBERS_STORAGE_KEY = "musiccloud.markdown-editor.line-numbers";
 const WHITESPACE_STORAGE_KEY = "musiccloud.markdown-editor.whitespace";
 
 /**
+ * Reads what the editor stored under a key.
+ *
+ * Remembering a switch or a height is an enhancement, so storage that is
+ * missing or refuses access, as in some private windows, reads as empty
+ * rather than failing the editor.
+ *
+ * @param key - Where the value is stored.
+ * @returns The stored text, or `null` where there is none or storage is unavailable.
+ */
+function readStorage(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Stores a value for the editor, and drops it where storage refuses.
+ *
+ * @param key - Where it goes.
+ * @param value - What is stored.
+ */
+function writeStorage(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Worth doing, not worth failing over, for the reason readStorage gives.
+  }
+}
+
+/**
  * Reads a switch back.
  *
  * @param key - Where it is stored.
@@ -641,15 +679,9 @@ const WHITESPACE_STORAGE_KEY = "musiccloud.markdown-editor.whitespace";
  * @returns Whether the switch is on.
  */
 function readStoredSwitch(key: string, whenUnset: boolean): boolean {
-  if (typeof window === "undefined") return whenUnset;
-  try {
-    const stored = window.localStorage.getItem(key);
-    if (stored === null) return whenUnset;
-    return stored !== "off";
-  } catch {
-    // Storage is an enhancement; the editor works without it.
-    return whenUnset;
-  }
+  const stored = readStorage(key);
+  if (stored === null) return whenUnset;
+  return stored !== "off";
 }
 
 /**
@@ -659,11 +691,7 @@ function readStoredSwitch(key: string, whenUnset: boolean): boolean {
  * @param on - Whether it is on.
  */
 function storeSwitch(key: string, on: boolean): void {
-  try {
-    window.localStorage.setItem(key, on ? "on" : "off");
-  } catch {
-    // Same as above: worth doing, not worth failing over.
-  }
+  writeStorage(key, on ? "on" : "off");
 }
 
 function FooterButton({
@@ -756,37 +784,8 @@ function HintsBar({
   );
 }
 
+/** How long a drag has to rest before its height is stored, so a drag writes once rather than every frame. */
 const EDITOR_HEIGHT_PERSIST_DEBOUNCE_MS = 300;
-
-/**
- * Reads a previously persisted editor height (in pixels) for the given
- * `localStorage` key. Returns `null` when nothing is stored, the value is
- * unusable, or storage is unavailable (for example private mode) — callers then
- * fall back to the `rows`-derived default height.
- */
-function readStoredEditorHeight(key: string): number | null {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = Number.parseInt(raw, 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Persists the editor's current pixel height under the given `localStorage` key
- * so it can be restored on the next mount. Swallows storage errors: remembering
- * the height is an enhancement, never a requirement for editing.
- */
-function persistEditorHeight(key: string, height: number) {
-  try {
-    localStorage.setItem(key, String(Math.round(height)));
-  } catch {
-    // Persistence is an enhancement; editor usage must not depend on storage.
-  }
-}
 
 export function MarkdownEditor({
   id,
@@ -805,9 +804,10 @@ export function MarkdownEditor({
   className = "",
 }: MarkdownEditorProps) {
   const wrapperRef = React.useRef<HTMLDivElement>(null);
-  const [storedHeight] = React.useState<number | null>(() =>
-    resizable && storageKey ? readStoredEditorHeight(storageKey) : null,
-  );
+  const heightKey = resizable ? editorHeightKey(storageKey) : null;
+  // A CSS length, read once, because the drag changes the element directly and
+  // re-applying this on a later render would undo it.
+  const [storedHeight] = React.useState(() => (heightKey ? readStoredEditorHeight(readStorage(heightKey)) : null));
 
   // The three footer switches. Each remembers itself, because a reader who
   // turned the numbers off did so for the way they read rather than for one
@@ -838,35 +838,43 @@ export function MarkdownEditor({
   }, []);
 
   // The native `resize: vertical` handle changes the wrapper's inline height
-  // directly; React never re-applies its own height because the derived value
-  // is stable across renders, so the drag survives. A ResizeObserver captures
-  // the final height and persists it (debounced to one write per settle) when a
-  // `storageKey` is given — otherwise the resize is session-only.
+  // directly. React never re-applies its own height, because the value it
+  // derives is the same on every render, so the drag survives. An observer
+  // reports the height once a drag rests, and the shared rule decides whether
+  // it is worth storing. The observer's first report is the height the editor
+  // opened at, which nobody chose, so it is passed over.
   React.useEffect(() => {
-    if (!resizable || !storageKey) return;
-    const el = wrapperRef.current;
-    if (!el) return;
+    if (!heightKey) return;
+    const element = wrapperRef.current;
+    if (!element) return;
     let timer: number | undefined;
+    let openingHeightReported = false;
     const observer = new ResizeObserver(() => {
+      if (!openingHeightReported) {
+        openingHeightReported = true;
+        return;
+      }
       window.clearTimeout(timer);
-      timer = window.setTimeout(
-        () => persistEditorHeight(storageKey, el.offsetHeight),
-        EDITOR_HEIGHT_PERSIST_DEBOUNCE_MS,
-      );
+      timer = window.setTimeout(() => {
+        const pixels = element.offsetHeight;
+        if (shouldStoreEditorHeight(pixels, readStorage(heightKey))) {
+          writeStorage(heightKey, String(Math.round(pixels)));
+        }
+      }, EDITOR_HEIGHT_PERSIST_DEBOUNCE_MS);
     });
-    observer.observe(el);
+    observer.observe(element);
     return () => {
       window.clearTimeout(timer);
       observer.disconnect();
     };
-  }, [resizable, storageKey]);
+  }, [heightKey]);
 
   const rowsHeight = `${rows * 1.5}rem`;
   const defaultHeight = resizable && showHints ? `calc(${rowsHeight} + 2.25rem)` : rowsHeight;
-  const resizableHeight = storedHeight != null ? `${storedHeight}px` : defaultHeight;
+  const resizableHeight = storedHeight ?? defaultHeight;
 
   const wrapperStyle: React.CSSProperties | undefined = resizable
-    ? { height: resizableHeight, minHeight: "4.5rem", resize: "vertical", overflow: "hidden" }
+    ? { height: resizableHeight, minHeight: `${EDITOR_MIN_HEIGHT_PX}px`, resize: "vertical", overflow: "hidden" }
     : height
       ? { height }
       : undefined;
