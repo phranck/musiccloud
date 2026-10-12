@@ -45,20 +45,38 @@ describe("Beatport: getTrack", () => {
 });
 
 describe("Beatport: searchTrack", () => {
-  it("should return not found when no __NEXT_DATA__", async () => {
+  /**
+   * A search Beatport answers carries `__NEXT_DATA__` with empty results when
+   * nothing matches. A page without it, such as a challenge page, and an error
+   * status are outages, and answering "not found" would make the resolver
+   * skip Beatport for that track for a month.
+   */
+  it("throws when the search page carries no __NEXT_DATA__", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response("<html><body>No data</body></html>", { status: 200 }),
     );
 
-    const result = await beatportAdapter.searchTrack({ title: "Strobe", artist: "deadmau5" });
-    expect(result.found).toBe(false);
+    await expect(beatportAdapter.searchTrack({ title: "Strobe", artist: "deadmau5" })).rejects.toThrow(/__NEXT_DATA__/);
   });
 
-  it("should return not found on HTTP error", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
+  it("throws when the search page answers with an error status", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 403 }));
 
-    const result = await beatportAdapter.searchTrack({ title: "Test", artist: "Test" });
-    expect(result.found).toBe(false);
+    await expect(beatportAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/403/);
+  });
+
+  it("throws when the ISRC lookup page fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 503 }));
+
+    await expect(beatportAdapter.findByIsrc("GBUM71029604")).rejects.toThrow(/503/);
+  });
+
+  it("throws when the release search page fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 429 }));
+
+    await expect(
+      beatportAdapter.searchAlbum?.({ title: "For Lack of a Better Name", artist: "deadmau5" }),
+    ).rejects.toThrow(/429/);
   });
 });
 

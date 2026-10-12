@@ -26,11 +26,11 @@
  * entries only have `length` as a `"mm:ss"` string. The adapter
  * parses the string when `length_ms` is absent.
  *
- * ## ISRC present but no `findByIsrc`
+ * ## ISRC lookup through the site search
  *
  * Tracks carry an ISRC field, but Beatport exposes no ISRC-based
- * lookup endpoint that works without auth. `capabilities.supportsIsrc`
- * is false; the resolver falls back to text search.
+ * lookup endpoint that works without auth. `findByIsrc` searches the
+ * site for the ISRC and keeps the result whose ISRC matches exactly.
  *
  * ## OG-title fallback parsing
  *
@@ -40,10 +40,11 @@
  * regex strips down to artist + track. This path has no ISRC or
  * duration data but at least yields a valid track row.
  */
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
+import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -120,6 +121,34 @@ function parseNextData(html: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetches a Beatport search page and reads its `__NEXT_DATA__` blob.
+ *
+ * @param url - The search page.
+ * @param kind - What the search is for, which the error names.
+ * @param query - The search text, which the error names.
+ * @param operation - Whether this is a text search or an ISRC lookup.
+ * @returns The blob, whose results may be empty.
+ * @throws When Beatport answers with an error status, such as the 403 it
+ *   gives a client it refuses, or with a page carrying no blob it can read.
+ *   A search without results is a page whose results are empty, so either
+ *   is a failure rather than an answer.
+ */
+async function fetchSearchData(
+  url: string,
+  kind: ResourceKind,
+  query: string,
+  operation: Operation,
+): Promise<Record<string, unknown>> {
+  const response = await beatportFetch(url);
+  if (!response.ok) throw serviceHttpError(Service.Beatport, response.status, kind, query, operation);
+  const nextData = parseNextData(await response.text());
+  if (!nextData) {
+    throw new UpstreamUnavailableError("beatport", `${operation} page for "${query}" carried no __NEXT_DATA__`);
+  }
+  return nextData;
 }
 
 function extractTrackFromNextData(data: Record<string, unknown>): BeatportTrack | null {
@@ -220,7 +249,8 @@ async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> 
   // Fetch track page and extract from __NEXT_DATA__
   const url = `https://www.beatport.com/track/x/${trackId}`;
   const response = await beatportFetch(url);
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.Beatport, response.status, ResourceKind.Track, trackId);
 
   const html = await response.text();
 
@@ -324,7 +354,8 @@ function mapRelease(release: BeatportRelease): NormalizedAlbum {
 async function fetchReleaseById(releaseId: string): Promise<NormalizedAlbum | null> {
   const url = `https://www.beatport.com/release/x/${releaseId}`;
   const response = await beatportFetch(url);
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.Beatport, response.status, ResourceKind.Album, releaseId);
 
   const html = await response.text();
   const nextData = parseNextData(html);
@@ -358,89 +389,65 @@ export const beatportAdapter: ServiceAdapter = {
   },
 
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
-    try {
-      const searchUrl = `https://www.beatport.com/search?q=${encodeURIComponent(isrc)}`;
-      const response = await beatportFetch(searchUrl);
-      if (!response.ok) return null;
-
-      const html = await response.text();
-      const nextData = parseNextData(html);
-      if (!nextData) return null;
-
-      const tracks = extractSearchResultsFromNextData(nextData);
-      const match = tracks.find((t) => t.isrc === isrc);
-      if (!match) return null;
-
-      return mapTrack(match);
-    } catch (error) {
-      log.debug("Beatport", "findByIsrc failed:", error instanceof Error ? error.message : error);
-      return null;
-    }
+    const nextData = await fetchSearchData(
+      `https://www.beatport.com/search?q=${encodeURIComponent(isrc)}`,
+      ResourceKind.Track,
+      isrc,
+      Operation.IsrcLookup,
+    );
+    const match = extractSearchResultsFromNextData(nextData).find((t) => t.isrc === isrc);
+    return match ? mapTrack(match) : null;
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = searchText(query);
+    const nextData = await fetchSearchData(
+      `https://www.beatport.com/search?q=${encodeURIComponent(q)}`,
+      ResourceKind.Track,
+      q,
+      Operation.Search,
+    );
 
-    try {
-      const searchUrl = `https://www.beatport.com/search?q=${encodeURIComponent(q)}`;
-      const response = await beatportFetch(searchUrl);
-      if (!response.ok) {
-        log.debug("Beatport", "Search page failed:", response.status);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      const html = await response.text();
-      const nextData = parseNextData(html);
-
-      if (!nextData) {
-        log.debug("Beatport", "No __NEXT_DATA__ found in search page");
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      const tracks = extractSearchResultsFromNextData(nextData);
-      if (tracks.length === 0) {
-        log.debug("Beatport", "Search returned no tracks for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Beatport", `Search returned ${tracks.length} tracks for: ${q}`);
-
-      let bestMatch: NormalizedTrack | null = null;
-      let bestConfidence = 0;
-
-      for (let i = 0; i < Math.min(tracks.length, 5); i++) {
-        const bpTrack = tracks[i];
-        if (!bpTrack.id || !bpTrack.name) continue;
-
-        const track = mapTrack(bpTrack);
-        const confidence = scoreSearchCandidate(query, track, i);
-
-        log.debug(
-          "Beatport",
-          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-        );
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        log.debug("Beatport", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return {
-        found: true,
-        track: bestMatch,
-        confidence: bestConfidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("Beatport", "Search failed:", error instanceof Error ? error.message : error);
+    const tracks = extractSearchResultsFromNextData(nextData);
+    if (tracks.length === 0) {
+      log.debug("Beatport", "Search returned no tracks for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Beatport", `Search returned ${tracks.length} tracks for: ${q}`);
+
+    let bestMatch: NormalizedTrack | null = null;
+    let bestConfidence = 0;
+
+    for (let i = 0; i < Math.min(tracks.length, 5); i++) {
+      const bpTrack = tracks[i];
+      if (!bpTrack.id || !bpTrack.name) continue;
+
+      const track = mapTrack(bpTrack);
+      const confidence = scoreSearchCandidate(query, track, i);
+
+      log.debug(
+        "Beatport",
+        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = track;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("Beatport", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
   },
 
   albumCapabilities: {
@@ -462,39 +469,33 @@ export const beatportAdapter: ServiceAdapter = {
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
-    try {
-      const searchUrl = `https://www.beatport.com/search/releases?q=${encodeURIComponent(q)}`;
-      const response = await beatportFetch(searchUrl);
-      if (!response.ok) return { found: false, confidence: 0, matchMethod: "search" };
+    const nextData = await fetchSearchData(
+      `https://www.beatport.com/search/releases?q=${encodeURIComponent(q)}`,
+      ResourceKind.Album,
+      q,
+      Operation.Search,
+    );
 
-      const html = await response.text();
-      const nextData = parseNextData(html);
-      if (!nextData) return { found: false, confidence: 0, matchMethod: "search" };
+    const releases = extractReleaseSearchFromNextData(nextData);
+    if (releases.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
-      const releases = extractReleaseSearchFromNextData(nextData);
-      if (releases.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
 
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
-
-      for (const release of releases.slice(0, 5)) {
-        if (!release.id || !release.name) continue;
-        const album = mapRelease(release);
-        const confidence = scoreAlbumCandidate(query, album);
-        log.debug("Beatport", `  "${release.name}" -> confidence=${confidence.toFixed(3)}`);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = album;
-        }
+    for (const release of releases.slice(0, 5)) {
+      if (!release.id || !release.name) continue;
+      const album = mapRelease(release);
+      const confidence = scoreAlbumCandidate(query, album);
+      log.debug("Beatport", `  "${release.name}" -> confidence=${confidence.toFixed(3)}`);
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = album;
       }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("Beatport", "Album search failed:", error instanceof Error ? error.message : error);
-      return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
