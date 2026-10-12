@@ -4,7 +4,6 @@ import { Code as CodeIcon, Copy as CopyIcon, SpinnerGap as SpinnerGapIcon } from
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
@@ -19,6 +18,7 @@ import {
   useUpdateDeveloperProject,
 } from "@/features/developer/hooks/useDeveloperData";
 import { formatDate, hasLimitOverride, parseLimitOverride } from "@/features/developer/lib";
+import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";
 
 /**
  * Project rate-limit overrides as edited by the admin, kept separate from
@@ -177,9 +177,7 @@ export function ClientDetailPage() {
             <div className="space-y-3">
               <div className="flex items-end gap-4">
                 <div>
-                  <label htmlFor="edit-min" className={FIELD_LABEL_CLASS}>
-                    {dm.detailRateLimitMinute}
-                  </label>
+                  <FormLabel htmlFor="edit-min">{dm.detailRateLimitMinute}</FormLabel>
                   <DashboardInput
                     id="edit-min"
                     type="number"
@@ -190,9 +188,7 @@ export function ClientDetailPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="edit-day" className={FIELD_LABEL_CLASS}>
-                    {dm.detailRateLimitDay}
-                  </label>
+                  <FormLabel htmlFor="edit-day">{dm.detailRateLimitDay}</FormLabel>
                   <DashboardInput
                     id="edit-day"
                     type="number"
@@ -209,12 +205,12 @@ export function ClientDetailPage() {
               {!limitsUsable && <p className="text-xs text-amber-400">{dm.limitOverrideInvalid}</p>}
             </div>
             <div>
-              <div className={FIELD_LABEL_CLASS}>
+              <FormLabelText>
                 {dm.clientsTokensLabel}
                 {(activeToken || revokedToken) && (
                   <span className="font-normal">, created: {formatDate((activeToken ?? revokedToken)!.createdAt)}</span>
                 )}
-              </div>
+              </FormLabelText>
               {activeToken ? (
                 <div className="flex items-start gap-2">
                   <code className="max-w-xs text-sm text-[var(--ds-accent)] break-all">

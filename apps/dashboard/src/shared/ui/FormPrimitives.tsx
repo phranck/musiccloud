@@ -1,6 +1,7 @@
 import {
   FieldLabel,
   FieldLabelText,
+  FieldValue,
   fieldControlBaseClass,
   inputSizeClass,
   textareaSizeClass,
@@ -14,3 +15,4 @@ export const formTextareaClass = `${fieldControlBaseClass} ${textareaSizeClass.f
 
 export const FormLabel = FieldLabel;
 export const FormLabelText = FieldLabelText;
+export const FormValue = FieldValue;

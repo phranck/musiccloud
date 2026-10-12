@@ -1,7 +1,10 @@
 import type { FieldControlSize } from "./FieldPrimitives.js";
 
 export const fieldShellClass = "space-y-1";
-export const fieldLabelClass = "block px-[5px] text-xs font-medium text-[var(--ds-text-muted)] mb-1";
+/** The inset a field's label and a read-only value share, so the two line up with each other. */
+const fieldTextInsetClass = "px-[5px]";
+export const fieldLabelClass = `block ${fieldTextInsetClass} text-xs font-medium text-[var(--ds-text-muted)] mb-1`;
+export const fieldValueClass = `block ${fieldTextInsetClass} text-sm text-[var(--ds-text)]`;
 export const fieldOptionalClass = "font-normal text-[var(--ds-text-subtle)]";
 export const fieldHelpClass = "text-xs text-[var(--ds-text-subtle)]";
 export const fieldErrorClass = "text-xs text-red-500 mt-1";

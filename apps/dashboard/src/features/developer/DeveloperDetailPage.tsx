@@ -4,7 +4,6 @@ import { SpinnerGap as SpinnerGapIcon, User as UserIcon } from "@phosphor-icons/
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
@@ -18,6 +17,7 @@ import {
   useUpdateDeveloperAccount,
 } from "@/features/developer/hooks/useDeveloperData";
 import { Dialog } from "@/shared/ui/Dialog";
+import { FormLabel, FormLabelText, FormValue } from "@/shared/ui/FormPrimitives";
 
 /**
  * Editable developer account fields as drafted by the admin, kept separate
@@ -139,9 +139,7 @@ export function DeveloperDetailPage() {
                   not room for two fields beside each other. */}
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label htmlFor="dev-email" className={FIELD_LABEL_CLASS}>
-                    {dm.colEmail}
-                  </label>
+                  <FormLabel htmlFor="dev-email">{dm.colEmail}</FormLabel>
                   <DashboardInput
                     id="dev-email"
                     type="email"
@@ -150,9 +148,7 @@ export function DeveloperDetailPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="dev-display-name" className={FIELD_LABEL_CLASS}>
-                    {dm.colDisplayName}
-                  </label>
+                  <FormLabel htmlFor="dev-display-name">{dm.colDisplayName}</FormLabel>
                   <DashboardInput
                     id="dev-display-name"
                     type="text"
@@ -161,19 +157,19 @@ export function DeveloperDetailPage() {
                   />
                 </div>
                 <div>
-                  <span className={FIELD_LABEL_CLASS}>{dm.colTechnicalContact}</span>
+                  <FormLabelText>{dm.colTechnicalContact}</FormLabelText>
                   {/* Read-only: the address belongs to the developer, who sets
                       it in the portal. It stands here because it is what the
                       operator reaches for when an application misbehaves. */}
-                  <p className="text-sm text-[var(--ds-text)]">
-                    {account.technicalContactEmail ?? dm.technicalContactNone}
-                  </p>
-                  {account.technicalContactEmail && (
-                    <p className="text-xs text-[var(--ds-text-muted)]">{dm.technicalContactUnverified}</p>
-                  )}
+                  <FormValue>
+                    <p>{account.technicalContactEmail ?? dm.technicalContactNone}</p>
+                    {account.technicalContactEmail && (
+                      <p className="text-xs text-[var(--ds-text-muted)]">{dm.technicalContactUnverified}</p>
+                    )}
+                  </FormValue>
                 </div>
                 <div>
-                  <span className={FIELD_LABEL_CLASS}>{dm.colTier}</span>
+                  <FormLabelText>{dm.colTier}</FormLabelText>
                   <TierDropdown
                     value={form.tierId}
                     onChange={(tierId) => setAccountDraft({ ...form, tierId })}
