@@ -12,6 +12,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository } from "../db/index.js";
 import { normalizeEmailAddress } from "../lib/email-address.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import {
@@ -27,10 +28,11 @@ import {
   GitHubOAuth,
   type GitHubOAuthIntent,
 } from "../services/developer-github.js";
+import { mayCreateDeveloperAccount, PORTAL_CLOSED_CODE } from "../services/developer-portal-access.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 import { resolveSignupTierId } from "../services/signup-tier.js";
 import { buildAccountResponse } from "./developer-auth.js";
-import { applyInvitationPass } from "./developer-portal-invitations.js";
+import { applyInvitationPass, readRequestInvitationPass } from "./developer-portal-invitations.js";
 
 /** Dedicated per-IP throttle for the OAuth exchange (20/min), separate from the global apiRateLimiter. */
 const githubExchangeRateLimiter = new RateLimiter(20, 60_000);
@@ -138,6 +140,11 @@ export async function devGitHubRoutes(app: FastifyInstance) {
             error: "NO_ACCOUNT",
             message: "No developer account for this GitHub identity. Choose a plan to sign up.",
           });
+        }
+        // While the portal is closed, only the holder of an invitation pass
+        // opens an account, through GitHub as through the sign-up form.
+        if (!(await mayCreateDeveloperAccount(readRequestInvitationPass(app, request)))) {
+          return reply.status(403).send(createApiErrorResponse(PORTAL_CLOSED_CODE));
         }
         // Signup intent: create the account and always assign a tier so the
         // account is never left tier-less.

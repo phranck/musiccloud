@@ -41,6 +41,7 @@ import type { TierRepository } from "../db/tiers-repository.js";
 import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
 import authPlugin from "../plugins/auth.js";
 import { hashEmailToken, hashPassword, issueInvitationPass, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
+import { mayCreateDeveloperAccount, mayUseDeveloperApi } from "../services/developer-portal-access.js";
 import { bindPortalInvitation } from "../services/developer-portal-invitations.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 import { erasePersonalData } from "../services/gdpr-erase.js";
@@ -58,6 +59,14 @@ vi.mock("../services/email-actions.js", () => ({
 
 vi.mock("../services/developer-portal-invitations.js", () => ({
   bindPortalInvitation: vi.fn(async () => true),
+}));
+
+// The portal's state is a database read, so these tests decide it: open by
+// default, and closed where a test is about what a closed portal refuses.
+vi.mock("../services/developer-portal-access.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../services/developer-portal-access.js")>()),
+  mayUseDeveloperApi: vi.fn(async () => true),
+  mayCreateDeveloperAccount: vi.fn(async () => true),
 }));
 
 vi.mock("../services/gdpr-erase.js", () => ({
@@ -520,6 +529,69 @@ describe("an invitation pass at sign-up and sign-in", () => {
     expect(res.statusCode).toBe(201);
     expect(vi.mocked(bindPortalInvitation)).not.toHaveBeenCalled();
     expect(passSetCookie(res.headers["set-cookie"])).toBeUndefined();
+  });
+});
+
+describe("a closed portal", () => {
+  beforeEach(() => {
+    vi.mocked(mayUseDeveloperApi).mockResolvedValue(false);
+    vi.mocked(mayCreateDeveloperAccount).mockResolvedValue(false);
+  });
+
+  afterEach(() => {
+    vi.mocked(mayUseDeveloperApi).mockResolvedValue(true);
+    vi.mocked(mayCreateDeveloperAccount).mockResolvedValue(true);
+  });
+
+  it("opens no account without a pass, and says nothing about the address", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.signup,
+      payload: { email: "new@example.com", password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("MC-AUTH-0004");
+    expect(vi.mocked(repo.findDeveloperAccountByEmail)).not.toHaveBeenCalled();
+    expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
+    expect(vi.mocked(triggerEmailAction)).not.toHaveBeenCalled();
+  });
+
+  it("refuses an account it does not admit everywhere but /me, the export and deletion", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+    const cookie = sessionCookie(app, "dev-acc-1");
+
+    const profile = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie },
+      payload: { displayName: "Ada" },
+    });
+    const me = await app.inject({ method: "GET", url: ENDPOINTS.dev.auth.me, headers: { cookie } });
+    const exported = await app.inject({ method: "GET", url: ENDPOINTS.dev.auth.export, headers: { cookie } });
+
+    expect(profile.statusCode).toBe(403);
+    expect(profile.json().error).toBe("MC-AUTH-0004");
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+    expect(me.statusCode).toBe(200);
+    expect(me.json().account.portalAccess).toBe(false);
+    expect(exported.statusCode).toBe(200);
+  });
+
+  it("still signs an account in, which admits it nowhere by itself", async () => {
+    const passwordHash = await hashPassword(VALID_PASSWORD);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(makeAccount({ passwordHash }));
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.login,
+      payload: { email: "dev@example.com", password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(findSessionSetCookie(res.headers["set-cookie"])).toBeDefined();
   });
 });
 

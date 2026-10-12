@@ -86,11 +86,12 @@ import {
   TokenPurpose,
   verifyPassword,
 } from "../services/developer-auth.js";
+import { mayCreateDeveloperAccount, PORTAL_CLOSED_CODE } from "../services/developer-portal-access.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 import { erasePersonalData } from "../services/gdpr-erase.js";
 import { buildPersonalDataExport } from "../services/gdpr-export.js";
 import { resolveSignupTierId } from "../services/signup-tier.js";
-import { applyInvitationPass } from "./developer-portal-invitations.js";
+import { applyInvitationPass, readRequestInvitationPass } from "./developer-portal-invitations.js";
 
 /** Verification-token lifetime: 24 hours from issuance. */
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -326,6 +327,13 @@ export async function devAuthRoutes(app: FastifyInstance) {
 
     if (!body?.email || !body?.password) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "email and password are required." });
+    }
+
+    // While the portal is closed, only the holder of an invitation pass opens
+    // an account. Asked before the address is looked up, so a refusal says
+    // nothing about who already has one.
+    if (!(await mayCreateDeveloperAccount(readRequestInvitationPass(app, request)))) {
+      return reply.status(403).send(createApiErrorResponse(PORTAL_CLOSED_CODE));
     }
 
     const email = normalizeEmailAddress(body.email);
@@ -591,10 +599,12 @@ export async function devAuthRoutes(app: FastifyInstance) {
   /**
    * GET /api/dev/auth/me
    * Returns the currently authenticated developer account, resolved from the
-   * `mc_dev_session` cookie by {@link FastifyInstance.authenticateDeveloper}.
-   * Returns 401 without a valid session.
+   * `mc_dev_session` cookie by {@link FastifyInstance.authenticateDeveloperSession}.
+   * Returns 401 without a valid session. It answers an account the closed
+   * portal does not admit as well, because the portal's gate reads the grant
+   * from here.
    */
-  app.get(ENDPOINTS.dev.auth.me, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
+  app.get(ENDPOINTS.dev.auth.me, { preValidation: app.authenticateDeveloperSession }, async (request, reply) => {
     const repo = await getDeveloperRepository();
     const account = await repo.findDeveloperAccountById(request.developerAccountId as string);
     if (!account) {
@@ -1016,7 +1026,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * attachment: account (without secrets), auth identities, and the caller's
    * registrations with token metadata.
    */
-  app.get(ENDPOINTS.dev.auth.export, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
+  app.get(ENDPOINTS.dev.auth.export, { preValidation: app.authenticateDeveloperSession }, async (request, reply) => {
     const account = request.developerAccount!;
     const pkg = await buildPersonalDataExport({ developerAccountId: account.id, email: account.email });
     reply.header("content-disposition", 'attachment; filename="musiccloud-data-export.json"');
@@ -1034,40 +1044,44 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * (`hasPassword: false` on `/me`) has no password to confirm, so the body
    * is not required.
    */
-  app.post(ENDPOINTS.dev.auth.deleteAccount, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
-    const account = request.developerAccount!;
+  app.post(
+    ENDPOINTS.dev.auth.deleteAccount,
+    { preValidation: app.authenticateDeveloperSession },
+    async (request, reply) => {
+      const account = request.developerAccount!;
 
-    if (account.passwordHash !== null) {
-      const body = request.body as { password?: string } | null;
-      const isValid = await verifyPassword(body?.password ?? "", account.passwordHash);
-      if (!isValid) {
-        return reply.status(401).send({ error: "INVALID_CREDENTIALS", message: "Incorrect password." });
+      if (account.passwordHash !== null) {
+        const body = request.body as { password?: string } | null;
+        const isValid = await verifyPassword(body?.password ?? "", account.passwordHash);
+        if (!isValid) {
+          return reply.status(401).send({ error: "INVALID_CREDENTIALS", message: "Incorrect password." });
+        }
       }
-    }
 
-    // Optional farewell notification (MC-084): fired BEFORE the delete while
-    // the account data still exists; a mail failure must never block the
-    // deletion itself (mirrors the invite route's resilience semantics).
-    try {
-      await triggerEmailAction(EmailAction.DeveloperAccountDeleted, {
-        to: { email: account.email },
-        recipient: {
-          kind: EmailRecipientKind.DeveloperAccount,
-          email: account.email,
-          displayName: account.displayName,
-        },
-        context: {},
-      });
-    } catch (error) {
-      request.log.error({ err: error }, "failed to send account-deleted notification");
-    }
+      // Optional farewell notification (MC-084): fired BEFORE the delete while
+      // the account data still exists; a mail failure must never block the
+      // deletion itself (mirrors the invite route's resilience semantics).
+      try {
+        await triggerEmailAction(EmailAction.DeveloperAccountDeleted, {
+          to: { email: account.email },
+          recipient: {
+            kind: EmailRecipientKind.DeveloperAccount,
+            email: account.email,
+            displayName: account.displayName,
+          },
+          context: {},
+        });
+      } catch (error) {
+        request.log.error({ err: error }, "failed to send account-deleted notification");
+      }
 
-    // GDPR-complete erasure (MC-085): delete the authenticated account; DB
-    // cascades clear identities, email tokens and API-access data.
-    await erasePersonalData(account.id);
-    reply.clearCookie(SESSION_COOKIE_NAME, clearedSessionCookieOptions());
+      // GDPR-complete erasure (MC-085): delete the authenticated account; DB
+      // cascades clear identities, email tokens and API-access data.
+      await erasePersonalData(account.id);
+      reply.clearCookie(SESSION_COOKIE_NAME, clearedSessionCookieOptions());
 
-    app.log.info("[Developer] Account deleted");
-    return reply.send({ ok: true });
-  });
+      app.log.info("[Developer] Account deleted");
+      return reply.send({ ok: true });
+    },
+  );
 }

@@ -242,12 +242,22 @@ export async function devPortalInvitationRoutes(app: FastifyInstance): Promise<v
  */
 export async function developerPortalInvitationInternalRoutes(app: FastifyInstance): Promise<void> {
   app.get(ENDPOINTS.internal.developer.invitationPass, async (request): Promise<PortalInvitationPass> => {
-    const invitationId = readInvitationPass(request.cookies?.[INVITATION_PASS_COOKIE_NAME], (token) =>
-      app.jwt.verify(token),
-    );
+    const invitationId = readRequestInvitationPass(app, request);
     const open = invitationId === null ? null : await readOpenPortalInvitationPass(invitationId);
     return open ? { valid: true, email: open.email } : { valid: false, email: null };
   });
+}
+
+/**
+ * The invitation the request's pass names.
+ *
+ * @param app - The Fastify instance, for its JWT verifier.
+ * @param request - The request carrying the cookie.
+ * @returns The invitation id, or `null` without a cookie or for one that is
+ *   not a valid pass.
+ */
+export function readRequestInvitationPass(app: FastifyInstance, request: FastifyRequest): string | null {
+  return readInvitationPass(request.cookies?.[INVITATION_PASS_COOKIE_NAME], (token) => app.jwt.verify(token));
 }
 
 /**
@@ -270,10 +280,9 @@ export async function applyInvitationPass(
   reply: FastifyReply,
   accountId: string,
 ): Promise<void> {
-  const cookie = request.cookies?.[INVITATION_PASS_COOKIE_NAME];
-  if (!cookie) return;
+  if (!request.cookies?.[INVITATION_PASS_COOKIE_NAME]) return;
 
-  const invitationId = readInvitationPass(cookie, (token) => app.jwt.verify(token));
+  const invitationId = readRequestInvitationPass(app, request);
   const bound = invitationId !== null && (await bindPortalInvitation(invitationId, accountId));
   reply.clearCookie(INVITATION_PASS_COOKIE_NAME, clearedInvitationPassCookieOptions());
   request.log.info({
