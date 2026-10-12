@@ -74,6 +74,8 @@ describe("Developer Portal availability middleware", () => {
       "/_astro/docs.js",
       "/developer-theme.css",
       "/favicon.svg",
+      "/api/mc/script.js",
+      "/api/mc/api/send",
     ]) {
       const { next, response } = await request(pathname);
       expect(next).toHaveBeenCalledOnce();
