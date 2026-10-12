@@ -5,16 +5,13 @@ import {
   DashboardActionStatus,
   DashboardButton,
   DashboardButtonVariant,
-  DashboardInput,
 } from "@musiccloud/dashboard-ui";
 import { type AdminArtistListItem, AdminEventType, ENDPOINTS } from "@musiccloud/shared";
 import {
-  MagnifyingGlass as MagnifyingGlassIcon,
   MicrophoneStage as MicrophoneStageIcon,
   PencilSimple as PencilSimpleIcon,
   PencilSimpleSlash as PencilSimpleSlashIcon,
   Trash as TrashIcon,
-  XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
@@ -22,6 +19,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { dashboardCopy } from "@/copy/dashboard";
+import { AdminListSearchField } from "@/features/music/AdminListSearchField";
 import { ArtistProfileCacheStatus } from "@/features/music/ArtistProfileCacheStatus";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { InfiniteAdminTable } from "@/features/music/InfiniteAdminTable";
@@ -206,34 +204,6 @@ export function ArtistsPage() {
     }
   }
 
-  const searchField = (
-    <div className="relative">
-      <DashboardInput
-        type="text"
-        value={table.searchInput}
-        onChange={(e) => table.setSearchInput(e.target.value)}
-        placeholder={ma.searchPlaceholder}
-        className="w-52 pl-8 pr-7"
-      />
-      <MagnifyingGlassIcon
-        weight="duotone"
-        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--ds-text-muted)]"
-      />
-      {table.searchInput && (
-        <DashboardActionButton
-          action={DashboardActionId.Close}
-          icon={<XCircleIcon weight="duotone" className="size-3.5" />}
-          iconOnly
-          label={messages.common.close}
-          onClick={() => table.setSearchInput("")}
-          className="absolute right-1 top-1/2 -translate-y-1/2"
-          size="action"
-          type="button"
-        />
-      )}
-    </div>
-  );
-
   const toolbarContent = (
     <Toolbar>
       {table.total !== null && (
@@ -276,7 +246,13 @@ export function ArtistsPage() {
 
   return (
     <PageLayout>
-      <PageHeader title={ma.title}>{searchField}</PageHeader>
+      <PageHeader title={ma.title}>
+        <AdminListSearchField
+          value={table.searchInput}
+          onChange={table.setSearchInput}
+          placeholder={ma.searchPlaceholder}
+        />
+      </PageHeader>
 
       <PageBody>
         <InfiniteAdminTable table={table} columns={columns}>
