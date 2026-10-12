@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 import { findShortIdsByTrackUrls } from "../postgres-tracks.js";
 
 /**
@@ -8,7 +9,7 @@ import { findShortIdsByTrackUrls } from "../postgres-tracks.js";
  * without artist or service-link relations and teardown deletes the exact
  * short-url rows before their owning tracks.
  */
-describe.skipIf(!process.env.TEST_DATABASE_URL)("track short-id batch repository (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("track short-id batch repository (integration)", () => {
   let pool: pgModule.Pool;
   const fixture = randomUUID();
   const trackIds = [`it-mc35-track-${fixture}-one`, `it-mc35-track-${fixture}-two`];
@@ -16,7 +17,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("track short-id batch repository
   const urls = [`https://example.test/mc35/${fixture}/one`, `https://example.test/mc35/${fixture}/two`];
 
   beforeAll(async () => {
-    pool = new pgModule.Pool({ connectionString: process.env.TEST_DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
     const now = new Date();
     await pool.query(
       `INSERT INTO tracks (id, title, source_url, created_at, updated_at)

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 import { addLinksToAlbum } from "../postgres-albums.js";
 import { addLinksToArtist } from "../postgres-artists.js";
 import { addLinksToTrack } from "../postgres-tracks.js";
@@ -10,7 +11,7 @@ import { addLinksToTrack } from "../postgres-tracks.js";
  * one album and one artist entity, writes one link to each twice with a
  * different match method, and teardown deletes exactly those rows.
  */
-describe.skipIf(!process.env.TEST_DATABASE_URL)("service link upserts (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("service link upserts (integration)", () => {
   let pool: pgModule.Pool;
   const fixture = randomUUID();
   const trackId = `it-mc431-track-${fixture}`;
@@ -18,7 +19,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("service link upserts (integrati
   const artistEntityId = `it-mc431-artist-${fixture}`;
 
   beforeAll(async () => {
-    pool = new pgModule.Pool({ connectionString: process.env.TEST_DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
     const now = new Date();
     await pool.query("INSERT INTO tracks (id, title, created_at, updated_at) VALUES ($1, $2, $3, $3)", [
       trackId,

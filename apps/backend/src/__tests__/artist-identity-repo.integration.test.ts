@@ -1,8 +1,11 @@
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeRepository, getRepository } from "../db/index.js";
+import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from "./integration-database.js";
 
-describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("artist identity repository (integration)", () => {
+  connectRepositoriesToIntegrationDatabase();
+
   const suffix = Math.random().toString(36).slice(2, 10);
   const sourceId = `artist-source-${suffix}`;
   const groupId = `artist-entity-group-${suffix}`;
@@ -24,7 +27,7 @@ describe.skipIf(!process.env.DATABASE_URL)("artist identity repository (integrat
   let client: pg.Client;
 
   beforeAll(async () => {
-    client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    client = new pg.Client({ connectionString: integrationDatabaseUrl() });
     await client.connect();
 
     await client.query(

@@ -83,6 +83,4 @@ pnpm --filter @musiccloud/backend test:run track-previews-repo.integration.test.
 pnpm --filter @musiccloud/backend typecheck
 ```
 
-The integration test runs only when `DATABASE_URL` points at a local or
-test-named database. It creates unique test track/album rows and deletes those
-same rows afterward.
+The integration test runs only when `TEST_DATABASE_URL` points at a local or test-named database, which CI provides as a Postgres service container. It creates unique test track and album rows and deletes those same rows afterward.

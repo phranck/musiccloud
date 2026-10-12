@@ -123,6 +123,21 @@ test("validates only affected workspaces after early path detection", () => {
   assert.match(typecheckJob, /needs\.detect-validation-changes\.outputs\.shared == 'true'/);
 });
 
+test("runs the backend's integration tests against a database of the job's own", () => {
+  const typecheckJob = job("typecheck");
+
+  assert.match(typecheckJob, /services:\n {6}postgres:\n {8}image: postgres:18\n/);
+  assert.match(typecheckJob, /POSTGRES_DB: musiccloud_test/);
+  assert.match(typecheckJob, /TEST_DATABASE_URL: postgresql:\/\/musiccloud@localhost:5432\/musiccloud_test/);
+  // The schema has to exist before the tests that read it, and the migration
+  // runner reads DATABASE_URL, which it gets for that one step only.
+  assert.match(
+    typecheckJob,
+    /- name: Migrate the integration database[\s\S]*?DATABASE_URL: \$\{\{ env\.TEST_DATABASE_URL \}\}[\s\S]*?run: pnpm db:migrate[\s\S]*?- name: Backend tests/,
+  );
+  assert.equal((typecheckJob.match(/^\s+DATABASE_URL:/gm) ?? []).length, 1);
+});
+
 test("restores the pnpm store before every dependency installation", () => {
   for (const name of ["lint", "typecheck"]) {
     assert.match(

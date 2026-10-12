@@ -1,10 +1,14 @@
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  connectRepositoriesToIntegrationDatabase,
+  integrationDatabaseUrl,
+} from "../../../__tests__/integration-database.js";
 import { getCcRepository } from "../../index.js";
 import type { PersistCcAlbumData, PersistCcArtistData, PersistCcTrackData } from "../../repository.js";
 
 /**
- * Hits a live Postgres pointed at by `DATABASE_URL`. Exercises the slim CC
+ * Hits a live Postgres pointed at by `TEST_DATABASE_URL`. Exercises the slim CC
  * repository (`persistCcTrack` / `persistCcAlbum` / `persistCcArtist` /
  * `findCcShortId` plus the share-page reads `loadCc{Track,Album,Artist}ByShortId`)
  * against the `cc_*` tables (migration 0043, the `cc_album_short_urls` /
@@ -16,7 +20,9 @@ import type { PersistCcAlbumData, PersistCcArtistData, PersistCcTrackData } from
  * FK-dependency order (short-url children first, then tracks/albums/artists),
  * because the CC FKs are `ON DELETE no action`.
  */
-describe.skipIf(!process.env.DATABASE_URL)("CC repository (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("CC repository (integration)", () => {
+  connectRepositoriesToIntegrationDatabase();
+
   const suffix = Math.random().toString(36).slice(2, 10);
   const jamendoTrackId = `ittrk-${suffix}`;
   const jamendoArtistId = `itart-${suffix}`;
@@ -157,7 +163,7 @@ describe.skipIf(!process.env.DATABASE_URL)("CC repository (integration)", () => 
   let pool: pgModule.Pool;
 
   beforeAll(() => {
-    pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
   });
 
   afterAll(async () => {

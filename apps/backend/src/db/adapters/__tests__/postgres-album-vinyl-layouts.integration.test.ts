@@ -1,6 +1,7 @@
 import type { VinylLayout } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 import { readVinylLayout, upsertVinylLayout } from "../postgres-albums.js";
 
 /**
@@ -10,7 +11,7 @@ import { readVinylLayout, upsertVinylLayout } from "../postgres-albums.js";
  * The cache is keyed by album identity and owns no album row, so the fixture
  * inserts nothing but its own cache entries and removes exactly those.
  */
-describe.skipIf(!process.env.DATABASE_URL)("vinyl layouts (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("vinyl layouts (integration)", () => {
   let pool: pgModule.Pool;
   const checkedIdentity = "mc-116 fixture artist::checked release";
   const uncheckedIdentity = "mc-116 fixture artist::unchecked release";
@@ -25,7 +26,7 @@ describe.skipIf(!process.env.DATABASE_URL)("vinyl layouts (integration)", () => 
   };
 
   beforeAll(() => {
-    pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
   });
 
   afterAll(async () => {

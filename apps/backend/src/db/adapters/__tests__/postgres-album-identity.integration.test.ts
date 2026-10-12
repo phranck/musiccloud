@@ -1,6 +1,7 @@
 import type { VinylLayout } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 import { createAlbumIdentityKey } from "../../../services/album-identity.js";
 import { readVinylLayout, upsertVinylLayout } from "../postgres-albums.js";
 
@@ -13,7 +14,7 @@ import { readVinylLayout, upsertVinylLayout } from "../postgres-albums.js";
  * {@link createAlbumIdentityKey} rather than written out, so the test follows
  * the normalisation instead of restating it.
  */
-describe.skipIf(!process.env.TEST_DATABASE_URL)("album identity vinyl cache (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("album identity vinyl cache (integration)", () => {
   let pool: pgModule.Pool;
   const title = "MC-119 shared-title fixture";
   const firstIdentity = createAlbumIdentityKey({ artists: ["MC-119 First Artist"], title }) as string;
@@ -24,7 +25,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("album identity vinyl cache (int
   };
 
   beforeAll(() => {
-    pool = new pgModule.Pool({ connectionString: process.env.TEST_DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
   });
 
   afterAll(async () => {

@@ -1,11 +1,12 @@
 import type { ApiTier } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 import type { TierCreateData } from "../../tiers-repository.js";
 import { PostgresTierRepository } from "../postgres-tiers.js";
 
 /**
- * Hits a live Postgres pointed at by `DATABASE_URL` (MC-106, migration 0066).
+ * Hits a live Postgres pointed at by `TEST_DATABASE_URL` (MC-106, migration 0066).
  * Exercises the "at most one recommended tier" invariant enforced by
  * PostgresTierRepository: create defaults to false, setting `true` clears the
  * flag on every other tier, setting `false` leaves none, and deleting the
@@ -16,14 +17,14 @@ import { PostgresTierRepository } from "../postgres-tiers.js";
  * restores it in `afterAll` — the shared DB's real recommended state is left
  * exactly as it was found. Test tiers use random names and are deleted after.
  */
-describe.skipIf(!process.env.DATABASE_URL)("tiers recommended invariant (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("tiers recommended invariant (integration)", () => {
   let pool: pgModule.Pool;
   let repo: PostgresTierRepository;
   const createdIds: string[] = [];
   let originalRecommendedId: string | null = null;
 
   beforeAll(async () => {
-    pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
     repo = new PostgresTierRepository(pool);
     const { rows } = await pool.query<{ id: string }>("SELECT id FROM tiers WHERE recommended = true LIMIT 1");
     originalRecommendedId = rows[0]?.id ?? null;
