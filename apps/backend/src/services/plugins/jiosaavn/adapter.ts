@@ -69,8 +69,15 @@ const JIOSAAVN_ALBUM_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/album\/[^/]+\
 const JIOSAAVN_ARTIST_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/artist\/[^/]+\/([A-Za-z0-9_-]+)/;
 
 interface JioSaavnAlbum {
-  id: string;
-  title: string;
+  // getAlbumById asks without api_version=4, which answers albumid, name, a
+  // comma-separated primary_artists string and the full release_date. id and
+  // more_info belong to the api_version=4 shape, which has only the year.
+  id?: string;
+  albumid?: string;
+  title?: string;
+  name?: string;
+  primary_artists?: string;
+  release_date?: string;
   perma_url: string;
   image: string;
   year?: string;
@@ -99,7 +106,9 @@ interface JioSaavnAlbumSearchResult {
 
 interface JioSaavnSong {
   id: string;
-  title: string;
+  title?: string;
+  song?: string; // the title as the album endpoint sends it
+  duration?: string; // seconds as string, as the album endpoint sends it
   perma_url: string;
   image: string;
   year?: string;
@@ -211,7 +220,7 @@ function mapSongToTrack(song: JioSaavnSong): NormalizedTrack {
   return {
     sourceService: "jiosaavn",
     sourceId: song.id,
-    title: song.title,
+    title: song.title ?? song.song ?? "",
     artists,
     albumName: song.more_info?.album,
     durationMs: durationSec ? durationSec * 1000 : undefined,
@@ -242,13 +251,17 @@ async function searchSongs(query: string): Promise<JioSaavnSong[]> {
   return search<JioSaavnSong>("search.getResults", ResourceKind.Track, query);
 }
 
-function mapAlbumToNormalized(album: JioSaavnAlbum): NormalizedAlbum {
-  const artists: string[] = [];
-  if (album.more_info?.artistMap?.primary_artists) {
-    for (const a of album.more_info.artistMap.primary_artists) {
-      if (a.name) artists.push(a.name);
-    }
-  }
+function primaryArtistNames(album: JioSaavnAlbum): string[] {
+  const structured = (album.more_info?.artistMap?.primary_artists ?? []).map((artist) => artist.name).filter(Boolean);
+  if (structured.length > 0) return structured;
+  return (album.primary_artists ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
+function mapAlbumToNormalized(album: JioSaavnAlbum & { id: string; title: string }): NormalizedAlbum {
+  const artists = primaryArtistNames(album);
   if (artists.length === 0) artists.push("Unknown Artist");
 
   const songCount = album.more_info?.song_count
@@ -257,13 +270,12 @@ function mapAlbumToNormalized(album: JioSaavnAlbum): NormalizedAlbum {
       ? parseInt(album.list_count, 10)
       : undefined;
 
-  const tracks: AlbumTrackEntry[] = (album.songs ?? []).map((s, i) => {
-    const durationSec = s.more_info?.duration ? parseInt(s.more_info.duration, 10) : undefined;
-    return {
-      title: s.title,
-      trackNumber: i + 1,
-      durationMs: durationSec ? durationSec * 1000 : undefined,
-    };
+  const tracks: AlbumTrackEntry[] = (album.songs ?? []).flatMap((song, index) => {
+    const title = song.title ?? song.song;
+    if (!title) return [];
+    const duration = song.more_info?.duration ?? song.duration;
+    const durationSec = duration ? parseInt(duration, 10) : undefined;
+    return [{ title, trackNumber: index + 1, durationMs: durationSec ? durationSec * 1000 : undefined }];
   });
 
   return {
@@ -272,8 +284,8 @@ function mapAlbumToNormalized(album: JioSaavnAlbum): NormalizedAlbum {
     upc: album.more_info?.upc,
     title: album.title,
     artists,
-    releaseDate: album.more_info?.release_date ?? album.year,
-    totalTracks: songCount,
+    releaseDate: album.more_info?.release_date ?? album.release_date ?? album.year,
+    totalTracks: songCount ?? (tracks.length > 0 ? tracks.length : undefined),
     artworkUrl: album.image?.replace(/150x150|50x50/, "500x500"),
     label: album.more_info?.label,
     webUrl: album.perma_url,
@@ -287,8 +299,11 @@ async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Album, albumId);
 
   const data = await readAnswer<JioSaavnAlbum>(response, `album ${albumId}`);
-  if (!data?.id || !data?.title) return null;
-  return mapAlbumToNormalized(data);
+  if (!data) return null;
+  const id = data.id ?? data.albumid;
+  const title = data.title ?? data.name;
+  if (!id || !title) return null;
+  return mapAlbumToNormalized({ ...data, id, title });
 }
 
 async function searchAlbums(query: string): Promise<JioSaavnAlbumSearchResult[]> {

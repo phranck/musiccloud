@@ -82,6 +82,72 @@ describe("JioSaavn: getTrack", () => {
 });
 
 // =============================================================================
+// getAlbum
+// =============================================================================
+
+describe("JioSaavn: getAlbum", () => {
+  // Recorded from content.getAlbumDetails for album 56783991: the endpoint sends
+  // albumid, name and a comma-separated primary_artists string, with no id.
+  const recordedAlbum = {
+    albumid: "56783991",
+    name: "Oohalu Gusagusalade (Original Motion Picture Soundtrack)",
+    title: "Oohalu Gusagusalade (Original Motion Picture Soundtrack)",
+    primary_artists: "Kalyani Mallik, Anantha Sreeram, Sirivennela Sitaramasastri",
+    primary_artists_id: "24621128, 456746, 471153",
+    release_date: "2014-04-28",
+    year: "2014",
+    perma_url: "https://www.jiosaavn.com/album/oohalu-gusagusalade-original-motion-picture-soundtrack/dst9nfCun0o_",
+    image: "https://c.saavncdn.com/243/Oohalu-Gusagusalade-Telugu-2014-20240802162328-150x150.jpg",
+    songs: [
+      {
+        id: "ePGTQOwd",
+        song: "Emiti Hadavidi",
+        duration: "206",
+        album: "Oohalu Gusagusalade (Original Motion Picture Soundtrack)",
+        perma_url: "https://www.jiosaavn.com/song/emiti-hadavidi/FTgsZSV-QFc",
+        image: "https://c.saavncdn.com/243/Oohalu-Gusagusalade-Telugu-2014-20240802162328-150x150.jpg",
+      },
+      {
+        id: "0jCD42P-",
+        song: "Inthakante Vere",
+        duration: "235",
+        album: "Oohalu Gusagusalade (Original Motion Picture Soundtrack)",
+        perma_url: "https://www.jiosaavn.com/song/inthakante-vere/QAIodUACZx4",
+        image: "https://c.saavncdn.com/243/Oohalu-Gusagusalade-Telugu-2014-20240802162328-150x150.jpg",
+      },
+    ],
+  };
+
+  it("maps the album endpoint's actual shape", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(recordedAlbum), { status: 200 }));
+
+    const album = await jiosaavnAdapter.getAlbum!("56783991");
+    expect(album.sourceId).toBe("56783991");
+    expect(album.title).toBe("Oohalu Gusagusalade (Original Motion Picture Soundtrack)");
+    expect(album.artists).toEqual(["Kalyani Mallik", "Anantha Sreeram", "Sirivennela Sitaramasastri"]);
+    expect(album.releaseDate).toBe("2014-04-28");
+    expect(album.webUrl).toBe(recordedAlbum.perma_url);
+    expect(album.tracks?.map((track) => track.title)).toEqual(recordedAlbum.songs.map((song) => song.song));
+    expect(album.tracks?.[0]?.durationMs).toBe(Number(recordedAlbum.songs[0].duration) * 1000);
+    expect(album.totalTracks).toBe(2);
+  });
+
+  it("leaves out a song that has neither a title nor a song name", async () => {
+    const withBlankSong = { ...recordedAlbum, songs: [{ id: "x1", duration: "100" }, recordedAlbum.songs[0]] };
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(withBlankSong), { status: 200 }));
+
+    const album = await jiosaavnAdapter.getAlbum!("56783991");
+    expect(album.tracks?.map((track) => track.title)).toEqual([recordedAlbum.songs[0].song]);
+  });
+
+  it("returns a not-found error for an album the endpoint does not answer with an id or name", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
+
+    await expect(jiosaavnAdapter.getAlbum!("1")).rejects.toThrow("Album not found");
+  });
+});
+
+// =============================================================================
 // searchTrack
 // =============================================================================
 
