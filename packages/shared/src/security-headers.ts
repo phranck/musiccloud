@@ -21,8 +21,11 @@
  * measurement needed before the policy can be enforced. Adding `'unsafe-inline'`
  * to silence the reports would defeat the exercise, so it is deliberately absent.
  *
- * Enforcing the reported policy is a separate step, once every violation has
- * been answered with a nonce or a hash.
+ * A document whose inline blocks are all known, because it is built from
+ * constants, enforces the complete policy instead, with the hashes of those
+ * blocks: see {@link buildEnforcedContentSecurityPolicy}. The hashes are taken
+ * from the source text, never from the rendered page, because a hash of the
+ * output would also cover a script someone injected into it.
  */
 
 /**
@@ -66,6 +69,12 @@ const ENFORCED_DIRECTIVES = ["base-uri 'self'", "object-src 'none'", "form-actio
  */
 export const UMAMI_ORIGIN = "https://umami.layered.work";
 
+/** The script sources every page may load, before the hashes of its own inline scripts. */
+const SCRIPT_SOURCES = "script-src 'self'";
+
+/** The style sources every page may load, before the hashes of its own inline styles. */
+const STYLE_SOURCES = "style-src 'self'";
+
 /**
  * The policy being worked towards, reported rather than enforced.
  *
@@ -77,8 +86,8 @@ export const UMAMI_ORIGIN = "https://umami.layered.work";
  */
 const REPORTED_DIRECTIVES = [
   "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self'",
+  SCRIPT_SOURCES,
+  STYLE_SOURCES,
   "font-src 'self'",
   "connect-src 'self'",
   "img-src 'self' data: https:",
@@ -93,6 +102,9 @@ const REPORTED_DIRECTIVES = [
 
 /** Browser features no musiccloud surface uses, refused for every origin. */
 const PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()";
+
+const CONTENT_SECURITY_POLICY = "Content-Security-Policy";
+const CONTENT_SECURITY_POLICY_REPORT_ONLY = "Content-Security-Policy-Report-Only";
 
 function frameAncestors(exposure: SurfaceExposure): string {
   return exposure === SurfaceExposure.Private ? "frame-ancestors 'none'" : "frame-ancestors 'self'";
@@ -110,8 +122,8 @@ function frameAncestors(exposure: SurfaceExposure): string {
  */
 export function buildSecurityHeaders(exposure: SurfaceExposure): Record<string, string> {
   return {
-    "Content-Security-Policy": [...ENFORCED_DIRECTIVES, frameAncestors(exposure)].join("; "),
-    "Content-Security-Policy-Report-Only": [
+    [CONTENT_SECURITY_POLICY]: [...ENFORCED_DIRECTIVES, frameAncestors(exposure)].join("; "),
+    [CONTENT_SECURITY_POLICY_REPORT_ONLY]: [
       ...REPORTED_DIRECTIVES,
       ...ENFORCED_DIRECTIVES,
       frameAncestors(exposure),
@@ -125,17 +137,63 @@ export function buildSecurityHeaders(exposure: SurfaceExposure): Record<string, 
 }
 
 /**
+ * The hashes of a document's own inline blocks, as CSP hash sources without
+ * their quotes, such as `sha256-…`. Each is taken from the text the document
+ * renders, never from the rendered document.
+ *
+ * @property scripts - Hashes of the inline `<script>` blocks that run.
+ * @property styles - Hashes of the inline `<style>` blocks.
+ */
+export interface InlineBlockHashes {
+  scripts?: readonly string[];
+  styles?: readonly string[];
+}
+
+/** A source list followed by the quoted hashes that extend it. */
+function withHashes(sources: string, hashes: readonly string[] = []): string {
+  return [sources, ...hashes.map((hash) => `'${hash}'`)].join(" ");
+}
+
+/**
+ * The complete content policy, enforced, for a document whose inline blocks
+ * are all known.
+ *
+ * It carries every directive {@link buildSecurityHeaders} reports, with the
+ * given hashes added to `script-src` and `style-src`, and every directive it
+ * enforces. A response that sets this needs no Report-Only header beside it,
+ * and {@link applySecurityHeaders} adds none.
+ *
+ * @param exposure - What kind of surface the document belongs to.
+ * @param hashes - The hashes of the document's own inline blocks.
+ * @returns The value of a `Content-Security-Policy` header.
+ */
+export function buildEnforcedContentSecurityPolicy(exposure: SurfaceExposure, hashes: InlineBlockHashes = {}): string {
+  const loading = REPORTED_DIRECTIVES.map((directive) => {
+    if (directive === SCRIPT_SOURCES) return withHashes(directive, hashes.scripts);
+    if (directive === STYLE_SOURCES) return withHashes(directive, hashes.styles);
+    return directive;
+  });
+  return [...loading, ...ENFORCED_DIRECTIVES, frameAncestors(exposure)].join("; ");
+}
+
+/**
  * Applies {@link buildSecurityHeaders} to a response, leaving any header the
  * response already set untouched.
  *
  * A route that deliberately chose its own value keeps it, so this can sit in
- * middleware without having to know which routes are special.
+ * middleware without having to know which routes are special. The content
+ * policy and its Report-Only twin count as one: a route that set its own
+ * policy gets neither, because a Report-Only header beside a complete policy
+ * would report the very inline blocks that policy allows.
  *
  * @param headers - The outgoing response headers.
  * @param exposure - What kind of surface this host serves.
  */
 export function applySecurityHeaders(headers: Headers, exposure: SurfaceExposure): void {
+  const routeSetItsPolicy = headers.has(CONTENT_SECURITY_POLICY);
   for (const [name, value] of Object.entries(buildSecurityHeaders(exposure))) {
-    if (!headers.has(name)) headers.set(name, value);
+    if (headers.has(name)) continue;
+    if (routeSetItsPolicy && name === CONTENT_SECURITY_POLICY_REPORT_ONLY) continue;
+    headers.set(name, value);
   }
 }

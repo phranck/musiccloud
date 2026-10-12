@@ -1,6 +1,12 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { PortalGateMode, renderPortalGateHtml } from "./coming-soon";
+import { PORTAL_GATE_CONTENT_SECURITY_POLICY, PortalGateMode, renderPortalGateHtml } from "./coming-soon";
+
+/** One directive of the gate policy, by name. */
+function directive(name: string): string | undefined {
+  return PORTAL_GATE_CONTENT_SECURITY_POLICY.split("; ").find((entry) => entry.startsWith(`${name} `));
+}
 
 describe("renderPortalGateHtml", () => {
   it("renders maintenance copy while retaining the API reference link", () => {
@@ -26,5 +32,22 @@ describe("renderPortalGateHtml", () => {
     for (const address of addresses) {
       expect(address.startsWith("/") && !address.startsWith("//"), address).toBe(true);
     }
+  });
+
+  /**
+   * The page enforces its policy, so a style block the policy does not name
+   * by hash would leave the page unstyled. The test hashes what the page
+   * rendered, which is the check the browser makes.
+   */
+  it.each(Object.values(PortalGateMode))("allows exactly the inline style the %s page renders", (mode) => {
+    const html = renderPortalGateHtml(mode);
+    const styles = [...html.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((match) => match[1]);
+    const inlineScripts = (html.match(/<script\b[^>]*>/g) ?? []).filter((tag) => !/\ssrc=/.test(tag));
+
+    expect(styles).toHaveLength(1);
+    expect(inlineScripts).toEqual([]);
+    const hash = createHash("sha256").update(styles[0]).digest("base64");
+    expect(directive("style-src")).toBe(`style-src 'self' 'sha256-${hash}'`);
+    expect(directive("script-src")).toBe("script-src 'self'");
   });
 });
