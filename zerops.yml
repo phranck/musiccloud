@@ -87,6 +87,14 @@ zerops:
           timing: "17 3 * * *"
           allContainers: false
           workingDir: /var/www
+        # Artist lifecycle dates and band memberships from MusicBrainz. A run
+        # checks one batch under MusicBrainz's limit of one request per
+        # second. The batch size and the recheck ages live in
+        # `services/artist-identity/enrich.ts`.
+        - command: "node apps/backend/dist/scripts/artist-identity-enrichment.js"
+          timing: "*/10 * * * *"
+          allContainers: false
+          workingDir: /var/www
 
   - setup: frontend
     build:

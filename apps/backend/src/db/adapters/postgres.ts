@@ -57,8 +57,11 @@ import type {
   ArtistCacheRow,
   ArtistCredit,
   ArtistGroupMembershipRecord,
+  ArtistIdentityCandidate,
+  ArtistIdentityCheckOutcome,
   ArtistIdentityEventRecord,
   ArtistIdentityEventType,
+  ArtistIdentitySnapshot,
   ArtistInfoEntity,
   CachedAlbumResult,
   CachedArtistResult,
@@ -165,6 +168,11 @@ import {
   updateApiClient as apiAccessUpdateClient,
   updateDeveloperProject as apiAccessUpdateDeveloperProject,
 } from "./postgres-api-access.js";
+import {
+  listArtistIdentityCandidates as artistIdentityListCandidates,
+  recordArtistIdentityCheck as artistIdentityRecordCheck,
+  recordArtistIdentity as artistIdentityRecordIdentity,
+} from "./postgres-artist-identity.js";
 import {
   beginArtistProfileRefresh as artistProfileRefreshBegin,
   completeArtistProfileRefresh as artistProfileRefreshComplete,
@@ -535,6 +543,30 @@ export class PostgresAdapter
 
   findArtistEntityIdByIdentifier(provider: string, externalId: string): Promise<string | null> {
     return artistsFindArtistEntityIdByIdentifier(this.pool, provider, externalId);
+  }
+
+  listArtistIdentityCandidates(params: {
+    limit: number;
+    recheckBefore: Date;
+    retryFailedBefore: Date;
+  }): Promise<ArtistIdentityCandidate[]> {
+    return artistIdentityListCandidates(this.pool, params);
+  }
+
+  recordArtistIdentity(
+    artistEntityId: string,
+    snapshot: ArtistIdentitySnapshot,
+    checkedAt: Date,
+  ): Promise<"matched" | "conflict"> {
+    return artistIdentityRecordIdentity(this.pool, artistEntityId, snapshot, checkedAt);
+  }
+
+  recordArtistIdentityCheck(
+    artistEntityId: string,
+    outcome: Exclude<ArtistIdentityCheckOutcome, "matched">,
+    checkedAt: Date,
+  ): Promise<void> {
+    return artistIdentityRecordCheck(this.pool, artistEntityId, outcome, checkedAt);
   }
 
   cleanupStaleCache(): Promise<number> {

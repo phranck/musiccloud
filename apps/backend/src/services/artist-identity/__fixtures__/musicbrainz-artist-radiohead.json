@@ -1,0 +1,292 @@
+{
+  "id": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+  "name": "Radiohead",
+  "type": "Group",
+  "life-span": {
+    "ended": false,
+    "end": null,
+    "begin": "1991"
+  },
+  "relations": [
+    {
+      "type": "artist rename",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": "1991",
+      "end": "1991",
+      "ended": true,
+      "attributes": [],
+      "artist": {
+        "id": "c74f4726-2671-4011-81b6-f70da905c05a",
+        "name": "On a Friday",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["double bass", "original"],
+      "artist": {
+        "id": "f23074f4-2c06-477a-bf1d-12fa66e087ee",
+        "name": "Colin Greenwood",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["electric bass guitar", "original"],
+      "artist": {
+        "id": "f23074f4-2c06-477a-bf1d-12fa66e087ee",
+        "name": "Colin Greenwood",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["original", "sampler"],
+      "artist": {
+        "id": "f23074f4-2c06-477a-bf1d-12fa66e087ee",
+        "name": "Colin Greenwood",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["original", "string synthesizer"],
+      "artist": {
+        "id": "f23074f4-2c06-477a-bf1d-12fa66e087ee",
+        "name": "Colin Greenwood",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["electric guitar", "original"],
+      "artist": {
+        "id": "e9fcfbbf-1743-4f73-8744-ada8da7394ea",
+        "name": "Jonny Greenwood",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["ondes Martenot", "original"],
+      "artist": {
+        "id": "e9fcfbbf-1743-4f73-8744-ada8da7394ea",
+        "name": "Jonny Greenwood",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["glockenspiel", "original"],
+      "artist": {
+        "id": "e9fcfbbf-1743-4f73-8744-ada8da7394ea",
+        "name": "Jonny Greenwood",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["original", "toy piano"],
+      "artist": {
+        "id": "e9fcfbbf-1743-4f73-8744-ada8da7394ea",
+        "name": "Jonny Greenwood",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["analog synthesizer", "original"],
+      "artist": {
+        "id": "e9fcfbbf-1743-4f73-8744-ada8da7394ea",
+        "name": "Jonny Greenwood",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["background vocals", "original"],
+      "artist": {
+        "id": "309d9809-cf74-493a-b56b-1378258f20fd",
+        "name": "Ed O’Brien",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["electric guitar", "original"],
+      "artist": {
+        "id": "309d9809-cf74-493a-b56b-1378258f20fd",
+        "name": "Ed O’Brien",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["effects", "original"],
+      "artist": {
+        "id": "309d9809-cf74-493a-b56b-1378258f20fd",
+        "name": "Ed O’Brien",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["original", "percussion"],
+      "artist": {
+        "id": "4ab74d13-d1eb-4895-b874-6da5d8b1aac3",
+        "name": "Philip Selway",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["drums (drum set)", "original"],
+      "artist": {
+        "id": "4ab74d13-d1eb-4895-b874-6da5d8b1aac3",
+        "name": "Philip Selway",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["lead vocals", "original"],
+      "artist": {
+        "id": "8ed2e0b3-aa4c-4e13-bec3-dc7393ed4d6b",
+        "name": "Thom Yorke",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["acoustic guitar", "original"],
+      "artist": {
+        "id": "8ed2e0b3-aa4c-4e13-bec3-dc7393ed4d6b",
+        "name": "Thom Yorke",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["electric guitar", "original"],
+      "artist": {
+        "id": "8ed2e0b3-aa4c-4e13-bec3-dc7393ed4d6b",
+        "name": "Thom Yorke",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["original", "synthesizer"],
+      "artist": {
+        "id": "8ed2e0b3-aa4c-4e13-bec3-dc7393ed4d6b",
+        "name": "Thom Yorke",
+        "type": "Person"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "backward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["original", "piano"],
+      "artist": {
+        "id": "8ed2e0b3-aa4c-4e13-bec3-dc7393ed4d6b",
+        "name": "Thom Yorke",
+        "type": "Person"
+      }
+    }
+  ]
+}

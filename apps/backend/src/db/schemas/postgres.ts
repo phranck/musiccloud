@@ -715,6 +715,28 @@ export const artistGroupMembershipRoles = pgTable(
 );
 
 /**
+ * When an artist entity was last checked against an identity provider, and
+ * what came of it. The identity enrichment picks its next entities by this
+ * row, so an entity the provider does not know is not asked about on every run.
+ */
+export const artistIdentityChecks = pgTable(
+  "artist_identity_checks",
+  {
+    artistEntityId: text("artist_entity_id")
+      .notNull()
+      .references(() => artistEntities.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    outcome: text("outcome").notNull(),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ name: "pk_artist_identity_checks", columns: [table.artistEntityId, table.provider] }),
+    check("chk_artist_identity_checks_outcome", sql`${table.outcome} IN ('matched', 'no_match', 'conflict', 'failed')`),
+    index("idx_artist_identity_checks_due").on(table.provider, table.checkedAt),
+  ],
+);
+
+/**
  * Ordered artist credits for tracks.
  * Links track display credits to normalized artist entities while preserving
  * the credit name, role, position and match provenance seen on the source.

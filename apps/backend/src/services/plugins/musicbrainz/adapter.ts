@@ -90,7 +90,17 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function mbFetch(endpoint: string): Promise<Response> {
+/**
+ * Requests a MusicBrainz web service path through the shared request gate,
+ * with the contact `User-Agent` MusicBrainz requires, retrying one 503 after
+ * the delay MusicBrainz asks for. Every MusicBrainz call in the backend goes
+ * through here, so the gate holds across the adapter and the identity
+ * enrichment alike.
+ *
+ * @param endpoint - The path below `/ws/2`, with its query string.
+ * @returns The response as received, whatever its status.
+ */
+export async function mbFetch(endpoint: string): Promise<Response> {
   const url = `${API_BASE}${endpoint}`;
 
   for (let attempt = 0; ; attempt += 1) {
@@ -111,7 +121,14 @@ async function mbFetch(endpoint: string): Promise<Response> {
   }
 }
 
-async function parseMusicBrainzJson<T>(response: Response, context: string): Promise<T | null> {
+/**
+ * Reads a MusicBrainz response body as JSON.
+ *
+ * @param response - A successful response.
+ * @param context - What was requested, for the debug log.
+ * @returns The parsed body, or `null` when it is not valid JSON.
+ */
+export async function parseMusicBrainzJson<T>(response: Response, context: string): Promise<T | null> {
   try {
     return (await response.json()) as T;
   } catch (error) {

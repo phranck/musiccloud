@@ -764,6 +764,13 @@
       "when": 1791787358578,
       "tag": "0108_one_frontend_template_key",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1791804936995,
+      "tag": "0109_artist_identity_checks",
+      "breakpoints": true
     }
   ]
 }
