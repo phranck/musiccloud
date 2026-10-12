@@ -36,11 +36,6 @@ export function FooterUserInfo({
   const messages = dashboardCopy;
   const s = messages.layout.sidebar;
   const displayName = formatAdminName({ username, firstName, lastName });
-  const roleLabel: Record<AdminRole, string> = {
-    owner: messages.users.role.owner,
-    admin: messages.users.role.admin,
-    moderator: messages.users.role.moderator,
-  };
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [skipNext, setSkipNext] = useState(false);
@@ -68,7 +63,7 @@ export function FooterUserInfo({
         {username && <UserAvatar username={username} avatarUrl={avatarUrl} size="sm" className="shrink-0" />}
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-[var(--ds-text)] truncate">{displayName}</p>
-          {role && <p className="text-xs text-[var(--ds-text-muted)] truncate">{roleLabel[role]}</p>}
+          {role && <p className="text-xs text-[var(--ds-text-muted)] truncate">{messages.users.role[role]}</p>}
         </div>
         {onEditProfile && (
           <DashboardIconButton

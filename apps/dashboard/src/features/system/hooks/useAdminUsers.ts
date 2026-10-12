@@ -2,12 +2,13 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { fileToDataUrl } from "@/lib/files";
+import type { EditableAdminRole } from "@/shared/constants/domain";
 import type { AdminUser, AdminUserInvite } from "@/shared/types/admin";
 
 export interface CreateUserFormData {
   username: string;
   email: string;
-  role?: "admin" | "moderator";
+  role?: EditableAdminRole;
 }
 
 export const EMPTY_CREATE_USER_FORM: CreateUserFormData = {
@@ -44,7 +45,7 @@ interface UpdateUserFormData {
   password?: string;
   firstName?: string;
   lastName?: string;
-  role?: "admin" | "moderator";
+  role?: EditableAdminRole;
   sessionTimeoutMinutes?: number | null;
 }
 

@@ -7,7 +7,6 @@ export interface AdminUser {
   username: string;
   email?: string;
   role: AdminRole;
-  isOwner: boolean;
   firstName?: string | null;
   lastName?: string | null;
   avatarUrl?: string | null;

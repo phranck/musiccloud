@@ -3,9 +3,8 @@ import { createRoutesFromElements, Navigate, Route } from "react-router";
 
 import { ContentEditorLoadingFallback } from "@/components/ContentEditorLoadingFallback";
 import { RedirectIfAuthed } from "@/features/auth/RedirectIfAuthed";
+import { RequireArea } from "@/features/auth/RequireArea";
 import { RequireAuth } from "@/features/auth/RequireAuth";
-import { RequireNonModerator } from "@/features/auth/RequireNonModerator";
-import { RequireOwner } from "@/features/auth/RequireOwner";
 import { SetupGate } from "@/features/auth/SetupGate";
 import { RootLayout } from "@/RootLayout";
 import {
@@ -38,6 +37,7 @@ import {
   TracksPage,
   UsersPage,
 } from "@/routeComponents";
+import { AdminArea } from "@/shared/constants/domain";
 
 function lazyFallback(node: ReactNode) {
   return <Suspense fallback={<ContentEditorLoadingFallback />}>{node}</Suspense>;
@@ -58,12 +58,15 @@ export const routes = createRoutesFromElements(
         <Route path="albums" element={lazyFallback(<AlbumsPage />)} />
         <Route path="artists" element={lazyFallback(<ArtistsPage />)} />
 
-        <Route element={<RequireOwner />}>
+        <Route element={<RequireArea area={AdminArea.Users} />}>
           <Route path="users" element={lazyFallback(<UsersPage />)} />
+        </Route>
+
+        <Route element={<RequireArea area={AdminArea.DeveloperSettings} />}>
           <Route path="developer/settings" element={lazyFallback(<DeveloperSettingsPage />)} />
         </Route>
 
-        <Route element={<RequireNonModerator />}>
+        <Route element={<RequireArea area={AdminArea.Administration} />}>
           <Route path="email-templates" element={lazyFallback(<EmailTemplateListPage />)} />
           <Route path="email-templates/new" element={lazyFallback(<EmailTemplateEditPage />)} />
           <Route path="email-templates/:id" element={lazyFallback(<EmailTemplateEditPage />)} />
