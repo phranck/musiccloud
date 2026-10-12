@@ -3,6 +3,8 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+const deployService = await readFile(new URL("../.github/workflows/deploy-service.yml", import.meta.url), "utf8");
+const zerops = await readFile(new URL("../zerops.yml", import.meta.url), "utf8");
 
 /**
  * Slices one job out of the workflow by name. Using the next job's own header
@@ -29,9 +31,14 @@ test("uses read-only GITHUB_TOKEN permissions with one scoped job exception", ()
   // Nothing writes to the repository any more, so no job may ask for it.
   assert.equal((workflow.match(/^\s+contents: write$/gm) ?? []).length, 0);
   assert.doesNotMatch(deployJobs, /^ {4}permissions:/m);
-  assert.doesNotMatch(deployJobs, /\$\{\{ github\.token \}\}/);
-  assert.match(deployJobs, /STATUS_TOKEN: \$\{\{ secrets\.STATUS_DISPATCH_TOKEN \}\}/);
-  assert.match(deployJobs, /ZEROPS_TOKEN: \$\{\{ secrets\.ZEROPS_TOKEN \}\}/);
+  // Every deploy job hands its secrets to the one deploy workflow, which reads
+  // the deploy and status tokens and never the GITHUB_TOKEN.
+  assert.equal((deployJobs.match(/^ {4}uses: \.\/\.github\/workflows\/deploy-service\.yml$/gm) ?? []).length, 4);
+  assert.equal((deployJobs.match(/^ {4}secrets: inherit$/gm) ?? []).length, 4);
+  assert.match(deployService, /\npermissions:\n {2}contents: read\n/);
+  assert.doesNotMatch(deployService, /\$\{\{ github\.token \}\}/);
+  assert.match(deployService, /STATUS_TOKEN: \$\{\{ secrets\.STATUS_DISPATCH_TOKEN \}\}/);
+  assert.match(deployService, /ZEROPS_TOKEN: \$\{\{ secrets\.ZEROPS_TOKEN \}\}/);
 });
 
 test("carries no SDK generation", () => {
@@ -39,20 +46,26 @@ test("carries no SDK generation", () => {
 });
 
 test("verifies the public backend health endpoint after a backend deploy", () => {
-  assert.match(
-    job("deploy-backend"),
-    /\.\/scripts\/zerops-deploy\.sh vftiwXaYQGCnnwEEaiGPYA[\s\S]*?curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https:\/\/api\.musiccloud\.io\/health\/backend/,
-  );
+  const backendJob = job("deploy-backend");
+
+  assert.match(backendJob, /host: api\.musiccloud\.io\n/);
+  assert.match(backendJob, /probe-paths: \/health\/backend\n/);
+  assert.match(backendJob, /zerops-service-id: vftiwXaYQGCnnwEEaiGPYA\n/);
 });
 
 test("probes every deployed host, because Zerops confirms the artifact and not the process", () => {
   for (const [name, host] of [
-    ["deploy-frontend", "https://musiccloud.io/"],
-    ["deploy-developer", "https://developer.musiccloud.io/"],
-    ["deploy-dashboard", "https://dashboard.musiccloud.io/"],
+    ["deploy-frontend", "musiccloud.io"],
+    ["deploy-developer", "developer.musiccloud.io"],
+    ["deploy-dashboard", "dashboard.musiccloud.io"],
   ]) {
-    assert.match(job(name), new RegExp(`curl --fail[^\\n]*${host.replace(/[/.]/g, "\\$&")}`), name);
+    assert.match(job(name), new RegExp(`host: ${host.replace(/\./g, "\\.")}\\n[\\s\\S]*?probe-paths: \\/`), name);
   }
+  // The deploy runs, then every named path has to answer.
+  assert.match(
+    deployService,
+    /\.\/scripts\/zerops-deploy\.sh "\$ZEROPS_SERVICE_ID"[\s\S]*?for path in \$PROBE_PATHS; do\n\s*curl --fail --silent --show-error --output \/dev\/null --retry 10 --retry-all-errors --retry-delay 3 "https:\/\/\$\{HOST\}\$\{path\}"/,
+  );
 });
 
 test("deploys the developer site without waiting on anything but its own change detection", () => {
@@ -60,13 +73,6 @@ test("deploys the developer site without waiting on anything but its own change 
 
   assert.match(developerJob, /needs: detect-changes/);
   assert.match(developerJob, /if: needs\.detect-changes\.outputs\.developer == 'true'/);
-});
-
-test("counts neither backend nor CI paths as a dashboard change", () => {
-  const dashboardCase =
-    job("detect-changes").match(/case "\$file" in\n(?:(?!case "\$file" in)[\s\S])*?dashboard=true ;;/)?.[0] ?? "";
-
-  assert.doesNotMatch(dashboardCase, /apps\/backend\/\*|\.github\/workflows\/ci\.yml/);
 });
 
 test("deploys the dashboard again after every backend deploy, because its nginx keeps the backend's address", () => {
@@ -84,10 +90,7 @@ test("deploys the dashboard again after every backend deploy, because its nginx 
 });
 
 test("probes the dashboard's proxy to the backend, not only its static page", () => {
-  assert.match(
-    job("deploy-dashboard"),
-    /curl --fail[^\n]*https:\/\/dashboard\.musiccloud\.io\/api\/admin\/auth\/setup-status/,
-  );
+  assert.match(job("deploy-dashboard"), /probe-paths: \/ \/api\/admin\/auth\/setup-status\n/);
 });
 
 test("takes the deployment diff base from a successful push run", () => {
@@ -103,8 +106,7 @@ test("validates only affected workspaces after early path detection", () => {
   assert.match(validationDetectionJob, /if: always\(\)/);
   assert.match(validationDetectionJob, /github\.event\.pull_request\.base\.sha/);
   assert.match(validationDetectionJob, /PUSH_BEFORE_SHA: \$\{\{ github\.event\.before \}\}/);
-  assert.match(validationDetectionJob, /shared=true/);
-  assert.match(validationDetectionJob, /dashboard_ui=true/);
+  assert.match(validationDetectionJob, /node scripts\/changed-workspaces\.mjs validate /);
   assert.match(typecheckJob, /needs: detect-validation-changes/);
   assert.doesNotMatch(typecheckJob, /needs: lint/);
   assert.match(typecheckJob, /outputs\.backend == 'true'/);
@@ -157,4 +159,30 @@ test("keeps CI independent from the removed project-local app runner", async () 
   );
   assert.doesNotMatch(typecheckJob, /\bapp(?:\.test\.mjs)?\b/);
   await assert.rejects(access(new URL("../app", import.meta.url)));
+});
+
+test("derives both change maps from the workspace graph, with no hand-written path list", () => {
+  assert.doesNotMatch(workflow, /case "\$file" in/);
+  assert.match(job("detect-changes"), /node scripts\/changed-workspaces\.mjs deploy /);
+});
+
+/**
+ * Corepack runs the version `packageManager` names in package.json. A second
+ * statement of it is a second answer that can drift from the first.
+ */
+test("names the pnpm version in package.json alone", () => {
+  for (const [file, text] of [
+    ["ci.yml", workflow],
+    ["deploy-service.yml", deployService],
+    ["zerops.yml", zerops],
+  ]) {
+    assert.doesNotMatch(text, /pnpm@\d/, file);
+  }
+});
+
+test("explains the status banner once", () => {
+  const sentence = "A status-page banner is a convenience, a deploy is not.";
+  const occurrences = [workflow, deployService].join("\n").split(sentence).length - 1;
+
+  assert.equal(occurrences, 1);
 });

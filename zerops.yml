@@ -4,7 +4,6 @@ zerops:
       base: alpine/nodejs@22
       buildCommands:
         - corepack enable
-        - corepack prepare pnpm@10.33.1 --activate
         - pnpm install --frozen-lockfile
         - pnpm --filter @musiccloud/shared build
         - pnpm --filter @musiccloud/backend build
@@ -94,7 +93,6 @@ zerops:
       base: alpine/nodejs@22
       buildCommands:
         - corepack enable
-        - corepack prepare pnpm@10.33.1 --activate
         - pnpm install --frozen-lockfile
         - pnpm --filter @musiccloud/shared build
         - pnpm --filter @musiccloud/frontend build
@@ -129,7 +127,6 @@ zerops:
       base: alpine/nodejs@22
       buildCommands:
         - corepack enable
-        - corepack prepare pnpm@10.33.1 --activate
         - pnpm install --frozen-lockfile
         - pnpm --filter @musiccloud/shared build
         # The developer prebuild exports this checkout's public OpenAPI contract
@@ -163,7 +160,6 @@ zerops:
       base: alpine/nodejs@22
       buildCommands:
         - corepack enable
-        - corepack prepare pnpm@10.33.1 --activate
         - pnpm install --frozen-lockfile
         - pnpm --filter @musiccloud/shared build
         - pnpm --filter @musiccloud/dashboard build
