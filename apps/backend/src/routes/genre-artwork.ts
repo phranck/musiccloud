@@ -9,25 +9,22 @@
  *
  * Marked immutable in `Cache-Control`: the same (genre, algorithm) pair
  * always produces the same bytes, so browsers and CDNs can hold onto a
- * response indefinitely. Bumping the SVG algorithm will require a cache
- * purge or a version-segmented URL.
+ * response indefinitely. The tile URLs carry `GENRE_ARTWORK_VERSION`, so a
+ * generator change bumps that one value and every tile is fetched again.
  */
 
 import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { publicErrorResponse } from "../docs/public-response-schema.js";
-import { ensureArtwork, getCachedArtwork } from "../services/genre-artwork/index.js";
+import {
+  ensureArtwork,
+  genreArtworkCacheControl,
+  genreDisplayName,
+  getCachedArtwork,
+  isValidGenreKey,
+  normalizeGenreKey,
+} from "../services/genre-artwork/index.js";
 import { getCachedGenreCoverUrl, getGenreCoverUrl } from "../services/genre-search/lastfm.js";
-
-const GENRE_KEY_PATTERN = /^[a-z0-9][a-z0-9 &'.\-+]{0,63}$/;
-
-function normaliseGenreKey(raw: string): string {
-  return decodeURIComponent(raw).toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-function toDisplayName(genreKey: string): string {
-  return genreKey.replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 export default async function genreArtworkRoutes(app: FastifyInstance) {
   app.get<{ Params: { genreKey: string } }>(
@@ -66,8 +63,8 @@ export default async function genreArtworkRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      const genreKey = normaliseGenreKey(request.params.genreKey);
-      if (!GENRE_KEY_PATTERN.test(genreKey)) {
+      const genreKey = normalizeGenreKey(request.params.genreKey);
+      if (!isValidGenreKey(genreKey)) {
         return reply.code(400).send({ error: "INVALID_GENRE_KEY", message: "Genre key contains invalid characters." });
       }
 
@@ -76,32 +73,25 @@ export default async function genreArtworkRoutes(app: FastifyInstance) {
         return reply
           .code(200)
           .header("Content-Type", "image/jpeg")
-          .header("Cache-Control", "public, max-age=31536000, immutable")
+          .header("Cache-Control", genreArtworkCacheControl(false))
           .send(cached.jpeg);
       }
 
-      // Prefer the cover URL that was already captured when the browse
-      // grid was built — the grid build already paid for one Last.fm call
-      // per genre, and reusing its result avoids a parallel fan-out of
-      // duplicate `tag.getTopAlbums` requests once the browser starts
-      // loading all tiles at once. Only fall back to a fresh Last.fm
-      // lookup when the browse cache was never populated (e.g. direct
-      // URL hits after a cold restart).
+      // Prefer the cover URL captured when the browse grid was built. The
+      // grid build already paid for one Last.fm call per genre, and reusing
+      // its result avoids a parallel fan-out of duplicate `tag.getTopAlbums`
+      // requests once the browser loads all tiles at once. A fresh Last.fm
+      // lookup runs only when the browse cache was never filled, such as for
+      // a direct URL hit after a cold restart.
       const coverUrl = getCachedGenreCoverUrl(genreKey) ?? (await getGenreCoverUrl(genreKey));
-      // No cover? We still generate an artwork using the fallback color
-      // so the grid never shows a broken tile. Only refuse if the key is
-      // genuinely nonsense (handled above).
-      const { jpeg, isFallback } = await ensureArtwork(genreKey, coverUrl, toDisplayName(genreKey));
-      return (
-        reply
-          .code(200)
-          .header("Content-Type", "image/jpeg")
-          // A transient fallback (cover fetch failed) must NOT be cached
-          // immutably or it freezes in the browser; serve it `no-store` so the
-          // next view re-requests and retries the cover.
-          .header("Cache-Control", isFallback ? "no-store" : "public, max-age=31536000, immutable")
-          .send(jpeg)
-      );
+      // Without a cover the artwork is drawn in the fallback color, so the
+      // grid never shows a broken tile. Only a nonsense key is refused, above.
+      const { jpeg, isFallback } = await ensureArtwork(genreKey, coverUrl, genreDisplayName(genreKey));
+      return reply
+        .code(200)
+        .header("Content-Type", "image/jpeg")
+        .header("Cache-Control", genreArtworkCacheControl(isFallback))
+        .send(jpeg);
     },
   );
 }

@@ -40,6 +40,7 @@ import type {
   ResolveCcGenreBrowseResponse,
   ResolveCcGenreSearchResponse,
 } from "@musiccloud/shared";
+import { ccGenreArtworkTileUrl } from "../genre-artwork/genre-key.js";
 import { parseGenreQuery } from "../genre-search/index.js";
 import { ccAlbumCandidateId, ccArtistCandidateId, ccCandidateId } from "./cc-resolver.js";
 import { getCcArtistsByIds, getCcGenres, searchCcTracks } from "./jamendo/client.js";
@@ -53,23 +54,13 @@ import type { CcArtist, CcGenre, CcTrack } from "./jamendo/types.js";
 const CC_GENRE_DEDUP_OVERFETCH = 3;
 
 /**
- * Cache-bust version for the CC genre tile artwork URLs. The artwork route
- * serves its JPEG bytes with `Cache-Control: immutable`, so browsers keep old
- * images forever once fetched. Bump this integer whenever the CC artwork
- * source or rendering rules change so every tile URL becomes a new cache key
- * and clients refetch. Mirrors `ARTWORK_VERSION` in the commercial
- * `services/genre-search/lastfm.ts`.
- */
-const CC_ARTWORK_VERSION = 5;
-
-/**
  * Maps a Jamendo genre to a browse-grid tile.
  *
  * `artworkUrl` points at the CC genre-artwork proxy
  * (`/api/cc/genre-artwork/:genreKey`), which serves a procedurally generated
  * tile: a representative Jamendo album cover with the genre name baked into the
- * upper-left — identical font, size, and margins to the commercial tiles. The
- * `?v=` query is a cache-bust keyed on {@link CC_ARTWORK_VERSION}. Creative
+ * upper-left, in the same font, size and margins as the commercial tiles. The
+ * `?v=` query is the cache-bust version both tile families share. Creative
  * Commons genre tiles do not expose `accentColor` because this path does not
  * produce an equivalent color value.
  *
@@ -80,7 +71,7 @@ function toGenreTile(genre: CcGenre): ApiCcGenreTile {
   return {
     name: genre.name,
     displayName: genre.displayName,
-    artworkUrl: `/api/cc/genre-artwork/${encodeURIComponent(genre.name)}?v=${CC_ARTWORK_VERSION}`,
+    artworkUrl: ccGenreArtworkTileUrl(genre.name),
   };
 }
 

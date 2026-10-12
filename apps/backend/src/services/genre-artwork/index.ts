@@ -9,7 +9,9 @@
  * of tile loads does not stampede the CPU.
  *
  * `getCachedArtwork` and `getStoredArtworkSummaries` are the hot-path reads
- * used by the route and by the browse-grid response respectively.
+ * used by the route and by the browse-grid response respectively. The tile
+ * address, the key rule, the display name and the cache header come from
+ * `genre-key.ts` and are re-exported here.
  */
 
 import { createConcurrencyLimiter, createSingleFlight } from "../../lib/concurrency.js";
@@ -19,6 +21,16 @@ import { extractColorsFromBuffer } from "./color-extractor.js";
 import { generateArtwork } from "./generator.js";
 import { getArtwork, type StoredArtwork, saveArtwork } from "./repository.js";
 
+export {
+  ccGenreArtworkTileUrl,
+  GENRE_ARTWORK_VERSION,
+  GENRE_KEY_PATTERN,
+  genreArtworkCacheControl,
+  genreArtworkTileUrl,
+  genreDisplayName,
+  isValidGenreKey,
+  normalizeGenreKey,
+} from "./genre-key.js";
 export type { StoredArtwork, StoredArtworkSummary } from "./repository.js";
 export { clearAllArtworks, getArtwork as getCachedArtwork, getStoredArtworkSummaries } from "./repository.js";
 
