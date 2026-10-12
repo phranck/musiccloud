@@ -1,3 +1,4 @@
+import { SortDirection } from "@musiccloud/dashboard-ui";
 import type { AdminEventType } from "@musiccloud/shared";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
@@ -116,6 +117,16 @@ function makeReducer<T extends { id: string }>() {
 
 const PAGE_SIZE = 50;
 
+/** The order an admin list is requested in. */
+export interface AdminListSort {
+  /** The endpoint's name for the sorted column, such as `title` or `created_at`. */
+  sortBy: string;
+  sortDir: SortDirection;
+}
+
+/** The order the admin list endpoints return when a request names none. */
+const DEFAULT_ADMIN_LIST_SORT: AdminListSort = { sortBy: "created_at", sortDir: SortDirection.Desc };
+
 interface UseInfiniteAdminTableOptions {
   endpoint: string;
   deleteEndpoint?: string;
@@ -127,6 +138,23 @@ interface UseInfiniteAdminTableOptions {
   deletedEventType?: AdminEventType;
 }
 
+/**
+ * Holds a paged admin list, so the tracks, albums or artists, and everything
+ * the page does with it: the search, the sort, infinite scrolling, selection
+ * and deletion.
+ *
+ * The server sorts and pages the list, and the hook only ever asks it for the
+ * next page of one ordered result. A change of search or sort therefore starts
+ * again at page one, because a page in another order would not continue the
+ * rows already loaded. The list starts in the order the endpoints use when
+ * asked for none, newest first.
+ *
+ * @param options - The list endpoint, the endpoint deletions go to, and the
+ *   live event that reports deletions from other sessions.
+ * @returns The loaded rows and their state, the search and sort with their
+ *   setters, the selection and deletion controls, and the sentinel ref that
+ *   triggers the next page.
+ */
 export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfiniteAdminTableOptions) {
   const { endpoint, deleteEndpoint, deletedEventType } = options;
 
@@ -135,8 +163,7 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
 
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc" | null>(null);
+  const [sort, setSort] = useState<AdminListSort>(DEFAULT_ADMIN_LIST_SORT);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editMode, setEditMode] = useState(false);
@@ -158,10 +185,10 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery, sortBy and sortDir are intentional triggers to reset selection when filter/sort params change.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery and sort are intentional triggers to reset selection when filter/sort params change.
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [searchQuery, sortBy, sortDir]);
+  }, [searchQuery, sort]);
 
   // Escape to exit edit mode
   useEffect(() => {
@@ -176,62 +203,63 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [editMode]);
 
+  /**
+   * The request for one page. Every page of a list is asked for with the same
+   * search and sort, because the server pages through one ordered result and a
+   * page asked for in another order would not continue the rows already shown.
+   */
+  const pageUrl = useCallback(
+    (page: number) => {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(PAGE_SIZE),
+        sortBy: sort.sortBy,
+        sortDir: sort.sortDir,
+      });
+      if (searchQuery) params.set("q", searchQuery);
+      return `${endpoint}?${params}`;
+    },
+    [endpoint, searchQuery, sort],
+  );
+
   // Fetch
   const fetchFirstPage = useCallback(
     (stale?: T[]) => {
       dispatch({ type: "RESET", stale });
-      const params = new URLSearchParams();
-      params.set("page", "1");
-      params.set("limit", String(PAGE_SIZE));
-      if (searchQuery) params.set("q", searchQuery);
-      if (sortBy) params.set("sortBy", sortBy);
-      if (sortDir) params.set("sortDir", sortDir);
       api
-        .get<Page<T>>(`${endpoint}?${params}`)
+        .get<Page<T>>(pageUrl(1))
         .then((data) => dispatch({ type: "FIRST_PAGE", items: data.items, total: data.total }))
         .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
     },
-    [endpoint, searchQuery, sortBy, sortDir],
+    [pageUrl],
   );
 
   const refreshSilently = useCallback(async () => {
-    const params = new URLSearchParams();
-    params.set("page", "1");
-    params.set("limit", String(PAGE_SIZE));
-    if (searchQuery) params.set("q", searchQuery);
-    if (sortBy) params.set("sortBy", sortBy);
-    if (sortDir) params.set("sortDir", sortDir);
-    const data = await api.get<Page<T>>(`${endpoint}?${params}`);
+    const data = await api.get<Page<T>>(pageUrl(1));
     dispatch({ type: "FIRST_PAGE", items: data.items, total: data.total });
-  }, [endpoint, searchQuery, sortBy, sortDir]);
+  }, [pageUrl]);
 
   const loadMore = useCallback(() => {
     const s = stateRef.current;
     if (s.tag !== "ready" || !s.hasMore) return;
     dispatch({ type: "LOAD_MORE" });
-    const params = new URLSearchParams();
-    params.set("page", String(s.nextPage));
-    params.set("limit", String(PAGE_SIZE));
-    if (searchQuery) params.set("q", searchQuery);
-    if (sortBy) params.set("sortBy", sortBy);
-    if (sortDir) params.set("sortDir", sortDir);
     api
-      .get<Page<T>>(`${endpoint}?${params}`)
+      .get<Page<T>>(pageUrl(s.nextPage))
       .then((data) => dispatch({ type: "MORE_LOADED", items: data.items, total: data.total }))
       .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
-  }, [endpoint, searchQuery, sortBy, sortDir]);
+  }, [pageUrl]);
 
   const loadMoreRef = useRef(loadMore);
   loadMoreRef.current = loadMore;
   const fetchFirstPageRef = useRef(fetchFirstPage);
   fetchFirstPageRef.current = fetchFirstPage;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery, sortBy and sortDir are intentional triggers to re-fetch when filter/sort params change, even though they are accessed via refs inside the effect body.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery and sort are intentional triggers to re-fetch when filter/sort params change, even though they are accessed via refs inside the effect body.
   useEffect(() => {
     const s = stateRef.current;
     const stale = s.tag === "ready" || s.tag === "loading-more" ? s.items : undefined;
     fetchFirstPageRef.current(stale);
-  }, [searchQuery, sortBy, sortDir]);
+  }, [searchQuery, sort]);
 
   // Infinite scroll. The observer root is resolved to the element that
   // actually scrolls (see findScrollParent); anchoring it to the list's
@@ -314,19 +342,6 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     }, 300);
   }
 
-  // Server-side sort handler
-  function handleSort(key: string) {
-    if (sortBy !== key) {
-      setSortBy(key);
-      setSortDir("asc");
-    } else if (sortDir === "asc") {
-      setSortDir("desc");
-    } else {
-      setSortBy(null);
-      setSortDir(null);
-    }
-  }
-
   return {
     items,
     total,
@@ -338,9 +353,11 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
 
     searchInput,
     setSearchInput,
-    sortBy,
-    sortDir,
-    handleSort,
+    /** The endpoint's name for the sorted column. */
+    sortBy: sort.sortBy,
+    sortDir: sort.sortDir,
+    /** Requests the list again from page one in the given order. */
+    setSort,
 
     editMode,
     toggleEditMode,

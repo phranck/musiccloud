@@ -1,15 +1,18 @@
 import type { SortState } from "@musiccloud/dashboard-ui";
 import { type ColumnDef, DataTable, DataTableState } from "@musiccloud/dashboard-ui";
 import { SpinnerGap as SpinnerGapIcon } from "@phosphor-icons/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback, useMemo } from "react";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import type { InfiniteAdminTable as InfiniteAdminTableResult } from "@/features/music/hooks/useInfiniteAdminTable";
 
 interface InfiniteAdminTableProps<T extends { id: string }> {
   /** The list state, as returned by `useInfiniteAdminTable`. */
   table: InfiniteAdminTableResult<T>;
+  /**
+   * The columns. A column the server can sort names that sort in
+   * `serverSort`, and only those columns offer a sort.
+   */
   columns: ColumnDef<T>[];
-  defaultSort?: SortState | null;
   /**
    * The slots this list shows, which in practice is an
    * `InfiniteAdminTable.Empty` holding whatever belongs on screen once the
@@ -32,17 +35,16 @@ interface InfiniteAdminTableProps<T extends { id: string }> {
  * sticky header hold: a scroll port here would grow with the table, never
  * scroll, and take the header with the rows.
  *
+ * The sort lives in `table`, which sends it with every page request, and the
+ * table only reports header clicks. The columns name the column ids the table
+ * uses, the hook names the columns the way the endpoint does, and `serverSort`
+ * on each column is what translates between the two.
+ *
  * @param table - The list state driving every slot.
  * @param columns - The columns, which is the part each page brings itself.
- * @param defaultSort - The sort applied before any header is clicked.
  * @param children - The empty state, as an `InfiniteAdminTable.Empty`.
  */
-export function InfiniteAdminTable<T extends { id: string }>({
-  table,
-  columns,
-  defaultSort = null,
-  children,
-}: InfiniteAdminTableProps<T>) {
+export function InfiniteAdminTable<T extends { id: string }>({ table, columns, children }: InfiniteAdminTableProps<T>) {
   const state = table.isInitialLoading
     ? DataTableState.Loading
     : table.isError
@@ -50,6 +52,20 @@ export function InfiniteAdminTable<T extends { id: string }>({
       : table.items.length === 0
         ? DataTableState.Empty
         : DataTableState.Ready;
+
+  const { sortBy, sortDir, setSort } = table;
+  const sort = useMemo<SortState | null>(() => {
+    const sortedColumn = columns.find((column) => column.serverSort === sortBy);
+    return sortedColumn ? { id: sortedColumn.id, dir: sortDir } : null;
+  }, [columns, sortBy, sortDir]);
+
+  const handleSortChange = useCallback(
+    (next: SortState | null) => {
+      const serverSort = columns.find((column) => column.id === next?.id)?.serverSort;
+      if (next && serverSort) setSort({ sortBy: serverSort, sortDir: next.dir });
+    },
+    [columns, setSort],
+  );
 
   return (
     <DataTable
@@ -64,7 +80,9 @@ export function InfiniteAdminTable<T extends { id: string }>({
           .filter(Boolean)
           .join(" ")
       }
-      defaultSort={defaultSort}
+      sort={sort}
+      onSortChange={handleSortChange}
+      allowUnsorted={false}
       state={state}
       errorMessage={table.errorMessage}
     >

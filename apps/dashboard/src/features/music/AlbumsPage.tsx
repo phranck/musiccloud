@@ -93,7 +93,7 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMe
       {
         id: "title",
         header: mc.title,
-        sortKey: (album) => album.title.toLowerCase(),
+        serverSort: "title",
         cell: (album) => (
           <>
             {album.shortId ? (
@@ -117,14 +117,12 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMe
       {
         id: "artists",
         header: mc.artists,
-        sortKey: (album) => album.artists.join(", ").toLowerCase(),
         cell: (album) => <span className="text-sm">{album.artists.join(", ")}</span>,
       },
       {
         id: "source",
         header: mc.source,
         className: "w-28",
-        sortKey: (album) => album.sourceService ?? "",
         cell: (album) =>
           album.sourceService ? (
             <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize whitespace-nowrap bg-[var(--ds-surface-raised)] text-[var(--ds-text-muted)] border border-[var(--ds-border)]">
@@ -136,7 +134,6 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMe
         id: "upc",
         header: "UPC",
         className: "w-32",
-        sortKey: (album) => album.upc ?? "",
         cell: (album) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">{album.upc ?? ""}</span>,
       },
       {
@@ -145,7 +142,6 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMe
         className: "w-24",
         headerClassName: "w-24 text-right",
         cellClassName: "w-24 text-right",
-        sortKey: (album) => album.totalTracks ?? 0,
         cell: (album) => <span className="text-sm text-[var(--ds-text-muted)]">{album.totalTracks ?? ""}</span>,
       },
       {
@@ -154,7 +150,6 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMe
         className: "w-24",
         headerClassName: "w-24 text-right",
         cellClassName: "w-24 text-right",
-        sortKey: (album) => album.linkCount,
         cell: (album) => (
           <span className="inline-block min-w-6 px-1.5 py-0.5 rounded text-xs font-medium text-center border border-[var(--ds-border)] text-[var(--ds-text)]">
             {album.linkCount}
@@ -165,7 +160,7 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMe
         id: "createdAt",
         header: mc.added,
         className: "w-36",
-        sortKey: (album) => album.createdAt,
+        serverSort: "created_at",
         cell: (album) => (
           <span className="text-sm text-[var(--ds-text-muted)] whitespace-nowrap">{formatDate(album.createdAt)}</span>
         ),
@@ -277,7 +272,7 @@ export function AlbumsPage() {
       <PageHeader title={ma.title}>{searchField}</PageHeader>
 
       <PageBody>
-        <InfiniteAdminTable table={table} columns={columns} defaultSort={{ id: "createdAt", dir: "desc" }}>
+        <InfiniteAdminTable table={table} columns={columns}>
           <InfiniteAdminTable.Empty>
             <ContentUnavailableView
               icon={<DiscIcon weight="duotone" aria-hidden />}

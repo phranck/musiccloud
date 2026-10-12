@@ -1,6 +1,15 @@
-import { type ColumnDef, DataTable, DataTableScroll, DataTableState } from "@musiccloud/dashboard-ui";
+import {
+  type ColumnDef,
+  DataTable,
+  DataTableScroll,
+  DataTableState,
+  nextTableSort,
+  SortDirection,
+  type SortState,
+} from "@musiccloud/dashboard-ui";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
 interface Track {
@@ -138,5 +147,90 @@ describe("DataTable", () => {
 
   it("refuses to render a slot outside a table", () => {
     expect(() => render(<DataTable.Rows />)).toThrow(/inside a <DataTable>/);
+  });
+});
+
+describe("nextTableSort", () => {
+  it.each([
+    ["an unsorted table", null, "title", true, { id: "title", dir: SortDirection.Asc }],
+    [
+      "another column",
+      { id: "plays", dir: SortDirection.Desc },
+      "title",
+      false,
+      { id: "title", dir: SortDirection.Asc },
+    ],
+    [
+      "an ascending column",
+      { id: "title", dir: SortDirection.Asc },
+      "title",
+      false,
+      { id: "title", dir: SortDirection.Desc },
+    ],
+    ["a descending column that may be unsorted", { id: "title", dir: SortDirection.Desc }, "title", true, null],
+    [
+      "a descending column that may not",
+      { id: "title", dir: SortDirection.Desc },
+      "title",
+      false,
+      { id: "title", dir: SortDirection.Asc },
+    ],
+  ] as const)("moves %s on", (_case, current, columnId, allowUnsorted, expected) => {
+    expect(nextTableSort(current, columnId, allowUnsorted)).toEqual(expected);
+  });
+});
+
+describe("DataTable with the sort held by the caller", () => {
+  const serverColumns: ColumnDef<Track>[] = [
+    { id: "title", header: "Title", cell: (track) => track.title, serverSort: "title" },
+    { id: "plays", header: "Plays", cell: (track) => track.plays, sortKey: (track) => track.plays },
+  ];
+
+  /** Holds the sort the way a page does, and records every sort the table reports. */
+  function CallerSortedTable({ reported }: { reported: (SortState | null)[] }) {
+    const [sort, setSort] = useState<SortState | null>(null);
+    return (
+      <DataTable
+        columns={serverColumns}
+        data={tracks}
+        getRowKey={(track) => track.id}
+        sort={sort}
+        onSortChange={(next) => {
+          reported.push(next);
+          setSort(next);
+        }}
+        allowUnsorted={false}
+      >
+        <DataTable.Viewport>
+          <DataTable.Head />
+          <DataTable.Rows />
+        </DataTable.Viewport>
+      </DataTable>
+    );
+  }
+
+  it("reports each click and renders the rows in the order given", async () => {
+    const user = userEvent.setup();
+    const reported: (SortState | null)[] = [];
+    render(<CallerSortedTable reported={reported} />);
+
+    for (let click = 0; click < 3; click += 1) {
+      await user.click(screen.getByRole("button", { name: "Title" }));
+    }
+
+    expect(reported).toEqual([
+      { id: "title", dir: SortDirection.Asc },
+      { id: "title", dir: SortDirection.Desc },
+      { id: "title", dir: SortDirection.Asc },
+    ]);
+    const titles = Array.from(document.querySelectorAll("tbody tr td:first-child")).map((cell) => cell.textContent);
+    expect(titles).toEqual(["Beta", "Alpha"]);
+  });
+
+  it("offers a sort only on columns the server sorts", () => {
+    render(<CallerSortedTable reported={[]} />);
+
+    expect(screen.getByRole("button", { name: "Title" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Plays" })).toBeNull();
   });
 });

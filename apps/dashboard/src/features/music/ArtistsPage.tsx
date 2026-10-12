@@ -81,7 +81,7 @@ function useArtistColumns(
       {
         id: "name",
         header: ma.colName,
-        sortKey: (artist) => artist.name.toLowerCase(),
+        serverSort: "name",
         cell: (artist) =>
           artist.shortId ? (
             <a
@@ -99,7 +99,6 @@ function useArtistColumns(
       {
         id: "genres",
         header: ma.colGenres,
-        sortKey: (artist) => artist.genres.join(", ").toLowerCase(),
         cell: (artist) => (
           <div className="flex flex-wrap gap-1">
             {artist.genres.slice(0, 3).map((genre) => (
@@ -120,7 +119,6 @@ function useArtistColumns(
         id: "source",
         header: mc.source,
         className: "w-28",
-        sortKey: (artist) => artist.sourceService ?? "",
         cell: (artist) =>
           artist.sourceService ? (
             <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize whitespace-nowrap bg-[var(--ds-surface-raised)] text-[var(--ds-text-muted)] border border-[var(--ds-border)]">
@@ -134,7 +132,6 @@ function useArtistColumns(
         className: "w-24",
         headerClassName: "w-24 text-right",
         cellClassName: "w-24 text-right",
-        sortKey: (artist) => artist.linkCount,
         cell: (artist) => (
           <span className="inline-block min-w-6 px-1.5 py-0.5 rounded text-xs font-medium text-center border border-[var(--ds-border)] text-[var(--ds-text)]">
             {artist.linkCount}
@@ -150,7 +147,7 @@ function useArtistColumns(
         id: "createdAt",
         header: mc.added,
         className: "w-36",
-        sortKey: (artist) => artist.createdAt,
+        serverSort: "created_at",
         cell: (artist) => (
           <span className="text-sm text-[var(--ds-text-muted)] whitespace-nowrap">{formatDate(artist.createdAt)}</span>
         ),
@@ -282,7 +279,7 @@ export function ArtistsPage() {
       <PageHeader title={ma.title}>{searchField}</PageHeader>
 
       <PageBody>
-        <InfiniteAdminTable table={table} columns={columns} defaultSort={{ id: "createdAt", dir: "desc" }}>
+        <InfiniteAdminTable table={table} columns={columns}>
           <InfiniteAdminTable.Empty>
             <ContentUnavailableView
               icon={<MicrophoneStageIcon weight="duotone" aria-hidden />}
