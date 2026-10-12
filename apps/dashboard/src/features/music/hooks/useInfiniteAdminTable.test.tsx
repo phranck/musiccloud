@@ -1,11 +1,17 @@
+import { type AdminEvent, AdminEventType } from "@musiccloud/shared";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { api } from "@/lib/api";
 
+/** The callback the hook last handed to the live event stream. */
+const stream = vi.hoisted(() => ({ deliver: (_event: AdminEvent): void => undefined }));
+
 vi.mock("@/features/music/hooks/useAdminSSE", () => ({
-  useAdminSSE: vi.fn(),
+  useAdminSSE: (onEvent: (event: AdminEvent) => void) => {
+    stream.deliver = onEvent;
+  },
 }));
 
 interface Row {
@@ -65,5 +71,71 @@ describe("useInfiniteAdminTable refreshSilently", () => {
     expect(result.current.total).toBe(1);
     expect(result.current.isError).toBe(false);
     expect(result.current.isRefreshing).toBe(false);
+  });
+});
+
+describe("useInfiniteAdminTable deletions from other sessions", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const TRACKS = {
+    items: [
+      { id: "track-1", name: "One" },
+      { id: "track-2", name: "Two" },
+    ],
+    total: 5,
+  };
+
+  /** Renders a tracks list that listens for track deletions and waits for its first page. */
+  async function renderTracks() {
+    vi.spyOn(api, "get").mockResolvedValueOnce(TRACKS);
+    const rendered = renderHook(() =>
+      useInfiniteAdminTable<Row>({
+        endpoint: "/api/admin/tracks",
+        deleteEndpoint: "/api/admin/tracks",
+        deletedEventType: AdminEventType.TracksDeleted,
+      }),
+    );
+    await waitFor(() => expect(rendered.result.current.items).toEqual(TRACKS.items));
+    return rendered;
+  }
+
+  const deletion = (ids: string[], type: AdminEvent["type"] = AdminEventType.TracksDeleted): AdminEvent => ({
+    type,
+    data: { count: ids.length, ids },
+  });
+
+  it("drops a deleted row once, however often the event arrives", async () => {
+    const { result } = await renderTracks();
+
+    act(() => stream.deliver(deletion(["track-1"])));
+    expect(result.current.items.map((row) => row.id)).toEqual(["track-2"]);
+    expect(result.current.total).toBe(4);
+
+    act(() => stream.deliver(deletion(["track-1"])));
+    expect(result.current.items.map((row) => row.id)).toEqual(["track-2"]);
+    expect(result.current.total).toBe(4);
+  });
+
+  it("ignores deletions of another list's rows", async () => {
+    const { result } = await renderTracks();
+
+    act(() => stream.deliver(deletion(["track-1"], AdminEventType.AlbumsDeleted)));
+
+    expect(result.current.items).toEqual(TRACKS.items);
+    expect(result.current.total).toBe(5);
+  });
+
+  it("leaves the rows this session is deleting to its own fade-out", async () => {
+    const { result } = await renderTracks();
+    vi.spyOn(api, "delete").mockReturnValueOnce(new Promise(() => undefined));
+    act(() => result.current.toggleRow("track-1"));
+
+    act(() => {
+      void result.current.deleteSelected();
+    });
+    act(() => stream.deliver(deletion(["track-1"])));
+
+    expect(result.current.items).toEqual(TRACKS.items);
+    expect(result.current.total).toBe(5);
   });
 });

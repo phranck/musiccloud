@@ -1,6 +1,8 @@
+import { type AdminEvent, AdminEventType } from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
-import { listArtists } from "./postgres-admin-catalog.js";
+import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
+import { deleteAlbums, deleteArtists, deleteTracks, listArtists } from "./postgres-admin-catalog.js";
 
 const FRESH_AT = new Date();
 const STALE_AT = new Date("2000-01-01T00:00:00.000Z");
@@ -30,6 +32,27 @@ function artistRow(id: string, overrides: Record<string, unknown> = {}): Record<
     ...overrides,
   };
 }
+
+describe("catalog deletions", () => {
+  it.each([
+    [deleteTracks, AdminEventType.TracksDeleted],
+    [deleteAlbums, AdminEventType.AlbumsDeleted],
+    [deleteArtists, AdminEventType.ArtistsDeleted],
+  ] as const)("%o announces itself as %s, the name the dashboard listens for", async (remove, type) => {
+    const client = { query: vi.fn().mockResolvedValue({ rows: [] }), release: vi.fn() };
+    const pool = { connect: vi.fn().mockResolvedValue(client) } as unknown as Pool;
+    const events: AdminEvent[] = [];
+    const unsubscribe = adminEventBroadcaster.subscribe((event) => events.push(event));
+
+    try {
+      await remove(pool, ["row-1", "row-2"]);
+    } finally {
+      unsubscribe();
+    }
+
+    expect(events).toEqual([{ type, data: { count: 2, ids: ["row-1", "row-2"] } }]);
+  });
+});
 
 describe("listArtists profile cache projection", () => {
   it("classifies all observable states in the existing side-effect-free page query", async () => {

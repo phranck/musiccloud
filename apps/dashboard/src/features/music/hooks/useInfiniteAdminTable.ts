@@ -1,3 +1,4 @@
+import type { AdminEventType } from "@musiccloud/shared";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { useAdminSSE } from "@/features/music/hooks/useAdminSSE";
@@ -54,7 +55,6 @@ type TableAction<T extends { id: string }> =
   | { type: "LOAD_MORE" }
   | { type: "MORE_LOADED"; items: T[]; total: number }
   | { type: "REMOVE_MANY"; ids: Set<string> }
-  | { type: "PREPEND"; item: T }
   | { type: "ERROR"; message: string };
 
 function makeReducer<T extends { id: string }>() {
@@ -95,25 +95,17 @@ function makeReducer<T extends { id: string }>() {
         };
       }
       case "REMOVE_MANY": {
-        if (state.tag !== "ready") return state;
+        if (state.tag !== "ready" && state.tag !== "loading-more") return state;
         const filtered = state.items.filter((item) => !action.ids.has(item.id));
-        const newTotal = Math.max(0, state.total - action.ids.size);
+        // The total drops by the rows that actually left the list, so the same
+        // ids arriving twice, from this session's delete and from the live
+        // event about it, are counted once.
+        const newTotal = Math.max(0, state.total - (state.items.length - filtered.length));
         return {
-          tag: "ready",
+          ...state,
           items: filtered,
           total: newTotal,
-          nextPage: state.nextPage,
           hasMore: filtered.length < newTotal,
-        };
-      }
-      case "PREPEND": {
-        if (state.tag !== "ready" && state.tag !== "loading-more") return state;
-        return {
-          tag: "ready",
-          items: [action.item, ...state.items],
-          total: state.total + 1,
-          nextPage: state.nextPage,
-          hasMore: state.hasMore,
         };
       }
       case "ERROR":
@@ -124,15 +116,19 @@ function makeReducer<T extends { id: string }>() {
 
 const PAGE_SIZE = 50;
 
-interface UseInfiniteAdminTableOptions<T extends { id: string }> {
+interface UseInfiniteAdminTableOptions {
   endpoint: string;
   deleteEndpoint?: string;
-  sseEventType?: string;
-  sseToItem?: (data: Record<string, unknown>) => T;
+  /**
+   * The live event that reports deletions of this list's rows. When it
+   * arrives, the listed rows leave the loaded list, whichever admin session
+   * deleted them.
+   */
+  deletedEventType?: AdminEventType;
 }
 
-export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfiniteAdminTableOptions<T>) {
-  const { endpoint, deleteEndpoint, sseEventType, sseToItem } = options;
+export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfiniteAdminTableOptions) {
+  const { endpoint, deleteEndpoint, deletedEventType } = options;
 
   const [reducer] = useState(() => makeReducer<T>());
   const [state, dispatch] = useReducer(reducer, { tag: "idle" } as TableState<T>);
@@ -149,6 +145,12 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
   const sentinelRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
+  /**
+   * Rows this session is deleting. The live event about that deletion can
+   * arrive before the request returns, so it must not remove them early and
+   * cut the fade-out short.
+   */
+  const ownDeletionIdsRef = useRef<Set<string>>(new Set());
 
   // Debounce search
   useEffect(() => {
@@ -251,16 +253,15 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     return () => observer.disconnect();
   }, [canLoadMore]);
 
-  // SSE
+  // Deletions from any admin session.
   useAdminSSE(
     useCallback(
       (event) => {
-        if (!sseEventType || !sseToItem || event.type !== sseEventType || searchQuery !== "" || sortBy !== null) return;
-        const item = sseToItem(event.data);
-        if (!item || typeof item !== "object" || !("id" in item)) return;
-        dispatch({ type: "PREPEND", item });
+        if (!deletedEventType || event.type !== deletedEventType) return;
+        const ids = new Set(event.data.ids.filter((id) => !ownDeletionIdsRef.current.has(id)));
+        if (ids.size > 0) dispatch({ type: "REMOVE_MANY", ids });
       },
-      [searchQuery, sseEventType, sseToItem, sortBy],
+      [deletedEventType],
     ),
   );
 
@@ -297,12 +298,19 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
   async function deleteSelected() {
     if (!deleteEndpoint || selectedIds.size === 0) return;
     const toDelete = new Set(selectedIds);
-    await api.delete(deleteEndpoint, { ids: [...toDelete] });
+    ownDeletionIdsRef.current = toDelete;
+    try {
+      await api.delete(deleteEndpoint, { ids: [...toDelete] });
+    } catch (error) {
+      ownDeletionIdsRef.current = new Set();
+      throw error;
+    }
     setSelectedIds(new Set());
     setDeletingIds(toDelete);
     setTimeout(() => {
       dispatch({ type: "REMOVE_MANY", ids: toDelete });
       setDeletingIds(new Set());
+      ownDeletionIdsRef.current = new Set();
     }, 300);
   }
 

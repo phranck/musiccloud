@@ -7,7 +7,7 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { AdminEventType, ENDPOINTS } from "@musiccloud/shared";
 import {
   Disc as DiscIcon,
   MagnifyingGlass as MagnifyingGlassIcon,
@@ -186,8 +186,7 @@ export function AlbumsPage() {
   const table = useInfiniteAdminTable<AlbumListItem>({
     endpoint: ENDPOINTS.admin.albums.list,
     deleteEndpoint: ENDPOINTS.admin.albums.list,
-    sseEventType: "album-added",
-    sseToItem: (data) => data as unknown as AlbumListItem,
+    deletedEventType: AdminEventType.AlbumsDeleted,
   });
 
   const columns = useAlbumColumns(table, ma, messages.music.columns);

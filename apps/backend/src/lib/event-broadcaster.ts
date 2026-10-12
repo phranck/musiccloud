@@ -1,17 +1,11 @@
+import type { AdminEvent } from "@musiccloud/shared";
+
+import { log } from "./infra/logger.js";
+
 export interface TypedEvent<TType extends string, TData extends object> {
   type: TType;
   data: TData;
 }
-
-export type AdminEventType =
-  | "track-added"
-  | "tracks-deleted"
-  | "album-added"
-  | "albums-deleted"
-  | "artist-added"
-  | "artists-deleted";
-
-export type AdminEvent = TypedEvent<AdminEventType, Record<string, unknown>>;
 
 type Listener<TEvent> = (event: TEvent) => void;
 
@@ -48,7 +42,9 @@ class EventBroadcaster<TEvent extends TypedEvent<string, object>> {
   }
 }
 
-/** Singleton broadcaster for admin dashboard live events. */
+/**
+ * Singleton broadcaster for admin dashboard live events. Its event names and
+ * payloads are the shared `AdminEvent`, which the dashboard reads with the
+ * same definition.
+ */
 export const adminEventBroadcaster = new EventBroadcaster<AdminEvent>();
-
-import { log } from "./infra/logger.js";
