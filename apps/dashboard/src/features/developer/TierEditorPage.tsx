@@ -28,7 +28,6 @@ import { useNavigate } from "react-router";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { LabeledSwitch } from "@/components/ui/LabeledSwitch";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
@@ -40,6 +39,7 @@ import { TierIconGlyph, TierIconPicker } from "@/features/developer/components/T
 import { type FormFeatureBullet, toFeatureLabels } from "@/features/developer/featureBullets";
 import { useCreateTier, useDeleteTier, useTiers } from "@/features/developer/hooks/useDeveloperData";
 import { formatOfferPrice, periodLabel } from "@/features/developer/offerFormat";
+import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 import { FormLabel, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
 
 // -----------------------------------------------------------------------------

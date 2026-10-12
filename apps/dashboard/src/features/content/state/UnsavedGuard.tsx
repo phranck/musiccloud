@@ -7,8 +7,8 @@ import {
 import { useEffect, useState } from "react";
 import { useBlocker } from "react-router";
 
-import { Dialog } from "@/components/ui/Dialog";
 import { dashboardCopy } from "@/copy/dashboard";
+import { Dialog } from "@/shared/ui/Dialog";
 
 import { usePagesEditor } from "./PagesEditorContext";
 import { GlobalPagesSaveStatus, useGlobalPagesSave } from "./useGlobalPagesSave";

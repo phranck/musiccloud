@@ -24,7 +24,6 @@ import { FileDashedIcon, FileIcon, FileMdIcon, PencilLineIcon, PlusCircleIcon, T
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -42,6 +41,7 @@ import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import { SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
 import { SidebarActionType } from "@/features/content/state/slices/sidebarSlice";
 import { formatEnglishDate } from "@/lib/format";
+import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 const text = dashboardCopy.content.pages;
 const common = dashboardCopy.common;
