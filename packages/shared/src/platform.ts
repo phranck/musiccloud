@@ -102,6 +102,22 @@ export function getPlatformColor(service: ServiceId): string {
   return PLATFORM_CONFIG[service].color;
 }
 
+/**
+ * Whether a service's links are shown to visitors.
+ *
+ * Reads {@link PlatformConfig.hidden}, so every place that lists, counts or
+ * names a result's platforms on the site decides the same way. A hidden
+ * service such as MusicBrainz still travels in the API response, because its
+ * link serves aggregators, but it has nothing a visitor can play.
+ *
+ * @param service - The service id of a link. An id missing from
+ *   {@link PLATFORM_CONFIG} counts as visible.
+ * @returns `false` for a service marked `hidden`, otherwise `true`.
+ */
+export function isPlatformVisible(service: ServiceId): boolean {
+  return !PLATFORM_CONFIG[service]?.hidden;
+}
+
 /** Compare function to sort platforms by display order. */
 export function compareByDisplayOrder(a: string, b: string): number {
   const ai = SERVICE_DISPLAY_ORDER.indexOf(a);

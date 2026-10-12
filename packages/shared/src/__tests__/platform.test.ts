@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { compareByDisplayOrder, SERVICE_DISPLAY_ORDER } from "../platform.js";
+import { compareByDisplayOrder, isPlatformVisible, SERVICE_DISPLAY_ORDER } from "../platform.js";
+
+describe("isPlatformVisible", () => {
+  it("hides a metadata-only source and shows a streaming service", () => {
+    expect(isPlatformVisible("musicbrainz")).toBe(false);
+    expect(isPlatformVisible("spotify")).toBe(true);
+  });
+});
 
 describe("compareByDisplayOrder", () => {
   it("orders services by SERVICE_DISPLAY_ORDER, major services first", () => {

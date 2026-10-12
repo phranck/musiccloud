@@ -52,7 +52,7 @@ import {
   type ShareContentConfiguration,
   type SongContentConfiguration,
 } from "@/lib/types/media-card";
-import type { PlatformLink } from "@/lib/types/platform";
+import { type PlatformLink, visiblePlatforms } from "@/lib/types/platform";
 
 // ---------------------------------------------------------------------------
 // App state reducer
@@ -368,12 +368,21 @@ function shortIdFromShortUrl(shortUrl: string): string | undefined {
   return shortId || undefined;
 }
 
+/**
+ * Chooses the availability note under a result's platform grid.
+ *
+ * Counts only the links a visitor is shown, so the note agrees with the grid
+ * above it: a result whose only link is a hidden service reads as not found.
+ *
+ * @param platforms - The result's platform links, hidden services included.
+ * @returns The note for no, one or two shown platforms, or `undefined` for more.
+ */
 function getPlatformsInfo(platforms: PlatformLink[]): string | undefined {
-  const count = platforms.length;
-  if (count === 0) return resultsCopy.notFound;
-  if (count === 2) return resultsCopy.foundOnTwoPlatforms;
-  if (count === 1) {
-    const name = platforms[0].displayName ?? PLATFORM_CONFIG[platforms[0].platform]?.label ?? platforms[0].platform;
+  const shown = visiblePlatforms(platforms);
+  if (shown.length === 0) return resultsCopy.notFound;
+  if (shown.length === 2) return resultsCopy.foundOnTwoPlatforms;
+  if (shown.length === 1) {
+    const name = shown[0].displayName ?? PLATFORM_CONFIG[shown[0].platform]?.label ?? shown[0].platform;
     return resultsCopy.onlyAvailable(name);
   }
   return undefined;

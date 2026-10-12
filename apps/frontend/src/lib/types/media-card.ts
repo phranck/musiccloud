@@ -1,5 +1,5 @@
 import type { CcMusicInfo, CcTrackStats, VinylLayout } from "@musiccloud/shared";
-import type { PlatformLink } from "./platform";
+import { type PlatformLink, visiblePlatforms } from "./platform";
 
 export type { PlatformLink };
 
@@ -224,10 +224,11 @@ export function isSharePageContent(content: MediaCardContentConfiguration): cont
  * Visibility flags for the platform well shared by `MediaCard` and
  * `ServicesCard`.
  *
- * @property showGrid - True when the content carries at least one platform link.
- * @property showInfoOnly - True when there are no links but an availability note
- *   exists (the "not found" / "only on X" case), so the well renders just the
- *   note without the grid.
+ * @property showGrid - True when the content carries at least one link a visitor
+ *   is shown.
+ * @property showInfoOnly - True when no link is shown but an availability note
+ *   exists (the "not found" case), so the well renders just the note without
+ *   the grid.
  */
 export interface PlatformsVisibility {
   showGrid: boolean;
@@ -238,16 +239,18 @@ export interface PlatformsVisibility {
  * Derives the platform-well visibility flags from a media content config.
  *
  * Encodes the single rule both platform-rendering cards rely on: render the
- * grid when links exist, otherwise render the standalone availability note when
- * one is present. Keeping it here (next to the content type) means the rule has
- * one home instead of being re-typed in each card.
+ * grid when a visible link exists, otherwise render the standalone availability
+ * note when one is present. Links of hidden services count as absent, because
+ * the grid does not draw them. Keeping it here (next to the content type)
+ * means the rule has one home instead of being re-typed in each card.
  *
  * @param content - The resolved media content configuration.
  * @returns The {@link PlatformsVisibility} flags for the platform well.
  */
 export function derivePlatformsVisibility(content: MediaCardContentConfiguration): PlatformsVisibility {
+  const shownCount = visiblePlatforms(content.platforms).length;
   return {
-    showGrid: content.platforms.length > 0,
-    showInfoOnly: content.platforms.length === 0 && !!content.platformsInfo,
+    showGrid: shownCount > 0,
+    showInfoOnly: shownCount === 0 && !!content.platformsInfo,
   };
 }
