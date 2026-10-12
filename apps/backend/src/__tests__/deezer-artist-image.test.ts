@@ -4,12 +4,19 @@ import { isDeezerSilhouette, pickDeezerArtistImage } from "../services/plugins/d
 
 const SILHOUETTE_BIG =
   "https://e-cdns-images.dzcdn.net/images/artist/d41d8cd98f00b204e9800998ecf8427e/500x500-000000-80-0-0.jpg";
+/** The form Deezer's API sends for an artist without a picture, as measured on 2026-10-12. */
+const EMPTY_HASH_XL = "https://cdn-images.dzcdn.net/images/artist//1000x1000-000000-80-0-0.jpg";
+const EMPTY_HASH_BIG = "https://cdn-images.dzcdn.net/images/artist//500x500-000000-80-0-0.jpg";
 const REAL_XL = "https://e-cdns-images.dzcdn.net/images/artist/abc123/1000x1000.jpg";
 const REAL_BIG = "https://e-cdns-images.dzcdn.net/images/artist/abc123/500x500.jpg";
 
 describe("isDeezerSilhouette", () => {
   it("flags the empty-MD5 default-silhouette URL", () => {
     expect(isDeezerSilhouette(SILHOUETTE_BIG)).toBe(true);
+  });
+
+  it("flags the empty-hash URL that redirects to the silhouette", () => {
+    expect(isDeezerSilhouette(EMPTY_HASH_XL)).toBe(true);
   });
 
   it("treats undefined / empty as silhouette (no usable image)", () => {
@@ -39,6 +46,15 @@ describe("pickDeezerArtistImage", () => {
       picture_xl: SILHOUETTE_BIG,
       picture_big: SILHOUETTE_BIG,
       picture_medium: SILHOUETTE_BIG,
+    });
+    expect(url).toBeNull();
+  });
+
+  it("returns null for an artist whose every picture has the empty hash", () => {
+    const url = pickDeezerArtistImage({
+      picture_xl: EMPTY_HASH_XL,
+      picture_big: EMPTY_HASH_BIG,
+      picture_medium: "https://cdn-images.dzcdn.net/images/artist//250x250-000000-80-0-0.jpg",
     });
     expect(url).toBeNull();
   });
