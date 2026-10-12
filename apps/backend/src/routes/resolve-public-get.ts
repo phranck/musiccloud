@@ -2,7 +2,7 @@
  * @file Unauthenticated public GET endpoint for one-request resolves.
  *
  * Registered at the root scope in `server.ts` (outside the
- * `authenticatePublic` preHandler group) specifically so scripting consumers
+ * `authenticatePublic` group) specifically so scripting consumers
  * can hit it without a JWT: Apple Shortcuts, curl one-liners, Bookmarklets,
  * and similar integrations that cannot participate in a Bearer-token flow.
  * Rate limiting per client IP is the primary abuse defence in place of auth,

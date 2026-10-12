@@ -3,8 +3,8 @@
  * (MC-025/MC-077): list and create the caller's own projects and
  * registrations, and manage the caller's own tokens (create/revoke/rotate).
  * Every handler runs behind `authenticateDeveloper` (set as this scope's
- * `preHandler` in `server.ts`) and additionally checks ownership —
- * a client/token that exists but belongs to a different developer account
+ * `preValidation` hook in `server.ts`) and additionally checks ownership. A
+ * client or token that exists but belongs to a different developer account
  * is reported as 404, never 403, so its existence is not leaked.
  *
  * Creating a project or a registration is bounded twice, because the path is
@@ -215,7 +215,7 @@ function rejectInactiveCredentialOwner(client: ApiClient, reply: FastifyReply): 
 
 /**
  * Registers the developer self-service API-access routes. Must be
- * registered inside a scope whose `preHandler` is `authenticateDeveloper`
+ * registered inside a scope whose `preValidation` hook is `authenticateDeveloper`
  * (see `server.ts`), so `request.developerAccountId` is always set here.
  */
 export async function devApiAccessRoutes(app: FastifyInstance) {

@@ -201,7 +201,7 @@ The partial index on `crawl_state(next_run_at) WHERE enabled = true` keeps the p
 
 ## Admin API
 
-All endpoints live under the admin scope in `server.ts` (Bearer JWT with `role: "admin"` enforced by the parent `authenticateAdmin` preHandler).
+All endpoints live under the admin scope in `server.ts` (Bearer JWT with `role: "admin"` enforced by the parent `authenticateAdmin` hook, which runs on `onRequest` before the body is read).
 
 | Method | Path                                                  | Effect                                                                                |
 | ------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |

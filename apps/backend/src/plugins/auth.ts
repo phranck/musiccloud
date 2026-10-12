@@ -3,7 +3,8 @@
  *
  * This is a **Fastify plugin** that registers three authentication strategies
  * as instance decorators. Each strategy is intended to be attached as a
- * `preHandler` hook to a specific route group in `server.ts`:
+ * `preValidation` hook to a specific route group in `server.ts`, so a request
+ * without credentials is refused before its body is validated:
  *
  * | Decorator              | Consumer                          | Credential                                  |
  * | ---------------------- | --------------------------------- | ------------------------------------------- |

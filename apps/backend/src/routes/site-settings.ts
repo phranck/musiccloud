@@ -79,7 +79,7 @@ export async function siteSettingsPublicRoutes(app: FastifyInstance) {
  * string settings; no whitelist of allowed keys exists on the backend. This
  * is intentional: new settings can be introduced by the frontend without a
  * backend deploy. Access is gated entirely by the admin JWT check added in
- * `server.ts` (`authenticateAdmin` preHandler), so only trusted operators
+ * `server.ts` (the `authenticateAdmin` hook), so only trusted operators
  * can write arbitrary keys.
  */
 export async function siteSettingsAdminRoutes(app: FastifyInstance) {

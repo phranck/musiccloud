@@ -133,8 +133,8 @@ function toAccountResponse(
 
 /**
  * Registers the admin API-access routes. Must be registered inside a
- * scope whose `preHandler` is `authenticateAdmin` (see `server.ts`
- * `adminRoutes` block) — this module additionally re-checks the DB role.
+ * scope whose `preValidation` hook is `authenticateAdmin` (see the `adminRoutes`
+ * block in `server.ts`), and this module re-checks the DB role on top.
  */
 export async function adminApiAccessRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.developer.apiAccess.overview, async (request, reply) => {

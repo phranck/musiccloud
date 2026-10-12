@@ -2,9 +2,11 @@
  * @file Email/password authentication for the external developer portal
  * (developer.musiccloud.io, MC-064). Registered unauthenticated at the root
  * scope in `server.ts`, because these endpoints are how a developer creates an
- * account and obtains a session in the first place. The one authenticated
- * route (`/me`) attaches the {@link FastifyInstance.authenticateDeveloper}
- * guard inline as a `preHandler`.
+ * account and obtains a session in the first place. The routes that act on a
+ * signed-in account attach the
+ * {@link FastifyInstance.authenticateDeveloper} guard inline as a
+ * `preValidation` hook, so a request without a session is refused before its
+ * body is validated, and after the rate limiter has counted it.
  *
  * ## Why a separate surface from admin-auth
  *
@@ -583,7 +585,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * `mc_dev_session` cookie by {@link FastifyInstance.authenticateDeveloper}.
    * Returns 401 without a valid session.
    */
-  app.get(ENDPOINTS.dev.auth.me, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+  app.get(ENDPOINTS.dev.auth.me, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
     const repo = await getDeveloperRepository();
     const account = await repo.findDeveloperAccountById(request.developerAccountId as string);
     if (!account) {
@@ -615,7 +617,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * where the field is entered, so a developer is not led to believe it can
    * receive a password reset.
    */
-  app.patch(ENDPOINTS.dev.auth.profile, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+  app.patch(ENDPOINTS.dev.auth.profile, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
     const body = request.body as {
       displayName?: string | null;
       firstName?: string | null;
@@ -759,7 +761,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    */
   app.post(
     ENDPOINTS.dev.auth.changeEmail,
-    { preHandler: [app.authenticateDeveloper, throttleCredentials] },
+    { preValidation: app.authenticateDeveloper, preHandler: throttleCredentials },
     async (request, reply) => {
       const account = request.developerAccount!;
       const body = request.body as { email?: string; password?: string } | null;
@@ -854,7 +856,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * The token is left to expire rather than hunted down: following it after
    * this finds no pending address and changes nothing.
    */
-  app.delete(ENDPOINTS.dev.auth.changeEmail, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+  app.delete(ENDPOINTS.dev.auth.changeEmail, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
     const repo = await getDeveloperRepository();
     const updated = await repo.updateDeveloperAccount(request.developerAccountId as string, {
       pendingEmail: null,
@@ -920,7 +922,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    */
   app.post(
     ENDPOINTS.dev.auth.avatar,
-    { preHandler: app.authenticateDeveloper, bodyLimit: IMAGE_UPLOAD_BODY_LIMIT_BYTES },
+    { preValidation: app.authenticateDeveloper, bodyLimit: IMAGE_UPLOAD_BODY_LIMIT_BYTES },
     async (request, reply) => {
       const body = request.body as { dataUrl?: string } | null;
       if (!body?.dataUrl) {
@@ -954,7 +956,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * The source falls back to whatever is left rather than to nothing, so
    * removing an upload where a Gravatar exists shows the Gravatar.
    */
-  app.delete(ENDPOINTS.dev.auth.avatar, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+  app.delete(ENDPOINTS.dev.auth.avatar, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
     const account = request.developerAccount!;
     const repo = await getDeveloperRepository();
     const updated = await repo.updateDeveloperAccount(account.id, {
@@ -976,7 +978,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    */
   app.post(
     ENDPOINTS.dev.auth.gravatar,
-    { preHandler: [app.authenticateDeveloper, throttleCredentials] },
+    { preValidation: app.authenticateDeveloper, preHandler: throttleCredentials },
     async (request, reply) => {
       const account = request.developerAccount!;
       // Gravatar keys a picture by the hash of the trimmed, lowercased address,
@@ -1005,7 +1007,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * attachment: account (without secrets), auth identities, and the caller's
    * registrations with token metadata.
    */
-  app.get(ENDPOINTS.dev.auth.export, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+  app.get(ENDPOINTS.dev.auth.export, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
     const account = request.developerAccount!;
     const pkg = await buildPersonalDataExport({ developerAccountId: account.id, email: account.email });
     reply.header("content-disposition", 'attachment; filename="musiccloud-data-export.json"');
@@ -1023,7 +1025,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * (`hasPassword: false` on `/me`) has no password to confirm, so the body
    * is not required.
    */
-  app.post(ENDPOINTS.dev.auth.deleteAccount, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+  app.post(ENDPOINTS.dev.auth.deleteAccount, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
     const account = request.developerAccount!;
 
     if (account.passwordHash !== null) {
