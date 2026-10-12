@@ -27,6 +27,8 @@ Only an explicit backend 404 across both content and share namespaces redirects 
 
 The browser-facing content proxy preserves the upstream status and complete error JSON. It does not convert backend failures to empty bodies or generic 404/503 responses.
 
+Every sentence a visitor reads comes from the registry in `packages/shared/src/error-codes.ts`. The landing page renders the registry sentence for a code the registry knows, and the response's `message` for any other code. A failure the site's own routes produce, such as a missing parameter or an unreachable backend, is built with `createApiErrorBody` from `packages/shared/src/api.ts`, so it carries a code and an `errorId` like a backend failure. The site reads every error body with `parseApiErrorResponse`, which keeps only the fields that are present and well typed.
+
 ## Structured backend logs
 
 The global Fastify handler emits one correlated record per failed request. Records contain the stable error code, `errorId`, Fastify request ID, method, route, operation, HTTP status and safe user message. Unexpected 5xx failures are errors; rejected 4xx requests are warnings.

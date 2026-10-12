@@ -1,12 +1,17 @@
 import {
   type ApiErrorResponse,
+  createApiErrorBody,
   DESIGN_TOKENS_DEFAULTS,
   type DesignTokens,
   ENDPOINTS,
+  ERROR_CODE_REGISTRY,
   type JamendoAudioFormat,
+  MC_ERROR_CODE_PATTERN,
+  type McErrorCode,
   type NavId,
   type NavItem,
   type PublicContentPage,
+  parseApiErrorResponse,
   parseDesignTokens,
   type SharePageResponse,
 } from "@musiccloud/shared";
@@ -195,19 +200,29 @@ export async function fetchShareData(
   }
 }
 
+/**
+ * Turns a backend error response into the public error envelope for the page.
+ *
+ * A body that names an `MC-…` code and carries a message passes through as the
+ * backend sent it. Anything less, such as a gateway's error page, is built from
+ * the registry under the code the body named, or under `MC-RES-0003` for a 404
+ * and `MC-SYS-0001` otherwise, so the page always has a code and an error ID.
+ *
+ * @param response - The backend's response with a status of 400 or above.
+ * @returns `not-found` for a 404 and `error` for anything else.
+ */
 async function backendFailureResult(response: Response): Promise<BackendFetchResult<never>> {
-  const payload = (await response.json().catch(() => null)) as Partial<ApiErrorResponse> | null;
-  const fallbackCode = response.status === 404 ? "MC-RES-0003" : "MC-SYS-0001";
-  const fallbackMessage =
-    response.status === 404
-      ? "The requested resource was not found. (MC-RES-0003)"
-      : "An unexpected server error occurred. (MC-SYS-0001)";
-  const error: ApiErrorResponse = {
-    error: typeof payload?.error === "string" ? payload.error : fallbackCode,
-    errorId: typeof payload?.errorId === "string" && payload.errorId ? payload.errorId : crypto.randomUUID(),
-    message: typeof payload?.message === "string" ? payload.message : fallbackMessage,
-    ...(payload?.context ? { context: payload.context } : {}),
-  };
+  const body = parseApiErrorResponse(await response.json().catch(() => null));
+  const namedCode =
+    body.error !== undefined && MC_ERROR_CODE_PATTERN.test(body.error) ? (body.error as McErrorCode) : undefined;
+  const errorId = body.errorId ?? crypto.randomUUID();
+  const error: ApiErrorResponse =
+    namedCode && body.message !== undefined
+      ? { error: namedCode, errorId, message: body.message, ...(body.context ? { context: body.context } : {}) }
+      : createApiErrorBody(namedCode ?? (response.status === 404 ? "MC-RES-0003" : "MC-SYS-0001"), {
+          errorId,
+          context: body.context,
+        });
 
   return response.status === 404
     ? { kind: "not-found", error, statusCode: 404 }
@@ -255,9 +270,12 @@ function transportFailureResult(error: unknown): Extract<BackendFetchResult<neve
   const reason = failureCode ? TRANSPORT_FAILURE_REASONS[failureCode] : undefined;
   const code = timedOut ? "MC-API-0005" : "MC-SYS-0002";
   const errorId = crypto.randomUUID();
-  const message = timedOut
-    ? "The backend request timed out. (MC-API-0005)"
-    : `The backend could not be reached.${reason ? ` ${reason}` : ""} (MC-SYS-0002)`;
+  // A recognised reason follows the registry sentence, so the visitor learns
+  // the shape of the failure and the message still ends with its code.
+  const body = createApiErrorBody(code, {
+    errorId,
+    overrideMessage: reason && !timedOut ? `${ERROR_CODE_REGISTRY[code].userMessage} ${reason}` : undefined,
+  });
 
   // Without this the id shown to the visitor exists only on their screen, so a
   // reported incident has nothing to look up. The cause is logged here and only
@@ -273,11 +291,7 @@ function transportFailureResult(error: unknown): Extract<BackendFetchResult<neve
     }),
   );
 
-  return {
-    kind: "error",
-    statusCode: timedOut ? 504 : 503,
-    error: { error: code, errorId, message },
-  };
+  return { kind: "error", statusCode: timedOut ? 504 : 503, error: body };
 }
 
 /**

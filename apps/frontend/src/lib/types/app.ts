@@ -44,11 +44,25 @@ export interface GenreSearchPayload {
   warnings: string[];
 }
 
+/**
+ * Why a resolve failed, as the landing page shows it.
+ *
+ * A `backend` failure keeps the fields of the error body, so the message can be
+ * rendered from the registry for a code it knows and taken from the response
+ * for one it does not.
+ */
 export type ResolveUiError =
   | { kind: "offline" }
   | { kind: "timeout" }
   | { kind: "generic" }
-  | { kind: "backend"; code: string; errorId?: string; context?: Record<string, string> };
+  | {
+      kind: "backend";
+      code: string;
+      errorId?: string;
+      context?: Record<string, string | number>;
+      /** The rendered message the response carried, ending with its code. */
+      message?: string;
+    };
 
 export const InputState = {
   Idle: "idle",

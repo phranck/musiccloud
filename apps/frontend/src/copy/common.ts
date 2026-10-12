@@ -1,3 +1,5 @@
+import { ERROR_CODE_REGISTRY } from "@musiccloud/shared";
+
 export const commonCopy = {
   a11y: {
     skipToContent: "Skip to content",
@@ -15,7 +17,9 @@ export const commonCopy = {
     dialogTitle: "Search problem",
     dismiss: "OK",
     offline: "Looks like you're offline. Check your connection and try again.",
-    timeout: "This is taking longer than usual. Please try again.",
+    // The proxy answers a backend timeout with MC-API-0005, so a browser-side
+    // timeout reads the same sentence from the same entry.
+    timeout: ERROR_CODE_REGISTRY["MC-API-0005"].userMessage,
     generic: "Something went wrong. Please try again.",
     genericWithCode: (code: string) => `Something went wrong. Please try again. (${code})`,
     withErrorId: (message: string, errorId: string) => `${message} Error ID: ${errorId}`,

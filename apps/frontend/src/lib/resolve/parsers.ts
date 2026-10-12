@@ -7,13 +7,21 @@ import type {
   CcArtistSharePageResponse,
   CcResolveSuccessResponse,
   CcTrackSharePageResponse,
+  ParsedApiError,
   ResolveSuccessResponse,
   UnifiedResolveSuccessResponse,
   VinylLayout,
 } from "@musiccloud/shared";
-import { buildMetaLine, ENDPOINTS, PLATFORM_CONFIG, Service } from "@musiccloud/shared";
+import {
+  buildMetaLine,
+  ENDPOINTS,
+  ERROR_CODE_REGISTRY,
+  formatUserMessage,
+  PLATFORM_CONFIG,
+  parseApiErrorResponse,
+  Service,
+} from "@musiccloud/shared";
 import { commonCopy } from "@/copy/common";
-import { contentErrorMessage } from "@/copy/content";
 import { creativeCommonsCopy } from "@/copy/creative-commons";
 import { resultsCopy } from "@/copy/results";
 import { catalogTextFromIds, labelAlbumTitleFrom, releaseYearFromDate } from "@/lib/media/lp-label";
@@ -263,51 +271,82 @@ export function ccResolveDataToResult(data: CcResolveData): CcResult {
   return parseCcResolveResponse(data);
 }
 
+/**
+ * A resolve request that came back with an error status.
+ *
+ * It holds the fields of the error body that were present and well typed, read
+ * through the shared parser, so the landing page and the in-place row resolve
+ * see a malformed body the same way.
+ */
 export class ResolveApiError extends Error {
-  readonly code: string;
-  readonly errorId?: string;
-  readonly context?: Record<string, string>;
+  /** The fields of the error body that were present and well typed. */
+  readonly body: ParsedApiError;
 
-  constructor(payload: {
-    error?: string;
-    errorId?: string;
-    message?: string;
-    context?: Record<string, string | number>;
-  }) {
-    super(payload.message || payload.error || "Resolve request failed");
+  /**
+   * @param payload - The decoded JSON body of the failed response, or `null`
+   *   when it was not JSON.
+   */
+  constructor(payload: unknown) {
+    const body = parseApiErrorResponse(payload);
+    super(body.message ?? body.error ?? "Resolve request failed");
     this.name = "ResolveApiError";
-    this.code = payload.error || "error.generic";
-    this.errorId = payload.errorId || undefined;
-    this.context = payload.context
-      ? Object.fromEntries(Object.entries(payload.context).map(([key, value]) => [key, String(value)]))
-      : undefined;
+    this.body = body;
   }
 }
 
+/**
+ * Classifies a failed resolve for the landing page.
+ *
+ * An error body without a code came from something in front of the backend,
+ * such as a gateway's error page, so there is no code or incident reference to
+ * show and the visitor gets the generic line.
+ *
+ * @param err - Whatever the resolve request threw.
+ * @returns The failure as the landing page keeps it in its state.
+ */
 export function parseResolveError(err: unknown): ResolveUiError {
   if (err instanceof TypeError && err.message.includes("Failed to fetch")) return { kind: "offline" };
   if (err instanceof Error && err.name === "AbortError") return { kind: "timeout" };
   if (err instanceof ResolveApiError) {
-    return {
-      kind: "backend",
-      code: err.code,
-      errorId: err.errorId,
-      context: err.context,
-    };
+    const { error: code, errorId, context, message } = err.body;
+    return code === undefined ? { kind: "generic" } : { kind: "backend", code, errorId, context, message };
   }
   return { kind: "generic" };
 }
 
+/** A `{name}` placeholder that rendering left in a registry sentence. */
+const UNRESOLVED_PLACEHOLDER = /\{\w+\}/;
+
+/**
+ * Renders the sentence a visitor reads for a failed resolve.
+ *
+ * A code the registry knows is rendered from the registry, which is where the
+ * site's wording lives, because an adapter may have sent a technical message
+ * for it. Any other code, and a registry sentence whose placeholders the
+ * response did not fill, shows the message the response carried, or the
+ * generic line with the code when it carried none. The error ID follows
+ * wherever the response sent one, because it is what connects a visitor's
+ * report to the one log line that explains it.
+ *
+ * @param error - The failure as {@link parseResolveError} classified it.
+ * @returns The message for the error dialog.
+ */
 export function formatResolveErrorMessage(error: ResolveUiError): string {
   if (error.kind === "offline") return commonCopy.error.offline;
   if (error.kind === "timeout") return commonCopy.error.timeout;
   if (error.kind === "backend") {
-    // The error ID is what connects a visitor's report to the one log line
-    // that explains it, so it is shown wherever the backend sent one.
-    const message = contentErrorMessage(error.code, error.context);
+    const message = backendErrorMessage(error);
     return error.errorId ? commonCopy.error.withErrorId(message, error.errorId) : message;
   }
   return commonCopy.error.generic;
+}
+
+function backendErrorMessage(error: Extract<ResolveUiError, { kind: "backend" }>): string {
+  if (Object.hasOwn(ERROR_CODE_REGISTRY, error.code)) {
+    const rendered = formatUserMessage(error.code, error.context);
+    if (!UNRESOLVED_PLACEHOLDER.test(rendered)) return rendered;
+  }
+  return error.message ?? commonCopy.error.genericWithCode(error.code);
 }
 
 // ---------------------------------------------------------------------------

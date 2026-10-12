@@ -1,3 +1,4 @@
+import { createApiErrorBody } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 import { fetchCcArtistInfo } from "@/api/client";
@@ -15,10 +16,10 @@ export const GET: APIRoute = async ({ url, clientAddress }) => {
   const artistName = url.searchParams.get("artistName") ?? "";
 
   if (!jamendoArtistId.trim() || !artistName.trim()) {
-    return new Response(
-      JSON.stringify({ error: "INVALID_REQUEST", message: "'jamendoArtistId' and 'artistName' are required." }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify(createApiErrorBody("MC-REQ-0001", { errorId: crypto.randomUUID() })), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const res = await fetchCcArtistInfo(jamendoArtistId, artistName, clientAddress);

@@ -1,4 +1,4 @@
-import { ENDPOINTS, type ResolveErrorResponse, type UnifiedResolveSuccessResponse } from "@musiccloud/shared";
+import { ENDPOINTS, type UnifiedResolveSuccessResponse } from "@musiccloud/shared";
 import { type CcResolveData, ResolveApiError } from "@/lib/resolve/parsers";
 
 /**
@@ -26,12 +26,9 @@ export async function resolveTrackQuery(query: string, signal: AbortSignal): Pro
     body: JSON.stringify({ query }),
     signal,
   });
-  const data = (await response.json().catch(() => ({}))) as
-    | UnifiedResolveSuccessResponse
-    | Partial<ResolveErrorResponse>
-    | { status?: string };
+  const data = (await response.json().catch(() => ({}))) as UnifiedResolveSuccessResponse | { status?: string };
   if (!response.ok) {
-    throw new ResolveApiError(data as Partial<ResolveErrorResponse>);
+    throw new ResolveApiError(data);
   }
   if ("status" in data && data.status) {
     throw new Error("resolve did not return a final result");
@@ -59,9 +56,9 @@ export async function resolveCcCandidate(candidate: string, signal: AbortSignal)
     body: JSON.stringify({ selectedCandidate: candidate }),
     signal,
   });
-  const data = (await response.json().catch(() => ({}))) as CcResolveData | Partial<ResolveErrorResponse>;
+  const data = (await response.json().catch(() => ({}))) as CcResolveData;
   if (!response.ok) {
-    throw new ResolveApiError(data as Partial<ResolveErrorResponse>);
+    throw new ResolveApiError(data);
   }
   return data as CcResolveData;
 }

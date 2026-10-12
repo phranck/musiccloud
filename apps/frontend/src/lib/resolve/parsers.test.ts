@@ -1,4 +1,4 @@
-import { type CcArtistInfoResponse, Service, type VinylLayout } from "@musiccloud/shared";
+import { type CcArtistInfoResponse, ERROR_CODE_REGISTRY, Service, type VinylLayout } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import { creativeCommonsCopy } from "@/copy/creative-commons";
 import { resultsCopy } from "@/copy/results";
@@ -532,17 +532,54 @@ describe("English resolve errors", () => {
     );
   });
 
-  it("preserves known and unknown backend error codes", () => {
+  /**
+   * The registry is the one place the site's wording lives. A second table on
+   * the site had drifted from it in eight sentences and lacked half of its codes.
+   */
+  it.each(Object.values(ERROR_CODE_REGISTRY))("renders the registry sentence for $code", (entry) => {
+    const placeholders = [...entry.userMessage.matchAll(/\{(\w+)\}/g)].map((match) => match[1]);
+    const context = Object.fromEntries(placeholders.map((name, index) => [name, String(index + 2)]));
+    const sentence = entry.userMessage.replace(/\{(\w+)\}/g, (_placeholder, name: string) => context[name]);
+
+    expect(
+      formatResolveErrorMessage({
+        kind: "backend",
+        code: entry.code,
+        context,
+        message: `A technical message from an adapter. (${entry.code})`,
+      }),
+    ).toBe(`${sentence} (${entry.code})`);
+  });
+
+  it("shows the response's message for a code the registry does not know, and the generic line without one", () => {
+    expect(
+      formatResolveErrorMessage({ kind: "backend", code: "MC-API-3999", message: "The service broke. (MC-API-3999)" }),
+    ).toBe("The service broke. (MC-API-3999)");
+    expect(formatResolveErrorMessage({ kind: "backend", code: "MC-API-3999" })).toBe(
+      "Something went wrong. Please try again. (MC-API-3999)",
+    );
+  });
+
+  it("never shows a placeholder the response did not fill", () => {
+    const backendMessage =
+      "Too many requests. You can make 10 requests per 60 seconds. Please try again in 5 seconds. (MC-API-0003)";
+
     expect(
       formatResolveErrorMessage({
         kind: "backend",
         code: "MC-API-0003",
-        context: { limit: "10", windowSeconds: "60", retryAfterSeconds: "5" },
+        context: { limit: "10" },
+        message: backendMessage,
       }),
-    ).toContain("(MC-API-0003)");
-    expect(formatResolveErrorMessage({ kind: "backend", code: "MC-API-3999" })).toBe(
-      "Something went wrong. Please try again. (MC-API-3999)",
+    ).toBe(backendMessage);
+    expect(formatResolveErrorMessage({ kind: "backend", code: "MC-API-0003", context: { limit: "10" } })).toBe(
+      "Something went wrong. Please try again. (MC-API-0003)",
     );
+  });
+
+  it("reads a body without a code as a generic failure", () => {
+    expect(parseResolveError(new ResolveApiError("<html>Bad Gateway</html>"))).toEqual({ kind: "generic" });
+    expect(parseResolveError(new ResolveApiError(null))).toEqual({ kind: "generic" });
   });
 
   /**
