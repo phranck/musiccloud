@@ -65,13 +65,17 @@
  * going as far as issuing a gap-fill Deezer lookup from
  * `fillMissingServices` when the cached track has no preview at all.
  *
- * ## Artwork fallback chain
+ * ## Artwork: never Apple's
  *
- * Some services (notably Tidal's API v2) do not return artwork. When
- * the source track lacks one but has an ISRC, we try Spotify first
- * and Apple Music second, both via `findByIsrc`. The OG-scrape
- * fallback path (`scrapeTrackFromPage`) provides a further artwork
- * source for pages that ship `og:image`.
+ * Every fresh resolve keeps the cover `pickArtworkUrl` (`artwork.ts`) picks:
+ * the source track's own unless it is Apple's, else the cover a matched
+ * service returned with its link, Spotify's first. Apple's artwork may only be
+ * shown with MusicKit playback, so the Apple Music adapter returns none and an
+ * Apple cover scraped from a page is dropped. When no cover is left and the
+ * track has an ISRC, Spotify and then Deezer are asked by ISRC
+ * (`withKeptArtwork`), which covers sources such as Tidal's API v2 that send
+ * no artwork. The OG-scrape fallback (`scrapeTrackFromPage`) offers the page's
+ * `og:image` as the source track's own cover.
  *
  * ## SERVICE_DISABLED vs NOT_MUSIC_LINK
  *
@@ -151,6 +155,7 @@ import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
+import { pickArtworkUrl } from "./artwork.js";
 import { confidenceForMethod } from "./confidence.js";
 import {
   AUTO_SELECT_THRESHOLD,
@@ -194,6 +199,12 @@ export interface ResolvedLink {
   externalId?: string;
   /** 30-second audio preview URL from this service (if available) */
   previewUrl?: string;
+  /**
+   * Cover this service returned for the track, which `withKeptArtwork` may
+   * borrow when the source track has none to keep. `toApiLinks` copies named
+   * link fields only, so the cover never reaches the API response.
+   */
+  artworkUrl?: string;
   /**
    * ISRC reported by this service for the track. May differ from the
    * source track's ISRC for regional variants / re-releases — that is
@@ -663,7 +674,7 @@ export async function resolveQuery(input: string, expandedUrl?: string): Promise
 /**
  * URL input pipeline. See the file header for the three-layer cache,
  * SERVICE_DISABLED vs NOT_MUSIC_LINK ordering, preview URL preference,
- * artwork fallback chain, and OG-scrape escape hatch.
+ * artwork rule, and OG-scrape escape hatch.
  *
  * @param inputUrl - streaming-service URL identifying a track
  * @param preExpandedUrl - `inputUrl` already passed through `expandShortLink`
@@ -770,50 +781,91 @@ async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> 
     sourceTrack = { ...sourceTrack, previewUrl: bestPreviewUrl };
   }
 
-  // 7. If source service has no artwork but has ISRC, fetch artwork from Spotify/Apple Music
-  // (e.g., Tidal doesn't provide artworkUrl in API response)
-  if (!sourceTrack.artworkUrl && sourceTrack.isrc) {
-    const isrc = sourceTrack.isrc;
+  // 7. Keep a cover that is not Apple's.
+  return completeFreshResolution(sourceTrack, links, lateLinks);
+}
+
+/**
+ * Builds the result of a resolve that went to the services rather than the
+ * database, once the source link is in `links`. Every such path ends here, so
+ * each one keeps a cover by the same rule.
+ *
+ * @param sourceTrack - The track the resolve started from.
+ * @param links - Every link found, the source's included.
+ * @param lateLinks - Links still on their way, see {@link ResolutionResult.lateLinks}.
+ * @returns The result, its track carrying the cover {@link withKeptArtwork} keeps.
+ */
+async function completeFreshResolution(
+  sourceTrack: NormalizedTrack,
+  links: ResolvedLink[],
+  lateLinks: Promise<ResolvedLink[]> | undefined,
+): Promise<ResolutionResult> {
+  const track = await withKeptArtwork(sourceTrack, links);
+  return {
+    sourceTrack: track,
+    links,
+    externalIds: collectTrackExternalIds(track, links),
+    lateLinks,
+  };
+}
+
+/**
+ * Services asked by ISRC for a cover when neither the source track nor any of
+ * its links has one to keep, in this order. Never Apple Music, whose artwork
+ * may not be shown (see `artwork.ts`).
+ */
+const ISRC_ARTWORK_SERVICES: readonly ServiceId[] = ["spotify", "deezer"];
+
+/**
+ * Gives a freshly resolved track the cover it keeps, see {@link pickArtworkUrl}.
+ *
+ * @param sourceTrack - The resolved track, with the cover its service returned.
+ * @param links - The links the resolve found, each with the cover its service
+ *   returned.
+ * @returns The track with the kept cover, or with none. When neither the track
+ *   nor a link has a cover to keep and the track has an ISRC, the cover comes
+ *   from {@link findArtworkByIsrc}.
+ */
+async function withKeptArtwork(sourceTrack: NormalizedTrack, links: readonly ResolvedLink[]): Promise<NormalizedTrack> {
+  let artworkUrl = pickArtworkUrl(sourceTrack.artworkUrl, links);
+  if (!artworkUrl && sourceTrack.isrc) {
+    artworkUrl = await findArtworkByIsrc(sourceTrack.isrc, new Set(links.map((link) => link.service)));
+  }
+  return { ...sourceTrack, artworkUrl };
+}
+
+/**
+ * Asks {@link ISRC_ARTWORK_SERVICES} in turn for a cover of the recording.
+ *
+ * @param isrc - The track's ISRC.
+ * @param considered - Services whose link is already in the result. They are
+ *   skipped, because their cover was part of the pick that came up empty.
+ * @returns The first cover that may be kept, or `undefined`. A service that
+ *   fails is logged as a deviation and the next one is asked.
+ */
+async function findArtworkByIsrc(isrc: string, considered: ReadonlySet<string>): Promise<string | undefined> {
+  const active = await getActiveAdapters();
+  for (const serviceId of ISRC_ARTWORK_SERVICES) {
+    const adapter = active.find((candidate) => candidate.id === serviceId);
+    if (!adapter || considered.has(serviceId)) continue;
     try {
-      const active = await getActiveAdapters();
-      const spotifyAdapter = active.find((a) => a.id === "spotify");
-      const appleAdapter = active.find((a) => a.id === "apple-music");
-
-      if (spotifyAdapter) {
-        const spotifyTrack = await spotifyAdapter.findByIsrc(isrc);
-        if (spotifyTrack?.artworkUrl) {
-          sourceTrack = { ...sourceTrack, artworkUrl: spotifyTrack.artworkUrl };
-        }
-      }
-
-      // Fallback to Apple Music if Spotify doesn't have artwork
-      if (!sourceTrack.artworkUrl && appleAdapter) {
-        const appleTrack = await appleAdapter.findByIsrc(isrc);
-        if (appleTrack?.artworkUrl) {
-          sourceTrack = { ...sourceTrack, artworkUrl: appleTrack.artworkUrl };
-        }
-      }
+      const track = await adapter.findByIsrc(isrc);
+      const artworkUrl = pickArtworkUrl(track?.artworkUrl, []);
+      if (artworkUrl) return artworkUrl;
     } catch (error) {
-      // Artwork fetch failed - continue with original (no artwork)
       log.deviation(
         {
-          adapterId: "apple-music",
+          adapterId: serviceId,
           component: "Resolver",
           errorCode: "MC-API-0004",
           operation: "track_artwork_enrichment",
-          outcome: "artwork_omitted",
+          outcome: "next_artwork_source",
         },
         error,
       );
     }
   }
-
-  return {
-    sourceTrack,
-    links,
-    externalIds: collectTrackExternalIds(sourceTrack, links),
-    lateLinks,
-  };
+  return undefined;
 }
 
 type RankedSearchCandidate = SearchResultWithCandidates["candidates"][number];
@@ -886,12 +938,7 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
           externalId: result.track.sourceId,
         });
 
-        return {
-          sourceTrack: result.track,
-          links,
-          externalIds: collectTrackExternalIds(result.track, links),
-          lateLinks,
-        };
+        return completeFreshResolution(result.track, links, lateLinks);
       }
     } catch (error) {
       failedSearches++;
@@ -970,12 +1017,7 @@ export async function resolveTextSearchWithDisambiguation(
 
           return {
             kind: "resolved",
-            result: {
-              sourceTrack: topCandidate.track,
-              links,
-              externalIds: collectTrackExternalIds(topCandidate.track, links),
-              lateLinks,
-            },
+            result: await completeFreshResolution(topCandidate.track, links, lateLinks),
           };
         }
 
@@ -1022,12 +1064,7 @@ export async function resolveTextSearchWithDisambiguation(
 
         return {
           kind: "resolved",
-          result: {
-            sourceTrack: result.track,
-            links,
-            externalIds: collectTrackExternalIds(result.track, links),
-            lateLinks,
-          },
+          result: await completeFreshResolution(result.track, links, lateLinks),
         };
       }
     } catch (error) {
@@ -1087,12 +1124,7 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
     externalId: sourceTrack.sourceId,
   });
 
-  return {
-    sourceTrack,
-    links,
-    externalIds: collectTrackExternalIds(sourceTrack, links),
-    lateLinks,
-  };
+  return completeFreshResolution(sourceTrack, links, lateLinks);
 }
 
 async function resolveAcrossServices(
@@ -1269,6 +1301,7 @@ async function resolveOnService(adapter: ServiceAdapter, sourceTrack: Normalized
         matchMethod: "isrc",
         externalId: track.sourceId,
         previewUrl: track.previewUrl,
+        artworkUrl: track.artworkUrl,
         isrc: track.isrc,
         mbid: track.mbid,
         iswc: track.iswc,
@@ -1299,6 +1332,7 @@ async function resolveViaSearch(adapter: ServiceAdapter, sourceTrack: Normalized
     matchMethod: result.matchMethod,
     externalId: result.track.sourceId,
     previewUrl: result.track.previewUrl,
+    artworkUrl: result.track.artworkUrl,
     isrc: result.track.isrc,
     mbid: result.track.mbid,
     iswc: result.track.iswc,
@@ -1466,17 +1500,10 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
     matchMethod: "search",
   });
 
-  // Use scraped artwork if the source track doesn't have one
-  if (!bestSourceTrack.artworkUrl && scraped.artworkUrl) {
-    bestSourceTrack = { ...bestSourceTrack, artworkUrl: scraped.artworkUrl };
-  }
-
-  return {
-    sourceTrack: bestSourceTrack,
-    links,
-    externalIds: collectTrackExternalIds(bestSourceTrack, links),
-    lateLinks,
-  };
+  // The scraped page's cover counts as the track's own when the search hit has
+  // none. An Apple Music page's cover is Apple's, and the pick drops it.
+  const sourceTrack = { ...bestSourceTrack, artworkUrl: bestSourceTrack.artworkUrl ?? scraped.artworkUrl };
+  return completeFreshResolution(sourceTrack, links, lateLinks);
 }
 
 // ─── Last.fm URL → text query ──────────────────────────────────────────────

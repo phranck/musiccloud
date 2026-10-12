@@ -56,12 +56,14 @@
  * previews instead, refreshed on demand by the share-preview route. Decided
  * in issue #290.
  *
- * ## Artwork URL template
+ * ## No artwork
  *
- * Apple Music artwork URLs arrive with a `{w}x{h}` placeholder that
- * the client is expected to substitute (e.g. `1000x1000bb.jpg`).
- * `buildArtworkUrl` does this substitution at a fixed 1000x1000 so
- * the share page gets a large enough image for retina rendering.
+ * Apple Music answers every song, album and artist with `artwork`, and this
+ * adapter leaves it out as well. The same section of the agreement allows
+ * Apple Music artwork only together with MusicKit playback, which musiccloud
+ * does not offer. The resolvers borrow the cover of another matched service
+ * through `pickArtworkUrl` in `services/artwork.ts`, and show none where no
+ * other service has one. Decided in issue #622.
  */
 import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { importPKCS8, SignJWT } from "jose";
@@ -370,11 +372,6 @@ interface AppleMusicSongAttributes {
   isrc?: string;
   contentRating?: string;
   url: string;
-  artwork?: {
-    url: string;
-    width: number;
-    height: number;
-  };
   genreNames?: string[];
 }
 
@@ -390,11 +387,6 @@ interface AppleMusicAlbumAttributes {
   upc?: string;
   trackCount?: number;
   releaseDate?: string;
-  artwork?: {
-    url: string;
-    width: number;
-    height: number;
-  };
   url: string;
   genreNames?: string[];
   recordLabel?: string;
@@ -422,13 +414,8 @@ interface AppleMusicAlbumResource {
 
 function mapTrack(raw: AppleMusicSongResource): NormalizedTrack {
   const attrs = raw.attributes;
-  let artworkUrl: string | undefined;
 
-  if (attrs.artwork?.url) {
-    // Apple Music artwork URLs use {w}x{h} placeholders for dynamic sizing
-    artworkUrl = attrs.artwork.url.replace("{w}", "640").replace("{h}", "640");
-  }
-
+  // No `artworkUrl`: Apple's artwork is left out, see the file comment.
   return {
     sourceService: "apple-music",
     sourceId: raw.id,
@@ -442,18 +429,12 @@ function mapTrack(raw: AppleMusicSongResource): NormalizedTrack {
     durationMs: attrs.durationInMillis,
     releaseDate: attrs.releaseDate,
     isExplicit: attrs.contentRating === "explicit",
-    artworkUrl,
     webUrl: attrs.url,
   };
 }
 
 function mapAlbum(raw: AppleMusicAlbumResource): NormalizedAlbum {
   const attrs = raw.attributes;
-  let artworkUrl: string | undefined;
-
-  if (attrs.artwork?.url) {
-    artworkUrl = attrs.artwork.url.replace("{w}", "640").replace("{h}", "640");
-  }
 
   const tracks: AlbumTrackEntry[] | undefined = raw.relationships?.tracks?.data
     ?.filter((t) => t.attributes != null)
@@ -464,6 +445,7 @@ function mapAlbum(raw: AppleMusicAlbumResource): NormalizedAlbum {
       durationMs: t.attributes?.durationInMillis,
     }));
 
+  // No `artworkUrl`: Apple's artwork is left out, see the file comment.
   return {
     sourceService: "apple-music",
     sourceId: raw.id,
@@ -475,7 +457,6 @@ function mapAlbum(raw: AppleMusicAlbumResource): NormalizedAlbum {
       .filter(Boolean),
     releaseDate: attrs.releaseDate,
     totalTracks: attrs.trackCount,
-    artworkUrl,
     label: attrs.recordLabel,
     webUrl: attrs.url,
     tracks: tracks?.length ? tracks : undefined,
@@ -484,9 +465,9 @@ function mapAlbum(raw: AppleMusicAlbumResource): NormalizedAlbum {
 
 const capabilities: AdapterCapabilities = {
   supportsIsrc: true,
-  // Apple's previews are left out; see the file comment.
+  // Apple's previews and artwork are left out; see the file comment.
   supportsPreview: false,
-  supportsArtwork: true,
+  supportsArtwork: false,
 };
 
 const albumCapabilities: AlbumCapabilities = {
@@ -503,11 +484,6 @@ interface AppleMusicArtistAttributes {
   name: string;
   url: string;
   genreNames?: string[];
-  artwork?: {
-    url: string;
-    width: number;
-    height: number;
-  };
 }
 
 interface AppleMusicArtistResource {
@@ -518,17 +494,12 @@ interface AppleMusicArtistResource {
 
 function mapArtist(raw: AppleMusicArtistResource): NormalizedArtist {
   const attrs = raw.attributes;
-  let imageUrl: string | undefined;
 
-  if (attrs.artwork?.url) {
-    imageUrl = attrs.artwork.url.replace("{w}", "640").replace("{h}", "640");
-  }
-
+  // No `imageUrl`: Apple's artwork is left out, see the file comment.
   return {
     sourceService: "apple-music",
     sourceId: raw.id,
     name: attrs.name,
-    imageUrl,
     genres: attrs.genreNames?.filter((g) => g !== "Music"),
     webUrl: attrs.url,
   };

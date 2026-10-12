@@ -27,10 +27,10 @@
  * ## No artwork from API for albums
  *
  * Tidal API v2 does not return `imageLinks` on album resources in
- * all responses. The resolver's cross-service artwork fallback
- * (Spotify -> Apple Music -> ...) fills this gap downstream; the
- * adapter itself leaves `artworkUrl` empty rather than fabricating
- * a broken URL.
+ * all responses. The resolvers borrow another matched service's
+ * cover through `pickArtworkUrl` (`services/artwork.ts`), Spotify's
+ * first; the adapter itself leaves `artworkUrl` empty rather than
+ * fabricating a broken URL.
  *
  * ## URL formats
  *
