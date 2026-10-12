@@ -222,32 +222,54 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     [endpoint, searchQuery, sort],
   );
 
+  /**
+   * Counts the searches and sorts the list has been asked for. Every request
+   * remembers the count it started under, and its response is dropped once
+   * the count has moved on. Two quick header clicks put two first pages in
+   * flight, and whichever answers last would otherwise replace the rows under
+   * a header that names the other order.
+   */
+  const queryGenerationRef = useRef(0);
+  const isCurrentQuery = useCallback((generation: number) => generation === queryGenerationRef.current, []);
+
   // Fetch
   const fetchFirstPage = useCallback(
     (stale?: T[]) => {
+      queryGenerationRef.current += 1;
+      const generation = queryGenerationRef.current;
       dispatch({ type: "RESET", stale });
       api
         .get<Page<T>>(pageUrl(1))
-        .then((data) => dispatch({ type: "FIRST_PAGE", items: data.items, total: data.total }))
-        .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
+        .then((data) => {
+          if (isCurrentQuery(generation)) dispatch({ type: "FIRST_PAGE", items: data.items, total: data.total });
+        })
+        .catch((err: Error) => {
+          if (isCurrentQuery(generation)) dispatch({ type: "ERROR", message: err.message });
+        });
     },
-    [pageUrl],
+    [pageUrl, isCurrentQuery],
   );
 
   const refreshSilently = useCallback(async () => {
+    const generation = queryGenerationRef.current;
     const data = await api.get<Page<T>>(pageUrl(1));
-    dispatch({ type: "FIRST_PAGE", items: data.items, total: data.total });
-  }, [pageUrl]);
+    if (isCurrentQuery(generation)) dispatch({ type: "FIRST_PAGE", items: data.items, total: data.total });
+  }, [pageUrl, isCurrentQuery]);
 
   const loadMore = useCallback(() => {
     const s = stateRef.current;
     if (s.tag !== "ready" || !s.hasMore) return;
+    const generation = queryGenerationRef.current;
     dispatch({ type: "LOAD_MORE" });
     api
       .get<Page<T>>(pageUrl(s.nextPage))
-      .then((data) => dispatch({ type: "MORE_LOADED", items: data.items, total: data.total }))
-      .catch((err: Error) => dispatch({ type: "ERROR", message: err.message }));
-  }, [pageUrl]);
+      .then((data) => {
+        if (isCurrentQuery(generation)) dispatch({ type: "MORE_LOADED", items: data.items, total: data.total });
+      })
+      .catch((err: Error) => {
+        if (isCurrentQuery(generation)) dispatch({ type: "ERROR", message: err.message });
+      });
+  }, [pageUrl, isCurrentQuery]);
 
   const loadMoreRef = useRef(loadMore);
   loadMoreRef.current = loadMore;
