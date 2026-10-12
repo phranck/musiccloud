@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { getRepository } from "../db/index.js";
+import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from "./integration-database.js";
 
 /**
- * Hits a live Postgres pointed at by `DATABASE_URL`. Exercises the
+ * Hits a live Postgres pointed at by `TEST_DATABASE_URL`. Exercises the
  * `crawl_state` SQL added in migration 0023: lock acquire / release with
  * stale-detection, completeCrawlTick state transitions, and auto-disable
  * after consecutive_errors crosses threshold.
@@ -12,7 +13,9 @@ import { getRepository } from "../db/index.js";
  * (the repository has no `deleteCrawlState` method); rows are tagged with
  * an `it-` prefix so seed runs in a real env can filter them out.
  */
-describe.skipIf(!process.env.DATABASE_URL)("crawl-state repository (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("crawl-state repository (integration)", () => {
+  connectRepositoriesToIntegrationDatabase();
+
   function freshSourceId(): string {
     return `it-${Math.random().toString(36).slice(2, 12)}`;
   }

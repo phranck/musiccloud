@@ -1,6 +1,7 @@
 import type { VinylLayout } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 import { generateShortId, generateTrackId } from "../../../lib/short-id.js";
 import { createAlbumIdentityKey } from "../../../services/album-identity.js";
 import { loadAlbumByShortId, upsertVinylLayout } from "../postgres-albums.js";
@@ -14,9 +15,10 @@ import { loadAlbumByShortId, upsertVinylLayout } from "../postgres-albums.js";
  * identity and therefore no cache entry to find. Cleanup removes only the rows
  * these fixtures created.
  */
-describe.skipIf(!process.env.DATABASE_URL)("album share vinyl layouts (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("album share vinyl layouts (integration)", () => {
   let pool: pgModule.Pool;
   const artist = "MC-116 Fixture Artist";
+  const artistEntityId = `mc116-artist-${generateTrackId()}`;
   const fixtures = [
     { albumId: generateTrackId(), shortId: generateShortId(), title: "MC-116 positive share fixture" },
     { albumId: generateTrackId(), shortId: generateShortId(), title: "MC-116 negative share fixture" },
@@ -34,8 +36,10 @@ describe.skipIf(!process.env.DATABASE_URL)("album share vinyl layouts (integrati
   };
 
   beforeAll(async () => {
-    pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
     const now = new Date();
+    // A credit names its artist entity, which the schema requires.
+    await pool.query("INSERT INTO artist_entities (id) VALUES ($1)", [artistEntityId]);
 
     for (const fixture of fixtures) {
       await pool.query(`INSERT INTO albums (id, title, created_at, updated_at) VALUES ($1, $2, $3, $4)`, [
@@ -50,9 +54,9 @@ describe.skipIf(!process.env.DATABASE_URL)("album share vinyl layouts (integrati
         now,
       ]);
       await pool.query(
-        `INSERT INTO album_artist_credits (id, album_id, credit_name, credit_role, credit_position, created_at)
-         VALUES ($1, $2, $3, 'main', 0, $4)`,
-        [generateTrackId(), fixture.albumId, artist, now],
+        `INSERT INTO album_artist_credits (id, album_id, artist_entity_id, credit_name, credit_role, credit_position, created_at)
+         VALUES ($1, $2, $3, $4, 'main', 0, $5)`,
+        [generateTrackId(), fixture.albumId, artistEntityId, artist, now],
       );
     }
   });
@@ -64,6 +68,7 @@ describe.skipIf(!process.env.DATABASE_URL)("album share vinyl layouts (integrati
       await pool.query("DELETE FROM album_short_urls WHERE album_id = $1", [fixture.albumId]);
       await pool.query("DELETE FROM albums WHERE id = $1", [fixture.albumId]);
     }
+    await pool.query("DELETE FROM artist_entities WHERE id = $1", [artistEntityId]);
     await pool.end();
   });
 

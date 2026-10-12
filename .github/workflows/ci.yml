@@ -146,6 +146,27 @@ jobs:
     name: Validate affected workspaces
     runs-on: ubuntu-latest
     needs: detect-validation-changes
+    # The backend's integration tests run against a database that exists for
+    # this job alone, so they can write and delete rows without reaching
+    # anything shared. postgres:18 is the version the local `musiccloud`
+    # container runs. Trust authentication keeps a password out of the file;
+    # the port is reachable from this runner only.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: musiccloud
+          POSTGRES_DB: musiccloud_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U musiccloud -d musiccloud_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      TEST_DATABASE_URL: postgresql://musiccloud@localhost:5432/musiccloud_test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -190,6 +211,14 @@ jobs:
       - name: Shared tests
         if: needs.detect-validation-changes.outputs.shared == 'true'
         run: pnpm --filter @musiccloud/shared test:run
+      # The migration runner reads DATABASE_URL, so it gets the integration
+      # database for this one step. The tests themselves read only
+      # TEST_DATABASE_URL.
+      - name: Migrate the integration database
+        if: needs.detect-validation-changes.outputs.backend == 'true'
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: pnpm db:migrate
       - name: Backend tests
         if: needs.detect-validation-changes.outputs.backend == 'true'
         run: pnpm --filter @musiccloud/backend test:run

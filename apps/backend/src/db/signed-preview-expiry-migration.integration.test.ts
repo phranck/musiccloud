@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { isSafeIntegrationDatabase } from "../__tests__/integration-database.js";
+import { integrationDatabaseUrl } from "../__tests__/integration-database.js";
 import { getDeezerPreviewExpiry } from "../lib/preview-url.js";
 import { resolveMigrationsFolder } from "./run-migrations.js";
 
@@ -33,73 +33,66 @@ interface PreviewRow {
  * The migration runs inside a rolled-back transaction against temporary tables
  * that shadow the real ones for this session, so no stored row is touched.
  */
-describe.skipIf(!isSafeIntegrationDatabase(process.env.DATABASE_URL))(
-  "signed preview expiry migration (integration)",
-  () => {
-    let client: pg.Client;
+describe.skipIf(!integrationDatabaseUrl())("signed preview expiry migration (integration)", () => {
+  let client: pg.Client;
 
-    beforeAll(async () => {
-      client = new pg.Client({ connectionString: process.env.DATABASE_URL });
-      await client.connect();
-    });
+  beforeAll(async () => {
+    client = new pg.Client({ connectionString: integrationDatabaseUrl() });
+    await client.connect();
+  });
 
-    afterAll(async () => {
-      await client.end();
-    });
+  afterAll(async () => {
+    await client.end();
+  });
 
-    it("records the token expiry of a signed Deezer URL and leaves every other row as it was", async () => {
-      const migration = await readFile(path.join(resolveMigrationsFolder(), `${MIGRATION_TAG}.sql`), "utf8");
+  it("records the token expiry of a signed Deezer URL and leaves every other row as it was", async () => {
+    const migration = await readFile(path.join(resolveMigrationsFolder(), `${MIGRATION_TAG}.sql`), "utf8");
 
-      await client.query("BEGIN");
-      try {
-        await client.query(
-          "CREATE TEMP TABLE track_previews (LIKE public.track_previews INCLUDING ALL) ON COMMIT DROP",
-        );
-        await client.query(
-          "CREATE TEMP TABLE album_previews (LIKE public.album_previews INCLUDING ALL) ON COMMIT DROP",
-        );
-        const shadowing = await client.query<{ track: boolean; album: boolean }>(
-          `SELECT 'track_previews'::regclass = 'pg_temp.track_previews'::regclass AS track,
+    await client.query("BEGIN");
+    try {
+      await client.query("CREATE TEMP TABLE track_previews (LIKE public.track_previews INCLUDING ALL) ON COMMIT DROP");
+      await client.query("CREATE TEMP TABLE album_previews (LIKE public.album_previews INCLUDING ALL) ON COMMIT DROP");
+      const shadowing = await client.query<{ track: boolean; album: boolean }>(
+        `SELECT 'track_previews'::regclass = 'pg_temp.track_previews'::regclass AS track,
                   'album_previews'::regclass = 'pg_temp.album_previews'::regclass AS album`,
-        );
-        // Guards the claim above: the migration may only run once its unqualified
-        // table names resolve to the temporary copies.
-        expect(shadowing.rows[0]).toEqual({ track: true, album: true });
+      );
+      // Guards the claim above: the migration may only run once its unqualified
+      // table names resolve to the temporary copies.
+      expect(shadowing.rows[0]).toEqual({ track: true, album: true });
 
-        await client.query(
-          `INSERT INTO track_previews (id, track_id, service, url, expires_at, observed_at) VALUES
+      await client.query(
+        `INSERT INTO track_previews (id, track_id, service, url, expires_at, observed_at) VALUES
              ('signed-null', 'track', 'spotify', $1, NULL, now()),
              ('signed-recorded', 'track', 'deezer', $2, $3, now()),
              ('permanent', 'track', 'apple-music', $4, NULL, now()),
              ('foreign-host', 'track', 'tidal', $5, NULL, now())`,
-          [EXPIRED_SIGNED_URL, RECORDED_SIGNED_URL, RECORDED_EXPIRY, PERMANENT_URL, FOREIGN_HOST_TOKEN_URL],
-        );
-        await client.query(
-          `INSERT INTO album_previews (id, album_id, service, url, expires_at, observed_at) VALUES
+        [EXPIRED_SIGNED_URL, RECORDED_SIGNED_URL, RECORDED_EXPIRY, PERMANENT_URL, FOREIGN_HOST_TOKEN_URL],
+      );
+      await client.query(
+        `INSERT INTO album_previews (id, album_id, service, url, expires_at, observed_at) VALUES
              ('album-signed-null', 'album', 'spotify', $1, NULL, now())`,
-          [EXPIRED_SIGNED_URL],
-        );
+        [EXPIRED_SIGNED_URL],
+      );
 
-        for (const statement of migration.split(STATEMENT_BREAKPOINT)) {
-          await client.query(statement);
-        }
-
-        const tracks = await client.query<PreviewRow>("SELECT id, expires_at FROM track_previews ORDER BY id");
-        const albums = await client.query<PreviewRow>("SELECT id, expires_at FROM album_previews ORDER BY id");
-        const expiryOf = (rows: PreviewRow[], id: string) =>
-          rows.find((row) => row.id === id)?.expires_at?.getTime() ?? null;
-
-        expect(getDeezerPreviewExpiry(EXPIRED_SIGNED_URL)).toBe(EXPIRED_TOKEN_SECONDS * 1000);
-        expect(expiryOf(tracks.rows, "signed-null")).toBe(getDeezerPreviewExpiry(EXPIRED_SIGNED_URL));
-        expect(expiryOf(albums.rows, "album-signed-null")).toBe(getDeezerPreviewExpiry(EXPIRED_SIGNED_URL));
-        expect(expiryOf(tracks.rows, "signed-recorded")).toBe(RECORDED_EXPIRY.getTime());
-        expect(getDeezerPreviewExpiry(PERMANENT_URL)).toBeNull();
-        expect(expiryOf(tracks.rows, "permanent")).toBeNull();
-        expect(getDeezerPreviewExpiry(FOREIGN_HOST_TOKEN_URL)).toBeNull();
-        expect(expiryOf(tracks.rows, "foreign-host")).toBeNull();
-      } finally {
-        await client.query("ROLLBACK");
+      for (const statement of migration.split(STATEMENT_BREAKPOINT)) {
+        await client.query(statement);
       }
-    });
-  },
-);
+
+      const tracks = await client.query<PreviewRow>("SELECT id, expires_at FROM track_previews ORDER BY id");
+      const albums = await client.query<PreviewRow>("SELECT id, expires_at FROM album_previews ORDER BY id");
+      const expiryOf = (rows: PreviewRow[], id: string) =>
+        rows.find((row) => row.id === id)?.expires_at?.getTime() ?? null;
+
+      expect(getDeezerPreviewExpiry(EXPIRED_SIGNED_URL)).toBe(EXPIRED_TOKEN_SECONDS * 1000);
+      expect(expiryOf(tracks.rows, "signed-null")).toBe(getDeezerPreviewExpiry(EXPIRED_SIGNED_URL));
+      expect(expiryOf(albums.rows, "album-signed-null")).toBe(getDeezerPreviewExpiry(EXPIRED_SIGNED_URL));
+      expect(expiryOf(tracks.rows, "signed-recorded")).toBe(RECORDED_EXPIRY.getTime());
+      expect(getDeezerPreviewExpiry(PERMANENT_URL)).toBeNull();
+      expect(expiryOf(tracks.rows, "permanent")).toBeNull();
+      expect(getDeezerPreviewExpiry(FOREIGN_HOST_TOKEN_URL)).toBeNull();
+      expect(expiryOf(tracks.rows, "foreign-host")).toBeNull();
+    } finally {
+      await client.query("ROLLBACK");
+    }
+  });
+});

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ContentContext } from "@musiccloud/shared";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 import {
   createContentPage,
   deleteContentPage,
@@ -10,17 +11,7 @@ import {
   replaceContentPublications,
 } from "../postgres-content-pages.js";
 
-function isSafeLocalDatabase(url: string | undefined): boolean {
-  if (!url) return false;
-  try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    return hostname === "localhost" || hostname === "127.0.0.1";
-  } catch {
-    return false;
-  }
-}
-
-describe.skipIf(!isSafeLocalDatabase(process.env.DATABASE_URL))("contextual content pages (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("contextual content pages (integration)", () => {
   const suffix = randomUUID();
   const primarySlug = `it-context-primary-${suffix}`;
   const collisionSlug = `it-context-collision-${suffix}`;
@@ -30,7 +21,7 @@ describe.skipIf(!isSafeLocalDatabase(process.env.DATABASE_URL))("contextual cont
   let collisionPageId: string;
 
   beforeAll(async () => {
-    pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new pg.Pool({ connectionString: integrationDatabaseUrl() });
     const primary = await createContentPage(pool, {
       slug: primarySlug,
       title: "Context publication integration page",

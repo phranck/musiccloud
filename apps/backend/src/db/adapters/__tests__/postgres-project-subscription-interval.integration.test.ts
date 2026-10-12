@@ -1,9 +1,10 @@
 import { BILLING_PERIODS } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 
 /**
- * Hits a live Postgres pointed at by `DATABASE_URL`. A project subscription is
+ * Hits a live Postgres pointed at by `TEST_DATABASE_URL`. A project subscription is
  * to an offer, so its interval has to hold every billing period an offer can
  * be sold over, in Creem's spelling.
  *
@@ -12,12 +13,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
  * carry a random suffix all the same, so a row from an interrupted run would be
  * identifiable.
  */
-describe.skipIf(!process.env.DATABASE_URL)("developer_project_subscriptions.interval (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("developer_project_subscriptions.interval (integration)", () => {
   let pool: pgModule.Pool;
   const suffix = Math.random().toString(36).slice(2, 10);
 
   beforeAll(() => {
-    pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
   });
 
   afterAll(async () => {

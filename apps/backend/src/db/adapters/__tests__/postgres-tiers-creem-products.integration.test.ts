@@ -1,10 +1,11 @@
 import { BillingPeriod, CreemMode } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 import { PostgresTierRepository } from "../postgres-tiers.js";
 
 /**
- * Hits a live Postgres pointed at by `DATABASE_URL`. Exercises the Creem
+ * Hits a live Postgres pointed at by `TEST_DATABASE_URL`. Exercises the Creem
  * product mapping, which addresses an offer by the offer's own natural key.
  *
  * What the shape has to hold: the same offer can carry a product in each Creem
@@ -16,7 +17,7 @@ import { PostgresTierRepository } from "../postgres-tiers.js";
  * a random suffix so a leftover from an interrupted run is identifiable.
  * `afterAll` deletes the plan and the rest goes with it through the cascade.
  */
-describe.skipIf(!process.env.DATABASE_URL)("tier_creem_products (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("tier_creem_products (integration)", () => {
   let pool: pgModule.Pool;
   let repo: PostgresTierRepository;
   const suffix = Math.random().toString(36).slice(2, 10);
@@ -25,7 +26,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tier_creem_products (integration)", 
   const liveProductId = `prod_live_${suffix}`;
 
   beforeAll(async () => {
-    pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
     repo = new PostgresTierRepository(pool);
     await pool.query("INSERT INTO tiers (id, name, requests_per_minute, requests_per_day) VALUES ($1, $2, 60, 10000)", [
       tierId,

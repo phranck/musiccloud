@@ -357,6 +357,6 @@ Unit tests live next to the code:
 - `services/crawler/sources/__tests__/<id>.test.ts` covers each source with its outbound fetch mocked and asserts the candidates it parses.
 - `routes/admin-crawler.test.ts` covers source seeding, config normalization, the enablement and run-now gates, canonical errors, and the run-history contract.
 
-Integration tests (skipped without `DATABASE_URL`):
+Integration tests (skipped without `TEST_DATABASE_URL`, which CI sets):
 
 - `__tests__/crawl-state-repo.integration.test.ts` covers the null, held and stale paths of `acquireCrawlLock`, the state transitions of `completeCrawlTick`, the auto-disable threshold, and the filter of `listDueCrawlState`.

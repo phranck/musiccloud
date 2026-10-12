@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getRepository } from "../db/index.js";
 import { generateShortId, generateTrackId } from "../lib/short-id.js";
+import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from "./integration-database.js";
 
 /**
- * Hits a live Postgres pointed at by `DATABASE_URL`. Exercises the
+ * Hits a live Postgres pointed at by `TEST_DATABASE_URL`. Exercises the
  * `track_external_ids` and `album_external_ids` aggregation tables added
  * in migration 0019 plus the fallback paths in `findTrackByIsrc` /
  * `findAlbumByUpc`.
@@ -13,7 +14,9 @@ import { generateShortId, generateTrackId } from "../lib/short-id.js";
  * (ON DELETE CASCADE on the FK in the aggregation tables wipes the
  * external-id rows together with the parent).
  */
-describe.skipIf(!process.env.DATABASE_URL)("external-ids repository (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("external-ids repository (integration)", () => {
+  connectRepositoriesToIntegrationDatabase();
+
   const trackId = generateTrackId();
   const albumId = generateTrackId();
   const isrc = `ITTEST${Math.random().toString(36).slice(2, 8).toUpperCase()}`;

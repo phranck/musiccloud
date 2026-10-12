@@ -1,10 +1,11 @@
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 import type { EmailTemplateWriteData } from "../../admin-repository.js";
 import { getEmailTemplateById, insertEmailTemplate, updateEmailTemplate } from "../postgres-content-email.js";
 
 /**
- * Hits a live Postgres pointed at by `DATABASE_URL`. Exercises the
+ * Hits a live Postgres pointed at by `TEST_DATABASE_URL`. Exercises the
  * present-keys-only branding-override semantics of `insertEmailTemplate` /
  * `updateEmailTemplate` against the real `email_templates` branding columns
  * (MC-079 migration 0052): an ABSENT key leaves the column untouched, a key
@@ -13,12 +14,12 @@ import { getEmailTemplateById, insertEmailTemplate, updateEmailTemplate } from "
  * All fixtures use a random template name per row so they never collide with
  * seeded data; `afterAll` deletes every row created here.
  */
-describe.skipIf(!process.env.DATABASE_URL)("email template branding overrides (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("email template branding overrides (integration)", () => {
   let pool: pgModule.Pool;
   const createdIds: number[] = [];
 
   beforeAll(() => {
-    pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
   });
 
   afterAll(async () => {

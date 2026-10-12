@@ -1,9 +1,10 @@
 import { BILLING_PERIODS, canPayWhatYouWant } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
 
 /**
- * Hits a live Postgres pointed at by `DATABASE_URL`. The pay-what-you-want rule
+ * Hits a live Postgres pointed at by `TEST_DATABASE_URL`. The pay-what-you-want rule
  * lives twice, as `canPayWhatYouWant` in the shared package and as the check
  * `chk_tier_offers_pay_what_you_want`, so this holds the two to one answer for
  * every billing period.
@@ -12,13 +13,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
  * its offers never outlive the test. They carry a random suffix all the same,
  * so a row from an interrupted run would be identifiable.
  */
-describe.skipIf(!process.env.DATABASE_URL)("tier_offers.pay_what_you_want (integration)", () => {
+describe.skipIf(!integrationDatabaseUrl())("tier_offers.pay_what_you_want (integration)", () => {
   let pool: pgModule.Pool;
   const suffix = Math.random().toString(36).slice(2, 10);
   const tierId = `mc421-tier-${suffix}`;
 
   beforeAll(() => {
-    pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: integrationDatabaseUrl() });
   });
 
   afterAll(async () => {
