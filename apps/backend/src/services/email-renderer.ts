@@ -1,4 +1,10 @@
-import { type DesignTokens, type EmailBlock, EmailBlockType } from "@musiccloud/shared";
+import {
+  type DesignTokens,
+  EMAIL_VARIABLE_PATTERN,
+  type EmailBlock,
+  EmailBlockType,
+  ENDPOINTS,
+} from "@musiccloud/shared";
 import { Marked } from "marked";
 
 import type { EmailBrandingDto, EmailTemplateBrandingOverrides } from "../db/admin-repository.js";
@@ -17,8 +23,6 @@ import {
  * changing the other's parser options or output contract.
  */
 const emailMarked = new Marked({ breaks: true, gfm: true });
-
-const VAR_REGEX = /\{\{(\w+)\}\}/g;
 
 /**
  * Width of the message column, which is the width every card takes.
@@ -89,7 +93,7 @@ function buildDarkRules(dark: EmailSurfaces): string {
  * loudly (visible raw placeholder) instead of silently vanishing.
  */
 function interpolate(text: string, variables: Record<string, string>): string {
-  return text.replace(new RegExp(VAR_REGEX.source, "g"), (match, name) =>
+  return text.replace(EMAIL_VARIABLE_PATTERN, (match, name) =>
     name in variables ? escapeHtml(variables[name]) : match,
   );
 }
@@ -181,7 +185,7 @@ function renderButton(label: string, url: string, surfaces: EmailSurfaces, inset
  * @returns a URL (absolute or relative) to `GET /api/admin/email-assets/:id`.
  */
 function assetUrl(assetId: string, baseUrl: string | null): string {
-  const path = `/api/admin/email-assets/${assetId}`;
+  const path = ENDPOINTS.admin.emailAssets.detail(assetId);
   return baseUrl ? `${baseUrl.replace(/\/+$/, "")}${path}` : path;
 }
 

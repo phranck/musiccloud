@@ -1,4 +1,5 @@
 import { DashboardActionButton, DashboardActionId } from "@musiccloud/dashboard-ui";
+import { ENDPOINTS } from "@musiccloud/shared";
 import { ImageIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
@@ -20,7 +21,7 @@ export function AssetPickerPreview({ assetId }: AssetPickerPreviewProps) {
   if (!assetId) return null;
   return (
     <img
-      src={`/api/admin/email-assets/${assetId}`}
+      src={ENDPOINTS.admin.emailAssets.detail(assetId)}
       alt=""
       className="h-24 w-full rounded border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] object-contain"
     />

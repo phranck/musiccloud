@@ -1,5 +1,5 @@
 import { DashboardActionButton, DashboardActionId, DashboardActionStatus } from "@musiccloud/dashboard-ui";
-import { IMAGE_UPLOAD_ACCEPT } from "@musiccloud/shared";
+import { ENDPOINTS, IMAGE_UPLOAD_ACCEPT } from "@musiccloud/shared";
 import { CheckCircleIcon, ImagesIcon, TrayArrowUpIcon } from "@phosphor-icons/react";
 import { type ChangeEvent, useRef } from "react";
 
@@ -97,7 +97,7 @@ export function AssetPicker({ open, selectedAssetId, onSelect, onClose }: AssetP
                         : "border-[var(--ds-border)]"
                     }`}
                   >
-                    <img src={`/api/admin/email-assets/${asset.id}`} alt="" className="size-full object-cover" />
+                    <img src={ENDPOINTS.admin.emailAssets.detail(asset.id)} alt="" className="size-full object-cover" />
                     {isSelected && (
                       <span className="absolute right-1 top-1 text-[var(--ds-border-focus)]">
                         <CheckCircleIcon weight="fill" className="size-4" />

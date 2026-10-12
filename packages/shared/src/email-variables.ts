@@ -154,6 +154,39 @@ export const EMAIL_VARIABLES = {
   },
 } as const satisfies Record<string, EmailVariableMeta>;
 
+/** A variable name the catalog defines. */
+export type EmailVariableName = keyof typeof EMAIL_VARIABLES;
+
+/** One catalog entry, with its literal name, scope and recipient kinds. */
+type EmailVariableEntry = (typeof EMAIL_VARIABLES)[EmailVariableName];
+
+/**
+ * The names of the system-scope variables. The backend's resolver returns a
+ * record of exactly these, so a system entry added here and not resolved there
+ * fails to compile rather than failing a send.
+ */
+export type SystemEmailVariableName = Extract<EmailVariableEntry, { scope: typeof EmailVariableScope.System }>["name"];
+
+/** The names of the context-scope variables, which only an action occurrence supplies. */
+export type ContextEmailVariableName = Extract<
+  EmailVariableEntry,
+  { scope: typeof EmailVariableScope.Context }
+>["name"];
+
+/**
+ * The names of the recipient-scope variables the catalog lists for one
+ * recipient kind. The backend resolves exactly these for an addressee of that
+ * kind.
+ */
+export type RecipientEmailVariableName<Kind extends EmailRecipientKindValue> =
+  Extract<EmailVariableEntry, { scope: typeof EmailVariableScope.Recipient }> extends infer Entry
+    ? Entry extends { name: infer Name; recipientKinds: readonly (infer Kinds)[] }
+      ? Kind extends Kinds
+        ? Name
+        : never
+      : never
+    : never;
+
 /**
  * Looks up the catalog metadata for a variable name.
  *
@@ -197,8 +230,14 @@ export function listAvailableEmailVariables(
   return names;
 }
 
-/** Matches a `{{name}}` placeholder; the capture group is the bare variable name. */
-const VARIABLE_PATTERN = /\{\{(\w+)\}\}/g;
+/**
+ * Matches a `{{name}}` placeholder; the capture group is the bare variable
+ * name. The extractor that feeds both variable gates and the renderer that
+ * replaces the placeholders both use it, so they agree on what a placeholder
+ * is. It carries the `g` flag, so use it with `matchAll` or `replace`, which
+ * do not depend on its `lastIndex`.
+ */
+export const EMAIL_VARIABLE_PATTERN = /\{\{(\w+)\}\}/g;
 
 /**
  * Appends every `{{var}}` name found in `text` to `names` (deduplicated),
@@ -209,7 +248,7 @@ const VARIABLE_PATTERN = /\{\{(\w+)\}\}/g;
  * @param seen - the set of already-collected names, mutated in place.
  */
 function collectFrom(text: string, names: string[], seen: Set<string>): void {
-  for (const match of text.matchAll(VARIABLE_PATTERN)) {
+  for (const match of text.matchAll(EMAIL_VARIABLE_PATTERN)) {
     const name = match[1];
     if (!seen.has(name)) {
       seen.add(name);

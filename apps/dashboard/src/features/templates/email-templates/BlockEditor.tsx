@@ -23,7 +23,13 @@ import {
   DashboardIconButton,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
-import { type EmailBlock, EmailBlockType, type EmailBlockTypeValue, IMAGE_UPLOAD_ACCEPT } from "@musiccloud/shared";
+import {
+  type EmailBlock,
+  EmailBlockType,
+  type EmailBlockTypeValue,
+  ENDPOINTS,
+  IMAGE_UPLOAD_ACCEPT,
+} from "@musiccloud/shared";
 import {
   CursorClickIcon,
   ImageIcon,
@@ -373,7 +379,7 @@ function ImageBlockForm({
       <div className="flex items-center gap-3">
         {block.assetId && (
           <img
-            src={`/api/admin/email-assets/${block.assetId}`}
+            src={ENDPOINTS.admin.emailAssets.detail(block.assetId)}
             alt={block.altText}
             className="h-12 w-20 rounded border border-[var(--ds-border)] object-cover"
           />
