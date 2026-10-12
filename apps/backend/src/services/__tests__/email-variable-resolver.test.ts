@@ -4,7 +4,7 @@
  * functions — only `vi.stubEnv` is needed, no mocks.
  */
 
-import { EmailRecipientKind } from "@musiccloud/shared";
+import { EmailRecipientKind, listAvailableEmailVariables } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { applySampleValues, resolveRecipientVariables, resolveSystemVariables } from "../email-variable-resolver.js";
@@ -72,6 +72,34 @@ describe("resolveRecipientVariables", () => {
         avatarSource: null,
       }),
     ).toEqual({ username: "dev.jane", email: "dev.jane@example.com" });
+  });
+});
+
+describe("the catalog and the resolver", () => {
+  const RECIPIENTS = {
+    [EmailRecipientKind.AdminUser]: {
+      kind: EmailRecipientKind.AdminUser,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    },
+    [EmailRecipientKind.DeveloperAccount]: {
+      kind: EmailRecipientKind.DeveloperAccount,
+      email: "dev@example.com",
+      displayName: "Dev",
+    },
+  } as const;
+
+  // The bind-time gate allows what `listAvailableEmailVariables` lists, and the
+  // send-time gate checks what is resolved here. They have to be the same set,
+  // or a template passes binding and then fails the first real send.
+  it.each([
+    EmailRecipientKind.AdminUser,
+    EmailRecipientKind.DeveloperAccount,
+  ])("resolves exactly the names binding allows for %s", (kind) => {
+    const resolved = { ...resolveSystemVariables(), ...resolveRecipientVariables(RECIPIENTS[kind]) };
+
+    expect(Object.keys(resolved).sort()).toEqual(listAvailableEmailVariables(kind, []).sort());
   });
 });
 

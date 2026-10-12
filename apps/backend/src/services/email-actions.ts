@@ -1,23 +1,20 @@
 /**
- * @file System-Action-Trigger (MC-078, Scopes MC-081). `triggerEmailAction`
- * fächert ein code-definiertes Ereignis (siehe `@musiccloud/shared`
- * EMAIL_ACTIONS) an alle aktivierten, gebundenen Templates auf: jedes wird
- * gerendert und gesendet. System-Variablen (Env) und Empfänger-Variablen
- * (Adressat) löst der Trigger selbst auf — Call-Sites liefern nur noch den
- * Empfänger und die ereignis-spezifischen Kontext-Variablen der Action.
+ * @file The system action trigger (MC-078, scopes MC-081). `triggerEmailAction`
+ * fans a code-defined event (see `EMAIL_ACTIONS` in `@musiccloud/shared`) out
+ * to every enabled, bound template and sends each one. The trigger resolves
+ * the system variables (from the environment) and the recipient variables
+ * (from the addressee) itself, so call sites supply only the recipient and the
+ * action's context variables.
  */
 import { extractEmailTemplateVariables, getEmailActionMeta } from "@musiccloud/shared";
 
 import { getAdminRepository } from "../db/index.js";
-import { requireEnv } from "../lib/env.js";
-import { sendEmail } from "./email-provider.js";
-import { renderEmailTemplate } from "./email-renderer.js";
+import { sendTemplatedEmail } from "./email-sender.js";
 import {
   type EmailActionRecipient,
   resolveRecipientVariables,
   resolveSystemVariables,
 } from "./email-variable-resolver.js";
-import { getDesignTokens } from "./site-settings.js";
 
 /**
  * Input for {@link triggerEmailAction}: the transport address, the addressee
@@ -35,36 +32,29 @@ export interface TriggerEmailActionInput {
 
 /**
  * Resolves a code-defined system action to its enabled template bindings and
- * fans out one rendered send per binding. This is the trigger boundary only:
- * rendering is delegated to {@link renderEmailTemplate} and persistence to the
- * {@link AdminRepository} — this function contains no rendering or storage
- * logic of its own.
+ * sends each bound template through {@link sendTemplatedEmail}, the one send
+ * path the template editor's test send uses as well.
  *
  * Variable resolution (MC-081): the interpolation set is the merge of
  * system-scope values (from env, see {@link resolveSystemVariables}),
  * recipient-scope values (from `input.recipient`, see
- * {@link resolveRecipientVariables}), and `input.context` — in that order, so
- * an action's context extras win on a (by catalog design impossible) name
- * collision.
+ * {@link resolveRecipientVariables}), and `input.context`, in that order. An
+ * action's context extras therefore win on a name collision, which the catalog
+ * rules out anyway.
  *
- * Throw-vs-skip semantics (deliberate, not an oversight):
- * - Unknown `actionKey` → throws. A typo'd action key must never silently
- *   no-op; it means a caller and the registry have drifted.
- * - Recipient kind mismatch (caller hands a developer account to an
- *   admin-user action or vice versa) → throws. That is caller/registry drift
- *   which would render wrong or missing recipient variables.
- * - Known action with zero enabled bindings:
- *   - `required: true` (per the {@link EMAIL_ACTIONS} registry) → throws. A
- *     required action (e.g. an admin invite) with nothing bound means the
- *     admin cannot complete the underlying workflow; failing loudly surfaces
- *     the misconfiguration instead of the invite silently vanishing.
- *   - `required: false` → returns without sending anything. An optional
- *     action with no binding is a deliberate "not wired up yet", not an
- *     error.
- * - A bound template that uses a `{{var}}` outside the merged resolution set
- *   → throws *before* rendering or sending that template. Sending with an
- *   unresolved `{{var}}` placeholder would ship broken mail to a real
- *   recipient; the validation gate exists specifically to prevent that.
+ * When it throws and when it skips is deliberate:
+ * - An unknown `actionKey` throws. A misspelled action key must never pass
+ *   silently, because it means a caller and the registry have drifted apart.
+ * - A recipient kind that does not match the action's throws, for the same
+ *   reason, and because it would resolve wrong or missing recipient variables.
+ * - A known action with no enabled binding throws when the action is
+ *   `required` in {@link EMAIL_ACTIONS}, because a required action such as an
+ *   admin invite with nothing bound leaves its workflow unfinishable. An
+ *   optional action returns without sending, because nothing bound to it means
+ *   it is not wired up yet.
+ * - A bound template that uses a `{{var}}` outside the merged set throws
+ *   before that template is sent, because a mail with an unresolved
+ *   placeholder would reach a real recipient.
  *
  * @param actionKey - a key from `EMAIL_ACTIONS` (e.g. `EmailAction.AdminInviteSent`).
  * @param input - transport address, addressee, and context extras.
@@ -97,20 +87,15 @@ export async function triggerEmailAction(actionKey: string, input: TriggerEmailA
     ...input.context,
   };
 
-  const branding = await repo.getEmailBranding();
-  const designTokens = await getDesignTokens();
-  const baseUrl = requireEnv("PUBLIC_URL");
-
   for (const binding of bindings) {
     const template = await repo.getEmailTemplateById(binding.templateId);
     if (!template) continue;
 
-    // Send-time gate: does the merged resolution set cover every variable the
-    // template uses? The required set is auto-extracted from the template's
-    // subject + body (MC-080), never a hand-declared list. Mirrors the
-    // bind-time gate in `routes/admin-email-actions.ts` (which checks against
-    // the action's *available* variable set, not a specific invocation's) —
-    // keep both in sync if this rule changes.
+    // Send-time gate: the merged set has to cover every variable the template
+    // uses, as extracted from its subject and body (MC-080). The bind-time
+    // gate in `routes/admin-email-actions.ts` checks the action's available
+    // names instead, which the resolver's catalog-derived types keep equal to
+    // what is resolved here.
     const missingVariable = extractEmailTemplateVariables(template.subject, template.blocks).find(
       (name) => !(name in variables),
     );
@@ -120,14 +105,6 @@ export async function triggerEmailAction(actionKey: string, input: TriggerEmailA
       );
     }
 
-    const { html, subject } = renderEmailTemplate(
-      { subject: template.subject, blocks: template.blocks },
-      template.branding,
-      branding,
-      variables,
-      baseUrl,
-      designTokens,
-    );
-    await sendEmail({ to: input.to, subject, html });
+    await sendTemplatedEmail({ template, to: input.to, variables });
   }
 }

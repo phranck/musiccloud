@@ -1,40 +1,41 @@
 /**
- * @file System-Action-Registry für ausgehende Mails (MC-078, Scopes MC-081).
- * Eine Action ist ein benanntes Ereignis im System (z.B. „Admin-Einladung
- * versendet"), das an einen Empfänger-Typ gerichtet ist und nur noch seine
- * ereignis-spezifischen Kontext-Variablen deklariert — System- und
- * Empfänger-Variablen (siehe `EMAIL_VARIABLES` in `email-variables.ts`) löst
- * der Backend-Trigger automatisch auf. Templates werden über
- * `email_action_bindings` lose an Actions gebunden; der Backend-Trigger
- * (`services/email-actions.ts`) rendert + sendet alle gebundenen Templates.
+ * @file The registry of system actions that send mail (MC-078, scopes MC-081).
  *
- * Diese Registry ist die einzige Quelle der Wahrheit für Action-Keys, ihren
- * Empfänger-Typ und ihre Kontext-Variablen — Dashboard (Actions-Seite) und
- * Backend (Trigger, Kompatibilitäts-Check) konsumieren sie beide.
+ * An action is a named event in the system, such as "admin invite sent", that
+ * is addressed to one recipient kind and declares only the context variables
+ * its occurrence supplies. The backend trigger resolves the system and
+ * recipient variables (see `EMAIL_VARIABLES` in `email-variables.ts`) by
+ * itself. Templates are bound to actions through `email_action_bindings`, and
+ * the trigger (`services/email-actions.ts` in the backend) renders and sends
+ * every bound template.
+ *
+ * This registry is the only definition of action keys, their recipient kind
+ * and their context variables. The dashboard's actions page and the backend's
+ * trigger and compatibility check both read it.
  */
 
-import { EmailRecipientKind, type EmailRecipientKindValue } from "./email-variables.js";
+import { type ContextEmailVariableName, EmailRecipientKind, type EmailRecipientKindValue } from "./email-variables.js";
 
-/** Metadaten einer System-Action. */
+/** Metadata of one system action. */
 export interface EmailActionMeta {
-  /** Stabiler Key, persistiert in `email_action_bindings.action_key`. */
+  /** Stable key, stored in `email_action_bindings.action_key`. */
   key: string;
-  /** Menschlich lesbares Label (Dashboard-Anzeige). */
+  /** Human-readable label shown in the dashboard. */
   label: string;
   /**
-   * Nur die ereignis-spezifischen Extra-Variablen, die diese Action beim
-   * Auslösen liefert (z.B. eine One-Time-Token-URL). System- und
-   * Empfänger-Variablen sind hier NICHT aufgeführt — sie sind für jede Action
-   * automatisch verfügbar (siehe `listAvailableEmailVariables`).
+   * The event-specific variables this action supplies when it fires, such as
+   * a one-time token URL. System and recipient variables are not listed here,
+   * because every action has them (see `listAvailableEmailVariables`). Typed
+   * with the catalog's context-scope names, so a misspelled one fails to compile.
    */
-  contextVariables: readonly string[];
-  /** An welchen Empfänger-Typ diese Action ihre Mails richtet (entscheidet, welche Empfänger-Variablen auflösbar sind). */
+  contextVariables: readonly ContextEmailVariableName[];
+  /** The recipient kind this action mails, which decides the recipient variables that resolve. */
   recipientKind: EmailRecipientKindValue;
-  /** Wenn `true`, muss mindestens ein aktiviertes Template gebunden sein, sonst wirft der Trigger. */
+  /** When `true`, at least one enabled template must be bound, or the trigger throws. */
   required: boolean;
 }
 
-/** Alle System-Actions, keyed by ihren stabilen `key`. */
+/** Every system action, keyed by its stable `key`. */
 export const EMAIL_ACTIONS = {
   adminInviteSent: {
     key: "adminInviteSent",
@@ -94,10 +95,10 @@ export const EMAIL_ACTIONS = {
   },
 } as const satisfies Record<string, EmailActionMeta>;
 
-/** Ein Action-Key aus {@link EMAIL_ACTIONS}. */
+/** An action key from {@link EMAIL_ACTIONS}. */
 export type EmailActionKey = keyof typeof EMAIL_ACTIONS;
 
-/** Bequemer Namespace für Action-Keys (statt Magic-Strings an Call-Sites). */
+/** The action keys by name, so call sites do not spell them as strings. */
 export const EmailAction = {
   AdminInviteSent: "adminInviteSent",
   DeveloperVerificationRequested: "developerVerificationRequested",
@@ -112,10 +113,10 @@ export const EmailAction = {
 } as const satisfies Record<string, EmailActionKey>;
 
 /**
- * Liefert die Metadaten zu einem Key, oder `undefined` bei unbekanntem Key.
+ * Looks up the metadata of an action key.
  *
- * @param key - Action-Key zum Nachschlagen.
- * @returns Die Metadaten, oder `undefined` falls der Key unbekannt ist.
+ * @param key - The action key to look up.
+ * @returns The metadata, or `undefined` for an unknown key.
  */
 export function getEmailActionMeta(key: string): EmailActionMeta | undefined {
   return (EMAIL_ACTIONS as Record<string, EmailActionMeta>)[key];

@@ -325,7 +325,7 @@ export default async function adminEmailTemplateRoutes(app: FastifyInstance) {
 
     try {
       await sendTemplatedEmail({
-        templateId: id,
+        template,
         to: { email: caller.email, name: caller.username },
         variables,
       });

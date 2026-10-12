@@ -1,44 +1,46 @@
 import { requireEnv } from "../lib/env.js";
 import { sendEmail } from "./email-provider.js";
 import { renderEmailTemplate } from "./email-renderer.js";
-import { getManagedEmailBranding, getManagedEmailTemplateById } from "./email-templates.js";
+import { type EmailTemplate, getManagedEmailBranding } from "./email-templates.js";
 import { getDesignTokens } from "./site-settings.js";
 
+/** The parts of a managed template the renderer reads. */
+export type SendableEmailTemplate = Pick<EmailTemplate, "subject" | "blocks" | "branding">;
+
 /**
- * Input for {@link sendTemplatedEmail}: which managed template to render, the
- * recipient, and the variables substituted into the template body.
+ * Input for {@link sendTemplatedEmail}: the template to render, the recipient,
+ * and the variables substituted into it.
  */
 export interface SendTemplatedEmailInput {
-  /** Id of the managed email template to render. */
-  templateId: number;
+  /** The template, already loaded by the caller. */
+  template: SendableEmailTemplate;
   /** Recipient address and optional display name. */
   to: { email: string; name?: string };
-  /** `{{name}}`-style variables substituted into the rendered template. */
+  /** `{{name}}` values substituted into the subject and the body. */
   variables: Record<string, string>;
 }
 
 /**
- * Renders a managed email template's blocks (wrapped by the global branding
- * singleton) and sends it via the configured email provider (SMTP2GO). Asset
- * URLs embedded in the rendered HTML are resolved against `PUBLIC_URL`.
+ * Renders a template wrapped in the global branding and sends it through the
+ * configured provider. Every mail musiccloud sends goes through here: the
+ * action trigger once per bound template, and the template editor's test send.
+ * So a change to how a mail is put together reaches both, and a test send
+ * shows what a recipient receives.
  *
- * @param input - template id, recipient and substitution variables.
- * @throws Error when the template is missing or the provider rejects the send.
+ * Asset URLs in the rendered HTML are resolved against `PUBLIC_URL`. The
+ * caller is responsible for having checked that the variables cover what the
+ * template uses.
+ *
+ * @param input - The template, the recipient and the substitution values.
+ * @throws Error when `PUBLIC_URL` is missing or the provider rejects the send.
  */
 export async function sendTemplatedEmail(input: SendTemplatedEmailInput): Promise<void> {
   const baseUrl = requireEnv("PUBLIC_URL");
-
-  const templateResult = await getManagedEmailTemplateById(input.templateId);
-  if (!templateResult.ok) {
-    throw new Error(`Email template not found: id=${input.templateId}`);
-  }
-  const template = templateResult.data;
-  const branding = await getManagedEmailBranding();
-  const designTokens = await getDesignTokens();
+  const [branding, designTokens] = await Promise.all([getManagedEmailBranding(), getDesignTokens()]);
 
   const { html, subject } = renderEmailTemplate(
-    { subject: template.subject, blocks: template.blocks },
-    template.branding,
+    { subject: input.template.subject, blocks: input.template.blocks },
+    input.template.branding,
     branding,
     input.variables,
     baseUrl,
