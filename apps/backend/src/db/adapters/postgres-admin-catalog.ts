@@ -233,6 +233,24 @@ export async function updateTrack(
 // ============================================================================
 
 /**
+ * The `ORDER BY` of a paged admin list: the sorted column, then the row's key.
+ *
+ * PostgreSQL returns rows with equal sort values in no defined order and may
+ * plan each OFFSET differently, so a page only continues the previous one when
+ * the order is unique. The key decides between rows the sorted column leaves
+ * tied.
+ *
+ * @param sortExpression - The sorted column or select alias, already checked
+ *   against the list's allowed columns.
+ * @param direction - The direction, applied to both terms.
+ * @param keyColumn - The list's primary key column.
+ * @returns The complete `ORDER BY` clause.
+ */
+function pagedListOrder(sortExpression: string, direction: "ASC" | "DESC", keyColumn: string): string {
+  return `ORDER BY ${sortExpression} ${direction}, ${keyColumn} ${direction}`;
+}
+
+/**
  * Paginated listing of tracks for the admin TracksPage.
  *
  * @remarks Total row count is only computed on page 1; subsequent pages
@@ -288,7 +306,7 @@ export async function listTracks(
   FROM tracks t
   LEFT JOIN short_urls su ON t.id = su.track_id
   ${whereClause}
-  ORDER BY t.${col} ${dir}
+  ${pagedListOrder(`t.${col}`, dir, "t.id")}
   LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
 
   const rows = await pool.query(query, dataParams);
@@ -361,7 +379,7 @@ export async function listAlbums(
   FROM albums a
   LEFT JOIN album_short_urls asu ON a.id = asu.album_id
   ${whereClause}
-  ORDER BY a.${col} ${dir}
+  ${pagedListOrder(`a.${col}`, dir, "a.id")}
   LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
 
   const rows = await pool.query(query, dataParams);
@@ -459,7 +477,7 @@ export async function listArtists(
     LIMIT 1
   ) latest_refresh ON TRUE
   ${whereClause}
-  ORDER BY ${orderExpr} ${dir}
+  ${pagedListOrder(orderExpr, dir, "ar.artist_entity_id")}
   LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
 
   const rows = await pool.query(query, dataParams);
@@ -596,7 +614,7 @@ export async function listArtistEntities(
   LEFT JOIN artist_profiles ap ON ap.artist_entity_id = ae.id
   LEFT JOIN artist_short_urls asu ON asu.artist_entity_id = ae.id
   ${whereClause}
-  ORDER BY ${orderExpr} ${dir}
+  ${pagedListOrder(orderExpr, dir, "ae.id")}
   LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
 
   const rows = await pool.query<{

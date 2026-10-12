@@ -2,7 +2,15 @@ import { type AdminEvent, AdminEventType } from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
-import { deleteAlbums, deleteArtists, deleteTracks, listArtists } from "./postgres-admin-catalog.js";
+import {
+  deleteAlbums,
+  deleteArtists,
+  deleteTracks,
+  listAlbums,
+  listArtistEntities,
+  listArtists,
+  listTracks,
+} from "./postgres-admin-catalog.js";
 
 const FRESH_AT = new Date();
 const STALE_AT = new Date("2000-01-01T00:00:00.000Z");
@@ -118,5 +126,26 @@ describe("listArtists profile cache projection", () => {
     expect(pageSql).toContain("ORDER BY occurred_at DESC");
     expect(pageSql).not.toMatch(/\b(?:INSERT|UPDATE|DELETE)\b/i);
     expect(pool.connect).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * PostgreSQL returns rows with equal sort values in no defined order, and the
+ * plan, so that order, can change with the OFFSET. A page only continues the
+ * previous one when the order ends in a unique column.
+ */
+describe("admin list paging order", () => {
+  it.each([
+    ["listTracks", listTracks, "title", "asc", "ORDER BY t.title ASC, t.id ASC"],
+    ["listAlbums", listAlbums, "title", "asc", "ORDER BY a.title ASC, a.id ASC"],
+    ["listArtists", listArtists, "name", "desc", "ORDER BY name DESC, ar.artist_entity_id DESC"],
+    ["listArtistEntities", listArtistEntities, "entity_type", "asc", "ORDER BY ae.entity_type ASC, ae.id ASC"],
+  ] as const)("%s ends its order in the row's key", async (_name, list, sortBy, sortDir, orderBy) => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const pool = { query } as unknown as Pool;
+
+    await list(pool, { page: 2, limit: 50, sortBy, sortDir });
+
+    expect(String(query.mock.calls[0]?.[0])).toContain(orderBy);
   });
 });
