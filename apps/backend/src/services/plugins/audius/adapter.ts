@@ -37,9 +37,8 @@
  * both the structured and the free-text query branches uniformly across
  * every adapter. See that file for the scoring rationale.
  */
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
-import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -152,7 +151,7 @@ async function fetchAlbumById(playlistId: string): Promise<NormalizedAlbum | nul
     ? `/resolve?url=https://audius.co/${encodeURIComponent(playlistId)}`
     : `/playlists/${encodeURIComponent(playlistId)}`;
   const response = await audiusFetch(endpoint);
-  if (!response.ok) return null;
+  if (!response.ok) throw serviceHttpError(Service.Audius, response.status, ResourceKind.Album, playlistId);
   const data = (await response.json()) as AudiusPlaylistDetailResponse;
   const playlist = data.data?.[0];
   if (!playlist?.is_album) return null;
@@ -161,7 +160,11 @@ async function fetchAlbumById(playlistId: string): Promise<NormalizedAlbum | nul
 
 async function searchAudiusAlbums(query: string): Promise<NormalizedAlbum[]> {
   const response = await audiusFetch(`/playlists/search?query=${encodeURIComponent(query)}&limit=10`);
-  if (!response.ok) return [];
+  // Audius answers a search without results with an empty list, so any
+  // error status is a failure rather than an answer.
+  if (!response.ok) {
+    throw serviceHttpError(Service.Audius, response.status, ResourceKind.Album, query, Operation.Search);
+  }
   const data = (await response.json()) as AudiusPlaylistSearchResponse;
   return (data.data ?? [])
     .filter((p) => p.is_album)
@@ -190,7 +193,7 @@ export const audiusAdapter = {
       const response = await audiusFetch(`/resolve?url=https://audius.co/${encodeURIComponent(trackId)}`);
 
       if (!response.ok) {
-        throw new Error(`Audius resolve failed: ${response.status}`);
+        throw serviceHttpError(Service.Audius, response.status, ResourceKind.Track, trackId, Operation.Resolve);
       }
 
       const data = (await response.json()) as AudiusTrackDetailResponse;
@@ -219,7 +222,7 @@ export const audiusAdapter = {
     const response = await audiusFetch(`/tracks/search?query=${encodeURIComponent(q)}&limit=5`);
 
     if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
+      throw serviceHttpError(Service.Audius, response.status, ResourceKind.Track, q, Operation.Search);
     }
 
     const data = (await response.json()) as AudiusSearchResponse;
@@ -271,29 +274,23 @@ export const audiusAdapter = {
   },
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
-    const q = `${query.artist} ${query.title}`;
-    try {
-      const albums = await searchAudiusAlbums(q);
-      if (albums.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
+    const albums = await searchAudiusAlbums(`${query.artist} ${query.title}`);
+    if (albums.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
 
-      for (const album of albums) {
-        const confidence = scoreAlbumCandidate(query, album);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = album;
-        }
+    for (const album of albums) {
+      const confidence = scoreAlbumCandidate(query, album);
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = album;
       }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("Audius", "Album search failed:", error instanceof Error ? error.message : error);
-      return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
