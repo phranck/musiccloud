@@ -1,4 +1,5 @@
 import type {
+  ApiAccessAuditTrail,
   ApiTier,
   BillingPeriodValue,
   CreemModeValue,
@@ -264,6 +265,17 @@ export interface ProjectUsageResponse {
 
 export function fetchProjectUsage(id: string): Promise<ProjectUsageResponse> {
   return api.get<ProjectUsageResponse>(ENDPOINTS.admin.developer.apiAccess.projectUsage(id));
+}
+
+/**
+ * One Project's audit trail over the last thirty days, newest first, which is
+ * the range the read covers when it names none.
+ *
+ * @param id - The Project.
+ * @returns The trail, and whether the range holds more than it returned.
+ */
+export function fetchProjectAudit(id: string): Promise<ApiAccessAuditTrail> {
+  return api.get<ApiAccessAuditTrail>(ENDPOINTS.admin.developer.apiAccess.projectAudit(id));
 }
 
 export function fetchDeveloperProject(id: string): Promise<DeveloperProjectDetail> {

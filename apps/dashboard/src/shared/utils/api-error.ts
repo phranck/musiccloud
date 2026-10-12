@@ -30,6 +30,18 @@ function extractApiErrorDetails(payload: unknown): unknown[] | null {
 }
 
 /**
+ * Says why a read failed in the server's words, with the error id an operator
+ * quotes when reporting it.
+ *
+ * @param error - What the request threw.
+ * @param errorIdTemplate - How to name the id, with `{id}` where it goes.
+ * @returns The message, followed by the error id where the response carried one.
+ */
+export function describeRequestFailure(error: ApiRequestError, errorIdTemplate: string): string {
+  return error.errorId ? `${error.message} ${errorIdTemplate.replace("{id}", error.errorId)}` : error.message;
+}
+
+/**
  * Builds the error a dashboard request throws for a failed response.
  *
  * The code, the message and the error ID are read through the shared parser,

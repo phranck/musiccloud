@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse, DeveloperProjectResponse } from "@/features/developer/api";
+import { ProjectAuditSection } from "@/features/developer/components/ProjectAuditSection";
 import { ProjectPlanSection } from "@/features/developer/components/ProjectPlanSection";
 import { ProjectUsageSection } from "@/features/developer/components/ProjectUsageSection";
 import { useDeveloperProject, useUpdateDeveloperProject } from "@/features/developer/hooks/useDeveloperData";
@@ -44,8 +45,8 @@ function RegistrationRow({ registration }: { registration: ApiClientResponse }) 
  * being throttled. Suspending stops every token under the project without
  * revoking any, which the screen says before the action rather than after it.
  *
- * The audit trail belongs here too and arrives with #219, which gives
- * `api_access_audit_events` a bounded read.
+ * Its audit trail closes the page, so the same screen that shows a limit shows
+ * who set it.
  */
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -128,6 +129,8 @@ export function ProjectDetailPage() {
         <ProjectPlanSection project={project} subscription={data.subscription} />
 
         <ProjectUsageSection projectId={project.id} />
+
+        <ProjectAuditSection projectId={project.id} />
 
         <DashboardSection className="overflow-hidden">
           <DashboardSection.Header

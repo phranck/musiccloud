@@ -5,6 +5,8 @@
  * Every read is bounded twice, by a range no wider than the trail is kept and
  * by a row ceiling, so no request can ask for the whole table.
  */
+import { type ApiAccessAuditActor, ApiAccessAuditActorType, type ApiAccessAuditTrail } from "@musiccloud/shared";
+
 import type { ApiAccessAuditEntry } from "../db/api-access-repository.js";
 import { AUDIT_RETENTION_DAYS, RETENTION_DAY_MS } from "./api-access-retention.js";
 
@@ -96,42 +98,17 @@ export function isAuditWindowRejection(result: AuditWindow | AuditWindowRejectio
   return "message" in result;
 }
 
-/** Who acted, as the trail names them. */
-export type AuditActor =
-  | { type: "admin"; id: string; name: string | null }
-  | { type: "developer"; id: string; name: string | null };
-
-/** One entry of the trail as it leaves the server. */
-export interface AuditEntryResponse {
-  id: string;
-  eventType: string;
-  occurredAt: string;
-  /** The application the change concerned, or `null` for a change to the project itself. */
-  registrationId: string | null;
-  /** The key the change concerned, or `null`. */
-  tokenId: string | null;
-  /** Who acted, or `null` when the acting account has since been removed. */
-  actor: AuditActor | null;
-  /** The recorded details, limited to {@link AUDIT_EVENT_DATA_KEYS}. */
-  details: Record<string, unknown>;
-}
-
-/** One project's trail over a bounded range. */
-export interface AuditTrailResponse {
-  projectId: string;
-  from: string;
-  to: string;
-  limit: number;
-  /** Whether the range holds more entries than the ceiling let through. */
-  truncated: boolean;
-  entries: AuditEntryResponse[];
-}
-
 /** The actor of an entry. Exactly one of the two ids is set while its account exists. */
-function auditActor(entry: ApiAccessAuditEntry): AuditActor | null {
-  if (entry.actorAdminId) return { type: "admin", id: entry.actorAdminId, name: entry.actorAdminUsername };
+function auditActor(entry: ApiAccessAuditEntry): ApiAccessAuditActor | null {
+  if (entry.actorAdminId) {
+    return { type: ApiAccessAuditActorType.Admin, id: entry.actorAdminId, name: entry.actorAdminUsername };
+  }
   if (entry.actorDeveloperAccountId) {
-    return { type: "developer", id: entry.actorDeveloperAccountId, name: entry.actorDeveloperEmail };
+    return {
+      type: ApiAccessAuditActorType.Developer,
+      id: entry.actorDeveloperAccountId,
+      name: entry.actorDeveloperEmail,
+    };
   }
   return null;
 }
@@ -158,7 +135,7 @@ export function toAuditTrailResponse(
   projectId: string,
   window: AuditWindow,
   rows: ApiAccessAuditEntry[],
-): AuditTrailResponse {
+): ApiAccessAuditTrail {
   return {
     projectId,
     from: new Date(window.from).toISOString(),
@@ -169,8 +146,8 @@ export function toAuditTrailResponse(
       id: entry.id,
       eventType: entry.eventType,
       occurredAt: new Date(entry.occurredAt).toISOString(),
-      registrationId: entry.clientId,
-      tokenId: entry.tokenId,
+      applicationId: entry.clientId,
+      apiKeyId: entry.tokenId,
       actor: auditActor(entry),
       details: auditDetails(entry.eventData),
     })),

@@ -1,4 +1,4 @@
-import type { BillingPeriodValue, CreemModeValue, TierOffer } from "@musiccloud/shared";
+import type { ApiAccessAuditTrail, BillingPeriodValue, CreemModeValue, TierOffer } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type ApiAccessOverview,
@@ -24,6 +24,7 @@ import {
   fetchDeveloperProject,
   fetchDeveloperProjects,
   fetchPlanOffers,
+  fetchProjectAudit,
   fetchProjectUsage,
   fetchTiers,
   type ProjectUsageResponse,
@@ -37,6 +38,7 @@ import {
   updatePlanOffer,
   updateTier,
 } from "@/features/developer/api";
+import type { ApiRequestError } from "@/shared/utils/api-error";
 
 export function useApiAccessOverview() {
   return useQuery<ApiAccessOverview>({
@@ -80,6 +82,21 @@ export function useProjectUsage(id: string) {
   return useQuery<ProjectUsageResponse>({
     queryKey: ["developer", "project-usage", id],
     queryFn: () => fetchProjectUsage(id),
+    enabled: !!id,
+  });
+}
+
+/**
+ * One Project's audit trail. It sits under the `developer` key like the
+ * Project's other reads, so every change made from the dashboard refreshes it.
+ *
+ * @param id - The Project.
+ * @returns The query.
+ */
+export function useProjectAudit(id: string) {
+  return useQuery<ApiAccessAuditTrail, ApiRequestError>({
+    queryKey: ["developer", "project-audit", id],
+    queryFn: () => fetchProjectAudit(id),
     enabled: !!id,
   });
 }
