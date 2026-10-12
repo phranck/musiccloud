@@ -43,6 +43,8 @@ import type { DeveloperAccountStatusValue } from "@musiccloud/shared";
  * @property technicalContactEmail - Where the operator writes when an
  *   application on this account needs a person who can act. Optional and
  *   unverified; nothing that only the account holder may read is sent there.
+ * @property portalAccessGrantedAt - Epoch ms when an invitation admitted this
+ *   account into the portal while it is closed, or `null` when none did.
  * @property tierId - Assigned tier (see `tiers`), or `null` when unassigned
  *   (e.g. the tier was deleted; effective limits then fall back to the
  *   conservative free defaults).
@@ -67,6 +69,7 @@ export interface DeveloperAccount {
   technicalContactEmail: string | null;
   pendingEmail: string | null;
   pendingEmailRequestedAt: number | null;
+  portalAccessGrantedAt: number | null;
   tierId: string | null;
   status: DeveloperAccountStatusValue;
   createdAt: number;

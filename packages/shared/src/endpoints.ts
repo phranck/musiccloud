@@ -133,6 +133,12 @@ export const ENDPOINTS = {
     developer: {
       /** GET: the persisted availability state consumed by the Developer Portal middleware. */
       portalAvailability: "/api/internal/developer/portal-availability",
+      /**
+       * GET: whether the invitation pass the forwarded cookie carries still
+       * opens sign-up. Answers `{ valid }`, because only the backend holds the
+       * key the pass is signed with.
+       */
+      invitationPass: "/api/internal/developer/invitation-pass",
       editorial: {
         /** GET: one published Developer Portal editorial Page by normalized path. */
         page: (path: string) => `/api/internal/developer/editorial/page?path=${encodeURIComponent(path)}`,
@@ -350,6 +356,13 @@ export const ENDPOINTS = {
     developer: {
       /** GET / PATCH: Owner-managed availability state for the Developer Portal. */
       portalAvailability: "/api/admin/developer/portal-availability",
+      /** GET: every invitation into the closed portal / POST: invite an address. Body: `{ email }`. Owner only. */
+      portalInvitations: "/api/admin/developer/portal-invitations",
+      /** DELETE: withdraw one invitation, and the access it gave. Owner only. */
+      portalInvitationDetail: (id: string) => `/api/admin/developer/portal-invitations/${encodeURIComponent(id)}`,
+      /** POST: send an open invitation again, with a new link and a new expiry. Owner only. */
+      portalInvitationResend: (id: string) =>
+        `/api/admin/developer/portal-invitations/${encodeURIComponent(id)}/resend`,
       apiAccess: {
         /** GET: overview — every registration with its tokens. */
         overview: "/api/admin/developer/api-access",
@@ -484,6 +497,11 @@ export const ENDPOINTS = {
        * the Gravatar protocol is built on.
        */
       gravatar: "/api/dev/auth/avatar/gravatar",
+      /**
+       * POST: redeems an invitation link. Body: `{ token }`. Writes the grant
+       * onto a signed-in account, or sets the pass that opens sign-up.
+       */
+      redeemInvitation: "/api/dev/auth/invitations/redeem",
       /** GitHub OAuth (MC-065). `start` returns the authorize URL + signed state; `exchange` redeems the callback code. */
       github: {
         /** GET: returns `{ authorizeUrl, state }` for the Astro app to redirect to. */
@@ -608,6 +626,8 @@ export const ROUTE_TEMPLATES = {
       },
       accounts: "/api/admin/developer/accounts",
       accountDetail: "/api/admin/developer/accounts/:id",
+      portalInvitationDetail: "/api/admin/developer/portal-invitations/:id",
+      portalInvitationResend: "/api/admin/developer/portal-invitations/:id/resend",
       tierDetail: "/api/admin/developer/tiers/:id",
       creemProductDetail: "/api/admin/developer/creem-products/:tierId/:billingPeriod/:mode",
       planOffers: "/api/admin/developer/plans/:tierId/offers",

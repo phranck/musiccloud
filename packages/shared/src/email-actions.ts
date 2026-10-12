@@ -93,6 +93,18 @@ export const EMAIL_ACTIONS = {
     recipientKind: EmailRecipientKind.DeveloperAccount,
     required: false,
   },
+  /**
+   * An invitation into the closed portal. The address may have no account
+   * yet, and the recipient variables resolve from the address alone, which is
+   * all a developer account's resolve from where no display name is set.
+   */
+  developerPortalInviteSent: {
+    key: "developerPortalInviteSent",
+    label: "Developer portal invitation",
+    contextVariables: ["inviteUrl"],
+    recipientKind: EmailRecipientKind.DeveloperAccount,
+    required: true,
+  },
 } as const satisfies Record<string, EmailActionMeta>;
 
 /** An action key from {@link EMAIL_ACTIONS}. */
@@ -110,6 +122,8 @@ export const EmailAction = {
   DeveloperAccountCreated: "developerAccountCreated",
   DeveloperAccountDeleted: "developerAccountDeleted",
   DeveloperApiTokenCreated: "developerApiTokenCreated",
+  /** An invitation into the developer portal while it is closed. */
+  DeveloperPortalInviteSent: "developerPortalInviteSent",
 } as const satisfies Record<string, EmailActionKey>;
 
 /**

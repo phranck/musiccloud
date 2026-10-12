@@ -47,7 +47,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import type { ApiClient, DeveloperProject } from "../db/api-access-repository.js";
 import type { DeveloperAccount } from "../db/developer-repository.js";
-import { getApiAccessRepository, getDeveloperRepository } from "../db/index.js";
+import { getApiAccessRepository } from "../db/index.js";
 import { createApiErrorResponse, sanitizeErrorForLog } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import {
@@ -58,7 +58,12 @@ import {
 } from "../lib/infra/rate-limiter.js";
 import { secretsMatch } from "../lib/infra/secret-compare.js";
 import { hashApiToken, looksLikeApiAccessToken } from "../services/api-access-token.js";
-import { isDeveloperAccountActive, SESSION_COOKIE_NAME, SessionKind } from "../services/developer-auth.js";
+import { SESSION_COOKIE_NAME } from "../services/developer-auth.js";
+import {
+  DeveloperSessionRefusal,
+  type DeveloperSessionRefusalValue,
+  resolveDeveloperSession,
+} from "../services/developer-session.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -102,6 +107,13 @@ declare module "fastify" {
 
 /** Refusal for a project whose plan grants nothing, distinct from a spent quota. */
 const PLAN_NOT_ACTIVE_CODE = "MC-AUTH-0003";
+
+/** What `authenticateDeveloper` says for each reason a session names no account. */
+const DEVELOPER_SESSION_REFUSAL_MESSAGE: Record<DeveloperSessionRefusalValue, string> = {
+  [DeveloperSessionRefusal.Missing]: "Authentication required.",
+  [DeveloperSessionRefusal.Invalid]: "Invalid or expired session.",
+  [DeveloperSessionRefusal.Inactive]: "Account not found or inactive.",
+};
 
 /**
  * The four numbers the quota checks need, or `null` when the project's plan
@@ -364,30 +376,17 @@ async function authPlugin(app: FastifyInstance) {
    * @param reply - responds with `401 UNAUTHORIZED` on any auth failure.
    */
   app.decorate("authenticateDeveloper", async (request: FastifyRequest, reply: FastifyReply) => {
-    const token = request.cookies?.[SESSION_COOKIE_NAME];
-    if (!token) {
-      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });
+    const session = await resolveDeveloperSession(request.cookies?.[SESSION_COOKIE_NAME], (token) =>
+      app.jwt.verify(token),
+    );
+    if ("refusal" in session) {
+      return reply
+        .status(401)
+        .send({ error: "UNAUTHORIZED", message: DEVELOPER_SESSION_REFUSAL_MESSAGE[session.refusal] });
     }
 
-    let payload: { sub?: string; kind?: string };
-    try {
-      payload = app.jwt.verify(token);
-    } catch {
-      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired session." });
-    }
-
-    if (payload.kind !== SessionKind.Developer || !payload.sub) {
-      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired session." });
-    }
-
-    const repo = await getDeveloperRepository();
-    const account = await repo.findDeveloperAccountById(payload.sub);
-    if (!account || !isDeveloperAccountActive(account)) {
-      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found or inactive." });
-    }
-
-    request.developerAccountId = account.id;
-    request.developerAccount = account;
+    request.developerAccountId = session.account.id;
+    request.developerAccount = session.account;
   });
 }
 

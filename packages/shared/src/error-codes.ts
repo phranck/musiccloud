@@ -165,6 +165,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "Signup with an address that already has a developer account. Distinct from the generic MC-REQ-0002 for the same reason as MC-REQ-0006.",
     source: "apps/backend/src/routes/developer-auth.ts signup",
   },
+  "MC-REQ-0008": {
+    code: "MC-REQ-0008",
+    httpStatus: 410,
+    userMessage: "This invitation link no longer works.",
+    internalNote:
+      "An invitation link that has expired, has been followed already, was withdrawn, or matches no invitation. The response carries which of the four as `reason` beside the envelope, so the portal can say what to do next.",
+    source: "apps/backend/src/routes/developer-portal-invitations.ts redemption",
+  },
   "MC-AUTH-0001": {
     code: "MC-AUTH-0001",
     httpStatus: 401,
@@ -324,6 +332,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     internalNote:
       "A first-party app could not establish or complete its backend request. The developer portal logs its availability read under this code, with the failure named in `reason`.",
     source: "apps/frontend/src/api/client.ts, apps/developer/src/lib/portal-availability.ts",
+  },
+  "MC-SYS-0003": {
+    code: "MC-SYS-0003",
+    httpStatus: 503,
+    userMessage: "The invitation could not be sent, so nothing was stored.",
+    internalNote:
+      "The invitation mail failed, most often because no enabled template is bound to developerPortalInviteSent. The invitation is written in the same transaction as the send and rolled back with it.",
+    source: "apps/backend/src/services/developer-portal-invitations.ts",
   },
   // ─── URL parsing / detection ───────────────────────────────────────────────
   "MC-URL-0001": {

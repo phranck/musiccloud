@@ -119,7 +119,8 @@ export const EMAIL_VARIABLES = {
   inviteUrl: {
     name: "inviteUrl",
     scope: EmailVariableScope.Context,
-    description: "One-time admin invite link.",
+    description:
+      "One-time invitation link, into the dashboard for an admin and into the developer portal for a developer.",
     sampleValue: "https://dashboard.musiccloud.io/invite/sample-token",
   },
   verifyUrl: {

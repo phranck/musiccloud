@@ -127,6 +127,7 @@ function makeDeveloperAccount(developerAccountId: string): DeveloperAccount {
     technicalContactEmail: null,
     pendingEmail: null,
     pendingEmailRequestedAt: null,
+    portalAccessGrantedAt: null,
     // Every account carries the free tier after signup, which is exactly what
     // project creation used to copy into the project's plan.
     tierId: "tier_free",

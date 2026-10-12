@@ -30,6 +30,7 @@ import {
 import { triggerEmailAction } from "../services/email-actions.js";
 import { resolveSignupTierId } from "../services/signup-tier.js";
 import { buildAccountResponse } from "./developer-auth.js";
+import { applyInvitationPass } from "./developer-portal-invitations.js";
 
 /** Dedicated per-IP throttle for the OAuth exchange (20/min), separate from the global apiRateLimiter. */
 const githubExchangeRateLimiter = new RateLimiter(20, 60_000);
@@ -182,6 +183,9 @@ export async function devGitHubRoutes(app: FastifyInstance) {
       return reply.status(403).send(ACCOUNT_SUSPENDED_BODY);
     }
     reply.setCookie(SESSION_COOKIE_NAME, session.token, session.cookieOptions);
+    // The portal's callback forwards an invitation pass, so a person invited
+    // while the portal is closed can arrive through GitHub as well.
+    await applyInvitationPass(app, request, reply, account.id);
     repo.updateDeveloperLastLogin(account.id).catch(() => undefined);
 
     return reply.send({ account: buildAccountResponse(account) });

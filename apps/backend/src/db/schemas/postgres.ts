@@ -1715,6 +1715,12 @@ export const developerAccounts = pgTable(
     pendingEmail: text("pending_email"),
     /** When that change was asked for, which is what the page dates. */
     pendingEmailRequestedAt: timestamp("pending_email_requested_at", { withTimezone: true }),
+    /**
+     * When an invitation admitted this account into the portal while it is
+     * closed. `null` means no such access. It sits on the account rather than
+     * in a cookie, so it holds on every device and is withdrawn in one place.
+     */
+    portalAccessGrantedAt: timestamp("portal_access_granted_at", { withTimezone: true }),
     tierId: text("tier_id").references(() => tiers.id, { onDelete: "set null" }),
     status: text("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1789,6 +1795,41 @@ export const developerEmailTokens = pgTable(
   (table) => [
     index("idx_developer_email_tokens_token_hash").on(table.tokenHash),
     check("chk_developer_email_tokens_purpose", sql`${table.purpose} IN ('verify', 'reset', 'change-email')`),
+  ],
+);
+
+/**
+ * Invitations into the developer portal while it is closed.
+ *
+ * A table of its own rather than a purpose in `developer_email_tokens`,
+ * because an invitation is sent to an address that may have no account yet,
+ * and that table's `account_id` is required.
+ *
+ * Only the SHA-256 of the link's token is stored. An address has at most one
+ * open invitation, which is what sending again rotates; one that was followed
+ * or withdrawn leaves room for a new one. `account_id` names the account the
+ * invitation's access ended up on, and is what withdrawing takes it back from.
+ */
+export const developerPortalInvitations = pgTable(
+  "developer_portal_invitations",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdByAdminId: text("created_by_admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    accountId: text("account_id").references(() => developerAccounts.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("uq_developer_portal_invitations_token_hash").on(table.tokenHash),
+    uniqueIndex("uq_developer_portal_invitations_open_email")
+      .on(table.email)
+      .where(sql`${table.redeemedAt} IS NULL AND ${table.revokedAt} IS NULL`),
+    index("idx_developer_portal_invitations_account").on(table.accountId),
   ],
 );
 
