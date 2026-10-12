@@ -275,15 +275,45 @@ describe("Pandora: searchTrack", () => {
     expect(result.confidence).toBe(0);
   });
 
-  it("should return not found on API error", async () => {
+  /**
+   * A search that returns "not found" makes the resolver skip Pandora for this
+   * track for a month. Pandora answers an empty search with 200 and an empty
+   * `results` list, so an error status means it did not answer and the adapter
+   * throws, which the resolver does not remember.
+   */
+  it("throws when the search answers an error status", async () => {
     mockApiCall(new Response("Error", { status: 500 }));
 
-    const result = await pandoraAdapter.searchTrack({
-      title: "Test",
-      artist: "Test",
-    });
+    await expect(pandoraAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(
+      /track search failed: 500/,
+    );
+  });
 
-    expect(result.found).toBe(false);
+  it("throws when the search is rate limited", async () => {
+    mockApiCall(new Response("Slow down", { status: 429 }));
+
+    await expect(pandoraAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/rate-limited/);
+  });
+
+  it("throws when the request fails", async () => {
+    _setCsrfTokenForTest("TestCsrfToken123");
+    vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("socket hang up"));
+
+    await expect(pandoraAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow();
+  });
+
+  it("throws when the body is not JSON", async () => {
+    mockApiCall(new Response("<html>restricted</html>", { status: 200 }));
+
+    await expect(pandoraAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/not JSON/);
+  });
+
+  it("throws when the body is not a search answer", async () => {
+    mockApiCall(new Response(JSON.stringify({ error: "denied" }), { status: 200 }));
+
+    await expect(pandoraAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(
+      /without results and annotations/,
+    );
   });
 
   it("should pick best match from multiple results", async () => {
@@ -322,15 +352,86 @@ describe("Pandora: searchTrack", () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.4);
   });
 
-  it("should gracefully handle missing CSRF token", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
+  it("searches without the CSRF pair when the homepage yields no token", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Error", { status: 500 }))
+      .mockResolvedValueOnce(Response.json({ searchToken: "token", annotations: {}, results: [] }));
 
-    const result = await pandoraAdapter.searchTrack({
-      title: "Test",
-      artist: "Test",
+    await expect(pandoraAdapter.searchTrack({ title: "Test", artist: "Test" })).resolves.toMatchObject({
+      found: false,
     });
+    const searchHeaders = fetchSpy.mock.calls[1][1]?.headers as Record<string, string>;
+    expect(searchHeaders["X-CsrfToken"]).toBeUndefined();
+  });
+});
 
-    expect(result.found).toBe(false);
+// =============================================================================
+// searchAlbum
+// =============================================================================
+
+describe("Pandora: searchAlbum", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    _resetCsrfTokenCache();
+  });
+
+  it("should return not found for empty results", async () => {
+    mockApiCall(new Response(JSON.stringify({ results: [], annotations: {} }), { status: 200 }));
+
+    const result = await pandoraAdapter.searchAlbum({ title: "Nonexistent Album", artist: "Nobody" });
+
+    expect(result).toEqual({ found: false, confidence: 0, matchMethod: "search" });
+  });
+
+  it("throws when the search answers an error status", async () => {
+    mockApiCall(new Response("Error", { status: 503 }));
+
+    await expect(pandoraAdapter.searchAlbum({ title: "1989", artist: "Taylor Swift" })).rejects.toThrow(
+      /album search failed: 503/,
+    );
+  });
+
+  it("throws when the body is not a search answer", async () => {
+    mockApiCall(new Response(JSON.stringify({ annotations: {} }), { status: 200 }));
+
+    await expect(pandoraAdapter.searchAlbum({ title: "1989", artist: "Taylor Swift" })).rejects.toThrow(
+      /without results and annotations/,
+    );
+  });
+});
+
+// =============================================================================
+// getAlbum
+// =============================================================================
+
+describe("Pandora: getAlbum", () => {
+  const ALBUM_PATH = "taylor-swift/1989-taylors-version-deluxe/AL28539904";
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    _resetCsrfTokenCache();
+  });
+
+  it("reports an album Pandora answers 404 for as not found", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+
+    await expect(pandoraAdapter.getAlbum(ALBUM_PATH)).rejects.toThrow(/Album not found/);
+  });
+
+  it("throws the HTTP error rather than not found for another error status", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Busy", { status: 503 }));
+
+    const error = await pandoraAdapter.getAlbum(ALBUM_PATH).catch((caught: unknown) => caught);
+
+    expect((error as Error).message).toMatch(/album fetch failed: 503/);
+    expect((error as Error).message).not.toMatch(/not found/i);
+  });
+
+  it("throws when the page carries no album data", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(MOCK_EMPTY_HTML, { status: 200 }));
+
+    await expect(pandoraAdapter.getAlbum(ALBUM_PATH)).rejects.toThrow(/no album data/);
   });
 });
 

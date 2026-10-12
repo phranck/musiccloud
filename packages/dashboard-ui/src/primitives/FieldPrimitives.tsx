@@ -9,6 +9,7 @@ import {
   fieldLabelClass,
   fieldOptionalClass,
   fieldShellClass,
+  fieldValueClass,
   inputSizeClass,
   textareaSizeClass,
 } from "./fieldPrimitiveClasses.js";
@@ -50,6 +51,17 @@ export function FieldLabel({ className, htmlFor, ...props }: FieldLabelProps) {
 
 export function FieldLabelText({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
   return <p className={cx(fieldLabelClass, className)} {...props} />;
+}
+
+/**
+ * A read-only value under a {@link FieldLabelText}, such as a date or a status
+ * an operator reads but does not edit.
+ *
+ * It carries the label's inset, so a label and its value line up, and a
+ * read-only pair beside an editable field lines its label up with that field's.
+ */
+export function FieldValue({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cx(fieldValueClass, className)} {...props} />;
 }
 
 export function FieldOptional({ children, className }: { children: ReactNode; className?: string }) {

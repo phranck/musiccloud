@@ -309,15 +309,70 @@ describe("SoundCloud: searchTrack", () => {
     expect(result.confidence).toBe(0);
   });
 
-  it("should return not found on API error", async () => {
+  /**
+   * A search that returns "not found" makes the resolver skip SoundCloud for
+   * this track for a month. SoundCloud answers an empty search with 200 and an
+   * empty `collection`, so an error status means it did not answer and the
+   * adapter throws, which the resolver does not remember.
+   */
+  it("throws when the search answers an error status", async () => {
     mockScFetch({ api: { body: "Error", status: 500 } });
 
-    const result = await soundcloudAdapter.searchTrack({
-      title: "Test",
-      artist: "Test",
+    await expect(soundcloudAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(
+      /track search failed: 500/,
+    );
+  });
+
+  it("throws when the search is rate limited", async () => {
+    mockScFetch({ api: { body: "Slow down", status: 429 } });
+
+    await expect(soundcloudAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/rate-limited/);
+  });
+
+  it("throws when a fresh client_id is rejected too", async () => {
+    mockScFetch({ api: { body: "", status: 401 } });
+
+    await expect(soundcloudAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/401/);
+  });
+
+  it("scrapes a fresh client_id once when the cached one is rejected", async () => {
+    let apiCalls = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = input instanceof URL ? input.href : String(input);
+      if (url === SC_HOMEPAGE_URL) return new Response(MOCK_SC_HOMEPAGE);
+      if (!url.startsWith(SC_API_HOST)) throw new Error(`Unmocked SoundCloud fetch: ${url}`);
+      apiCalls++;
+      return apiCalls === 1 ? new Response("", { status: 401 }) : Response.json({ collection: [], total_results: 0 });
     });
 
-    expect(result.found).toBe(false);
+    await expect(soundcloudAdapter.searchTrack({ title: "Test", artist: "Test" })).resolves.toMatchObject({
+      found: false,
+    });
+    expect(apiCalls).toBe(2);
+  });
+
+  it("throws when the request fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = input instanceof URL ? input.href : String(input);
+      if (url === SC_HOMEPAGE_URL) return new Response(MOCK_SC_HOMEPAGE, { status: 200 });
+      throw new Error("socket hang up");
+    });
+
+    await expect(soundcloudAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow();
+  });
+
+  it("throws when the body is not JSON", async () => {
+    mockScFetch({ api: { body: "<html>maintenance</html>" } });
+
+    await expect(soundcloudAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/not JSON/);
+  });
+
+  it("throws when the body has no collection", async () => {
+    mockScFetch({ api: { body: JSON.stringify({ error: "denied" }) } });
+
+    await expect(soundcloudAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(
+      /answered without a collection/,
+    );
   });
 
   it("should pick best match from multiple results", async () => {
@@ -355,16 +410,125 @@ describe("SoundCloud: searchTrack", () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.4);
   });
 
-  it("should gracefully handle missing client_id", async () => {
+  it("throws when no client_id can be obtained", async () => {
     // Homepage returns no usable hydration, so the adapter never obtains a client_id.
     mockScFetch({ homepage: { body: "Error", status: 500 } });
 
-    const result = await soundcloudAdapter.searchTrack({
-      title: "Test",
-      artist: "Test",
-    });
+    await expect(soundcloudAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/no client_id/);
+  });
 
-    expect(result.found).toBe(false);
+  it("throws when the homepage carries no client_id in its hydration data", async () => {
+    mockScFetch({ homepage: { body: "<html><body>No hydration here</body></html>" } });
+
+    await expect(soundcloudAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/no client_id/);
+  });
+});
+
+// =============================================================================
+// searchAlbum
+// =============================================================================
+
+describe("SoundCloud: searchAlbum", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    _resetClientIdCache();
+  });
+
+  it("should return not found for empty results", async () => {
+    mockScFetch({ api: { body: JSON.stringify({ collection: [] }) } });
+
+    const result = await soundcloudAdapter.searchAlbum({ title: "Nonexistent Album", artist: "Nobody" });
+
+    expect(result).toEqual({ found: false, confidence: 0, matchMethod: "search" });
+  });
+
+  it("throws when the search answers an error status", async () => {
+    mockScFetch({ api: { body: "Error", status: 503 } });
+
+    await expect(soundcloudAdapter.searchAlbum({ title: "1989", artist: "Taylor Swift" })).rejects.toThrow(
+      /album search failed: 503/,
+    );
+  });
+
+  it("throws when the body has no collection", async () => {
+    mockScFetch({ api: { body: JSON.stringify({}) } });
+
+    await expect(soundcloudAdapter.searchAlbum({ title: "1989", artist: "Taylor Swift" })).rejects.toThrow(
+      /answered without a collection/,
+    );
+  });
+});
+
+// =============================================================================
+// getAlbum
+// =============================================================================
+
+describe("SoundCloud: getAlbum", () => {
+  const SET_PATH = "taylorswift/sets/1989";
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    _resetClientIdCache();
+  });
+
+  it("reports a set SoundCloud answers 404 for as not found", async () => {
+    mockScFetch({ api: { body: "{}", status: 404 } });
+
+    await expect(soundcloudAdapter.getAlbum(SET_PATH)).rejects.toThrow(/Album not found/);
+  });
+
+  it("throws the HTTP error rather than not found for another error status", async () => {
+    mockScFetch({ api: { body: "Busy", status: 503 } });
+
+    const error = await soundcloudAdapter.getAlbum(SET_PATH).catch((caught: unknown) => caught);
+
+    expect((error as Error).message).toMatch(/album fetch failed: 503/);
+    expect((error as Error).message).not.toMatch(/not found/i);
+  });
+
+  it("throws when the answer is not JSON", async () => {
+    mockScFetch({ api: { body: "<html>maintenance</html>" } });
+
+    await expect(soundcloudAdapter.getAlbum(SET_PATH)).rejects.toThrow(/not JSON/);
+  });
+
+  it("throws when the answer carries no title", async () => {
+    mockScFetch({ api: { body: "{}" } });
+
+    await expect(soundcloudAdapter.getAlbum(SET_PATH)).rejects.toThrow(/without a title/);
+  });
+});
+
+// =============================================================================
+// searchArtist
+// =============================================================================
+
+describe("SoundCloud: searchArtist", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    _resetClientIdCache();
+  });
+
+  it("should return not found for empty results", async () => {
+    mockScFetch({ api: { body: JSON.stringify({ collection: [] }) } });
+
+    const result = await soundcloudAdapter.searchArtist({ name: "Nobody At All" });
+
+    expect(result).toEqual({ found: false, confidence: 0, matchMethod: "search" });
+  });
+
+  it("throws when the search answers an error status", async () => {
+    mockScFetch({ api: { body: "Error", status: 500 } });
+
+    await expect(soundcloudAdapter.searchArtist({ name: "Taylor Swift" })).rejects.toThrow(/artist search failed: 500/);
+  });
+
+  it("throws when the body has no collection", async () => {
+    mockScFetch({ api: { body: JSON.stringify({ error: "denied" }) } });
+
+    await expect(soundcloudAdapter.searchArtist({ name: "Taylor Swift" })).rejects.toThrow(
+      /answered without a collection/,
+    );
   });
 });
 

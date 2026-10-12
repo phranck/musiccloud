@@ -55,11 +55,27 @@ describe("Audiomack: searchTrack", () => {
     expect(result.found).toBe(false);
   });
 
-  it("should return not found on HTTP error", async () => {
+  /**
+   * A search without results is an empty list, so an error status is an
+   * outage. Answering "not found" would make the resolver skip Audiomack for
+   * that track for a month.
+   */
+  it("throws when the search fails", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
-    const result = await audiomackAdapter.searchTrack({ title: "Test", artist: "Test" });
-    expect(result.found).toBe(false);
+    await expect(audiomackAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/500/);
+  });
+
+  it("throws when the search answers with a body it cannot read", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("<html>", { status: 200 }));
+
+    await expect(audiomackAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow();
+  });
+
+  it("throws when the album search fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 503 }));
+
+    await expect(audiomackAdapter.searchAlbum?.({ title: "Scorpion", artist: "Drake" })).rejects.toThrow(/503/);
   });
 });
 

@@ -1,4 +1,10 @@
-import type { BillingPeriodValue, CreemModeValue, TierOffer } from "@musiccloud/shared";
+import type {
+  ApiAccessAuditTrail,
+  BillingPeriodValue,
+  CreemModeValue,
+  PortalInvitation,
+  TierOffer,
+} from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type ApiAccessOverview,
@@ -24,9 +30,13 @@ import {
   fetchDeveloperProject,
   fetchDeveloperProjects,
   fetchPlanOffers,
+  fetchPortalInvitations,
+  fetchProjectAudit,
   fetchProjectUsage,
   fetchTiers,
+  invitePortalDeveloper,
   type ProjectUsageResponse,
+  resendPortalInvitation,
   type TierListItem,
   type TierOfferCreate,
   updateCreemProductPrice,
@@ -36,7 +46,9 @@ import {
   updateDeveloperProjectSubscription,
   updatePlanOffer,
   updateTier,
+  withdrawPortalInvitation,
 } from "@/features/developer/api";
+import type { ApiRequestError } from "@/shared/utils/api-error";
 
 export function useApiAccessOverview() {
   return useQuery<ApiAccessOverview>({
@@ -80,6 +92,21 @@ export function useProjectUsage(id: string) {
   return useQuery<ProjectUsageResponse>({
     queryKey: ["developer", "project-usage", id],
     queryFn: () => fetchProjectUsage(id),
+    enabled: !!id,
+  });
+}
+
+/**
+ * One Project's audit trail. It sits under the `developer` key like the
+ * Project's other reads, so every change made from the dashboard refreshes it.
+ *
+ * @param id - The Project.
+ * @returns The query.
+ */
+export function useProjectAudit(id: string) {
+  return useQuery<ApiAccessAuditTrail, ApiRequestError>({
+    queryKey: ["developer", "project-audit", id],
+    queryFn: () => fetchProjectAudit(id),
     enabled: !!id,
   });
 }
@@ -367,4 +394,46 @@ export function useDeletePlanOffer() {
     mutationFn: deletePlanOffer,
     onSuccess: () => invalidateOffers(qc),
   });
+}
+
+/** The key every invitation read sits under, so a change refreshes the list. */
+const PORTAL_INVITATIONS_KEY = ["developer", "portal-invitations"] as const;
+
+/** Every invitation into the closed portal, the most recently sent first. */
+export function usePortalInvitations() {
+  return useQuery<{ invitations: PortalInvitation[] }, ApiRequestError>({
+    queryKey: PORTAL_INVITATIONS_KEY,
+    queryFn: fetchPortalInvitations,
+  });
+}
+
+/**
+ * One change to the invitations, which refreshes the list once it has worked.
+ *
+ * @param mutationFn - The request the change makes.
+ * @returns The mutation.
+ */
+function usePortalInvitationChange<Variables>(
+  mutationFn: (variables: Variables) => Promise<{ invitation: PortalInvitation }>,
+) {
+  const qc = useQueryClient();
+  return useMutation<{ invitation: PortalInvitation }, ApiRequestError, Variables>({
+    mutationFn,
+    onSuccess: () => qc.invalidateQueries({ queryKey: PORTAL_INVITATIONS_KEY }),
+  });
+}
+
+/** Invites an address, or sends its open invitation again. */
+export function useInvitePortalDeveloper() {
+  return usePortalInvitationChange(invitePortalDeveloper);
+}
+
+/** Sends an open invitation again, with a new link. */
+export function useResendPortalInvitation() {
+  return usePortalInvitationChange(resendPortalInvitation);
+}
+
+/** Withdraws an invitation, together with the access it gave. */
+export function useWithdrawPortalInvitation() {
+  return usePortalInvitationChange(withdrawPortalInvitation);
 }

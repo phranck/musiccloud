@@ -10,6 +10,7 @@ import {
   FilesIcon,
   GearIcon,
   HouseSimpleIcon,
+  IdentificationCardIcon,
   KeyIcon,
   LightningIcon,
   ListIcon,
@@ -489,12 +490,14 @@ function SidebarGeneralSection({ onItemClick, s }: { onItemClick?: () => void; s
 function SidebarMusicSection({
   albums,
   artists,
+  artistEntities,
   onItemClick,
   s,
   tracks,
 }: {
   albums?: number;
   artists?: number;
+  artistEntities?: number;
   onItemClick?: () => void;
   s: SidebarLabels;
   tracks?: number;
@@ -533,6 +536,16 @@ function SidebarMusicSection({
                 icon={<MicrophoneStageIcon weight="duotone" className="w-4 h-4" />}
                 label={s.artists}
                 badge={artists}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to="/artist-entities" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<IdentificationCardIcon weight="duotone" className="w-4 h-4" />}
+                label={s.artistEntities}
+                badge={artistEntities}
                 active={isActive}
               />
             )}
@@ -688,6 +701,7 @@ export function Sidebar({
         <SidebarMusicSection
           albums={stats?.albums}
           artists={stats?.artists}
+          artistEntities={stats?.artistEntities}
           onItemClick={onItemClick}
           s={s}
           tracks={stats?.tracks}

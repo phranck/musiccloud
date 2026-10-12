@@ -49,6 +49,7 @@ const mockRepo = {
   revokeApiClientToken: vi.fn(),
   activateApiClientToken: vi.fn(),
   createApiAccessAuditEvent: vi.fn().mockResolvedValue({}),
+  listProjectAuditEvents: vi.fn().mockResolvedValue([]),
 };
 
 const mockTierRepo = {
@@ -376,6 +377,109 @@ describe("adminApiAccessRoutes", () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json().windows.minute.total).toBe(7);
+    });
+  });
+
+  describe("GET projectAudit", () => {
+    const auditUrl = (query = "") =>
+      `${ROUTE_TEMPLATES.admin.developer.apiAccess.projectAudit.replace(":id", "project-1")}${query}`;
+
+    it("rejects a moderator before reading anything", async () => {
+      const { app, token } = await buildApp("moderator");
+
+      const response = await app.inject({
+        method: "GET",
+        url: auditUrl(),
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(mockRepo.listProjectAuditEvents).not.toHaveBeenCalled();
+    });
+
+    it("reads one row past the ceiling for the requested project and range", async () => {
+      const { app, token } = await buildApp("admin");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject({ developerAccountId: "somebody-else" }));
+      mockRepo.listProjectAuditEvents.mockResolvedValue([
+        {
+          id: "event-1",
+          projectId: "project-1",
+          clientId: "client-1",
+          tokenId: null,
+          eventType: "client_updated",
+          actorAdminId: "admin-1",
+          actorDeveloperAccountId: null,
+          occurredAt: Date.parse("2026-10-01T08:00:00.000Z"),
+          eventData: { requestsPerDay: 5000, extra: "anything a caller sent" },
+          actorAdminUsername: "olive",
+          actorDeveloperEmail: null,
+        },
+      ]);
+
+      const response = await app.inject({
+        method: "GET",
+        url: auditUrl("?from=2026-09-01T00:00:00.000Z&to=2026-10-12T00:00:00.000Z&limit=10"),
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(mockRepo.listProjectAuditEvents).toHaveBeenCalledWith(
+        "project-1",
+        Date.parse("2026-09-01T00:00:00.000Z"),
+        Date.parse("2026-10-12T00:00:00.000Z"),
+        11,
+      );
+      expect(response.json()).toEqual({
+        projectId: "project-1",
+        from: "2026-09-01T00:00:00.000Z",
+        to: "2026-10-12T00:00:00.000Z",
+        limit: 10,
+        truncated: false,
+        entries: [
+          {
+            id: "event-1",
+            eventType: "client_updated",
+            occurredAt: "2026-10-01T08:00:00.000Z",
+            applicationId: "client-1",
+            apiKeyId: null,
+            actor: { type: "admin", id: "admin-1", name: "olive" },
+            details: { requestsPerDay: 5000 },
+          },
+        ],
+      });
+    });
+
+    it("answers an unknown project with 404 and reads no trail", async () => {
+      const { app, token } = await buildApp("owner");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(null);
+
+      const response = await app.inject({
+        method: "GET",
+        url: auditUrl(),
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json().error).toBe("MC-RES-0003");
+      expect(mockRepo.listProjectAuditEvents).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a range wider than the trail is kept", "?from=2024-01-01T00:00:00.000Z&to=2026-10-12T00:00:00.000Z"],
+      ["a ceiling above 200", "?limit=500"],
+      ["a ceiling of zero", "?limit=0"],
+    ])("refuses %s before reading the trail", async (_label, query) => {
+      const { app, token } = await buildApp("owner");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+
+      const response = await app.inject({
+        method: "GET",
+        url: auditUrl(query),
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(mockRepo.listProjectAuditEvents).not.toHaveBeenCalled();
     });
   });
 

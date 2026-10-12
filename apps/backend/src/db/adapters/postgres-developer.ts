@@ -45,6 +45,7 @@ interface DeveloperAccountRow {
   technical_contact_email: string | null;
   pending_email: string | null;
   pending_email_requested_at: Date | null;
+  portal_access_granted_at: Date | null;
   tier_id: string | null;
   status: DeveloperAccountStatusValue;
   created_at: Date;
@@ -83,7 +84,7 @@ interface DeveloperEmailTokenRow {
 const DEVELOPER_ACCOUNT_COLUMNS = `id, email, email_verified_at, password_hash, display_name,
             first_name, last_name, avatar_url, uploaded_avatar_url, gravatar_url, avatar_source,
             technical_contact_email, pending_email, pending_email_requested_at,
-            tier_id, status, created_at, updated_at, last_login_at`;
+            portal_access_granted_at, tier_id, status, created_at, updated_at, last_login_at`;
 
 // ============================================================================
 // MAPPERS
@@ -110,6 +111,7 @@ function rowToDeveloperAccount(row: DeveloperAccountRow): DeveloperAccount {
     technicalContactEmail: row.technical_contact_email,
     pendingEmail: row.pending_email,
     pendingEmailRequestedAt: row.pending_email_requested_at ? dateToMs(row.pending_email_requested_at) : null,
+    portalAccessGrantedAt: row.portal_access_granted_at ? dateToMs(row.portal_access_granted_at) : null,
     tierId: row.tier_id,
     status: row.status,
     createdAt: dateToMs(row.created_at),

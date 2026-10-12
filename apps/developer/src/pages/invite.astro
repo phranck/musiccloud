@@ -1,0 +1,35 @@
+---
+/**
+ * /invite?token=…: where an invitation link lands.
+ *
+ * Reachable in every state of the portal, because an invitation exists to be
+ * followed while the portal is shut. The page itself spends nothing: the
+ * {@link InviteView} island redeems the token once it has loaded, so a mail
+ * scanner fetching the link leaves the invitation as it was.
+ */
+import AuthCard from "@/components/auth/AuthCard.astro";
+import { InviteView } from "@/components/auth/InviteView";
+import { ContentCard } from "@/components/docs/ContentCard";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { ProfileAddIcon } from "@/lib/icons";
+
+export const prerender = false;
+
+const token = Astro.url.searchParams.get("token");
+---
+
+<BaseLayout title="Invitation · musiccloud for developers">
+  <AuthCard title="Your invitation" icon={ProfileAddIcon}>
+    {
+      token ? (
+        <InviteView client:load token={token} />
+      ) : (
+        <ContentCard.Body>
+          <p class="text-body text-fg-muted text-center py-2">
+            This invitation link is missing its token. Please use the link from your email.
+          </p>
+        </ContentCard.Body>
+      )
+    }
+  </AuthCard>
+</BaseLayout>

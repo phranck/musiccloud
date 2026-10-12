@@ -1,8 +1,8 @@
+import { PlatformIcon } from "@musiccloud/dashboard-ui/platform-icon";
 import { Service } from "@musiccloud/shared";
 import { useEffect, useState } from "react";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { creativeCommonsCopy } from "@/copy/creative-commons";
 import { lookupCcBandcampUrl } from "@/lib/cc/bandcamp";

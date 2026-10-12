@@ -51,3 +51,100 @@ describe("Apple Music adapter — searchTrack", () => {
     expect(calledUrl).not.toContain("OK%20Computer");
   });
 });
+
+describe("Apple Music adapter previews", () => {
+  it("leaves out the preview Apple sends with a song", async () => {
+    vi.mocked(fetchWithTimeout).mockResolvedValue(
+      jsonResponse({
+        data: [
+          {
+            id: "1440806725",
+            type: "songs",
+            attributes: {
+              name: "Karma Police",
+              artistName: "Radiohead",
+              url: "https://music.apple.com/us/song/karma-police/1440806725",
+              previews: [{ url: "https://audio-ssl.itunes.apple.com/preview.m4a" }],
+            },
+          },
+        ],
+      }),
+    );
+
+    const track = await appleMusicAdapter.getTrack("us:1440806725");
+
+    expect(track.title).toBe("Karma Police");
+    expect(track.previewUrl).toBeUndefined();
+    expect(appleMusicAdapter.capabilities.supportsPreview).toBe(false);
+  });
+});
+
+describe("Apple Music adapter artwork", () => {
+  const APPLE_ARTWORK = {
+    url: "https://is1-ssl.mzstatic.com/image/thumb/Music/{w}x{h}bb.jpg",
+    width: 3000,
+    height: 3000,
+  };
+
+  it("leaves out the artwork Apple sends with a song, an album and an artist", async () => {
+    vi.mocked(fetchWithTimeout)
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [
+            {
+              id: "1440806725",
+              type: "songs",
+              attributes: {
+                name: "Karma Police",
+                artistName: "Radiohead",
+                url: "https://music.apple.com/us/song/karma-police/1440806725",
+                artwork: APPLE_ARTWORK,
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [
+            {
+              id: "1097861387",
+              type: "albums",
+              attributes: {
+                name: "OK Computer",
+                artistName: "Radiohead",
+                url: "https://music.apple.com/us/album/ok-computer/1097861387",
+                artwork: APPLE_ARTWORK,
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [
+            {
+              id: "657515",
+              type: "artists",
+              attributes: {
+                name: "Radiohead",
+                url: "https://music.apple.com/us/artist/radiohead/657515",
+                artwork: APPLE_ARTWORK,
+              },
+            },
+          ],
+        }),
+      );
+
+    const track = await appleMusicAdapter.getTrack("us:1440806725");
+    const album = await appleMusicAdapter.getAlbum?.("us:1097861387");
+    const artist = await appleMusicAdapter.getArtist?.("us:657515");
+
+    expect(track.artworkUrl).toBeUndefined();
+    expect(album?.title).toBe("OK Computer");
+    expect(album?.artworkUrl).toBeUndefined();
+    expect(artist?.name).toBe("Radiohead");
+    expect(artist?.imageUrl).toBeUndefined();
+    expect(appleMusicAdapter.capabilities.supportsArtwork).toBe(false);
+  });
+});

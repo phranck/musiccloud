@@ -30,11 +30,10 @@ import {
   useUpdatePlanOffer,
 } from "@/features/developer/hooks/useDeveloperData";
 import { periodLabel, priceCentsFromField, priceFieldValue } from "@/features/developer/offerFormat";
+import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
-
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /** Every billing period Creem sells over, as the dropdown offers them. */
 const PERIOD_OPTIONS: DropdownOption[] = BILLING_PERIODS.map((period) => ({
@@ -117,7 +116,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
     <div className="border-t border-[var(--ds-border-subtle)] pt-4 first:border-t-0 first:pt-0">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <span className={labelClass}>{dm.offerPeriod}</span>
+          <FormLabelText>{dm.offerPeriod}</FormLabelText>
           <Dropdown
             value={offer.billingPeriod}
             onChange={(billingPeriod) => changePeriod(billingPeriod as BillingPeriodValue)}
@@ -126,9 +125,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
           />
         </div>
         <div>
-          <label htmlFor={`offer-price-${offer.id}`} className={labelClass}>
-            {dm.offerPrice}
-          </label>
+          <FormLabel htmlFor={`offer-price-${offer.id}`}>{dm.offerPrice}</FormLabel>
           <div className="flex items-center gap-2">
             <DashboardInput
               id={`offer-price-${offer.id}`}
@@ -161,7 +158,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
           )}
         </div>
         <div>
-          <span className={labelClass}>{dm.offerTaxMode}</span>
+          <FormLabelText>{dm.offerTaxMode}</FormLabelText>
           <Dropdown
             value={offer.taxMode ?? ""}
             onChange={(taxMode) => change({ taxMode: (taxMode || null) as TaxModeValue | null })}
@@ -170,7 +167,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
           />
         </div>
         <div>
-          <span className={labelClass}>{dm.offerTaxCategory}</span>
+          <FormLabelText>{dm.offerTaxCategory}</FormLabelText>
           <Dropdown
             value={offer.taxCategory ?? ""}
             onChange={(taxCategory) => change({ taxCategory: (taxCategory || null) as TaxCategoryValue | null })}
@@ -191,9 +188,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
       {showMore && (
         <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor={`offer-image-${offer.id}`} className={labelClass}>
-              {dm.offerImageUrl}
-            </label>
+            <FormLabel htmlFor={`offer-image-${offer.id}`}>{dm.offerImageUrl}</FormLabel>
             <DashboardInput
               id={`offer-image-${offer.id}`}
               type="url"
@@ -203,9 +198,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
             <p className="mt-1 text-xs text-[var(--ds-text-muted)]">{dm.offerUrlHint}</p>
           </div>
           <div>
-            <label htmlFor={`offer-success-${offer.id}`} className={labelClass}>
-              {dm.offerSuccessUrl}
-            </label>
+            <FormLabel htmlFor={`offer-success-${offer.id}`}>{dm.offerSuccessUrl}</FormLabel>
             <DashboardInput
               id={`offer-success-${offer.id}`}
               type="url"

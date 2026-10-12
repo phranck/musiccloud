@@ -86,10 +86,12 @@ import {
   TokenPurpose,
   verifyPassword,
 } from "../services/developer-auth.js";
+import { mayCreateDeveloperAccount, PORTAL_CLOSED_CODE } from "../services/developer-portal-access.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 import { erasePersonalData } from "../services/gdpr-erase.js";
 import { buildPersonalDataExport } from "../services/gdpr-export.js";
 import { resolveSignupTierId } from "../services/signup-tier.js";
+import { applyInvitationPass, readRequestInvitationPass } from "./developer-portal-invitations.js";
 
 /** Verification-token lifetime: 24 hours from issuance. */
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -167,10 +169,12 @@ async function throttleCredentials(request: FastifyRequest, reply: FastifyReply)
  *   Only `/me` resolves it (the portal renders every protected page from a
  *   fresh `/me`); the signup/login/OAuth responses pass the default `null`.
  * @returns The wire-level account object: `emailVerifiedAt` is collapsed to the
- *   boolean `emailVerified`, `passwordHash` is collapsed to the boolean
- *   `hasPassword` (lets the portal decide whether `/delete-account` needs a
- *   password confirmation — `false` for a GitHub-only account), and `createdAt`
- *   (epoch ms) is rendered as an ISO string for JSON-safe transport. The raw
+ *   boolean `emailVerified`, and `passwordHash` to the boolean `hasPassword`.
+ *   The portal reads `hasPassword` to decide whether `/delete-account` needs a
+ *   password confirmation, which a GitHub-only account cannot give.
+ *   `portalAccessGrantedAt` is collapsed to the boolean `portalAccess`, which
+ *   the portal's gate asks while the portal is closed, and `createdAt` (epoch
+ *   ms) is rendered as an ISO string for JSON-safe transport. The raw
  *   `passwordHash`, `status` and `updatedAt`/`lastLoginAt` are intentionally
  *   omitted.
  */
@@ -190,6 +194,7 @@ export function buildAccountResponse(account: DeveloperAccount, tierName: string
     gravatarUrl: account.gravatarUrl,
     avatarSource: account.avatarSource,
     technicalContactEmail: account.technicalContactEmail,
+    portalAccess: account.portalAccessGrantedAt !== null,
     tierName,
     createdAt: new Date(account.createdAt).toISOString(),
   };
@@ -324,6 +329,13 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "email and password are required." });
     }
 
+    // While the portal is closed, only the holder of an invitation pass opens
+    // an account. Asked before the address is looked up, so a refusal says
+    // nothing about who already has one.
+    if (!(await mayCreateDeveloperAccount(readRequestInvitationPass(app, request)))) {
+      return reply.status(403).send(createApiErrorResponse(PORTAL_CLOSED_CODE));
+    }
+
     const email = normalizeEmailAddress(body.email);
     if (!email) {
       return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
@@ -366,6 +378,10 @@ export async function devAuthRoutes(app: FastifyInstance) {
       }
       throw error;
     }
+
+    // Somebody who followed an invitation link signs up holding its pass,
+    // and the access it gives lands on the account they have just created.
+    await applyInvitationPass(app, request, reply, account.id);
 
     const { raw, hash } = generateEmailToken();
     await repo.createDeveloperEmailToken({
@@ -473,6 +489,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(403).send(ACCOUNT_SUSPENDED_BODY);
     }
     reply.setCookie(SESSION_COOKIE_NAME, session.token, session.cookieOptions);
+    await applyInvitationPass(app, request, reply, account.id);
 
     // Update last login timestamp (fire and forget): a failed stat write must
     // not block or fail the login response.
@@ -582,10 +599,12 @@ export async function devAuthRoutes(app: FastifyInstance) {
   /**
    * GET /api/dev/auth/me
    * Returns the currently authenticated developer account, resolved from the
-   * `mc_dev_session` cookie by {@link FastifyInstance.authenticateDeveloper}.
-   * Returns 401 without a valid session.
+   * `mc_dev_session` cookie by {@link FastifyInstance.authenticateDeveloperSession}.
+   * Returns 401 without a valid session. It answers an account the closed
+   * portal does not admit as well, because the portal's gate reads the grant
+   * from here.
    */
-  app.get(ENDPOINTS.dev.auth.me, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
+  app.get(ENDPOINTS.dev.auth.me, { preValidation: app.authenticateDeveloperSession }, async (request, reply) => {
     const repo = await getDeveloperRepository();
     const account = await repo.findDeveloperAccountById(request.developerAccountId as string);
     if (!account) {
@@ -1007,7 +1026,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * attachment: account (without secrets), auth identities, and the caller's
    * registrations with token metadata.
    */
-  app.get(ENDPOINTS.dev.auth.export, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
+  app.get(ENDPOINTS.dev.auth.export, { preValidation: app.authenticateDeveloperSession }, async (request, reply) => {
     const account = request.developerAccount!;
     const pkg = await buildPersonalDataExport({ developerAccountId: account.id, email: account.email });
     reply.header("content-disposition", 'attachment; filename="musiccloud-data-export.json"');
@@ -1025,40 +1044,44 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * (`hasPassword: false` on `/me`) has no password to confirm, so the body
    * is not required.
    */
-  app.post(ENDPOINTS.dev.auth.deleteAccount, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
-    const account = request.developerAccount!;
+  app.post(
+    ENDPOINTS.dev.auth.deleteAccount,
+    { preValidation: app.authenticateDeveloperSession },
+    async (request, reply) => {
+      const account = request.developerAccount!;
 
-    if (account.passwordHash !== null) {
-      const body = request.body as { password?: string } | null;
-      const isValid = await verifyPassword(body?.password ?? "", account.passwordHash);
-      if (!isValid) {
-        return reply.status(401).send({ error: "INVALID_CREDENTIALS", message: "Incorrect password." });
+      if (account.passwordHash !== null) {
+        const body = request.body as { password?: string } | null;
+        const isValid = await verifyPassword(body?.password ?? "", account.passwordHash);
+        if (!isValid) {
+          return reply.status(401).send({ error: "INVALID_CREDENTIALS", message: "Incorrect password." });
+        }
       }
-    }
 
-    // Optional farewell notification (MC-084): fired BEFORE the delete while
-    // the account data still exists; a mail failure must never block the
-    // deletion itself (mirrors the invite route's resilience semantics).
-    try {
-      await triggerEmailAction(EmailAction.DeveloperAccountDeleted, {
-        to: { email: account.email },
-        recipient: {
-          kind: EmailRecipientKind.DeveloperAccount,
-          email: account.email,
-          displayName: account.displayName,
-        },
-        context: {},
-      });
-    } catch (error) {
-      request.log.error({ err: error }, "failed to send account-deleted notification");
-    }
+      // Optional farewell notification (MC-084): fired BEFORE the delete while
+      // the account data still exists; a mail failure must never block the
+      // deletion itself (mirrors the invite route's resilience semantics).
+      try {
+        await triggerEmailAction(EmailAction.DeveloperAccountDeleted, {
+          to: { email: account.email },
+          recipient: {
+            kind: EmailRecipientKind.DeveloperAccount,
+            email: account.email,
+            displayName: account.displayName,
+          },
+          context: {},
+        });
+      } catch (error) {
+        request.log.error({ err: error }, "failed to send account-deleted notification");
+      }
 
-    // GDPR-complete erasure (MC-085): delete the authenticated account; DB
-    // cascades clear identities, email tokens and API-access data.
-    await erasePersonalData(account.id);
-    reply.clearCookie(SESSION_COOKIE_NAME, clearedSessionCookieOptions());
+      // GDPR-complete erasure (MC-085): delete the authenticated account; DB
+      // cascades clear identities, email tokens and API-access data.
+      await erasePersonalData(account.id);
+      reply.clearCookie(SESSION_COOKIE_NAME, clearedSessionCookieOptions());
 
-    app.log.info("[Developer] Account deleted");
-    return reply.send({ ok: true });
-  });
+      app.log.info("[Developer] Account deleted");
+      return reply.send({ ok: true });
+    },
+  );
 }

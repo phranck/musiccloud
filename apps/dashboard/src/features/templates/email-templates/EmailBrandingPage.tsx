@@ -45,11 +45,10 @@ const EMPTY_DRAFT: BrandingDraft = {
 };
 
 /**
- * localStorage key under which the footer-text Markdown editor persists its
- * drag-resized height, so it reopens at the user's last chosen size across
- * reloads.
+ * The identity under which the footer-text Markdown editor remembers its
+ * dragged height, so it reopens at the size last dragged to across reloads.
  */
-const FOOTER_TEXT_EDITOR_HEIGHT_STORAGE_KEY = "musiccloud.emailBranding.footerTextHeight";
+const FOOTER_TEXT_EDITOR_HEIGHT_ID = "email-branding-footer-text";
 
 /**
  * Settings page for the global email branding singleton (System → Templates
@@ -183,7 +182,7 @@ export function EmailBrandingPage() {
                 onChange={(footerText) => updateField("footerText", footerText)}
                 rows={4}
                 resizable
-                storageKey={FOOTER_TEXT_EDITOR_HEIGHT_STORAGE_KEY}
+                storageKey={FOOTER_TEXT_EDITOR_HEIGHT_ID}
                 bare
                 className="rounded-b-xl"
                 placeholder={m.brandingFooterTextPlaceholder}

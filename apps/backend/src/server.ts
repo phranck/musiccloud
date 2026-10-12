@@ -43,6 +43,7 @@ import adminPluginsRoutes from "./routes/admin-plugins.js";
 import adminSseRoutes from "./routes/admin-sse.js";
 import { adminTiersRoutes } from "./routes/admin-tiers.js";
 import adminUserRoutes from "./routes/admin-users.js";
+import artistIdentityRoutes from "./routes/artist-identity.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import ccArtistInfoRoutes from "./routes/cc-artist-info.js";
 import ccAudioRoutes from "./routes/cc-audio.js";
@@ -59,6 +60,11 @@ import {
   developerPortalAvailabilityAdminRoutes,
   developerPortalAvailabilityInternalRoutes,
 } from "./routes/developer-portal-availability.js";
+import {
+  developerPortalInvitationAdminRoutes,
+  developerPortalInvitationInternalRoutes,
+  devPortalInvitationRoutes,
+} from "./routes/developer-portal-invitations.js";
 import emailAssetServeRoutes from "./routes/email-assets.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import { internalEditorialRoutes } from "./routes/internal-editorial.js";
@@ -89,6 +95,9 @@ const PORT = Number(process.env.PORT ?? 4000);
  */
 const PUBLIC_OPENAPI_PATHS = new Set<string>([
   ENDPOINTS.v1.artistInfo,
+  ENDPOINTS.v1.artists.events,
+  ROUTE_TEMPLATES.v1.artists.members,
+  ROUTE_TEMPLATES.v1.artists.memberships,
   ENDPOINTS.v1.ccArtistInfo,
   ROUTE_TEMPLATES.v1.ccAudio,
   ROUTE_TEMPLATES.v1.ccBandcamp,
@@ -285,17 +294,17 @@ async function buildApp(options: BuildAppOptions = {}) {
         description:
           "Public REST API for resolving music URLs and search queries, retrieving persisted shares, and consuming Creative-Commons media and metadata.\n\n" +
           "## Authentication\n\n" +
-          "Exactly three operations require a key issued to an application: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. A Developer Project owns its subscription and shared quota and may contain separate development, confidential, and public applications. Send an API key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without a key. Manage projects, applications and their keys at " +
+          "Six operations require a key issued to an application: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, `GET /api/v1/link/{id}`, `GET /api/v1/artists/events`, `GET /api/v1/artists/{artistEntityId}/members`, and `GET /api/v1/artists/{artistEntityId}/memberships`. A Developer Project owns its subscription and shared quota and may contain separate development, confidential, and public applications. Send an API key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without a key. Manage projects, applications and their keys at " +
           SITE_ORIGIN.developer +
           "/dashboard/projects. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, suspended, or revoked project, application, or key credentials receive `401`.\n\n" +
           "## Rate limiting\n\n" +
           "Four independent rules can apply:\n\n" +
-          "1. The three API-key operations use the rolling `60`-second and rolling `24`-hour quotas owned by the Developer Project. Applications under one project share those quotas; an optional application cap can only narrow them.\n" +
+          "1. The API-key operations use the rolling `60`-second and rolling `24`-hour quotas owned by the Developer Project. Applications under one project share those quotas; an optional application cap can only narrow them.\n" +
           `2. \`GET /api/v1/resolve\` needs no key and has a budget of its own that no other operation shares: \`${KEYLESS_RESOLVE_REQUESTS_PER_MINUTE}\` requests in a rolling \`60\`-second window and \`${KEYLESS_RESOLVE_REQUESTS_PER_DAY}\` in a rolling \`24\`-hour window, both per client IP.\n` +
           "3. Public data operations `GET /api/v1/share/{shortId}`, `GET /api/v1/share/{shortId}/preview`, `GET /api/v1/artist-info`, `GET /api/v1/cc/artist-info`, `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, and `GET /api/v1/cc/bandcamp/{jamendoId}` share one bucket of `10` requests in a rolling `60`-second window per client IP.\n" +
           "4. Every route is also protected by a global ceiling of `300` requests in a rolling `60`-second window per client IP.\n\n" +
           "A rejected request returns `429 Too Many Requests`, the `ErrorResponse` JSON body, and `Retry-After`. When available, `context.limit`, `context.windowSeconds`, and `context.retryAfterSeconds` describe the rule that rejected the request.",
-        version: "2.4.0",
+        version: "2.5.0",
       },
       servers: [{ url: SITE_ORIGIN.api, description: "Production" }],
       // Tag order here does not need to be alphabetical: the document is
@@ -558,6 +567,11 @@ async function buildApp(options: BuildAppOptions = {}) {
   // and issues the same `mc_dev_session` cookie as email login.
   await app.register(devGitHubRoutes);
 
+  // Developer-portal invitation redemption (public, root scope). The person
+  // following an invitation link may hold no session yet, which is the case
+  // the link exists for.
+  await app.register(devPortalInvitationRoutes);
+
   // Developer-portal self-service API-access routes (MC-025/MC-077):
   // list and create the caller's own projects and registrations, and
   // manage the caller's own tokens.
@@ -579,6 +593,7 @@ async function buildApp(options: BuildAppOptions = {}) {
   await app.register(async function internalRoutes(internalApp) {
     internalApp.addHook("preValidation", internalApp.authenticateInternal);
     await internalApp.register(developerPortalAvailabilityInternalRoutes);
+    await internalApp.register(developerPortalInvitationInternalRoutes);
     await internalApp.register(internalEditorialRoutes);
   });
 
@@ -642,6 +657,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await protectedApp.register(resolveRoutes);
     await protectedApp.register(ccResolveRoutes);
     await protectedApp.register(linkRoutes);
+    await protectedApp.register(artistIdentityRoutes);
   });
 
   // Admin-protected API routes (Bearer JWT with role: "admin")
@@ -666,6 +682,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(adminPluginsRoutes);
     await adminApp.register(adminCrawlerRoutes);
     await adminApp.register(developerPortalAvailabilityAdminRoutes);
+    await adminApp.register(developerPortalInvitationAdminRoutes);
     await adminApp.register(developerLimitsAdminRoutes);
   });
 

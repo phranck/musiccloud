@@ -116,6 +116,9 @@ const OpenApiSchemaType = {
  */
 const CURATED_NAVIGATION_TITLES: Record<string, string> = {
   "GET /api/v1/artist-info": "Artist info",
+  "GET /api/v1/artists/events": "Artist events on a day",
+  "GET /api/v1/artists/{artistEntityId}/members": "Group members",
+  "GET /api/v1/artists/{artistEntityId}/memberships": "Artist memberships",
   "GET /api/v1/cc/artist-info": "Creative Commons artist info",
   "GET /api/v1/cc/audio/{jamendoId}": "Creative Commons audio",
   "GET /api/v1/cc/bandcamp/{jamendoId}": "Bandcamp availability",

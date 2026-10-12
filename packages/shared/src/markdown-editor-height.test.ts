@@ -1,15 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { editorHeightKey, readStoredEditorHeight, shouldStoreEditorHeight } from "./markdown-editor-height.js";
+import {
+  EDITOR_MIN_HEIGHT_PX,
+  editorHeightKey,
+  readStoredEditorHeight,
+  shouldStoreEditorHeight,
+} from "./markdown-editor-height.js";
 
 describe("editorHeightKey", () => {
-  it("gives each editor a key of its own", () => {
+  it("gives each identity a key of its own", () => {
     expect(editorHeightKey("page-body")).not.toBe(editorHeightKey("page-note"));
   });
 
-  it("remembers nothing for an editor without an id", () => {
+  it("gives editors with the same identity one key", () => {
+    expect(editorHeightKey("email-template-text-block")).toBe(editorHeightKey("email-template-text-block"));
+  });
+
+  it("remembers nothing for an editor without an identity", () => {
     // Two such editors cannot be told apart, and sharing one height between
     // them would move an editor somebody never touched.
     expect(editorHeightKey(undefined)).toBeNull();
+  });
+});
+
+describe("EDITOR_MIN_HEIGHT_PX", () => {
+  it("is the shortest height both reading and storing accept", () => {
+    // The editor's frame uses it as its minimum height, so a height it can be
+    // dragged to is one it remembers.
+    expect(readStoredEditorHeight(String(EDITOR_MIN_HEIGHT_PX))).toBe(`${EDITOR_MIN_HEIGHT_PX}px`);
+    expect(readStoredEditorHeight(String(EDITOR_MIN_HEIGHT_PX - 1))).toBeNull();
+    expect(shouldStoreEditorHeight(EDITOR_MIN_HEIGHT_PX, null)).toBe(true);
+    expect(shouldStoreEditorHeight(EDITOR_MIN_HEIGHT_PX - 1, null)).toBe(false);
   });
 });
 

@@ -1,0 +1,16 @@
+{
+  "id": "6e039c97-4476-4ddc-ab54-d226e8db5fb4",
+  "resource": "https://open.spotify.com/artist/4Z8W4fKeB5YxbusRsdQVPb",
+  "relations": [
+    {
+      "type": "free streaming",
+      "direction": "backward",
+      "target-type": "artist",
+      "artist": {
+        "id": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+        "name": "Radiohead",
+        "type": "Group"
+      }
+    }
+  ]
+}

@@ -55,6 +55,15 @@ export const ENDPOINTS = {
     sharePreview: (shortId: string) => `/api/v1/share/${shortId}/preview`,
     /** GET `/api/v1/artist-info?…`: Last.fm + Ticketmaster aggregated artist info. */
     artistInfo: "/api/v1/artist-info",
+    /** Artist lifecycle dates and band memberships, keyed. */
+    artists: {
+      /** GET `/api/v1/artists/events?month&day&eventType`: lifecycle events on one calendar day. */
+      events: "/api/v1/artists/events",
+      /** GET `/api/v1/artists/:artistEntityId/members`: the members of a group. */
+      members: (artistEntityId: string) => `/api/v1/artists/${encodeURIComponent(artistEntityId)}/members`,
+      /** GET `/api/v1/artists/:artistEntityId/memberships`: the groups an artist belongs to. */
+      memberships: (artistEntityId: string) => `/api/v1/artists/${encodeURIComponent(artistEntityId)}/memberships`,
+    },
     /** GET `/api/v1/random-example`: pick a random short URL (track or album). */
     randomExample: "/api/v1/random-example",
     /** GET `/api/v1/cc/random-example`: pick a random CC track short URL, for the
@@ -124,6 +133,12 @@ export const ENDPOINTS = {
     developer: {
       /** GET: the persisted availability state consumed by the Developer Portal middleware. */
       portalAvailability: "/api/internal/developer/portal-availability",
+      /**
+       * GET: whether the invitation pass the forwarded cookie carries still
+       * opens sign-up. Answers `{ valid }`, because only the backend holds the
+       * key the pass is signed with.
+       */
+      invitationPass: "/api/internal/developer/invitation-pass",
       editorial: {
         /** GET: one published Developer Portal editorial Page by normalized path. */
         page: (path: string) => `/api/internal/developer/editorial/page?path=${encodeURIComponent(path)}`,
@@ -234,6 +249,8 @@ export const ENDPOINTS = {
     artistEntities: {
       /** GET: list normalized artist identity entities. */
       list: "/api/admin/artist-entities",
+      /** GET: one entity with its names, lifecycle dates and memberships. */
+      detail: (id: string) => `/api/admin/artist-entities/${encodeURIComponent(id)}`,
     },
 
     cache: {
@@ -339,6 +356,13 @@ export const ENDPOINTS = {
     developer: {
       /** GET / PATCH: Owner-managed availability state for the Developer Portal. */
       portalAvailability: "/api/admin/developer/portal-availability",
+      /** GET: every invitation into the closed portal / POST: invite an address. Body: `{ email }`. Owner only. */
+      portalInvitations: "/api/admin/developer/portal-invitations",
+      /** DELETE: withdraw one invitation, and the access it gave. Owner only. */
+      portalInvitationDetail: (id: string) => `/api/admin/developer/portal-invitations/${encodeURIComponent(id)}`,
+      /** POST: send an open invitation again, with a new link and a new expiry. Owner only. */
+      portalInvitationResend: (id: string) =>
+        `/api/admin/developer/portal-invitations/${encodeURIComponent(id)}/resend`,
       apiAccess: {
         /** GET: overview — every registration with its tokens. */
         overview: "/api/admin/developer/api-access",
@@ -361,6 +385,8 @@ export const ENDPOINTS = {
         projectSubscription: (id: string) => `/api/admin/developer/api-access/projects/${id}/subscription`,
         /** GET: aggregated usage for one project. Query: `?from=<iso>&to=<iso>`, both optional. */
         projectUsage: (id: string) => `/api/admin/developer/api-access/projects/${id}/usage`,
+        /** GET: one project's audit trail, newest first. Query: `?from=<iso>&to=<iso>&limit=<n>`, all optional. */
+        projectAudit: (id: string) => `/api/admin/developer/api-access/projects/${id}/audit`,
       },
       /**
        * GET / PATCH: the bounds on the open self-service creation path.
@@ -471,6 +497,11 @@ export const ENDPOINTS = {
        * the Gravatar protocol is built on.
        */
       gravatar: "/api/dev/auth/avatar/gravatar",
+      /**
+       * POST: redeems an invitation link. Body: `{ token }`. Writes the grant
+       * onto a signed-in account, or sets the pass that opens sign-up.
+       */
+      redeemInvitation: "/api/dev/auth/invitations/redeem",
       /** GitHub OAuth (MC-065). `start` returns the authorize URL + signed state; `exchange` redeems the callback code. */
       github: {
         /** GET: returns `{ authorizeUrl, state }` for the Astro app to redirect to. */
@@ -540,6 +571,10 @@ export const ROUTE_TEMPLATES = {
     share: "/api/v1/share/:shortId",
     sharePreview: "/api/v1/share/:shortId/preview",
     link: "/api/v1/link/:id",
+    artists: {
+      members: "/api/v1/artists/:artistEntityId/members",
+      memberships: "/api/v1/artists/:artistEntityId/memberships",
+    },
     genreArtwork: "/api/v1/genre-artwork/:genreKey",
     /** Route template for ENDPOINTS.v1.ccGenreArtwork (CC genre tile cover, Jamendo-sourced). */
     ccGenreArtwork: "/api/v1/cc/genre-artwork/:genreKey",
@@ -560,6 +595,9 @@ export const ROUTE_TEMPLATES = {
     },
     tracks: {
       detail: "/api/admin/tracks/:id",
+    },
+    artistEntities: {
+      detail: "/api/admin/artist-entities/:id",
     },
     artists: {
       invalidateCache: "/api/admin/artists/:shortId/invalidate-cache",
@@ -584,9 +622,12 @@ export const ROUTE_TEMPLATES = {
         projectDetail: "/api/admin/developer/api-access/projects/:id",
         projectSubscription: "/api/admin/developer/api-access/projects/:id/subscription",
         projectUsage: "/api/admin/developer/api-access/projects/:id/usage",
+        projectAudit: "/api/admin/developer/api-access/projects/:id/audit",
       },
       accounts: "/api/admin/developer/accounts",
       accountDetail: "/api/admin/developer/accounts/:id",
+      portalInvitationDetail: "/api/admin/developer/portal-invitations/:id",
+      portalInvitationResend: "/api/admin/developer/portal-invitations/:id/resend",
       tierDetail: "/api/admin/developer/tiers/:id",
       creemProductDetail: "/api/admin/developer/creem-products/:tierId/:billingPeriod/:mode",
       planOffers: "/api/admin/developer/plans/:tierId/offers",

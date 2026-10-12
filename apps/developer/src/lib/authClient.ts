@@ -19,6 +19,8 @@ import { parseApiErrorResponse } from "@musiccloud/shared";
  * @property message - The backend `message`, if present.
  * @property errorId - The backend's unique id for the failed request, which
  *   connects what a developer reports to the one log line that explains it.
+ * @property data - The response body as parsed JSON, success or failure, for a
+ *   caller that needs more than the outcome. Unset when the body is not JSON.
  */
 export interface AuthResult {
   ok: boolean;
@@ -26,6 +28,7 @@ export interface AuthResult {
   code?: string;
   message?: string;
   errorId?: string;
+  data?: unknown;
 }
 
 /** The methods the portal's auth surface uses. Anything else is a mistake, not a choice. */
@@ -36,8 +39,9 @@ export type AuthRequestMethod = "POST" | "PATCH";
  *
  * Sends `credentials: "same-origin"` so the BFF can read and set the
  * `mc_dev_session` cookie. A successful 2xx yields `{ ok: true }`; a non-2xx
- * reads the error body into `code`, `message` and `errorId`; a thrown fetch
- * (offline, DNS, abort) yields `{ ok: false, status: 0 }`. Never throws.
+ * reads the error body into `code`, `message` and `errorId`; either way the
+ * parsed body is `data`. A thrown fetch (offline, DNS, abort) yields
+ * `{ ok: false, status: 0 }`. Never throws.
  *
  * @param method - The HTTP method to use.
  * @param path - The same-origin endpoint path (e.g. `ENDPOINTS.dev.auth.login`).
@@ -60,16 +64,18 @@ export async function sendAuth(
       signal,
     });
 
-    if (res.ok) return { ok: true, status: res.status };
+    // A body that is not JSON, such as a proxy's 502 page, leaves every field unset.
+    const data: unknown = await res.json().catch(() => undefined);
+    if (res.ok) return { ok: true, status: res.status, data };
 
-    // A non-JSON error body, such as a proxy's 502 page, leaves every field unset.
-    const errorBody = parseApiErrorResponse(await res.json().catch(() => null));
+    const errorBody = parseApiErrorResponse(data ?? null);
     return {
       ok: false,
       status: res.status,
       code: errorBody.error,
       message: errorBody.message,
       errorId: errorBody.errorId,
+      data,
     };
   } catch {
     return { ok: false, status: 0 };

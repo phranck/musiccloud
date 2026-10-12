@@ -1,0 +1,208 @@
+{
+  "id": "8ed2e0b3-aa4c-4e13-bec3-dc7393ed4d6b",
+  "name": "Thom Yorke",
+  "type": "Person",
+  "life-span": {
+    "ended": false,
+    "end": null,
+    "begin": "1968-10-07"
+  },
+  "relations": [
+    {
+      "type": "collaboration",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": [],
+      "artist": {
+        "id": "b8f913bb-28cc-4bc6-a867-08812814962f",
+        "name": "Band Aid 20",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": "1989",
+      "end": "1989",
+      "ended": true,
+      "attributes": [],
+      "artist": {
+        "id": "2371ce0b-7990-4b88-af6f-6a8b01ef369a",
+        "name": "Headless Chickens",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": "1991",
+      "ended": true,
+      "attributes": ["original"],
+      "artist": {
+        "id": "c74f4726-2671-4011-81b6-f70da905c05a",
+        "name": "On a Friday",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["original"],
+      "artist": {
+        "id": "9e299bee-d7e2-49f3-8cd7-d6b28ab204d1",
+        "name": "Atoms for Peace",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": [],
+      "artist": {
+        "id": "0860ed05-2e3a-4872-a44a-8e6d8a7e9696",
+        "name": "The Venus in Furs",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["lead vocals", "original"],
+      "artist": {
+        "id": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+        "name": "Radiohead",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["guitar", "lead vocals"],
+      "artist": {
+        "id": "9055fca5-69bc-4d47-b569-ab2012a19565",
+        "name": "The Smile",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["acoustic guitar", "original"],
+      "artist": {
+        "id": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+        "name": "Radiohead",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["electric guitar", "original"],
+      "artist": {
+        "id": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+        "name": "Radiohead",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["original", "synthesizer"],
+      "artist": {
+        "id": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+        "name": "Radiohead",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["original", "piano"],
+      "artist": {
+        "id": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+        "name": "Radiohead",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["piano"],
+      "artist": {
+        "id": "9055fca5-69bc-4d47-b569-ab2012a19565",
+        "name": "The Smile",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["keyboard"],
+      "artist": {
+        "id": "9055fca5-69bc-4d47-b569-ab2012a19565",
+        "name": "The Smile",
+        "type": "Group"
+      }
+    },
+    {
+      "type": "member of band",
+      "direction": "forward",
+      "target-type": "artist",
+      "begin": null,
+      "end": null,
+      "ended": false,
+      "attributes": ["bass guitar"],
+      "artist": {
+        "id": "9055fca5-69bc-4d47-b569-ab2012a19565",
+        "name": "The Smile",
+        "type": "Group"
+      }
+    }
+  ]
+}

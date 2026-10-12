@@ -46,6 +46,7 @@ import type {
 import {
   ARTIST_NAME_LATERAL_JOIN,
   ARTIST_NAME_SELECT,
+  artistNamePreferenceOrder,
   dateToMs,
   ensureArtistEntityExists,
   ensureArtistEntityForName,
@@ -54,6 +55,7 @@ import {
   type ServiceLinkWrite,
   safeParseArray,
   safeParseJson,
+  UNNAMED_ARTIST_NAME,
   upsertServiceLinks,
 } from "./postgres-shared.js";
 import { mintShortUrl } from "./short-url.js";
@@ -140,12 +142,17 @@ interface ArtistGroupMembershipSqlRow {
   begin_date: string | null;
   begin_date_precision: ArtistGroupMembershipRecord["beginDatePrecision"];
   begin_year: number | null;
+  begin_month: number | null;
+  begin_day: number | null;
   end_date: string | null;
   end_date_precision: ArtistGroupMembershipRecord["endDatePrecision"];
   end_year: number | null;
+  end_month: number | null;
+  end_day: number | null;
   is_current: boolean | null;
   source_provider: string | null;
   source_url: string | null;
+  source_fetched_at: Date | null;
   confidence: number | null;
 }
 
@@ -240,15 +247,7 @@ export async function findArtistInfoEntity(pool: Pool, artistEntityId: string): 
        SELECT n.name
        FROM artist_entity_names n
        WHERE n.artist_entity_id = ae.id
-       ORDER BY
-         CASE
-           WHEN n.name_type = 'canonical' AND n.locale IS NULL THEN 0
-           WHEN n.name_type = 'canonical' THEN 1
-           WHEN n.name_type = 'credit' THEN 2
-           WHEN n.locale IS NULL THEN 3
-           ELSE 4
-         END,
-         n.created_at ASC
+       ORDER BY ${artistNamePreferenceOrder("n")}
        LIMIT 1
      ) artist_name ON TRUE
      WHERE ae.id = $1
@@ -709,7 +708,7 @@ export async function listArtistIdentityEventsByDay(
        ae.id AS artist_entity_id,
        ae.entity_type,
        ae.verification_status,
-       COALESCE(entity_name.name, '[unnamed artist]') AS display_name,
+       COALESCE(entity_name.name, '${UNNAMED_ARTIST_NAME}') AS display_name,
        ev.event_type,
        ev.date_value::text AS date_value,
        ev.date_precision,
@@ -885,12 +884,17 @@ async function listArtistGroupMemberships(
        agm.begin_date::text AS begin_date,
        agm.begin_date_precision,
        agm.begin_year,
+       agm.begin_month,
+       agm.begin_day,
        agm.end_date::text AS end_date,
        agm.end_date_precision,
        agm.end_year,
+       agm.end_month,
+       agm.end_day,
        agm.is_current,
        src.provider AS source_provider,
        src.source_url,
+       src.fetched_at AS source_fetched_at,
        agm.confidence
      FROM artist_group_memberships agm
      JOIN artist_entities group_entity ON group_entity.id = agm.group_artist_entity_id
@@ -935,7 +939,8 @@ async function listArtistGroupMemberships(
        group_name.name,
        member_name.name,
        src.provider,
-       src.source_url
+       src.source_url,
+       src.fetched_at
      ORDER BY
        COALESCE(agm.is_current, false) DESC,
        agm.begin_year ASC NULLS LAST,
@@ -1046,12 +1051,17 @@ export function rowToArtistGroupMembership(row: ArtistGroupMembershipSqlRow): Ar
     beginDate: row.begin_date,
     beginDatePrecision: row.begin_date_precision,
     beginYear: row.begin_year,
+    beginMonth: row.begin_month,
+    beginDay: row.begin_day,
     endDate: row.end_date,
     endDatePrecision: row.end_date_precision,
     endYear: row.end_year,
+    endMonth: row.end_month,
+    endDay: row.end_day,
     isCurrent: row.is_current,
     sourceProvider: row.source_provider,
     sourceUrl: row.source_url,
+    sourceFetchedAt: row.source_fetched_at ? dateToMs(row.source_fetched_at) : null,
     confidence: row.confidence,
   };
 }

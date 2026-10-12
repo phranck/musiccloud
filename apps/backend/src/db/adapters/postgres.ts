@@ -7,6 +7,7 @@ import type {
   AdminRepository,
   AdminUser,
   AlbumListItem,
+  ArtistEntityIdentityRecord,
   ArtistEntityListItem,
   ArtistListItem,
   ArtistProfileRefreshEvent,
@@ -34,6 +35,7 @@ import type {
   TrackListItem,
 } from "../admin-repository.js";
 import type {
+  ApiAccessAuditEntry,
   ApiAccessAuditEvent,
   ApiAccessRepository,
   ApiClient,
@@ -57,8 +59,11 @@ import type {
   ArtistCacheRow,
   ArtistCredit,
   ArtistGroupMembershipRecord,
+  ArtistIdentityCandidate,
+  ArtistIdentityCheckOutcome,
   ArtistIdentityEventRecord,
   ArtistIdentityEventType,
+  ArtistIdentitySnapshot,
   ArtistInfoEntity,
   CachedAlbumResult,
   CachedArtistResult,
@@ -89,6 +94,7 @@ import type {
   SharePageDbResult,
   TrackRepository,
 } from "../repository.js";
+import { getArtistEntityIdentity as adminGetArtistEntityIdentity } from "./postgres-admin-artist-entity.js";
 import {
   clearArtistCache as adminCatalogClearArtistCache,
   countAllData as adminCatalogCountAllData,
@@ -146,6 +152,7 @@ import {
   createApiClientToken as apiAccessCreateClientToken,
   createDeveloperProject as apiAccessCreateDeveloperProject,
   createApiUsageEvent as apiAccessCreateUsageEvent,
+  deleteApiAccessAuditEventsBefore as apiAccessDeleteAuditEventsBefore,
   deleteApiUsageEventsBefore as apiAccessDeleteUsageEventsBefore,
   findActiveApiClientByTokenHash as apiAccessFindActiveClientByTokenHash,
   findApiClientById as apiAccessFindClientById,
@@ -157,6 +164,7 @@ import {
   listApiClientsByProject as apiAccessListClientsByProject,
   listApiClientTokensByClient as apiAccessListClientTokensByClient,
   listDeveloperProjectsByAccount as apiAccessListDeveloperProjectsByAccount,
+  listProjectAuditEvents as apiAccessListProjectAuditEvents,
   revokeApiClientToken as apiAccessRevokeClientToken,
   rotateApiClientToken as apiAccessRotateClientToken,
   setDeveloperProjectSubscription as apiAccessSetDeveloperProjectSubscription,
@@ -165,6 +173,11 @@ import {
   updateApiClient as apiAccessUpdateClient,
   updateDeveloperProject as apiAccessUpdateDeveloperProject,
 } from "./postgres-api-access.js";
+import {
+  listArtistIdentityCandidates as artistIdentityListCandidates,
+  recordArtistIdentityCheck as artistIdentityRecordCheck,
+  recordArtistIdentity as artistIdentityRecordIdentity,
+} from "./postgres-artist-identity.js";
 import {
   beginArtistProfileRefresh as artistProfileRefreshBegin,
   completeArtistProfileRefresh as artistProfileRefreshComplete,
@@ -226,7 +239,6 @@ import {
   contentPageSlugExists as contentPagesContentPageSlugExists,
   createContentPage as contentPagesCreateContentPage,
   deleteContentPage as contentPagesDeleteContentPage,
-  deleteSegmentsForOwner as contentPagesDeleteSegmentsForOwner,
   getAdminUsernamesByIds as contentPagesGetAdminUsernamesByIds,
   getContentPageById as contentPagesGetContentPageById,
   getContentPageBySlug as contentPagesGetContentPageBySlug,
@@ -239,7 +251,6 @@ import {
   listSegmentsForOwner as contentPagesListSegmentsForOwner,
   replaceContentPublications as contentPagesReplaceContentPublications,
   replaceSegmentsForOwner as contentPagesReplaceSegmentsForOwner,
-  setContentPageContentUpdatedAt as contentPagesSetContentPageContentUpdatedAt,
   updateContentPageBody as contentPagesUpdateContentPageBody,
   updateContentPageMeta as contentPagesUpdateContentPageMeta,
 } from "./postgres-content-pages.js";
@@ -539,6 +550,30 @@ export class PostgresAdapter
     return artistsFindArtistEntityIdByIdentifier(this.pool, provider, externalId);
   }
 
+  listArtistIdentityCandidates(params: {
+    limit: number;
+    recheckBefore: Date;
+    retryFailedBefore: Date;
+  }): Promise<ArtistIdentityCandidate[]> {
+    return artistIdentityListCandidates(this.pool, params);
+  }
+
+  recordArtistIdentity(
+    artistEntityId: string,
+    snapshot: ArtistIdentitySnapshot,
+    checkedAt: Date,
+  ): Promise<"matched" | "conflict"> {
+    return artistIdentityRecordIdentity(this.pool, artistEntityId, snapshot, checkedAt);
+  }
+
+  recordArtistIdentityCheck(
+    artistEntityId: string,
+    outcome: Exclude<ArtistIdentityCheckOutcome, "matched">,
+    checkedAt: Date,
+  ): Promise<void> {
+    return artistIdentityRecordCheck(this.pool, artistEntityId, outcome, checkedAt);
+  }
+
   cleanupStaleCache(): Promise<number> {
     return artistsCleanupStaleCache(this.pool);
   }
@@ -771,6 +806,10 @@ export class PostgresAdapter
     sortDir?: "asc" | "desc";
   }): Promise<ListResult<ArtistEntityListItem>> {
     return adminCatalogListArtistEntities(this.pool, params);
+  }
+
+  getArtistEntityIdentity(id: string): Promise<ArtistEntityIdentityRecord | null> {
+    return adminGetArtistEntityIdentity(this.pool, id);
   }
 
   deleteTracks(ids: string[]): Promise<void> {
@@ -1019,16 +1058,8 @@ export class PostgresAdapter
     return contentPagesBulkUpdatePages(this.pool, payload);
   }
 
-  setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void> {
-    return contentPagesSetContentPageContentUpdatedAt(this.pool, slug, when);
-  }
-
   listSegmentsForOwner(ownerSlug: string): Promise<PageSegmentRow[]> {
     return contentPagesListSegmentsForOwner(this.pool, ownerSlug);
-  }
-
-  deleteSegmentsForOwner(ownerSlug: string): Promise<void> {
-    return contentPagesDeleteSegmentsForOwner(this.pool, ownerSlug);
   }
 
   replaceSegmentsForOwner(ownerSlug: string, segments: PageSegmentInputRow[]): Promise<PageSegmentRow[]> {
@@ -1373,6 +1404,14 @@ export class PostgresAdapter
 
   deleteApiUsageEventsBefore(cutoff: number): Promise<number> {
     return apiAccessDeleteUsageEventsBefore(this.pool, cutoff);
+  }
+
+  listProjectAuditEvents(projectId: string, from: number, to: number, limit: number): Promise<ApiAccessAuditEntry[]> {
+    return apiAccessListProjectAuditEvents(this.pool, projectId, from, to, limit);
+  }
+
+  deleteApiAccessAuditEventsBefore(cutoff: number): Promise<number> {
+    return apiAccessDeleteAuditEventsBefore(this.pool, cutoff);
   }
 
   createApiUsageEvent(data: {

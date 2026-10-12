@@ -23,6 +23,20 @@ describe("postAuth", () => {
       code: refusal.error,
       message: refusal.message,
       errorId: refusal.errorId,
+      data: refusal,
+    });
+  });
+
+  it("hands a caller the body of a success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ next: "sign-up" }), { status: 200 })),
+    );
+
+    await expect(postAuth("/api/dev/auth/invitations/redeem", {})).resolves.toEqual({
+      ok: true,
+      status: 200,
+      data: { next: "sign-up" },
     });
   });
 

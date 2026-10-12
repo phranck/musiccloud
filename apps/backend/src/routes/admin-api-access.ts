@@ -32,6 +32,13 @@ import { getApiAccessRepository, getDeveloperRepository, getTierRepository } fro
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { EMAIL_TAKEN_CODE, INVALID_EMAIL_CODE, normalizeEmailAddress } from "../lib/email-address.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
+import { ID_PATTERN } from "../lib/short-id.js";
+import {
+  AUDIT_MAX_LIMIT,
+  isAuditWindowRejection,
+  resolveAuditWindow,
+  toAuditTrailResponse,
+} from "../services/api-access-audit.js";
 import { generateApiToken, toTokenResponse } from "../services/api-access-token.js";
 import { buildApiUsageReport } from "../services/api-usage-report.js";
 import { isUsageWindowRejection, resolveUsageWindow } from "../services/api-usage-window.js";
@@ -219,6 +226,45 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     }
     return reply.send(await buildApiUsageReport(repo, project, window, Date.now()));
   });
+
+  // One project's audit trail for the project screen: who changed its quota,
+  // plan, applications or keys, and when. Bounded by a range and a row
+  // ceiling, and the stored details pass only through an allow-list.
+  app.get<{ Params: { id: string }; Querystring: { from?: string; to?: string; limit?: number } }>(
+    ROUTE_TEMPLATES.admin.developer.apiAccess.projectAudit,
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: { type: "string", minLength: 1, maxLength: 64, pattern: ID_PATTERN.source } },
+          additionalProperties: false,
+        },
+        querystring: {
+          type: "object",
+          properties: {
+            from: { type: "string", minLength: 1, maxLength: 40 },
+            to: { type: "string", minLength: 1, maxLength: 40 },
+            limit: { type: "integer", minimum: 1, maximum: AUDIT_MAX_LIMIT },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request, reply) => {
+      if (!(await requireOwnerOrAdmin(request, reply))) return;
+      const window = resolveAuditWindow(request.query, Date.now());
+      if (isAuditWindowRejection(window)) {
+        return reply.status(400).send(createApiErrorResponse("MC-REQ-0001", { overrideMessage: window.message }));
+      }
+      const repo = await getApiAccessRepository();
+      const project = await repo.findDeveloperProjectById(request.params.id);
+      if (!project) return reply.status(404).send(createApiErrorResponse("MC-RES-0003"));
+      // One row past the ceiling tells a full page from a truncated one.
+      const rows = await repo.listProjectAuditEvents(project.id, window.from, window.to, window.limit + 1);
+      return reply.send(toAuditTrailResponse(project.id, window, rows));
+    },
+  );
 
   app.patch(ROUTE_TEMPLATES.admin.developer.apiAccess.projectDetail, async (request, reply) => {
     const caller = await requireOwnerOrAdmin(request, reply);

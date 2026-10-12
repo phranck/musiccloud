@@ -1,15 +1,14 @@
 import {
+  DashboardActionButton,
+  DashboardActionId,
   DashboardActionStatus,
-  DashboardButton,
-  DashboardButtonVariant,
   DashboardInput,
   SaveActionButton,
 } from "@musiccloud/dashboard-ui";
 import type { EmailBlock } from "@musiccloud/shared";
-import { ArticleIcon, CheckCircleIcon, EnvelopeSimpleIcon, PaperPlaneTiltIcon, TagIcon } from "@phosphor-icons/react";
+import { ArticleIcon, CheckCircleIcon, EnvelopeSimpleIcon, TagIcon } from "@phosphor-icons/react";
 import { useCallback, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -32,14 +31,11 @@ import {
 } from "@/features/templates/hooks/useEmailTemplates";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 import type { EmailTemplateBranding } from "@/shared/contracts/admin-email-templates";
+import { HttpStatus } from "@/shared/utils/api-error";
 
 const EmailTestFeedbackType = {
   Ok: "ok",
   Error: "err",
-} as const;
-
-const HttpStatus = {
-  Conflict: 409,
 } as const;
 
 type EmailTestFeedbackType = (typeof EmailTestFeedbackType)[keyof typeof EmailTestFeedbackType];
@@ -316,16 +312,13 @@ function EmailTemplateHeaderActions({
       )}
       {error && <p className="text-xs text-red-500">{error}</p>}
       {status.showSendTest && (
-        <DashboardButton
+        <DashboardActionButton
+          action={DashboardActionId.Send}
           disabled={!status.canSendTest}
-          leadingIcon={<PaperPlaneTiltIcon weight="duotone" className="size-3.5" />}
+          label={status.isSendingTest ? sendingTestLabel : sendTestLabel}
           onClick={onSendTest}
-          size="action"
           type="button"
-          variant={DashboardButtonVariant.Neutral}
-        >
-          {status.isSendingTest ? sendingTestLabel : sendTestLabel}
-        </DashboardButton>
+        />
       )}
       <SaveActionButton
         type="button"

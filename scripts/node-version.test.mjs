@@ -45,9 +45,20 @@ test("declares the pinned major as the engines minimum", async () => {
 test("types Node APIs against the pinned major in every workspace", async () => {
   // The lockfile is what every workspace resolves, including the optional
   // `@types/node` peer of Vite and Astro in workspaces that declare none. That
-  // peer takes the newest match unless the root override holds it to the pin.
+  // peer takes the newest match unless the override in pnpm-workspace.yaml
+  // holds it to the pin.
   const lockfile = await readRepositoryFile("pnpm-lock.yaml");
   const majors = new Set([...lockfile.matchAll(/@types\/node@(\d+)\./g)].map((match) => match[1]));
 
   assert.deepEqual([...majors], [pinnedMajor]);
+});
+
+test("keeps the @types/node override where pnpm reads it", async () => {
+  // pnpm 10 ignores a `pnpm` field in package.json and warns about it, so an
+  // override there holds nothing on the next install that re-resolves.
+  const manifest = JSON.parse(await readRepositoryFile("package.json"));
+  const workspace = await readRepositoryFile("pnpm-workspace.yaml");
+
+  assert.equal(manifest.pnpm, undefined);
+  assert.match(workspace, new RegExp(`^overrides:\\n  "@types/node": "\\^${pinnedMajor}\\.`, "m"));
 });

@@ -9,11 +9,10 @@ import type { DeveloperProjectResponse, DeveloperProjectSubscriptionResponse } f
 import { TierDropdown } from "@/features/developer/components/TierDropdown";
 import { useSetProjectSubscription, useUpdateDeveloperProject } from "@/features/developer/hooks/useDeveloperData";
 import { parseLimitOverride } from "@/features/developer/lib";
+import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
-
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /**
  * Label and explanation per subscription state.
@@ -130,11 +129,11 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
       <DashboardSection.Body>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <span className={labelClass}>{dm.colTier}</span>
+            <FormLabelText>{dm.colTier}</FormLabelText>
             <TierDropdown value={tierId} onChange={setTierDraft} aria-label={dm.colTier} />
           </div>
           <div>
-            <span className={labelClass}>{dm.projectSubscriptionState}</span>
+            <FormLabelText>{dm.projectSubscriptionState}</FormLabelText>
             <Dropdown
               value={state}
               onChange={setStateDraft}
@@ -158,9 +157,7 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
       <DashboardSection.Body>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor="project-override-minute" className={labelClass}>
-              {dm.projectOverrideMinute}
-            </label>
+            <FormLabel htmlFor="project-override-minute">{dm.projectOverrideMinute}</FormLabel>
             <DashboardInput
               id="project-override-minute"
               type="number"
@@ -174,9 +171,7 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
             </p>
           </div>
           <div>
-            <label htmlFor="project-override-day" className={labelClass}>
-              {dm.projectOverrideDay}
-            </label>
+            <FormLabel htmlFor="project-override-day">{dm.projectOverrideDay}</FormLabel>
             <DashboardInput
               id="project-override-day"
               type="number"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAdminName, formatEnglishDate, formatEnglishNumber } from "@/lib/format";
+import { formatAdminName, formatEnglishDate, formatEnglishNumber, formatPartialDate } from "@/lib/format";
 
 describe("English dashboard formatting", () => {
   it("formats dates in English while preserving explicit timezone options", () => {
@@ -15,6 +15,23 @@ describe("English dashboard formatting", () => {
 
   it("formats numbers in English deterministically", () => {
     expect(formatEnglishNumber(1234)).toBe("1,234");
+  });
+});
+
+describe("formatPartialDate", () => {
+  it("writes only the parts the precision covers", () => {
+    expect(formatPartialDate({ precision: "day", year: 1968, month: 10, day: 7 })).toBe("October 7, 1968");
+    expect(formatPartialDate({ precision: "month", year: 1968, month: 10, day: null })).toBe("October 1968");
+    expect(formatPartialDate({ precision: "year", year: 1968, month: null, day: null })).toBe("1968");
+  });
+
+  it("keeps a first of the month on that day whatever the local time zone", () => {
+    expect(formatPartialDate({ precision: "day", year: 1985, month: 1, day: 1 })).toBe("January 1, 1985");
+  });
+
+  it("answers null where not even the year is known", () => {
+    expect(formatPartialDate(null)).toBeNull();
+    expect(formatPartialDate({ precision: "unknown", year: null, month: null, day: null })).toBeNull();
   });
 });
 

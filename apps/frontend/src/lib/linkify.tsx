@@ -1,6 +1,6 @@
+import { PlatformIcon } from "@musiccloud/dashboard-ui/platform-icon";
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import type { ReactNode } from "react";
-import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { type BioLink, BioLinkKind, resolveBioLink } from "@/lib/bio/bioLink";
 
 /**

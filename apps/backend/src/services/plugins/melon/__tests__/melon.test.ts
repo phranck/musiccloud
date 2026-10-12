@@ -60,6 +60,31 @@ describe("Melon: searchTrack", () => {
     const result = await melonAdapter.searchTrack({ title: "Nonexistent", artist: "Nobody" });
     expect(result.found).toBe(false);
   });
+
+  /**
+   * Melon answers a search without results with 200, so an error status is an
+   * outage. Answering "not found" would make the resolver skip Melon for that
+   * track for a month.
+   */
+  it("throws when the search page fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Busy", { status: 503 }));
+
+    await expect(melonAdapter.searchTrack({ title: "Dynamite", artist: "BTS" })).rejects.toThrow(/503/);
+  });
+
+  it("throws when every song page of a search fails", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response('<i data-song-no="1"></i><i data-song-no="2"></i>', { status: 200 }))
+      .mockResolvedValue(new Response("Busy", { status: 500 }));
+
+    await expect(melonAdapter.searchTrack({ title: "Dynamite", artist: "BTS" })).rejects.toThrow(/500/);
+  });
+
+  it("throws when the album search page fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Busy", { status: 429 }));
+
+    await expect(melonAdapter.searchAlbum?.({ title: "BE", artist: "BTS" })).rejects.toThrow(/429/);
+  });
 });
 
 describe("Melon: adapter metadata", () => {

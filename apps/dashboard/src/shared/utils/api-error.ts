@@ -1,5 +1,11 @@
 import { parseApiErrorResponse } from "@musiccloud/shared";
 
+/** The response statuses the dashboard answers differently from any other failure. */
+export const HttpStatus = {
+  NotFound: 404,
+  Conflict: 409,
+} as const;
+
 export interface ApiRequestError extends Error {
   status?: number;
   responseMessage?: string | null;
@@ -21,6 +27,18 @@ function extractApiErrorDetails(payload: unknown): unknown[] | null {
   if (typeof payload !== "object" || payload === null) return null;
   const details = (payload as Record<string, unknown>).details;
   return Array.isArray(details) ? details : null;
+}
+
+/**
+ * Says why a read failed in the server's words, with the error id an operator
+ * quotes when reporting it.
+ *
+ * @param error - What the request threw.
+ * @param errorIdTemplate - How to name the id, with `{id}` where it goes.
+ * @returns The message, followed by the error id where the response carried one.
+ */
+export function describeRequestFailure(error: ApiRequestError, errorIdTemplate: string): string {
+  return error.errorId ? `${error.message} ${errorIdTemplate.replace("{id}", error.errorId)}` : error.message;
 }
 
 /**

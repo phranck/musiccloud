@@ -102,19 +102,20 @@ export function EmailTemplateListPage() {
       {
         id: "name",
         header: m.templateName,
-        className: "w-[24rem]",
+        className: "w-72",
         sortKey: (tpl) => tpl.name.toLowerCase(),
         cell: (tpl) => (
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={() => navigate(`/email-templates/${tpl.id}`)}
-              className="font-medium text-[var(--ds-text)] hover:underline text-left font-mono"
+              title={tpl.name}
+              className="min-w-0 truncate font-medium text-[var(--ds-text)] hover:underline text-left font-mono"
             >
               {tpl.name}
             </button>
             {tpl.isSystemTemplate && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[var(--ds-surface-hover)] text-[var(--ds-text-muted)]">
+              <span className="inline-flex shrink-0 items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[var(--ds-surface-hover)] text-[var(--ds-text-muted)]">
                 <LockIcon weight="duotone" className="w-2.5 h-2.5" />
                 {m.systemBadge}
               </span>
@@ -124,14 +125,17 @@ export function EmailTemplateListPage() {
       },
       {
         id: "subject",
+        secondary: true,
         header: m.templateSubject,
         cell: (tpl) => <span className="block truncate text-[var(--ds-text-muted)]">{tpl.subject || "—"}</span>,
       },
       {
         id: "createdAt",
+        secondary: true,
         header: m.tableCreated,
-        // Narrow and right-aligned so the date sits directly beside the row actions.
-        className: "w-28 text-right",
+        // Right-aligned so the date sits directly beside the row actions, and
+        // as narrow as its heading allows on one line.
+        className: "w-32 text-right",
         sortKey: (tpl) => tpl.createdAt,
         cell: (tpl) => (
           <span className="whitespace-nowrap text-xs text-[var(--ds-text-muted)]">

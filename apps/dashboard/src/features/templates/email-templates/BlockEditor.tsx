@@ -291,11 +291,11 @@ function BlockForm({ block, onChange, registerMarkdownInsert }: BlockFormProps) 
 const MARKDOWN_EDITOR_FALLBACK_HEIGHT = "h-24";
 
 /**
- * localStorage key under which the text-block Markdown editor persists its
- * drag-resized height. All text blocks share one remembered height, so the
- * editor opens at the user's last chosen size across templates and reloads.
+ * The identity under which the text-block Markdown editor remembers its dragged
+ * height. Every text block passes the same one, so they share one height and
+ * open at the size last dragged to, across templates and reloads.
  */
-const MARKDOWN_EDITOR_HEIGHT_STORAGE_KEY = "musiccloud.emailTemplate.blockEditorHeight";
+const TEXT_BLOCK_EDITOR_HEIGHT_ID = "email-template-text-block";
 
 function TextBlockForm({
   block,
@@ -315,7 +315,7 @@ function TextBlockForm({
         rows={5}
         resizable
         bare
-        storageKey={MARKDOWN_EDITOR_HEIGHT_STORAGE_KEY}
+        storageKey={TEXT_BLOCK_EDITOR_HEIGHT_ID}
         placeholder={messages.emailTemplates.bodyText}
         registerInsert={registerMarkdownInsert}
       />

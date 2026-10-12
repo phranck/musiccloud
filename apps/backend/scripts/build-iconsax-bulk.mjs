@@ -11,16 +11,24 @@
 // looks in.
 //
 // Called from `tsup.config.ts` `onSuccess` (build) and from the dev script in
-// `package.json` (watch mode).
+// `package.json` (watch mode), which write beside the bundle in `dist`. The test
+// scripts pass `node_modules/.cache/icons/iconsax-bulk` as the first argument
+// instead, because the dev watcher empties `dist` on every rebuild and a test
+// must not read it. `src/services/markdown/icon-sets.ts` reads from that same
+// directory when it runs from the source.
+//
+// An icon whose file already holds the same shapes is left alone, and only
+// files no icon produces are removed. A second run against the same package
+// therefore changes nothing that a test reading beside it can see.
 
-import { mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const packageRoot = realpathSync(join(here, "..", "node_modules", "iconsax-react"));
+const backendRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const packageRoot = realpathSync(join(backendRoot, "node_modules", "iconsax-react"));
 const source = join(packageRoot, "dist", "esm");
-const destination = join(here, "..", "dist", "icons", "iconsax-bulk");
+const destination = resolve(backendRoot, process.argv[2] ?? join("dist", "icons", "iconsax-bulk"));
 
 /** The box every Iconsax icon is drawn in. */
 const VIEW_BOX = "0 0 24 24";
@@ -77,10 +85,9 @@ function shapesOf(block) {
   return shapes.length > 0 ? shapes.join("") : null;
 }
 
-rmSync(destination, { recursive: true, force: true });
 mkdirSync(destination, { recursive: true });
 
-let written = 0;
+const produced = new Set();
 let skipped = 0;
 for (const file of readdirSync(source)) {
   if (!file.endsWith(".js") || file.startsWith("_")) continue;
@@ -92,18 +99,22 @@ for (const file of readdirSync(source)) {
     continue;
   }
 
-  writeFileSync(
-    join(destination, `${publishedName(file.slice(0, -3))}.svg`),
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW_BOX}" fill="currentColor">${shapes}</svg>`,
-  );
-  written += 1;
+  const fileName = `${publishedName(file.slice(0, -3))}.svg`;
+  const target = join(destination, fileName);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW_BOX}" fill="currentColor">${shapes}</svg>`;
+  if (!existsSync(target) || readFileSync(target, "utf8") !== svg) writeFileSync(target, svg);
+  produced.add(fileName);
 }
 
-if (written === 0) {
+if (produced.size === 0) {
   console.error("[build-iconsax-bulk] no icon carried a Bulk variant, which cannot be right.");
   process.exit(1);
 }
 
+for (const file of readdirSync(destination)) {
+  if (!produced.has(file)) rmSync(join(destination, file), { recursive: true, force: true });
+}
+
 console.log(
-  `[build-iconsax-bulk] wrote ${written} icons -> ${destination}${skipped ? ` (${skipped} without Bulk)` : ""}`,
+  `[build-iconsax-bulk] ${produced.size} icons in ${destination}${skipped ? ` (${skipped} without Bulk)` : ""}`,
 );

@@ -233,11 +233,36 @@ describe("Bandcamp: searchTrack", () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.6);
   });
 
-  it("should return not found on HTTP error", async () => {
+  /**
+   * Bandcamp answers a search without results with an empty list, so an error
+   * status is an outage. Answering "not found" would make the resolver skip
+   * Bandcamp for that track for a month.
+   */
+  it("throws when the search fails", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
-    const result = await bandcampAdapter.searchTrack({ title: "Test", artist: "Test" });
-    expect(result.found).toBe(false);
+    await expect(bandcampAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/500/);
+  });
+
+  it("throws when every candidate page of a search fails", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        Response.json({
+          results: [
+            { type: "t", url: "https://artist.bandcamp.com/track/one", name: "One", band_name: "Artist" },
+            { type: "t", url: "https://artist.bandcamp.com/track/two", name: "Two", band_name: "Artist" },
+          ],
+        }),
+      )
+      .mockResolvedValue(new Response("Busy", { status: 503 }));
+
+    await expect(bandcampAdapter.searchTrack({ title: "One", artist: "Artist" })).rejects.toThrow(/503/);
+  });
+
+  it("throws when the album search fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 429 }));
+
+    await expect(bandcampAdapter.searchAlbum?.({ title: "Test", artist: "Test" })).rejects.toThrow(/429/);
   });
 });
 

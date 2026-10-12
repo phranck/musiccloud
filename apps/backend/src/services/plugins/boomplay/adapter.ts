@@ -31,10 +31,10 @@
  * yields `undefined` rather than zero so the downstream display can
  * distinguish "no duration data" from "zero-length track".
  */
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -44,6 +44,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { throwIfNoCandidateAnswered } from "../_shared/candidates.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
@@ -99,6 +100,22 @@ async function boomplayFetch(url: string, timeoutMs = 8000): Promise<Response> {
   );
 }
 
+/**
+ * Fetches a Boomplay search page.
+ *
+ * @param query - The search text.
+ * @param kind - What the search is for, which the error names.
+ * @returns The page, which lists results by id.
+ * @throws When Boomplay answers with an error status, such as the 403 it gives
+ *   a client it refuses. A search without results is a page without result
+ *   ids, so an error status is a failure rather than an answer.
+ */
+async function fetchSearchPage(query: string, kind: ResourceKind): Promise<Response> {
+  const response = await boomplayFetch(`https://www.boomplay.com/search/default/${encodeURIComponent(query)}`);
+  if (!response.ok) throw serviceHttpError(Service.Boomplay, response.status, kind, query, Operation.Search);
+  return response;
+}
+
 /** Extract JSON-LD MusicRecording from a Boomplay song page */
 function parseJsonLd(html: string): BoomplayJsonLd | null {
   const match = /application\/ld\+json">\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
@@ -117,7 +134,8 @@ function parseJsonLd(html: string): BoomplayJsonLd | null {
 async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   const url = `https://www.boomplay.com/songs/${songId}`;
   const response = await boomplayFetch(url);
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.Boomplay, response.status, ResourceKind.Track, songId);
 
   const html = await response.text();
   const jsonLd = parseJsonLd(html);
@@ -157,7 +175,8 @@ function parseAlbumJsonLd(html: string): BoomplayAlbumJsonLd | null {
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const url = `https://www.boomplay.com/albums/${albumId}`;
   const response = await boomplayFetch(url);
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.Boomplay, response.status, ResourceKind.Album, albumId);
 
   const html = await response.text();
   const jsonLd = parseAlbumJsonLd(html);
@@ -177,9 +196,7 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
 }
 
 async function searchBoomplayAlbumIds(query: string): Promise<string[]> {
-  const searchUrl = `https://www.boomplay.com/search/default/${encodeURIComponent(query)}`;
-  const response = await boomplayFetch(searchUrl);
-  if (!response.ok) return [];
+  const response = await fetchSearchPage(query, ResourceKind.Album);
 
   const html = await response.text();
 
@@ -227,76 +244,65 @@ export const boomplayAdapter: ServiceAdapter = {
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = searchText(query);
 
-    try {
-      // Step 1: Fetch search page and extract song IDs
-      const searchUrl = `https://www.boomplay.com/search/default/${encodeURIComponent(q)}`;
-      const response = await boomplayFetch(searchUrl);
+    // Step 1: Fetch search page and extract song IDs
+    const response = await fetchSearchPage(q, ResourceKind.Track);
+    const html = await response.text();
 
-      if (!response.ok) {
-        log.debug("Boomplay", "Search page failed:", response.status);
-        return { found: false, confidence: 0, matchMethod: "search" };
+    // Extract data-id attributes (song IDs embedded in search results)
+    const idMatches = html.matchAll(/data-id="(\d+)"/g);
+    const songIds: string[] = [];
+    const seen = new Set<string>();
+    for (const m of idMatches) {
+      if (m[1] && !seen.has(m[1])) {
+        seen.add(m[1]);
+        songIds.push(m[1]);
       }
+      if (songIds.length >= 5) break;
+    }
 
-      const html = await response.text();
-
-      // Extract data-id attributes (song IDs embedded in search results)
-      const idMatches = html.matchAll(/data-id="(\d+)"/g);
-      const songIds: string[] = [];
-      const seen = new Set<string>();
-      for (const m of idMatches) {
-        if (m[1] && !seen.has(m[1])) {
-          seen.add(m[1]);
-          songIds.push(m[1]);
-        }
-        if (songIds.length >= 5) break;
-      }
-
-      if (songIds.length === 0) {
-        log.debug("Boomplay", "Search returned no song IDs for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Boomplay", `Search returned ${songIds.length} IDs for: ${q}`);
-
-      // Step 2: Fetch each song page in parallel for JSON-LD metadata
-      const trackResults = await Promise.allSettled(songIds.map((id) => fetchTrackById(id)));
-
-      let bestMatch: NormalizedTrack | null = null;
-      let bestConfidence = 0;
-
-      for (let i = 0; i < trackResults.length; i++) {
-        const result = trackResults[i];
-        if (result.status !== "fulfilled" || !result.value) continue;
-
-        const track = result.value;
-        const confidence = scoreSearchCandidate(query, track, i);
-
-        log.debug(
-          "Boomplay",
-          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-        );
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        log.debug("Boomplay", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return {
-        found: true,
-        track: bestMatch,
-        confidence: bestConfidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("Boomplay", "Search failed:", error instanceof Error ? error.message : error);
+    if (songIds.length === 0) {
+      log.debug("Boomplay", "Search returned no song IDs for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Boomplay", `Search returned ${songIds.length} IDs for: ${q}`);
+
+    // Step 2: Fetch each song page in parallel for JSON-LD metadata
+    const trackResults = await Promise.allSettled(songIds.map((id) => fetchTrackById(id)));
+    throwIfNoCandidateAnswered(trackResults);
+
+    let bestMatch: NormalizedTrack | null = null;
+    let bestConfidence = 0;
+
+    for (let i = 0; i < trackResults.length; i++) {
+      const result = trackResults[i];
+      if (result.status !== "fulfilled" || !result.value) continue;
+
+      const track = result.value;
+      const confidence = scoreSearchCandidate(query, track, i);
+
+      log.debug(
+        "Boomplay",
+        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = track;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("Boomplay", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
   },
 
   albumCapabilities: {
@@ -318,37 +324,33 @@ export const boomplayAdapter: ServiceAdapter = {
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
-    try {
-      const albumIds = await searchBoomplayAlbumIds(q);
-      if (albumIds.length === 0) {
-        log.debug("Boomplay", "Album search returned no IDs for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Boomplay", `Album search returned ${albumIds.length} IDs for: ${q}`);
-
-      const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
-
-      for (const result of albumResults) {
-        if (result.status !== "fulfilled" || !result.value) continue;
-        const album = result.value;
-        const confidence = scoreAlbumCandidate(query, album);
-        log.debug("Boomplay", `  "${album.title}" -> confidence=${confidence.toFixed(3)}`);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = album;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("Boomplay", "Album search failed:", error instanceof Error ? error.message : error);
+    const albumIds = await searchBoomplayAlbumIds(q);
+    if (albumIds.length === 0) {
+      log.debug("Boomplay", "Album search returned no IDs for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Boomplay", `Album search returned ${albumIds.length} IDs for: ${q}`);
+
+    const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
+    throwIfNoCandidateAnswered(albumResults);
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const result of albumResults) {
+      if (result.status !== "fulfilled" || !result.value) continue;
+      const album = result.value;
+      const confidence = scoreAlbumCandidate(query, album);
+      log.debug("Boomplay", `  "${album.title}" -> confidence=${confidence.toFixed(3)}`);
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = album;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

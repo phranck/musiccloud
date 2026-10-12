@@ -1,7 +1,8 @@
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
+import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
@@ -19,11 +20,18 @@ import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 /**
  * @file Pandora adapter: internal API + page-scrape hybrid.
  *
- * Keyless (always available in terms of config), but Pandora geo-
- * blocks non-US IPs and will return 403 from outside North America.
- * The backend runs on Zerops (EU) plus Vercel (us-east-1); only the
- * US hop gets through. Track resolution fails silently from EU
- * deployments, which is known and intentional.
+ * Keyless (always available in terms of config). Pandora restricts
+ * non-US IPs: the homepage of a non-US client redirects to `/restricted`
+ * and sets no `csrftoken` cookie. The search answers such a client anyway,
+ * without the CSRF pair (checked from Austria on 2026-10-12).
+ *
+ * ## A failure is not a miss
+ *
+ * An empty search answers 200 with an empty `results` list and an empty
+ * `annotations` map, and a page for an id Pandora does not have answers
+ * 404. Only those two mean "nothing". An error status, a body that is not
+ * that envelope and a page without its data block all throw, because the
+ * resolver skips a service for a month after a returned miss.
  *
  * ## CSRF token from homepage cookie
  *
@@ -122,8 +130,12 @@ async function pandoraFetch(url: string, timeoutMs = 8000): Promise<Response> {
 }
 
 async function pandoraApiFetch(endpoint: string, body: unknown): Promise<Response> {
+  // The pair goes along when the homepage handed one out. Where it does not,
+  // such as a restricted region, the search still answers without it.
   const csrfToken = await getCsrfToken();
-  if (!csrfToken) throw new Error("Pandora: No CSRF token available");
+  const csrfHeaders: Record<string, string> = csrfToken
+    ? { "X-CsrfToken": csrfToken, Cookie: `csrftoken=${csrfToken}` }
+    : {};
 
   return fetchWithTimeout(
     `${PANDORA_BASE}${endpoint}`,
@@ -132,8 +144,7 @@ async function pandoraApiFetch(endpoint: string, body: unknown): Promise<Respons
       headers: {
         "User-Agent": SCRAPER_USER_AGENT,
         "Content-Type": "application/json",
-        "X-CsrfToken": csrfToken,
-        Cookie: `csrftoken=${csrfToken}`,
+        ...csrfHeaders,
       },
       body: JSON.stringify(body),
     },
@@ -183,6 +194,39 @@ interface PandoraAlbumData {
 interface PandoraSearchResponse {
   results?: string[];
   annotations?: Record<string, PandoraTrackData | PandoraAlbumData>;
+}
+
+/**
+ * Runs Pandora's catalog search for one kind of object.
+ *
+ * @param query - The search text.
+ * @param type - `TR` for tracks, `AL` for albums.
+ * @param kind - What the search is for, which an error names.
+ * @returns The ids found and their annotations. A search without results
+ *   answers an empty `results` list, so an empty list is an answer.
+ * @throws When the request fails, answers with an error status, carries a
+ *   body that is not JSON, or lacks the `results` list or the `annotations`
+ *   map that every answer has, because each of those is a failure rather
+ *   than an answer.
+ */
+async function pandoraSearch(
+  query: string,
+  type: "TR" | "AL",
+  kind: ResourceKind,
+): Promise<Required<PandoraSearchResponse>> {
+  const response = await pandoraApiFetch("/api/v3/sod/search", { query, types: [type], count: 5 });
+  if (!response.ok) throw serviceHttpError(Service.Pandora, response.status, kind, query, Operation.Search);
+
+  let body: PandoraSearchResponse | null;
+  try {
+    body = (await response.json()) as PandoraSearchResponse | null;
+  } catch (error) {
+    throw new UpstreamUnavailableError("pandora", `search for "${query}" answered with a body that is not JSON`, error);
+  }
+  if (!body || !Array.isArray(body.results) || !body.annotations || typeof body.annotations !== "object") {
+    throw new UpstreamUnavailableError("pandora", `search for "${query}" answered without results and annotations`);
+  }
+  return { results: body.results, annotations: body.annotations };
 }
 
 // --- Track data mapping ---
@@ -285,10 +329,19 @@ function mapAlbumData(data: PandoraAlbumData, sourceId: string): NormalizedAlbum
   };
 }
 
+/**
+ * Reads an album from its Pandora page.
+ *
+ * @param albumPath - The path after `/artist/`.
+ * @returns The album, or `null` when Pandora answers 404 for it.
+ * @throws When Pandora answers with another error status, or with a page that
+ *   carries no album data.
+ */
 async function fetchAlbumByPath(albumPath: string): Promise<NormalizedAlbum | null> {
   const pageUrl = `${PANDORA_BASE}/artist/${albumPath}`;
   const response = await pandoraFetch(pageUrl);
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.Pandora, response.status, ResourceKind.Album, albumPath);
 
   const html = await response.text();
 
@@ -342,7 +395,9 @@ async function fetchAlbumByPath(albumPath: string): Promise<NormalizedAlbum | nu
     }
   }
 
-  return null;
+  // Pandora answers 404 for an album it does not have, so a page that loaded
+  // without an album in it is not an answer about this album.
+  throw new UpstreamUnavailableError("pandora", `album page ${albumPath} carried no album data`);
 }
 
 // --- Adapter ---
@@ -391,66 +446,50 @@ export const pandoraAdapter = {
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = searchText(query);
 
-    try {
-      const response = await pandoraApiFetch("/api/v3/sod/search", {
-        query: q,
-        types: ["TR"],
-        count: 5,
-      });
+    const result = await pandoraSearch(q, "TR", ResourceKind.Track);
+    const trackIds = result.results.filter((id) => id.startsWith("TR:"));
+    const annotations = result.annotations;
 
-      if (!response.ok) {
-        log.debug("Pandora", "Search API failed:", response.status);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      const result = (await response.json()) as PandoraSearchResponse;
-      const trackIds = (result.results ?? []).filter((id) => id.startsWith("TR:"));
-      const annotations = result.annotations ?? {};
-
-      if (trackIds.length === 0) {
-        log.debug("Pandora", "Search returned no tracks for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Pandora", `Search returned ${trackIds.length} tracks for: ${q}`);
-
-      let bestMatch: NormalizedTrack | null = null;
-      let bestConfidence = 0;
-
-      for (let i = 0; i < trackIds.length; i++) {
-        const data = annotations[trackIds[i]];
-        if (!data?.name) continue;
-
-        const urlPath = data.shareableUrlPath?.replace(/^\/artist\//, "") ?? `search-${i}`;
-        const track = mapTrackData(data, urlPath);
-        const confidence = scoreSearchCandidate(query, track, i);
-
-        log.debug(
-          "Pandora",
-          `  [${i}] "${track.title}" by ${track.artists.join(", ")} → confidence=${confidence.toFixed(3)}`,
-        );
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        log.debug("Pandora", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return {
-        found: true,
-        track: bestMatch,
-        confidence: bestConfidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("Pandora", "Search failed:", error instanceof Error ? error.message : error);
+    if (trackIds.length === 0) {
+      log.debug("Pandora", "Search returned no tracks for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Pandora", `Search returned ${trackIds.length} tracks for: ${q}`);
+
+    let bestMatch: NormalizedTrack | null = null;
+    let bestConfidence = 0;
+
+    for (let i = 0; i < trackIds.length; i++) {
+      const data = annotations[trackIds[i]];
+      if (!data?.name) continue;
+
+      const urlPath = data.shareableUrlPath?.replace(/^\/artist\//, "") ?? `search-${i}`;
+      const track = mapTrackData(data, urlPath);
+      const confidence = scoreSearchCandidate(query, track, i);
+
+      log.debug(
+        "Pandora",
+        `  [${i}] "${track.title}" by ${track.artists.join(", ")} → confidence=${confidence.toFixed(3)}`,
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = track;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("Pandora", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
   },
 
   albumCapabilities: {
@@ -472,54 +511,39 @@ export const pandoraAdapter = {
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
-    try {
-      const response = await pandoraApiFetch("/api/v3/sod/search", {
-        query: q,
-        types: ["AL"],
-        count: 5,
-      });
 
-      if (!response.ok) {
-        log.debug("Pandora", "Album search API failed:", response.status);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
+    const result = await pandoraSearch(q, "AL", ResourceKind.Album);
+    const albumIds = result.results.filter((id) => id.startsWith("AL:"));
+    const annotations = result.annotations;
 
-      const result = (await response.json()) as PandoraSearchResponse;
-      const albumIds = (result.results ?? []).filter((id) => id.startsWith("AL:"));
-      const annotations = result.annotations ?? {};
-
-      if (albumIds.length === 0) {
-        log.debug("Pandora", "Album search returned no albums for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Pandora", `Album search returned ${albumIds.length} albums for: ${q}`);
-
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
-
-      for (let i = 0; i < albumIds.length; i++) {
-        const data = annotations[albumIds[i]] as PandoraAlbumData | undefined;
-        if (!data?.name) continue;
-
-        const urlPath = (data.shareableUrlPath ?? "").replace(/^\/artist\//, "");
-        const album = mapAlbumData(data, urlPath || `search-${i}`);
-        const confidence = scoreAlbumCandidate(query, album);
-        log.debug("Pandora", `  "${data.name}" -> confidence=${confidence.toFixed(3)}`);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = album;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("Pandora", "Album search failed:", error instanceof Error ? error.message : error);
+    if (albumIds.length === 0) {
+      log.debug("Pandora", "Album search returned no albums for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Pandora", `Album search returned ${albumIds.length} albums for: ${q}`);
+
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (let i = 0; i < albumIds.length; i++) {
+      const data = annotations[albumIds[i]] as PandoraAlbumData | undefined;
+      if (!data?.name) continue;
+
+      const urlPath = (data.shareableUrlPath ?? "").replace(/^\/artist\//, "");
+      const album = mapAlbumData(data, urlPath || `search-${i}`);
+      const confidence = scoreAlbumCandidate(query, album);
+      log.debug("Pandora", `  "${data.name}" -> confidence=${confidence.toFixed(3)}`);
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = album;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
 

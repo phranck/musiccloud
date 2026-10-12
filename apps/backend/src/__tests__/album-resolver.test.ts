@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Mock: repository ─────────────────────────────────────────────────────────
 
@@ -128,7 +128,7 @@ vi.mock("../services/index.js", () => ({
 
 // Import AFTER mocks are set up
 const { resolveAlbumUrl, resolveAlbumTextSearch } = await import("../services/album-resolver.js");
-const { findInactiveServiceFor } = await import("../services/index.js");
+const { findInactiveServiceFor, getActiveAdapters } = await import("../services/index.js");
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -450,5 +450,72 @@ describe("AlbumResolver: ISRC-based inference", () => {
     const result = await resolveAlbumUrl("https://open.spotify.com/album/6dVIqQ8qmQ5GBnJ9shOYGE");
     const deezerLink = result.links.find((l) => l.service === "deezer");
     expect(deezerLink).toBeUndefined();
+  });
+});
+
+describe("AlbumResolver: Apple artwork", () => {
+  const APPLE_COVER = "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/aa/bb/cc/source/640x640bb.jpg";
+  const SPOTIFY_COVER = "https://i.scdn.co/image/ab67616d0000b273";
+  const APPLE_ALBUM_URL = "https://music.apple.com/us/album/random-access-memories/617154241";
+
+  const mockAppleAdapter = {
+    id: "apple-music" as const,
+    displayName: "Apple Music",
+    detectUrl: vi.fn().mockReturnValue(null),
+    detectAlbumUrl: vi.fn((url: string) => (url.includes("music.apple.com") ? "us:617154241" : null)),
+    getAlbum: vi.fn(),
+    findAlbumByUpc: vi.fn().mockResolvedValue(null),
+    searchAlbum: vi.fn().mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" }),
+    albumCapabilities: { supportsUpc: true, supportsAlbumSearch: true, supportsTrackListing: true },
+    capabilities: { supportsIsrc: true, supportsPreview: false, supportsArtwork: false },
+    getTrack: vi.fn(),
+    findByIsrc: vi.fn().mockResolvedValue(null),
+    searchTrack: vi.fn().mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" }),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRepo.findAlbumByUrl.mockResolvedValue(null);
+    mockRepo.findAlbumByServiceLink.mockResolvedValue(null);
+    mockRepo.findAlbumByUpc.mockResolvedValue(null);
+    vi.mocked(getActiveAdapters).mockResolvedValue([
+      mockDeezerAdapter,
+      mockAppleAdapter,
+      mockSpotifyAdapter,
+      mockTidalAdapter,
+    ] as never);
+    mockAppleAdapter.getAlbum.mockResolvedValue({
+      ...MOCK_SOURCE_ALBUM,
+      sourceService: "apple-music" as const,
+      sourceId: "617154241",
+      artworkUrl: APPLE_COVER,
+      webUrl: APPLE_ALBUM_URL,
+    });
+    mockTidalAdapter.findAlbumByUpc.mockResolvedValue(null);
+    mockTidalAdapter.searchAlbum.mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" });
+  });
+
+  afterEach(() => {
+    vi.mocked(getActiveAdapters).mockResolvedValue([mockDeezerAdapter, mockSpotifyAdapter, mockTidalAdapter] as never);
+  });
+
+  it("replaces an Apple album's cover with Spotify's, ahead of Deezer's", async () => {
+    mockSpotifyAdapter.findAlbumByUpc.mockResolvedValue({ ...MOCK_SOURCE_ALBUM, artworkUrl: SPOTIFY_COVER });
+    mockDeezerAdapter.findAlbumByUpc.mockResolvedValue(MOCK_DEEZER_ALBUM);
+
+    const result = await resolveAlbumUrl(APPLE_ALBUM_URL);
+
+    expect(result.sourceAlbum.artworkUrl).toBe(SPOTIFY_COVER);
+  });
+
+  it("keeps no cover for an Apple album when no other service has one", async () => {
+    mockSpotifyAdapter.findAlbumByUpc.mockResolvedValue(null);
+    mockSpotifyAdapter.searchAlbum.mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" });
+    mockDeezerAdapter.findAlbumByUpc.mockResolvedValue(null);
+    mockDeezerAdapter.searchAlbum.mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" });
+
+    const result = await resolveAlbumUrl(APPLE_ALBUM_URL);
+
+    expect(result.sourceAlbum.artworkUrl).toBeUndefined();
   });
 });

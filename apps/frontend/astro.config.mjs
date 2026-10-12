@@ -20,6 +20,12 @@ export default defineConfig({
     server: {
       allowedHosts: ["localhost", "musiccloud.test"],
     },
+    // `@musiccloud/dashboard-ui` ships built JavaScript with React as a peer
+    // dependency. Deduping points its React imports at the app's copy, and
+    // `noExternal` bundles it into the server build, because the deployment
+    // carries `packages/shared` but not `packages/dashboard-ui`.
+    resolve: { dedupe: ["react", "react-dom"] },
+    ssr: { noExternal: ["@musiccloud/dashboard-ui"] },
   },
   site: SITE_ORIGIN.site,
   // Astro hashes every script and style it emits into a `content-security-policy`

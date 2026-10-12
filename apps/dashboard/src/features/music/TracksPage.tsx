@@ -5,16 +5,13 @@ import {
   DashboardActionStatus,
   DashboardButton,
   DashboardButtonVariant,
-  DashboardInput,
 } from "@musiccloud/dashboard-ui";
 import { AdminEventType, ENDPOINTS } from "@musiccloud/shared";
 import {
-  MagnifyingGlass as MagnifyingGlassIcon,
   MusicNotes as MusicNotesIcon,
   PencilSimple as PencilSimpleIcon,
   PencilSimpleSlash as PencilSimpleSlashIcon,
   Trash as TrashIcon,
-  XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
@@ -24,8 +21,10 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { dashboardCopy } from "@/copy/dashboard";
+import { AdminListSearchField } from "@/features/music/AdminListSearchField";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { InfiniteAdminTable } from "@/features/music/InfiniteAdminTable";
+import { linkCountColumn } from "@/features/music/linkCountColumn";
 import { formatEnglishDate } from "@/lib/format";
 import { SHARE_BASE } from "@/lib/shareBase";
 import { Checkbox } from "@/shared/ui/Checkbox";
@@ -120,6 +119,7 @@ function useTrackColumns(
       },
       {
         id: "source",
+        secondary: true,
         header: mc.source,
         className: "w-28",
         cell: (track) =>
@@ -131,22 +131,12 @@ function useTrackColumns(
       },
       {
         id: "isrc",
+        secondary: true,
         header: "ISRC",
         className: "w-32",
         cell: (track) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">{track.isrc ?? ""}</span>,
       },
-      {
-        id: "links",
-        header: mc.links,
-        className: "w-24",
-        headerClassName: "w-24 text-right",
-        cellClassName: "w-24 text-right",
-        cell: (track) => (
-          <span className="inline-block min-w-6 px-1.5 py-0.5 rounded text-xs font-medium text-center border border-[var(--ds-border)] text-[var(--ds-text)]">
-            {track.linkCount}
-          </span>
-        ),
-      },
+      linkCountColumn<TrackListItem>(mc.links),
       {
         id: "createdAt",
         header: mc.added,
@@ -204,34 +194,6 @@ export function TracksPage() {
     }
   }
 
-  const searchField = (
-    <div className="relative">
-      <DashboardInput
-        type="text"
-        value={table.searchInput}
-        onChange={(e) => table.setSearchInput(e.target.value)}
-        placeholder={mt.searchPlaceholder}
-        className="w-52 pl-8 pr-7"
-      />
-      <MagnifyingGlassIcon
-        weight="duotone"
-        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--ds-text-muted)]"
-      />
-      {table.searchInput && (
-        <DashboardActionButton
-          action={DashboardActionId.Close}
-          icon={<XCircleIcon weight="duotone" className="size-3.5" />}
-          iconOnly
-          label={messages.common.close}
-          onClick={() => table.setSearchInput("")}
-          className="absolute right-1 top-1/2 -translate-y-1/2"
-          size="action"
-          type="button"
-        />
-      )}
-    </div>
-  );
-
   const toolbarContent = (
     <Toolbar>
       {table.total !== null && (
@@ -274,7 +236,13 @@ export function TracksPage() {
 
   return (
     <PageLayout>
-      <PageHeader title={mt.title}>{searchField}</PageHeader>
+      <PageHeader title={mt.title}>
+        <AdminListSearchField
+          value={table.searchInput}
+          onChange={table.setSearchInput}
+          placeholder={mt.searchPlaceholder}
+        />
+      </PageHeader>
 
       <PageBody>
         <InfiniteAdminTable table={table} columns={columns}>

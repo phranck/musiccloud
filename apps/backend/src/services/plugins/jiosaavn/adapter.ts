@@ -7,13 +7,16 @@
  * `content.getAlbumDetails`, etc.). The adapter calls the same
  * surface directly.
  *
- * ## HTML-instead-of-JSON guard
+ * ## What counts as an answer
  *
- * The API occasionally responds with an HTML error page instead of
- * JSON (maintenance windows, rate limiting, geo blocks). Every parser
- * pre-checks `text.startsWith("<!")` and bails to a null return
- * rather than throwing on `JSON.parse`. This keeps upstream hiccups
- * from tanking the whole resolve.
+ * A search without matches answers `{ "total": 0, "results": [] }`. A
+ * lookup by id answers `[]`, an empty body, or an object without the id
+ * and title for an id JioSaavn does not know. A call it refuses answers
+ * `{ "error": { "code", "msg" } }` with HTTP 200, and maintenance windows,
+ * rate limiting and geo blocks answer an HTML page. Both of those throw,
+ * as does every error status and every other body that is not JSON,
+ * because the resolver remembers a returned miss for a month and skips the
+ * service for that long.
  *
  * ## Variable response shape: `{ songs: [...] }` or direct object
  *
@@ -34,11 +37,12 @@
  * number. Every code path parses with `parseInt(..., 10)` and
  * multiplies by 1000.
  */
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
+import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
-import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -128,6 +132,62 @@ async function jiosaavnFetch(url: string, timeoutMs = 8000): Promise<Response> {
   );
 }
 
+/**
+ * Reads the body of a JioSaavn answer.
+ *
+ * @param response - An answer with a success status.
+ * @param what - What was asked, for the error message.
+ * @returns The parsed body, or null where the body is empty or JSON `null`,
+ *   which is how a lookup answers for an id JioSaavn does not know.
+ * @throws {UpstreamUnavailableError} When the body is not a JSON object (an
+ *   HTML page during maintenance, rate limiting or a geo block is the usual
+ *   case) or is an `{ error }` object, because each of those is a failure
+ *   rather than an answer.
+ */
+async function readAnswer<T>(response: Response, what: string): Promise<T | null> {
+  const text = await response.text();
+  if (text.trim() === "") return null;
+
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch (cause) {
+    throw new UpstreamUnavailableError("jiosaavn", `${what} answered a body that is not JSON`, cause);
+  }
+  if (body === null) return null;
+  if (typeof body !== "object") {
+    throw new UpstreamUnavailableError("jiosaavn", `${what} answered a body that is not an object`);
+  }
+  if ("error" in body) {
+    throw new UpstreamUnavailableError("jiosaavn", `${what} answered an error: ${JSON.stringify(body.error)}`);
+  }
+  return body as T;
+}
+
+/**
+ * Runs one of JioSaavn's `search.get*Results` calls.
+ *
+ * @param call - The `__call` value, which decides what is searched for.
+ * @param kind - What the search is for, which an error names.
+ * @param query - The search text.
+ * @returns The answer's `results`. A search without matches is an empty list.
+ * @throws When the request fails, answers with an error status, carries a
+ *   body that readAnswer rejects, or has no `results` list.
+ */
+async function search<Result>(call: string, kind: ResourceKind, query: string): Promise<Result[]> {
+  const url = `https://www.jiosaavn.com/api.php?__call=${call}&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=5&q=${encodeURIComponent(query)}`;
+
+  const response = await jiosaavnFetch(url);
+  if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, kind, query, Operation.Search);
+
+  const what = `${kind} search for "${query}"`;
+  const answer = await readAnswer<{ results?: Result[] }>(response, what);
+  if (!answer || !Array.isArray(answer.results)) {
+    throw new UpstreamUnavailableError("jiosaavn", `${what} answered no results list`);
+  }
+  return answer.results;
+}
+
 function mapSongToTrack(song: JioSaavnSong): NormalizedTrack {
   const artists: string[] = [];
 
@@ -165,40 +225,21 @@ async function getTrackById(songId: string): Promise<NormalizedTrack | null> {
   const url = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(songId)}&type=song&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0`;
 
   const response = await jiosaavnFetch(url);
-  if (!response.ok) return null;
+  if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Track, songId);
 
-  const text = await response.text();
-  // JioSaavn sometimes returns HTML instead of JSON
-  if (text.startsWith("<!")) return null;
+  // A token JioSaavn does not know answers an empty list.
+  const data = await readAnswer<{ songs?: JioSaavnSong[] } | JioSaavnSong>(response, `track ${songId}`);
+  if (!data) return null;
 
-  try {
-    const data = JSON.parse(text) as { songs?: JioSaavnSong[] } | JioSaavnSong;
+  // API can return { songs: [...] } or a direct song object
+  const song = "songs" in data && Array.isArray(data.songs) ? data.songs[0] : (data as JioSaavnSong);
+  if (!song?.id || !song?.title) return null;
 
-    // API can return { songs: [...] } or a direct song object
-    const song = "songs" in data && Array.isArray(data.songs) ? data.songs[0] : (data as JioSaavnSong);
-    if (!song?.id || !song?.title) return null;
-
-    return mapSongToTrack(song);
-  } catch {
-    return null;
-  }
+  return mapSongToTrack(song);
 }
 
 async function searchSongs(query: string): Promise<JioSaavnSong[]> {
-  const url = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=5&q=${encodeURIComponent(query)}`;
-
-  const response = await jiosaavnFetch(url);
-  if (!response.ok) return [];
-
-  const text = await response.text();
-  if (text.startsWith("<!")) return [];
-
-  try {
-    const data = JSON.parse(text) as { results?: JioSaavnSong[] };
-    return data.results ?? [];
-  } catch {
-    return [];
-  }
+  return search<JioSaavnSong>("search.getResults", ResourceKind.Track, query);
 }
 
 function mapAlbumToNormalized(album: JioSaavnAlbum): NormalizedAlbum {
@@ -243,34 +284,15 @@ function mapAlbumToNormalized(album: JioSaavnAlbum): NormalizedAlbum {
 async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const url = `https://www.jiosaavn.com/api.php?__call=content.getAlbumDetails&albumid=${encodeURIComponent(albumId)}&_format=json&_marker=0&ctx=web6dot0`;
   const response = await jiosaavnFetch(url);
-  if (!response.ok) return null;
+  if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Album, albumId);
 
-  const text = await response.text();
-  if (text.startsWith("<!")) return null;
-
-  try {
-    const data = JSON.parse(text) as JioSaavnAlbum;
-    if (!data?.id || !data?.title) return null;
-    return mapAlbumToNormalized(data);
-  } catch {
-    return null;
-  }
+  const data = await readAnswer<JioSaavnAlbum>(response, `album ${albumId}`);
+  if (!data?.id || !data?.title) return null;
+  return mapAlbumToNormalized(data);
 }
 
 async function searchAlbums(query: string): Promise<JioSaavnAlbumSearchResult[]> {
-  const url = `https://www.jiosaavn.com/api.php?__call=search.getAlbumResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=5&q=${encodeURIComponent(query)}`;
-  const response = await jiosaavnFetch(url);
-  if (!response.ok) return [];
-
-  const text = await response.text();
-  if (text.startsWith("<!")) return [];
-
-  try {
-    const data = JSON.parse(text) as { results?: JioSaavnAlbumSearchResult[] };
-    return data.results ?? [];
-  } catch {
-    return [];
-  }
+  return search<JioSaavnAlbumSearchResult>("search.getAlbumResults", ResourceKind.Album, query);
 }
 
 interface JioSaavnArtist {
@@ -291,41 +313,23 @@ interface JioSaavnArtistSearchResult {
 async function getArtistById(artistId: string): Promise<NormalizedArtist | null> {
   const url = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(artistId)}&type=artist&n_song=0&n_album=0&_format=json&_marker=0&ctx=web6dot0`;
   const response = await jiosaavnFetch(url);
-  if (!response.ok) return null;
+  if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Artist, artistId);
 
-  const text = await response.text();
-  if (text.startsWith("<!")) return null;
+  // A token JioSaavn does not know answers an empty body or an artist without `artistId`.
+  const data = await readAnswer<JioSaavnArtist>(response, `artist ${artistId}`);
+  if (!data?.artistId || !data?.name) return null;
 
-  try {
-    const data = JSON.parse(text) as JioSaavnArtist;
-    if (!data?.artistId || !data?.name) return null;
-
-    return {
-      sourceService: "jiosaavn",
-      sourceId: data.artistId,
-      name: data.name,
-      imageUrl: data.image?.replace(/150x150|50x50/, "500x500"),
-      webUrl: data.perma_url ?? `https://www.jiosaavn.com/artist/-/${data.artistId}`,
-    };
-  } catch {
-    return null;
-  }
+  return {
+    sourceService: "jiosaavn",
+    sourceId: data.artistId,
+    name: data.name,
+    imageUrl: data.image?.replace(/150x150|50x50/, "500x500"),
+    webUrl: data.perma_url ?? `https://www.jiosaavn.com/artist/-/${data.artistId}`,
+  };
 }
 
 async function searchArtists(query: string): Promise<JioSaavnArtistSearchResult[]> {
-  const url = `https://www.jiosaavn.com/api.php?__call=search.getArtistResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=5&q=${encodeURIComponent(query)}`;
-  const response = await jiosaavnFetch(url);
-  if (!response.ok) return [];
-
-  const text = await response.text();
-  if (text.startsWith("<!")) return [];
-
-  try {
-    const data = JSON.parse(text) as { results?: JioSaavnArtistSearchResult[] };
-    return data.results ?? [];
-  } catch {
-    return [];
-  }
+  return search<JioSaavnArtistSearchResult>("search.getArtistResults", ResourceKind.Artist, query);
 }
 
 export const jiosaavnAdapter: ServiceAdapter = {
@@ -357,51 +361,46 @@ export const jiosaavnAdapter: ServiceAdapter = {
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = searchText(query);
 
-    try {
-      const songs = await searchSongs(q);
-      if (songs.length === 0) {
-        log.debug("JioSaavn", "Search returned no results for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("JioSaavn", `Search returned ${songs.length} results for: ${q}`);
-
-      let bestMatch: NormalizedTrack | null = null;
-      let bestConfidence = 0;
-
-      for (let i = 0; i < songs.length; i++) {
-        const song = songs[i];
-        if (!song.id || !song.title) continue;
-
-        const track = mapSongToTrack(song);
-        const confidence = scoreSearchCandidate(query, track, i);
-
-        log.debug(
-          "JioSaavn",
-          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-        );
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        log.debug("JioSaavn", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return {
-        found: true,
-        track: bestMatch,
-        confidence: bestConfidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("JioSaavn", "Search failed:", error instanceof Error ? error.message : error);
+    const songs = await searchSongs(q);
+    if (songs.length === 0) {
+      log.debug("JioSaavn", "Search returned no results for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("JioSaavn", `Search returned ${songs.length} results for: ${q}`);
+
+    let bestMatch: NormalizedTrack | null = null;
+    let bestConfidence = 0;
+
+    for (let i = 0; i < songs.length; i++) {
+      const song = songs[i];
+      if (!song.id || !song.title) continue;
+
+      const track = mapSongToTrack(song);
+      const confidence = scoreSearchCandidate(query, track, i);
+
+      log.debug(
+        "JioSaavn",
+        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = track;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("JioSaavn", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
   },
 
   albumCapabilities: {
@@ -423,39 +422,34 @@ export const jiosaavnAdapter: ServiceAdapter = {
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
-    try {
-      const results = await searchAlbums(q);
-      if (results.length === 0) {
-        log.debug("JioSaavn", "Album search returned no results for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("JioSaavn", `Album search returned ${results.length} results for: ${q}`);
-
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
-
-      for (const r of results) {
-        const artists = r.music ? [r.music] : ["Unknown Artist"];
-        const confidence = scoreAlbumCandidate(query, { title: r.title, artists, releaseDate: r.year });
-        log.debug("JioSaavn", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          if (bestConfidence > 0.4) {
-            const full = await getAlbumById(r.id);
-            if (full) bestMatch = full;
-          }
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("JioSaavn", "Album search failed:", error instanceof Error ? error.message : error);
+    const results = await searchAlbums(q);
+    if (results.length === 0) {
+      log.debug("JioSaavn", "Album search returned no results for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("JioSaavn", `Album search returned ${results.length} results for: ${q}`);
+
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const r of results) {
+      const artists = r.music ? [r.music] : ["Unknown Artist"];
+      const confidence = scoreAlbumCandidate(query, { title: r.title, artists, releaseDate: r.year });
+      log.debug("JioSaavn", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        if (bestConfidence > 0.4) {
+          const full = await getAlbumById(r.id);
+          if (full) bestMatch = full;
+        }
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
   },
   // --- Artist support ---
 
@@ -477,47 +471,42 @@ export const jiosaavnAdapter: ServiceAdapter = {
   },
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
-    try {
-      const results = await searchArtists(query.name);
-      if (results.length === 0) {
-        log.debug("JioSaavn", "Artist search returned no results for:", query.name);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("JioSaavn", `Artist search returned ${results.length} results for: ${query.name}`);
-
-      let bestArtist: NormalizedArtist | null = null;
-      let bestConfidence = 0;
-
-      for (const item of results) {
-        const confidence = calculateArtistNameConfidence(query.name, item.name);
-
-        log.debug("JioSaavn", `  "${item.name}" -> confidence=${confidence.toFixed(3)}`);
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestArtist = {
-            sourceService: "jiosaavn",
-            sourceId: item.id,
-            name: item.name,
-            imageUrl: item.image?.replace(/150x150|50x50/, "500x500"),
-            webUrl: item.perma_url ?? `https://www.jiosaavn.com/artist/-/${item.id}`,
-          };
-        }
-      }
-
-      if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        log.debug(
-          "JioSaavn",
-          `Best artist confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`,
-        );
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("JioSaavn", "Artist search failed:", error instanceof Error ? error.message : error);
+    const results = await searchArtists(query.name);
+    if (results.length === 0) {
+      log.debug("JioSaavn", "Artist search returned no results for:", query.name);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("JioSaavn", `Artist search returned ${results.length} results for: ${query.name}`);
+
+    let bestArtist: NormalizedArtist | null = null;
+    let bestConfidence = 0;
+
+    for (const item of results) {
+      const confidence = calculateArtistNameConfidence(query.name, item.name);
+
+      log.debug("JioSaavn", `  "${item.name}" -> confidence=${confidence.toFixed(3)}`);
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestArtist = {
+          sourceService: "jiosaavn",
+          sourceId: item.id,
+          name: item.name,
+          imageUrl: item.image?.replace(/150x150|50x50/, "500x500"),
+          webUrl: item.perma_url ?? `https://www.jiosaavn.com/artist/-/${item.id}`,
+        };
+      }
+    }
+
+    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug(
+        "JioSaavn",
+        `Best artist confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`,
+      );
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

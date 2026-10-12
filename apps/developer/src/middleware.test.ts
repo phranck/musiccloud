@@ -2,11 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getPortalAvailability: vi.fn(),
+  getDeveloperSession: vi.fn(),
+  readInvitationPass: vi.fn(),
   renderPortalGateHtml: vi.fn((mode: string) => `<main>${mode}</main>`),
 }));
 
 vi.mock("./lib/portal-availability", () => ({
   getPortalAvailability: mocks.getPortalAvailability,
+}));
+
+vi.mock("./lib/session", () => ({
+  getDeveloperSession: mocks.getDeveloperSession,
+}));
+
+vi.mock("./lib/invitation-pass", () => ({
+  readInvitationPass: mocks.readInvitationPass,
 }));
 
 vi.mock("./lib/coming-soon", () => ({
@@ -20,16 +30,26 @@ import { onRequest } from "./middleware";
 
 async function request(pathname: string, routeHeaders: Record<string, string> = {}) {
   const next = vi.fn(async () => new Response("portal", { status: 200, headers: routeHeaders }));
+  const locals: { invitation?: { email: string } } = {};
   const response = (await onRequest(
-    { url: new URL(`https://developer.musiccloud.test${pathname}`) } as never,
+    {
+      url: new URL(`https://developer.musiccloud.test${pathname}`),
+      locals,
+      cookies: { get: () => undefined },
+      clientAddress: "203.0.113.7",
+    } as never,
     next,
   )) as Response;
-  return { next, response };
+  return { next, response, locals };
 }
 
 describe("Developer Portal availability middleware", () => {
   beforeEach(() => {
     mocks.getPortalAvailability.mockReset();
+    mocks.getDeveloperSession.mockReset();
+    mocks.getDeveloperSession.mockResolvedValue(null);
+    mocks.readInvitationPass.mockReset();
+    mocks.readInvitationPass.mockResolvedValue(null);
     mocks.renderPortalGateHtml.mockClear();
   });
 
@@ -164,5 +184,128 @@ describe("Developer Portal availability middleware", () => {
       expect(mocks.getPortalAvailability).not.toHaveBeenCalled();
       expect(response.status).toBe(200);
     }
+  });
+});
+
+/**
+ * The paths a closed portal still serves, and to whom. Each case is one row of
+ * the table in the plan: everybody, a session whose account carries the grant,
+ * and a request carrying a valid invitation pass.
+ */
+describe("the gate while the portal is closed", () => {
+  const closed = { public: false, maintenance: false };
+
+  beforeEach(() => {
+    mocks.getPortalAvailability.mockReset();
+    mocks.getPortalAvailability.mockResolvedValue(closed);
+    mocks.getDeveloperSession.mockReset();
+    mocks.getDeveloperSession.mockResolvedValue(null);
+    mocks.readInvitationPass.mockReset();
+    mocks.readInvitationPass.mockResolvedValue(null);
+  });
+
+  it("keeps the invitation page and its call reachable, maintenance included", async () => {
+    mocks.getPortalAvailability.mockResolvedValue({ public: false, maintenance: true });
+
+    for (const pathname of ["/invite", "/api/dev/auth/invitations/redeem"]) {
+      const { next } = await request(pathname);
+      expect(next).toHaveBeenCalledOnce();
+    }
+    expect(mocks.getPortalAvailability).not.toHaveBeenCalled();
+  });
+
+  it("lets everybody reach the sign-in paths, without looking up a session", async () => {
+    for (const pathname of [
+      "/login",
+      "/forgot",
+      "/reset",
+      "/verify",
+      "/confirm-email",
+      "/auth/github",
+      "/auth/github/callback",
+      "/api/dev/auth/login",
+      "/api/dev/auth/logout",
+      "/api/dev/auth/me",
+      "/api/dev/auth/request-reset",
+      "/api/dev/auth/reset-password",
+      "/api/dev/auth/verify-email",
+      "/api/dev/auth/confirm-email-change",
+    ]) {
+      const { next } = await request(pathname);
+      expect(next, pathname).toHaveBeenCalledOnce();
+    }
+    expect(mocks.getDeveloperSession).not.toHaveBeenCalled();
+  });
+
+  it("matches the sign-in paths exactly, so nothing beneath them comes along", async () => {
+    for (const pathname of ["/login/elsewhere", "/api/dev/auth/me/extra", "/api/dev/auth/profile"]) {
+      const { next, response } = await request(pathname);
+      expect(next, pathname).not.toHaveBeenCalled();
+      expect(await response.text()).toContain("comingSoon");
+    }
+  });
+
+  it("lets an account carrying the grant through, and nobody else", async () => {
+    mocks.getDeveloperSession.mockResolvedValueOnce({ id: "acc-1", portalAccess: true });
+    const granted = await request("/dashboard");
+    mocks.getDeveloperSession.mockResolvedValueOnce({ id: "acc-2", portalAccess: false });
+    const ungranted = await request("/dashboard");
+    const anonymous = await request("/dashboard");
+
+    expect(granted.next).toHaveBeenCalledOnce();
+    expect(ungranted.next).not.toHaveBeenCalled();
+    expect(await ungranted.response.text()).toContain("comingSoon");
+    expect(anonymous.next).not.toHaveBeenCalled();
+  });
+
+  it("opens sign-up to a valid pass and hands the page the invited address", async () => {
+    mocks.readInvitationPass.mockResolvedValue({ email: "new@example.com" });
+
+    for (const pathname of ["/signup", "/api/dev/auth/signup"]) {
+      const { next, locals } = await request(pathname);
+      expect(next, pathname).toHaveBeenCalledOnce();
+      expect(locals.invitation).toEqual({ email: "new@example.com" });
+    }
+  });
+
+  it("keeps sign-up shut without a valid pass", async () => {
+    const { next, response, locals } = await request("/signup");
+
+    expect(next).not.toHaveBeenCalled();
+    expect(await response.text()).toContain("comingSoon");
+    expect(locals.invitation).toBeUndefined();
+  });
+
+  it("opens nothing but sign-up to a pass", async () => {
+    mocks.readInvitationPass.mockResolvedValue({ email: "new@example.com" });
+
+    for (const pathname of ["/dashboard", "/api/dev/api-access/projects", "/pricing"]) {
+      const { next } = await request(pathname);
+      expect(next, pathname).not.toHaveBeenCalled();
+    }
+    expect(mocks.readInvitationPass).not.toHaveBeenCalled();
+  });
+
+  it("shuts every path, sign-in included, when the state cannot be read", async () => {
+    mocks.getPortalAvailability.mockResolvedValue(null);
+    mocks.getDeveloperSession.mockResolvedValue({ id: "acc-1", portalAccess: true });
+
+    for (const pathname of ["/login", "/signup", "/dashboard"]) {
+      const { next, response } = await request(pathname);
+      expect(next, pathname).not.toHaveBeenCalled();
+      expect(await response.text()).toContain("comingSoon");
+    }
+  });
+
+  it("asks nothing more of an open portal than whether a sign-up carries a pass", async () => {
+    mocks.getPortalAvailability.mockResolvedValue({ public: true, maintenance: false });
+    mocks.readInvitationPass.mockResolvedValue({ email: "new@example.com" });
+
+    const dashboard = await request("/dashboard");
+    const signup = await request("/signup");
+
+    expect(dashboard.next).toHaveBeenCalledOnce();
+    expect(mocks.getDeveloperSession).not.toHaveBeenCalled();
+    expect(signup.locals.invitation).toEqual({ email: "new@example.com" });
   });
 });

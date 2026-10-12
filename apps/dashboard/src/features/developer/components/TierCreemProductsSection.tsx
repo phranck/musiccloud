@@ -19,11 +19,10 @@ import {
   useUpdateCreemProductPrice,
 } from "@/features/developer/hooks/useDeveloperData";
 import { CREEM_MODE_OPTIONS, creemModeLabel, formatOfferPrice, periodLabel } from "@/features/developer/offerFormat";
+import { FormLabel } from "@/shared/ui/FormPrimitives";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
-
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /** Props for {@link TierCreemProductRow}. */
 interface TierCreemProductRowProps {
@@ -106,9 +105,7 @@ function TierCreemProductRow({ tier, offer, mode, mapping, writable }: TierCreem
             />
           </div>
           <div>
-            <label htmlFor={`creem-attach-${fieldId}`} className={labelClass}>
-              {dm.creemAttach}
-            </label>
+            <FormLabel htmlFor={`creem-attach-${fieldId}`}>{dm.creemAttach}</FormLabel>
             <div className="flex items-center gap-2">
               <DashboardInput
                 id={`creem-attach-${fieldId}`}

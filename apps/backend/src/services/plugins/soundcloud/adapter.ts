@@ -1,6 +1,7 @@
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
+import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
@@ -37,9 +38,20 @@ import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
  *   `window.__sc_hydration` array for a `{ hydratable: "apiClient" }`
  *   entry, and pulls the `id` field.
  * - Cached for 24h. SoundCloud rotates these periodically; an
- *   expired id returns 401 on API calls and the cache resets.
+ *   expired id returns 401 on API calls, and `scApiFetch` then scrapes a
+ *   fresh one and repeats the request once.
  * - Concurrent callers coalesce through `clientIdPromise` so a burst
  *   of resolves does not re-fetch the homepage N times.
+ * - When no client_id can be had, because the homepage failed or its
+ *   hydration data carries none, `scApiFetch` throws.
+ *
+ * ## A failure is not a miss
+ *
+ * A search without results answers 200 with an empty `collection`, and
+ * an id SoundCloud does not have answers 404 on `/resolve`. Only those
+ * two mean "nothing". An error status, a body that is not JSON or has no
+ * `collection`, and a missing client_id all throw, because the resolver
+ * skips a service for a month after a returned miss.
  *
  * ## URL shape: catch-all artist/track path
  *
@@ -133,11 +145,72 @@ async function scFetch(url: string, timeoutMs = 5000): Promise<Response> {
 }
 
 async function scApiFetch(endpoint: string): Promise<Response> {
+  const response = await scApiFetchWithClientId(endpoint);
+  if (response.status !== 401) return response;
+
+  // A 401 means SoundCloud rotated the scraped client_id. One fresh scrape
+  // replaces it, rather than every request failing until the cached id ages out.
+  cachedClientId = null;
+  clientIdFetchedAt = 0;
+  return scApiFetchWithClientId(endpoint);
+}
+
+/**
+ * Sends one API request with the current client_id.
+ *
+ * @param endpoint - The API path, with or without a query.
+ * @returns SoundCloud's response, whatever its status.
+ * @throws When no client_id can be scraped from the homepage.
+ */
+async function scApiFetchWithClientId(endpoint: string): Promise<Response> {
   const clientId = await getClientId();
-  if (!clientId) throw new Error("SoundCloud: No client_id available");
+  if (!clientId) throw new UpstreamUnavailableError("soundcloud", "no client_id available from the homepage");
 
   const sep = endpoint.includes("?") ? "&" : "?";
   return scFetch(`${SC_API_BASE}${endpoint}${sep}client_id=${clientId}`);
+}
+
+/**
+ * Parses an API response body.
+ *
+ * @param response - A response with an OK status.
+ * @param what - What was asked for, which the error names.
+ * @returns The parsed body.
+ * @throws {UpstreamUnavailableError} When the body is not JSON.
+ */
+async function readJson(response: Response, what: string): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch (error) {
+    throw new UpstreamUnavailableError("soundcloud", `${what} answered with a body that is not JSON`, error);
+  }
+}
+
+/**
+ * Runs one of SoundCloud's searches.
+ *
+ * @param endpoint - What to search for.
+ * @param query - The search text.
+ * @param kind - What the search is for, which an error names.
+ * @returns The `collection` of the answer. A search without results answers an
+ *   empty list, so an empty list is an answer.
+ * @throws When no client_id is available, the request fails, SoundCloud answers
+ *   with an error status, or the body is not JSON or has no `collection` list,
+ *   because each of those is a failure rather than an answer.
+ */
+async function scSearch<Item>(
+  endpoint: "tracks" | "albums" | "users",
+  query: string,
+  kind: ResourceKind,
+): Promise<Item[]> {
+  const response = await scApiFetch(`/search/${endpoint}?q=${encodeURIComponent(query)}&limit=5`);
+  if (!response.ok) throw serviceHttpError(Service.SoundCloud, response.status, kind, query, Operation.Search);
+
+  const body = (await readJson(response, `${endpoint} search for "${query}"`)) as { collection?: unknown } | null;
+  if (!body || !Array.isArray(body.collection)) {
+    throw new UpstreamUnavailableError("soundcloud", `${endpoint} search for "${query}" answered without a collection`);
+  }
+  return body.collection as Item[];
 }
 
 // --- Track data mapping ---
@@ -278,42 +351,42 @@ function mapApiPlaylist(data: ScPlaylistData, sourcePath: string): NormalizedAlb
   };
 }
 
+/**
+ * Reads a set from SoundCloud's `/resolve` endpoint.
+ *
+ * @param setPath - The path after `soundcloud.com/`, such as `user/sets/slug`.
+ * @returns The album, or `null` when SoundCloud answers 404 for the path.
+ * @throws When no client_id is available, SoundCloud answers with another error
+ *   status, or the body is not JSON or has no title.
+ */
 async function fetchAlbumByPath(setPath: string): Promise<NormalizedAlbum | null> {
   const pageUrl = `https://soundcloud.com/${setPath}`;
-  try {
-    const response = await scApiFetch(`/resolve?url=${encodeURIComponent(pageUrl)}`);
-    if (!response.ok) return null;
-    const data = (await response.json()) as ScPlaylistData;
-    // Only return if it's an album (set_type: "album") or has no set_type (treat as album)
-    if (!data.title) return null;
-    return mapApiPlaylist(data, setPath);
-  } catch {
-    return null;
-  }
+  const response = await scApiFetch(`/resolve?url=${encodeURIComponent(pageUrl)}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.SoundCloud, response.status, ResourceKind.Album, setPath);
+
+  const data = (await readJson(response, `resolve of ${setPath}`)) as ScPlaylistData | null;
+  // SoundCloud says "no such set" with 404, so a resolved set without a title is not that answer.
+  if (!data?.title) throw new UpstreamUnavailableError("soundcloud", `resolve of ${setPath} answered without a title`);
+  return mapApiPlaylist(data, setPath);
 }
 
 async function searchSoundCloudAlbums(
   query: string,
 ): Promise<Array<{ path: string; title: string; artist: string; releaseDate?: string; trackCount?: number }>> {
-  try {
-    const response = await scApiFetch(`/search/albums?q=${encodeURIComponent(query)}&limit=5`);
-    if (!response.ok) return [];
-    const result = (await response.json()) as { collection?: ScPlaylistData[] };
-    return (result.collection ?? [])
-      .filter((p) => p.title)
-      .map((p) => ({
-        path: p.permalink_url?.replace("https://soundcloud.com/", "") ?? "",
-        title: p.title ?? "",
-        artist: p.user?.username ?? p.user?.full_name ?? "",
-        // The same date the full album is read with, so the year the score
-        // counts here is the one the chosen album reports.
-        releaseDate: p.release_date ?? p.created_at ?? undefined,
-        trackCount: p.track_count,
-      }))
-      .filter((r) => r.path);
-  } catch {
-    return [];
-  }
+  const playlists = await scSearch<ScPlaylistData>("albums", query, ResourceKind.Album);
+  return playlists
+    .filter((playlist) => playlist.title)
+    .map((playlist) => ({
+      path: playlist.permalink_url?.replace("https://soundcloud.com/", "") ?? "",
+      title: playlist.title ?? "",
+      artist: playlist.user?.username ?? playlist.user?.full_name ?? "",
+      // The same date the full album is read with, so the year the score
+      // counts here is the one the chosen album reports.
+      releaseDate: playlist.release_date ?? playlist.created_at ?? undefined,
+      trackCount: playlist.track_count,
+    }))
+    .filter((candidate) => candidate.path);
 }
 
 // --- Adapter ---
@@ -381,49 +454,35 @@ export const soundcloudAdapter = {
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = searchText(query);
 
-    try {
-      const response = await scApiFetch(`/search/tracks?q=${encodeURIComponent(q)}&limit=5`);
-
-      if (!response.ok) {
-        log.debug("SoundCloud", "Search API failed:", response.status);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      const result = (await response.json()) as { collection?: ScTrackData[] };
-      const items = result.collection ?? [];
-
-      if (items.length === 0) {
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      let bestMatch: NormalizedTrack | null = null;
-      let bestConfidence = 0;
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const track = mapApiTrack(item, item.permalink_url?.replace("https://soundcloud.com/", "") ?? `search-${i}`);
-        const confidence = scoreSearchCandidate(query, track, i);
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return {
-        found: true,
-        track: bestMatch,
-        confidence: bestConfidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("SoundCloud", "Search failed:", error instanceof Error ? error.message : error);
+    const items = await scSearch<ScTrackData>("tracks", q, ResourceKind.Track);
+    if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    let bestMatch: NormalizedTrack | null = null;
+    let bestConfidence = 0;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const track = mapApiTrack(item, item.permalink_url?.replace("https://soundcloud.com/", "") ?? `search-${i}`);
+      const confidence = scoreSearchCandidate(query, track, i);
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = track;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
   },
 
   albumCapabilities: {
@@ -445,38 +504,34 @@ export const soundcloudAdapter = {
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
-    try {
-      const results = await searchSoundCloudAlbums(q);
-      if (results.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
+    const results = await searchSoundCloudAlbums(q);
+    if (results.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
-      for (const r of results) {
-        const confidence = scoreAlbumCandidate(query, {
-          title: r.title,
-          artists: [r.artist],
-          releaseDate: r.releaseDate,
-          totalTracks: r.trackCount,
-        });
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          // Lazy-fetch full album only if it's the best candidate
-          if (bestConfidence > 0.4) {
-            const full = await fetchAlbumByPath(r.path);
-            if (full) bestMatch = full;
-          }
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const candidate of results) {
+      const confidence = scoreAlbumCandidate(query, {
+        title: candidate.title,
+        artists: [candidate.artist],
+        releaseDate: candidate.releaseDate,
+        totalTracks: candidate.trackCount,
+      });
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        // Lazy-fetch full album only if it's the best candidate
+        if (bestConfidence > 0.4) {
+          const full = await fetchAlbumByPath(candidate.path);
+          if (full) bestMatch = full;
         }
       }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("SoundCloud", "Album search failed:", error instanceof Error ? error.message : error);
-      return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
   },
   // --- Artist support ---
 
@@ -520,49 +575,36 @@ export const soundcloudAdapter = {
   },
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
-    try {
-      const response = await scApiFetch(`/search/users?q=${encodeURIComponent(query.name)}&limit=5`);
-
-      if (!response.ok) {
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      const result = (await response.json()) as { collection?: ScUserData[] };
-      const items = result.collection ?? [];
-
-      if (items.length === 0) {
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      let bestArtist: NormalizedArtist | null = null;
-      let bestConfidence = 0;
-
-      for (const item of items) {
-        const artistName = item.full_name || item.username || "";
-        const confidence = calculateArtistNameConfidence(query.name, artistName);
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          const username = item.permalink_url?.replace("https://soundcloud.com/", "") ?? String(item.id);
-          bestArtist = {
-            sourceService: "soundcloud",
-            sourceId: username,
-            name: artistName,
-            imageUrl: item.avatar_url?.replace("-large", "-t500x500"),
-            webUrl: item.permalink_url ?? `https://soundcloud.com/${username}`,
-          };
-        }
-      }
-
-      if (!bestArtist || bestConfidence < 0.6) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("SoundCloud", "Artist search failed:", error instanceof Error ? error.message : error);
+    const items = await scSearch<ScUserData>("users", query.name, ResourceKind.Artist);
+    if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    let bestArtist: NormalizedArtist | null = null;
+    let bestConfidence = 0;
+
+    for (const item of items) {
+      const artistName = item.full_name || item.username || "";
+      const confidence = calculateArtistNameConfidence(query.name, artistName);
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        const username = item.permalink_url?.replace("https://soundcloud.com/", "") ?? String(item.id);
+        bestArtist = {
+          sourceService: "soundcloud",
+          sourceId: username,
+          name: artistName,
+          imageUrl: item.avatar_url?.replace("-large", "-t500x500"),
+          webUrl: item.permalink_url ?? `https://soundcloud.com/${username}`,
+        };
+      }
+    }
+
+    if (!bestArtist || bestConfidence < 0.6) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
 

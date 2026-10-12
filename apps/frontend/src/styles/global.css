@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* The platform icon is shared with the dashboard and lives in the dashboard-ui
+   package, outside the folders Tailwind scans here. Only its own folder is
+   added, so the site's stylesheet gains no classes from the dashboard. */
+@source "../../../../packages/dashboard-ui/src/platform-icon";
+
 /* How the shortcode markup is arranged, shared with the developer portal so the
    two cannot render the same HTML differently. The material it is drawn in is
    declared on `.mc-markdown` below, from this surface's own tokens. */
@@ -51,12 +56,6 @@
   --color-cd-iridescent-yellow: rgba(255, 226, 48, 0.68);
   --color-cd-iridescent-pink: rgba(255, 80, 144, 0.68);
   --color-cd-highlight: rgba(255, 255, 255, 0.78);
-
-  /* Platform brand colors */
-  --color-spotify: #1DB954;
-  --color-apple: #FC3C44;
-  --color-youtube: #FF0000;
-  --color-soundcloud: #FF5500;
 
   /* Typography */
   --font-sans: "Barlow", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;

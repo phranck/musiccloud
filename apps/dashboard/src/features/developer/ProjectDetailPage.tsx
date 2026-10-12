@@ -8,15 +8,15 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse, DeveloperProjectResponse } from "@/features/developer/api";
+import { ProjectAuditSection } from "@/features/developer/components/ProjectAuditSection";
 import { ProjectPlanSection } from "@/features/developer/components/ProjectPlanSection";
 import { ProjectUsageSection } from "@/features/developer/components/ProjectUsageSection";
 import { useDeveloperProject, useUpdateDeveloperProject } from "@/features/developer/hooks/useDeveloperData";
 import { formatEnglishDate } from "@/lib/format";
+import { FormLabelText, FormValue } from "@/shared/ui/FormPrimitives";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
-
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /**
  * One registration under the project, as a row in the registrations section.
@@ -45,8 +45,8 @@ function RegistrationRow({ registration }: { registration: ApiClientResponse }) 
  * being throttled. Suspending stops every token under the project without
  * revoking any, which the screen says before the action rather than after it.
  *
- * The audit trail belongs here too and arrives with #219, which gives
- * `api_access_audit_events` a bounded read.
+ * Its audit trail closes the page, so the same screen that shows a limit shows
+ * who set it.
  */
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -98,12 +98,12 @@ export function ProjectDetailPage() {
           <DashboardSection.Body>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <span className={labelClass}>{dm.colStatus}</span>
+                <FormLabelText>{dm.colStatus}</FormLabelText>
                 <StatusBadge status={project.status} />
               </div>
               <div>
-                <span className={labelClass}>{dm.colCreated}</span>
-                <p className="text-sm text-[var(--ds-text)]">{formatEnglishDate(project.createdAt)}</p>
+                <FormLabelText>{dm.colCreated}</FormLabelText>
+                <FormValue>{formatEnglishDate(project.createdAt)}</FormValue>
               </div>
             </div>
           </DashboardSection.Body>
@@ -129,6 +129,8 @@ export function ProjectDetailPage() {
         <ProjectPlanSection project={project} subscription={data.subscription} />
 
         <ProjectUsageSection projectId={project.id} />
+
+        <ProjectAuditSection projectId={project.id} />
 
         <DashboardSection className="overflow-hidden">
           <DashboardSection.Header

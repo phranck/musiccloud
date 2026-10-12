@@ -1,4 +1,4 @@
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, INVITATION_PASS_COOKIE_NAME } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { backendUrl, internalHeaders } from "@/lib/api";
 
@@ -74,10 +74,19 @@ export const GET: APIRoute = async (context) => {
     return redirectWithCookies(LOGIN_OAUTH_ERROR, [CLEAR_STATE_COOKIE]);
   }
 
+  // An invitation pass travels along, so somebody invited while the portal is
+  // closed can arrive through GitHub. The backend binds the invitation to the
+  // account and answers with a cookie that clears the pass, which the
+  // redirect below relays with the session.
+  const pass = context.cookies.get(INVITATION_PASS_COOKIE_NAME)?.value;
+
   try {
     const res = await fetch(backendUrl(ENDPOINTS.dev.auth.github.exchange), {
       method: "POST",
-      headers: internalHeaders(context.clientAddress),
+      headers: internalHeaders(
+        context.clientAddress,
+        pass ? { cookie: `${INVITATION_PASS_COOKIE_NAME}=${pass}` } : undefined,
+      ),
       body: JSON.stringify({ code, state }),
     });
 

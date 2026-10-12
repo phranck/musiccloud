@@ -68,7 +68,7 @@ const ANSWERS: Record<string, (url: string) => Response | undefined> = {
   napster: (url) =>
     url.includes("type=artist") ? json({ search: { data: { artists: [{ id: "art.1", name: ARTIST }] } } }) : undefined,
   netease: (url) =>
-    url.includes("/api/search/get") ? json({ result: { artists: [{ id: 1, name: ARTIST }] } }) : undefined,
+    url.includes("/api/search/get") ? json({ result: { artists: [{ id: 1, name: ARTIST }] }, code: 200 }) : undefined,
   qobuz: (url) =>
     url.includes("/artist/search") ? json({ artists: { items: [{ id: 1, name: ARTIST }] } }) : undefined,
   soundcloud: (url) => {

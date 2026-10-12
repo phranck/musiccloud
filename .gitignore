@@ -78,6 +78,7 @@ WHATS-NEXT.md
 # Local project references and visual design working files
 # Public README documentation remains tracked; all other local references stay ignored.
 /docs/*
+!/docs/api-access-retention.md
 !/docs/backend-error-observability.md
 !/docs/crawler-architecture.md
 !/docs/postgres-migration-safety.md

@@ -16,6 +16,10 @@
  * plan a developer may take, which is what the backend's `resolveSignupTierId`
  * would assign anyway. A named plan that cannot be taken, and an unreachable
  * catalogue, both go to /pricing, because that is where the reason stands.
+ *
+ * Somebody who followed an invitation arrives holding its pass, and the
+ * middleware has put the invited address into `Astro.locals.invitation`, which
+ * the email field starts with.
  */
 import AuthCard from "@/components/auth/AuthCard.astro";
 import { ProfileAddIcon } from "@/lib/icons";
@@ -54,7 +58,7 @@ if (!selectedTier) return Astro.redirect("/pricing");
 
 <BaseLayout title="Create account · musiccloud for developers">
   <AuthCard title="Create your developer account" icon={ProfileAddIcon}>
-    <SignupForm client:load tier={selectedTier ?? undefined}>
+    <SignupForm client:load tier={selectedTier ?? undefined} invitedEmail={Astro.locals.invitation?.email}>
       <GitHubButton intent="signup" />
       <OrDivider />
     </SignupForm>

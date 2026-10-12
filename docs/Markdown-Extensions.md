@@ -86,7 +86,9 @@ What differs between the surfaces is the material rather than the arrangement, s
 
 The two sets publish different names, and that is the cost of the arrangement: a page written for one surface and published on the other may name an icon the other has no word for. The renderer leaves such a shortcode standing as its own source, which is what makes it visible rather than silent.
 
-Neither set ships in the bundle. Together they are 6 MB across 2500 files whilst a page names a handful, so both sit beside the built backend bundle and one file is read the first time a page asks for it, in the same arrangement the Jimp fonts use. Phosphor is copied from its own package by `apps/backend/scripts/copy-phosphor-icons.mjs`. Iconsax publishes React components rather than assets, so `apps/backend/scripts/build-iconsax-bulk.mjs` reads the Bulk variant's shapes out of them and writes the assets itself; the backend's test script runs it too, because the tests read what it writes.
+Neither set ships in the bundle. Together they are 6 MB across 2500 files whilst a page names a handful, so both sit beside the built backend bundle and one file is read the first time a page asks for it, in the same arrangement the Jimp fonts use. Phosphor is copied from its own package by `apps/backend/scripts/copy-phosphor-icons.mjs`. Iconsax publishes React components rather than assets, so `apps/backend/scripts/build-iconsax-bulk.mjs` reads the Bulk variant's shapes out of them and writes the assets itself.
+
+The backend's tests never read `dist`, because the dev watcher empties and refills it on every rebuild. They read Phosphor straight from its package, and Iconsax from `apps/backend/node_modules/.cache/icons/iconsax-bulk`, which the test scripts write with the same script before every run.
 
 The sanitizer admits `svg` and `path` under a tight attribute allowlist, and the two boxes the sets draw in. What makes that safe is that the path data never comes from a page: a page names an icon and the renderer looks the shapes up in the assets this repository ships.
 

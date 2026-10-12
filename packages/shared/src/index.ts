@@ -1,5 +1,8 @@
+export * from "./admin-artist-entity.js";
 export * from "./admin-events.js";
 export * from "./api.js";
+export * from "./api-access-audit.js";
+export * from "./artist-identity.js";
 export * from "./artist-profile-cache.js";
 export * from "./audio-format.js";
 export * from "./billing.js";
@@ -13,6 +16,7 @@ export * from "./crawler.js";
 export * from "./design-tokens.js";
 export * from "./developer-access.js";
 export * from "./developer-limits.js";
+export * from "./developer-portal-invitations.js";
 export * from "./developer-portal-paths.js";
 export * from "./email-actions.js";
 export * from "./email-blocks.js";
