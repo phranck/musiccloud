@@ -1,11 +1,11 @@
-import { Service } from "@musiccloud/shared";
+import { getPlatformLabel, Service } from "@musiccloud/shared";
 import type { ServicePlugin } from "../manifest.js";
 import { qobuzAdapter } from "./adapter.js";
 
 export const qobuzPlugin: ServicePlugin = {
   manifest: {
     id: Service.Qobuz,
-    displayName: "Qobuz",
+    displayName: getPlatformLabel(Service.Qobuz),
     description: "Resolves Qobuz track and album URLs via the Qobuz API.",
     defaultEnabled: true,
     // The adapter works without an account from unrestricted addresses, and a

@@ -1,4 +1,4 @@
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
@@ -336,7 +336,7 @@ getAuthToken().catch((error) =>
 
 export const qobuzAdapter = {
   id: "qobuz",
-  displayName: "Qobuz",
+  displayName: getPlatformLabel("qobuz"),
   capabilities: {
     supportsIsrc: true,
     supportsPreview: false,

@@ -37,7 +37,7 @@
  * both the structured and the free-text query branches uniformly across
  * every adapter. See that file for the scoring rationale.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -171,7 +171,7 @@ async function searchAudiusAlbums(query: string): Promise<NormalizedAlbum[]> {
 
 export const audiusAdapter = {
   id: "audius",
-  displayName: "Audius",
+  displayName: getPlatformLabel("audius"),
   capabilities: {
     supportsIsrc: false,
     supportsPreview: false,

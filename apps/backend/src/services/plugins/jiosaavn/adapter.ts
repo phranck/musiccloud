@@ -34,7 +34,7 @@
  * number. Every code path parses with `parseInt(..., 10)` and
  * multiplies by 1000.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
@@ -330,7 +330,7 @@ async function searchArtists(query: string): Promise<JioSaavnArtistSearchResult[
 
 export const jiosaavnAdapter: ServiceAdapter = {
   id: "jiosaavn",
-  displayName: "JioSaavn",
+  displayName: getPlatformLabel("jiosaavn"),
   capabilities: {
     supportsIsrc: false,
     supportsPreview: false,

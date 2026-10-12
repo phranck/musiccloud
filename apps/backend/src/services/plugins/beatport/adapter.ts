@@ -40,7 +40,7 @@
  * regex strips down to artist + track. This path has no ISRC or
  * duration data but at least yields a valid track row.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -337,7 +337,7 @@ async function fetchReleaseById(releaseId: string): Promise<NormalizedAlbum | nu
 
 export const beatportAdapter: ServiceAdapter = {
   id: "beatport",
-  displayName: "Beatport",
+  displayName: getPlatformLabel("beatport"),
   capabilities: {
     supportsIsrc: true,
     supportsPreview: false,

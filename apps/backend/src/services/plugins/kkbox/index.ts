@@ -1,11 +1,11 @@
-import { Service } from "@musiccloud/shared";
+import { getPlatformLabel, Service } from "@musiccloud/shared";
 import type { ServicePlugin } from "../manifest.js";
 import { kkboxAdapter } from "./adapter.js";
 
 export const kkboxPlugin: ServicePlugin = {
   manifest: {
     id: Service.KKBox,
-    displayName: "KKBOX",
+    displayName: getPlatformLabel(Service.KKBox),
     description: "Resolves KKBOX track, album and artist URLs via the KKBOX Open API.",
     defaultEnabled: true,
     requiredEnv: ["KKBOX_CLIENT_ID", "KKBOX_CLIENT_SECRET"],

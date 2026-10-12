@@ -1,11 +1,11 @@
-import { Service } from "@musiccloud/shared";
+import { getPlatformLabel, Service } from "@musiccloud/shared";
 import type { ServicePlugin } from "../manifest.js";
 import { audiusAdapter } from "./adapter.js";
 
 export const audiusPlugin: ServicePlugin = {
   manifest: {
     id: Service.Audius,
-    displayName: "Audius",
+    displayName: getPlatformLabel(Service.Audius),
     description: "Resolves Audius track URLs via the public Audius discovery API.",
     defaultEnabled: true,
   },

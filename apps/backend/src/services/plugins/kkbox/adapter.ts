@@ -38,7 +38,7 @@
  * fallback); the album still resolves but without per-track ISRCs,
  * so downstream ISRC-based inference skips it.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
@@ -253,7 +253,7 @@ async function searchKkboxAlbums(query: string): Promise<KkboxAlbumResponse[]> {
 
 export const kkboxAdapter = {
   id: "kkbox",
-  displayName: "KKBOX",
+  displayName: getPlatformLabel("kkbox"),
   capabilities: {
     supportsIsrc: true,
     supportsPreview: false,

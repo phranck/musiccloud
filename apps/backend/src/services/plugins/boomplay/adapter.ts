@@ -31,7 +31,7 @@
  * yields `undefined` rather than zero so the downstream display can
  * distinguish "no duration data" from "zero-length track".
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -199,7 +199,7 @@ async function searchBoomplayAlbumIds(query: string): Promise<string[]> {
 
 export const boomplayAdapter: ServiceAdapter = {
   id: "boomplay",
-  displayName: "Boomplay",
+  displayName: getPlatformLabel("boomplay"),
   capabilities: {
     supportsIsrc: false,
     supportsPreview: false,

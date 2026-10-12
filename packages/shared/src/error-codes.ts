@@ -17,23 +17,12 @@
  * | `MAP`  | Mapping / malformed response data                        |
  * | `BILL` | Billing: a Creem product, price or subscription operation |
  *
- * ## Number scheme (first digit of NNNN = adapter group)
+ * ## Number scheme
  *
- * | Digit | Adapter group                                            |
- * |-------|----------------------------------------------------------|
- * | `0`   | Cross-cutting / no specific adapter                      |
- * | `1`   | Apple Music                                              |
- * | `2`   | Qobuz                                                    |
- * | `3`   | Spotify                                                  |
- * | `4`   | Tidal                                                    |
- * | `5`   | Deezer                                                   |
- * | `6`   | YouTube / YouTube Music                                  |
- * | `7`   | Napster                                                  |
- * | `8`   | KKBOX, Beatport, Bandcamp, Audiomack, Audius, SoundCloud,|
- * |       | BoomPlay                                                 |
- * | `9`   | Pandora, Bugs, Melon, Netease, QQMusic, JioSaavn         |
- *
- * The remaining three digits identify the specific failure within that group.
+ * In a per-service `API` or `AUTH` code, the first one or two digits of `NNNN`
+ * name the service, as {@link ADAPTER_ERROR_CODE_PREFIX} assigns them, and
+ * {@link serviceErrorDigits} builds the rest from the upstream status. A code
+ * starting with `0` is cross-cutting and names no service.
  *
  * ## Usage
  *
@@ -48,6 +37,8 @@
  * When a user reports an error, grep this file for the code: each entry
  * points at the file/function where the throw originates.
  */
+
+import type { ServiceId } from "./services.js";
 
 export type ErrorArea = "URL" | "API" | "AUTH" | "RES" | "DB" | "CFG" | "MAP" | "REQ" | "SYS" | "BILL";
 
@@ -520,6 +511,41 @@ export const MC_ERROR_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS|B
  *   status the scheme does not name.
  * @returns The four digits after `MC-API-` or `MC-AUTH-`.
  */
+/**
+ * The prefix of every per-service `MC-API` and `MC-AUTH` code, by service.
+ *
+ * A one-digit prefix owns a thousand codes, so Apple Music's are `1xxx`. A
+ * two-digit prefix owns a hundred, so KKBOX's are `80xx` and Beatport's `81xx`.
+ * A code a user quotes therefore names the service that failed without any log
+ * lookup. The record is keyed by every {@link ServiceId}, so a new service does
+ * not compile until it has a prefix, and support decodes a code from here.
+ */
+export const ADAPTER_ERROR_CODE_PREFIX: Record<ServiceId, string> = {
+  "apple-music": "1",
+  qobuz: "2",
+  spotify: "3",
+  tidal: "4",
+  deezer: "5",
+  youtube: "6",
+  "youtube-music": "65",
+  napster: "7",
+  kkbox: "80",
+  beatport: "81",
+  bandcamp: "82",
+  audiomack: "83",
+  audius: "84",
+  soundcloud: "85",
+  boomplay: "86",
+  pandora: "90",
+  bugs: "91",
+  melon: "92",
+  netease: "93",
+  qqmusic: "94",
+  jiosaavn: "95",
+  musicbrainz: "96",
+  jamendo: "97",
+};
+
 export function serviceErrorDigits(prefix: string, statusToken: string): string {
   if (prefix.length === 1) {
     return `${prefix}${statusToken.padStart(3, "0").slice(-3)}`;

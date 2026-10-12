@@ -53,7 +53,7 @@
  * `buildArtworkUrl` does this substitution at a fixed 1000x1000 so
  * the share page gets a large enough image for retina rendering.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { importPKCS8, SignJWT } from "jose";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";
@@ -527,7 +527,7 @@ function mapArtist(raw: AppleMusicArtistResource): NormalizedArtist {
 
 export const appleMusicAdapter: ServiceAdapter = {
   id: "apple-music",
-  displayName: "Apple Music",
+  displayName: getPlatformLabel("apple-music"),
   capabilities,
   albumCapabilities,
   artistCapabilities,

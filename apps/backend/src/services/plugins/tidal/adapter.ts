@@ -41,7 +41,7 @@
  *
  * The regexes accept all three via optional segments.
  */
-import { Operation, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
@@ -288,7 +288,7 @@ function mapTrack(resource: TidalTrackResource, included?: TidalTrackResponse["i
 
 export const tidalAdapter = {
   id: "tidal",
-  displayName: "Tidal",
+  displayName: getPlatformLabel("tidal"),
   capabilities: {
     supportsIsrc: true,
     supportsPreview: false,

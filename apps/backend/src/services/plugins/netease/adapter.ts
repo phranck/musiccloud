@@ -34,7 +34,7 @@
  * Public NetEase endpoints surface neither. `findByIsrc` returns
  * null; cross-service resolves go through text search.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
@@ -311,7 +311,7 @@ async function searchNetEaseAlbums(query: string): Promise<NetEaseAlbum[]> {
 
 export const neteaseAdapter: ServiceAdapter = {
   id: "netease",
-  displayName: "NetEase Cloud Music",
+  displayName: getPlatformLabel("netease"),
   capabilities: {
     supportsIsrc: false,
     supportsPreview: false,
