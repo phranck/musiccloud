@@ -34,6 +34,8 @@ The adapter takes no audio previews from Apple, although the API sends one with 
 
 The adapter takes no artwork from Apple either, for songs, albums or artists, although the API sends it with each of them. The same section of the agreement allows Apple Music artwork only together with MusicKit playback. A track, album or artist resolved from Apple Music shows the cover another matched service returned, Spotify's first, and the placeholder where no other service has one. `pickArtworkUrl` in `src/services/artwork.ts` makes that choice and also drops an Apple cover that reaches a resolve another way, such as the `og:image` of a scraped Apple Music page. The decision is recorded in issue #622.
 
+Covers stored before that change are replaced by `src/scripts/replace-apple-artwork.ts` (issue #623). It counts the stored Apple covers by default and replaces them with `--apply`, asking Spotify and then Deezer for each track by ISRC, each album by UPC and each artist by its stored link. A row no service has a cover for loses its cover. A row whose lookups failed keeps it, so running the script again picks it up.
+
 ## Operational Notes
 
 Apple storefront matters. Do not drop the country/storefront prefix during URL parsing, because the API request must target the same regional catalog.
