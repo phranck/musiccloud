@@ -40,7 +40,6 @@
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -52,7 +51,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 
 const API_BASE = "https://api.audius.co/v1";
 const APP_NAME = "music_cloud";
@@ -219,7 +218,7 @@ export const audiusAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
+    const q = searchText(query);
 
     const response = await audiusFetch(`/tracks/search?query=${encodeURIComponent(q)}&limit=5`);
 
@@ -285,15 +284,7 @@ export const audiusAdapter = {
       let bestConfidence = 0;
 
       for (const album of albums) {
-        const confidence = calculateAlbumConfidence(
-          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
-          {
-            title: album.title,
-            artists: album.artists,
-            totalTracks: album.totalTracks,
-            releaseDate: album.releaseDate,
-          },
-        );
+        const confidence = scoreAlbumCandidate(query, album);
         if (confidence > bestConfidence) {
           bestConfidence = confidence;
           bestMatch = album;

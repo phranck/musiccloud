@@ -45,7 +45,7 @@ import { Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
-import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -62,7 +62,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 
 const API_BASE = "https://openapi.tidal.com/v2";
 
@@ -333,7 +333,7 @@ export const tidalAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
+    const q = searchText(query);
 
     const response = await tidalFetch(
       `/searchresults/${encodeURIComponent(q)}/relationships/tracks?countryCode=US&include=tracks.artists,tracks.albums`,
@@ -436,10 +436,7 @@ export const tidalAdapter = {
 
     for (const item of items.slice(0, 5)) {
       const album = mapAlbum(item, data.included);
-      const confidence = calculateAlbumConfidence(
-        { title: query.title, artists: [query.artist], totalTracks: query.totalTracks },
-        { title: album.title, artists: album.artists, releaseDate: album.releaseDate, totalTracks: album.totalTracks },
-      );
+      const confidence = scoreAlbumCandidate(query, album);
 
       if (confidence > bestConfidence) {
         bestConfidence = confidence;

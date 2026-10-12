@@ -43,7 +43,7 @@
 import { Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";
-import { calculateArtistNameConfidence, calculateConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { stripYouTubeTopicSuffix } from "../../../lib/youtube-topic.js";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
@@ -55,8 +55,10 @@ import type {
   MatchResult,
   NormalizedArtist,
   NormalizedTrack,
+  SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 
 const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.|music\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
@@ -225,8 +227,8 @@ export const youtubeAdapter: ServiceAdapter = {
     return null;
   },
 
-  async searchTrack(query: { title: string; artist: string; album?: string }): Promise<MatchResult> {
-    const searchQuery = encodeURIComponent(`${query.artist} ${query.title} official`);
+  async searchTrack(query: SearchQuery): Promise<MatchResult> {
+    const searchQuery = encodeURIComponent(`${searchText(query)} official`);
     const response = await youtubeFetch(
       `/search?part=snippet&type=video&videoCategoryId=10&q=${searchQuery}&maxResults=3`,
     );
@@ -256,12 +258,14 @@ export const youtubeAdapter: ServiceAdapter = {
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
 
+    // A free-text score follows the search's ranking, and the details call
+    // does not promise to answer in that order, so each video is scored at
+    // its position in the search result.
+    const searchOrder = items.map((item) => item.id.videoId);
     for (const video of videos) {
       const track = mapVideoToTrack(video);
-      const confidence = calculateConfidence(
-        { title: query.title, artists: [query.artist], durationMs: undefined },
-        { title: track.title, artists: track.artists, durationMs: track.durationMs },
-      );
+      const position = searchOrder.indexOf(video.id);
+      const confidence = scoreSearchCandidate(query, track, position === -1 ? searchOrder.length : position);
 
       if (confidence > bestConfidence) {
         bestConfidence = confidence;

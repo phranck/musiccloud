@@ -1,7 +1,6 @@
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -14,7 +13,7 @@ import type {
   ServiceAdapter,
 } from "../../types";
 import { splitArtistNames } from "../_shared/artists.js";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
@@ -394,7 +393,7 @@ export const pandoraAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
+    const q = searchText(query);
 
     try {
       const response = await pandoraApiFetch("/api/v3/sod/search", {
@@ -509,10 +508,7 @@ export const pandoraAdapter = {
 
         const urlPath = (data.shareableUrlPath ?? "").replace(/^\/artist\//, "");
         const album = mapAlbumData(data, urlPath || `search-${i}`);
-        const confidence = calculateAlbumConfidence(
-          { title: query.title, artists: [query.artist], releaseDate: query.year },
-          { title: album.title, artists: album.artists, releaseDate: album.releaseDate },
-        );
+        const confidence = scoreAlbumCandidate(query, album);
         log.debug("Pandora", `  "${data.name}" -> confidence=${confidence.toFixed(3)}`);
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

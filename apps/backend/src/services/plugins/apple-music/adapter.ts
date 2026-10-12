@@ -57,7 +57,7 @@ import { ResourceKind, Service } from "@musiccloud/shared";
 import { importPKCS8, SignJWT } from "jose";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";
-import { calculateArtistNameConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AdapterCapabilities,
@@ -77,6 +77,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { appleSearchByGenre } from "./genre-search.js";
 
 /**
@@ -634,9 +635,8 @@ export const appleMusicAdapter: ServiceAdapter = {
    * {@link SEARCH_EARLY_EXIT_CONFIDENCE} so the common case stays fast.
    */
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const term = encodeURIComponent(
-      query.album ? `${query.artist} ${query.title} ${query.album}` : `${query.artist} ${query.title}`,
-    );
+    const text = searchText(query);
+    const term = encodeURIComponent(query.album ? `${text} ${query.album}` : text);
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
     const cascade = new StorefrontCascadeOutcome();
@@ -648,12 +648,9 @@ export const appleMusicAdapter: ServiceAdapter = {
       const data = await response.json();
       const songs: AppleMusicSongResource[] = data.results?.songs?.data ?? [];
 
-      for (const song of songs) {
-        const track = mapTrack(song);
-        const confidence = calculateConfidence(
-          { title: query.title, artists: [query.artist], durationMs: undefined },
-          { title: track.title, artists: track.artists, durationMs: track.durationMs },
-        );
+      for (let index = 0; index < songs.length; index++) {
+        const track = mapTrack(songs[index]);
+        const confidence = scoreSearchCandidate(query, track, index);
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;
@@ -720,10 +717,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
       for (const album of albums) {
         const normalized = mapAlbum(album);
-        const confidence = calculateConfidence(
-          { title: query.title, artists: [query.artist], durationMs: undefined },
-          { title: normalized.title, artists: normalized.artists, durationMs: undefined },
-        );
+        const confidence = scoreAlbumCandidate(query, normalized);
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

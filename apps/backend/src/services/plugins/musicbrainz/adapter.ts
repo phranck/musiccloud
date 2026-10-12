@@ -41,7 +41,7 @@ import type {
   SearchQuery,
   SearchResultWithCandidates,
 } from "../../types.js";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { isFreeTextSearch, scoreSearchCandidate } from "../_shared/confidence.js";
 import { acquireMusicBrainzSlot } from "./rate-limit.js";
 
 const API_BASE = "https://musicbrainz.org/ws/2";
@@ -356,7 +356,7 @@ export const musicbrainzAdapter = {
   },
 
   async searchTrackWithCandidates(query: SearchQuery): Promise<SearchResultWithCandidates> {
-    const isFreeText = query.title === query.artist;
+    const isFreeText = isFreeTextSearch(query);
 
     const queryString = isFreeText
       ? escapeLucene(query.title)

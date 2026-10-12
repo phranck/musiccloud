@@ -1,7 +1,7 @@
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -18,7 +18,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
@@ -294,7 +294,7 @@ async function fetchAlbumByPath(setPath: string): Promise<NormalizedAlbum | null
 
 async function searchSoundCloudAlbums(
   query: string,
-): Promise<Array<{ path: string; title: string; artist: string; trackCount?: number }>> {
+): Promise<Array<{ path: string; title: string; artist: string; releaseDate?: string; trackCount?: number }>> {
   try {
     const response = await scApiFetch(`/search/albums?q=${encodeURIComponent(query)}&limit=5`);
     if (!response.ok) return [];
@@ -305,6 +305,9 @@ async function searchSoundCloudAlbums(
         path: p.permalink_url?.replace("https://soundcloud.com/", "") ?? "",
         title: p.title ?? "",
         artist: p.user?.username ?? p.user?.full_name ?? "",
+        // The same date the full album is read with, so the year the score
+        // counts here is the one the chosen album reports.
+        releaseDate: p.release_date ?? p.created_at ?? undefined,
         trackCount: p.track_count,
       }))
       .filter((r) => r.path);
@@ -380,7 +383,7 @@ export const soundcloudAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
+    const q = searchText(query);
 
     try {
       const response = await scApiFetch(`/search/tracks?q=${encodeURIComponent(q)}&limit=5`);
@@ -454,10 +457,12 @@ export const soundcloudAdapter = {
       let bestConfidence = 0;
 
       for (const r of results) {
-        const confidence = calculateAlbumConfidence(
-          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
-          { title: r.title, artists: [r.artist], totalTracks: r.trackCount },
-        );
+        const confidence = scoreAlbumCandidate(query, {
+          title: r.title,
+          artists: [r.artist],
+          releaseDate: r.releaseDate,
+          totalTracks: r.trackCount,
+        });
         if (confidence > bestConfidence) {
           bestConfidence = confidence;
           // Lazy-fetch full album only if it's the best candidate

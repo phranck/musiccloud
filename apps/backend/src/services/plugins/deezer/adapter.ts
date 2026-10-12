@@ -50,7 +50,7 @@
  * page rendering sharp at retina resolutions.
  */
 import { ResourceKind, Service } from "@musiccloud/shared";
-import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { CANDIDATE_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE, MAX_CANDIDATES } from "../../constants.js";
 import type {
@@ -70,7 +70,7 @@ import type {
   SearchResultWithCandidates,
   ServiceAdapter,
 } from "../../types.js";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { isFreeTextSearch, scoreAlbumCandidate, scoreSearchCandidate } from "../_shared/confidence.js";
 import { pickDeezerArtistImage } from "./artist-image.js";
 import { deezerFetch, deezerGet } from "./deezer-response.js";
 import { deezerSearchByGenre } from "./genre-search.js";
@@ -188,7 +188,7 @@ function isDeezerError(data: unknown): data is DeezerErrorResponse {
  * one, mirroring the optional shape of `SearchQuery`.
  */
 function buildDeezerQ(query: SearchQuery): string {
-  if (query.title === query.artist) return query.title;
+  if (isFreeTextSearch(query)) return query.title;
   const base = `artist:"${query.artist}" track:"${query.title}"`;
   return query.album ? `${base} album:"${query.album}"` : base;
 }
@@ -390,10 +390,7 @@ export const deezerAdapter = {
 
     for (const item of items) {
       const album = mapAlbum(item);
-      const confidence = calculateAlbumConfidence(
-        { title: query.title, artists: [query.artist], totalTracks: query.totalTracks },
-        { title: album.title, artists: album.artists, releaseDate: album.releaseDate, totalTracks: album.totalTracks },
-      );
+      const confidence = scoreAlbumCandidate(query, album);
 
       if (confidence > bestConfidence) {
         bestConfidence = confidence;
