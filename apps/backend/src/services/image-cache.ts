@@ -22,6 +22,7 @@ import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { TokenManager } from "../lib/infra/token-manager.js";
 import { fetchDeezerArtistImage } from "./plugins/deezer/artist-image.js";
+import { type LastFmImage, lastFmApiKey, lastFmGet, pickLastFmImage } from "./plugins/lastfm/lastfm-response.js";
 
 // ─── Normalisation ─────────────────────────────────────────────────────────
 
@@ -104,38 +105,24 @@ async function spotifyArtistLookup(name: string): Promise<string | null> {
 
 // ─── Last.fm (track artwork) ───────────────────────────────────────────────
 
-const LASTFM_BASE = "https://ws.audioscrobbler.com/2.0";
-
-function lastfmKey(): string | undefined {
-  return process.env.LASTFM_API_KEY;
-}
-
-interface LastfmImage {
-  "#text": string;
-  size: string;
-}
-
-function pickLastfmImage(images: LastfmImage[]): string | null {
-  const xl = images.find((i) => i.size === "extralarge");
-  const url = xl?.["#text"] || images[images.length - 1]?.["#text"];
-  if (!url) return null;
-  // Last.fm returns a generic placeholder hash for missing images
-  if (url.includes("2a96cbd8b46e442fc41c2b86b821562f")) return null;
-  return url;
-}
-
+/**
+ * The album cover Last.fm holds for a track.
+ *
+ * A missing cover is only a missing picture, so a refusal or a failed request
+ * reads as none, logged at debug level.
+ *
+ * @param artist - The track's artist.
+ * @param track - The track's title.
+ * @returns The cover URL, or `null` without a key, without a cover or when Last.fm did not answer.
+ */
 async function lastfmTrackArtwork(artist: string, track: string): Promise<string | null> {
-  const key = lastfmKey();
-  if (!key) return null;
+  if (!lastFmApiKey()) return null;
   try {
-    const res = await fetchWithTimeout(
-      `${LASTFM_BASE}/?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(track)}&api_key=${encodeURIComponent(key)}&format=json`,
-      {},
-      5000,
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as { track?: { album?: { image?: LastfmImage[] } } };
-    return pickLastfmImage(data.track?.album?.image ?? []);
+    const data = await lastFmGet<{ track?: { album?: { image?: LastFmImage[] } } }>("track.getInfo", {
+      artist,
+      track,
+    });
+    return pickLastFmImage(data?.track?.album?.image);
   } catch (err) {
     log.debug(
       "ImageCache",

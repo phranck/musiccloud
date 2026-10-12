@@ -6,11 +6,7 @@
  */
 
 import type { ArtistTopTrack } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { readLastFmJson } from "./lastfm-response.js";
-
-const API_BASE = "https://ws.audioscrobbler.com/2.0";
-const TIMEOUT_MS = 5000;
+import { lastFmApiKey, lastFmGet } from "./lastfm-response.js";
 
 interface LastFmTopTracksResponse {
   toptracks?: {
@@ -31,15 +27,12 @@ interface LastFmTopTracksResponse {
  * @throws {UpstreamUnavailableError} when Last.fm did not answer.
  */
 export async function fetchLastFmTopTracks(name: string, limit = 3): Promise<ArtistTopTrack[]> {
-  const apiKey = process.env.LASTFM_API_KEY;
-  if (!apiKey) return [];
+  if (!lastFmApiKey()) return [];
 
-  const res = await fetchWithTimeout(
-    `${API_BASE}/?method=artist.getTopTracks&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(apiKey)}&format=json&limit=${limit}`,
-    {},
-    TIMEOUT_MS,
-  );
-  const data = await readLastFmJson<LastFmTopTracksResponse>(res, "artist.getTopTracks");
+  const data = await lastFmGet<LastFmTopTracksResponse>("artist.getTopTracks", {
+    artist: name,
+    limit: String(limit),
+  });
   const tracks = data?.toptracks?.track ?? [];
   return tracks.slice(0, limit).map(
     (t): ArtistTopTrack => ({

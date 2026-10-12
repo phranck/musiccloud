@@ -118,7 +118,7 @@ The source requests the genres serially with a 250 ms gap. Every request uses th
 
 Execution also requires `LASTFM_API_KEY` in the backend runtime. Missing credentials produce the same safe configuration response or failed-run note; they never expose the credential name or value in public API responses or logs. The source requests tags serially with a 250 ms gap, which keeps its maximum configured twenty-tag run to roughly four upstream requests per second. Every request uses the common 5-second timeout and SSRF-protected outbound fetch helper.
 
-`tag.getTopTracks` rows with no usable artist/title are counted as skipped. The source normalizes and deduplicates artist/title pairs across all tags in a single run before they reach the shared resolver ingest path. Any HTTP, timeout, JSON, or Last.fm API error fails the complete fetch rather than silently treating a partial source response as success.
+`tag.getTopTracks` rows with no usable artist/title are counted as skipped. The source normalizes and deduplicates artist/title pairs across all tags in a single run before they reach the shared resolver ingest path. A tag Last.fm does not know (its error 6) counts as a tag without tracks. Any HTTP, timeout or JSON failure, and any other Last.fm error such as the rate limit, fails the complete fetch rather than silently treating a partial source response as success.
 
 ### Apple Music Charts configuration
 
