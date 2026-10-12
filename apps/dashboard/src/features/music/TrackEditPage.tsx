@@ -11,9 +11,9 @@ import {
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useReducer } from "react";
 import { useNavigate, useParams } from "react-router";
-
 import { EditorPageShell } from "@/components/ui/EditorPageShell";
 import { EditorToolbarButton } from "@/components/ui/EditorToolbarButton";
+import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { dashboardCopy } from "@/copy/dashboard";
 import { api } from "@/lib/api";
 import { formatEnglishDate } from "@/lib/format";
@@ -51,7 +51,6 @@ function sortServiceDisplayOrder(services: readonly string[]) {
   return sorted;
 }
 
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 const messages = dashboardCopy;
 const m = messages.music.trackEdit;
 const common = messages.common;
@@ -328,7 +327,7 @@ export function TrackEditPage() {
         <div className="flex-1 min-w-0 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="track-title" className={labelClass}>
+              <label htmlFor="track-title" className={FIELD_LABEL_CLASS}>
                 {m.title}
               </label>
               <DashboardInput
@@ -339,7 +338,7 @@ export function TrackEditPage() {
               />
             </div>
             <div>
-              <label htmlFor="track-artists" className={labelClass}>
+              <label htmlFor="track-artists" className={FIELD_LABEL_CLASS}>
                 {m.artists}
               </label>
               <DashboardInput
@@ -364,7 +363,7 @@ export function TrackEditPage() {
               ) : null}
             </div>
             <div>
-              <label htmlFor="track-album" className={labelClass}>
+              <label htmlFor="track-album" className={FIELD_LABEL_CLASS}>
                 {m.albumName}
               </label>
               <DashboardInput
@@ -375,7 +374,7 @@ export function TrackEditPage() {
               />
             </div>
             <div>
-              <label htmlFor="track-isrc" className={labelClass}>
+              <label htmlFor="track-isrc" className={FIELD_LABEL_CLASS}>
                 {m.isrc}
               </label>
               <DashboardInput
@@ -389,7 +388,7 @@ export function TrackEditPage() {
 
           {/* Artwork URL */}
           <div>
-            <label htmlFor="track-artwork-url" className={labelClass}>
+            <label htmlFor="track-artwork-url" className={FIELD_LABEL_CLASS}>
               {m.artworkUrl}
             </label>
             <DashboardInput
@@ -412,7 +411,7 @@ export function TrackEditPage() {
                 const url = linksByService.get(service);
                 return (
                   <div key={service}>
-                    <label htmlFor={`service-url-${service}`} className={labelClass}>
+                    <label htmlFor={`service-url-${service}`} className={FIELD_LABEL_CLASS}>
                       {label}
                     </label>
                     <div className="flex items-center gap-2">

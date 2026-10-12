@@ -4,6 +4,7 @@ import { SpinnerGap as SpinnerGapIcon, User as UserIcon } from "@phosphor-icons/
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
@@ -17,8 +18,6 @@ import {
   useUpdateDeveloperAccount,
 } from "@/features/developer/hooks/useDeveloperData";
 import { Dialog } from "@/shared/ui/Dialog";
-
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /**
  * Editable developer account fields as drafted by the admin, kept separate
@@ -140,7 +139,7 @@ export function DeveloperDetailPage() {
                   not room for two fields beside each other. */}
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label htmlFor="dev-email" className={labelClass}>
+                  <label htmlFor="dev-email" className={FIELD_LABEL_CLASS}>
                     {dm.colEmail}
                   </label>
                   <DashboardInput
@@ -151,7 +150,7 @@ export function DeveloperDetailPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="dev-display-name" className={labelClass}>
+                  <label htmlFor="dev-display-name" className={FIELD_LABEL_CLASS}>
                     {dm.colDisplayName}
                   </label>
                   <DashboardInput
@@ -162,7 +161,7 @@ export function DeveloperDetailPage() {
                   />
                 </div>
                 <div>
-                  <span className={labelClass}>{dm.colTechnicalContact}</span>
+                  <span className={FIELD_LABEL_CLASS}>{dm.colTechnicalContact}</span>
                   {/* Read-only: the address belongs to the developer, who sets
                       it in the portal. It stands here because it is what the
                       operator reaches for when an application misbehaves. */}
@@ -174,7 +173,7 @@ export function DeveloperDetailPage() {
                   )}
                 </div>
                 <div>
-                  <span className={labelClass}>{dm.colTier}</span>
+                  <span className={FIELD_LABEL_CLASS}>{dm.colTier}</span>
                   <TierDropdown
                     value={form.tierId}
                     onChange={(tierId) => setAccountDraft({ ...form, tierId })}

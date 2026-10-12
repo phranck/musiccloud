@@ -3,6 +3,7 @@ import { ApiTokenStatus, DeveloperProjectStatus } from "@musiccloud/shared";
 import { Code as CodeIcon, SpinnerGap as SpinnerGapIcon, Stack as StackIcon } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
@@ -15,8 +16,6 @@ import { formatEnglishDate } from "@/lib/format";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
-
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /**
  * One registration under the project, as a row in the registrations section.
@@ -98,11 +97,11 @@ export function ProjectDetailPage() {
           <DashboardSection.Body>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <span className={labelClass}>{dm.colStatus}</span>
+                <span className={FIELD_LABEL_CLASS}>{dm.colStatus}</span>
                 <StatusBadge status={project.status} />
               </div>
               <div>
-                <span className={labelClass}>{dm.colCreated}</span>
+                <span className={FIELD_LABEL_CLASS}>{dm.colCreated}</span>
                 <p className="text-sm text-[var(--ds-text)]">{formatEnglishDate(project.createdAt)}</p>
               </div>
             </div>

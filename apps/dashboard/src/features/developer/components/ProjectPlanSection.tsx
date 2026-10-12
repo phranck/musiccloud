@@ -4,6 +4,7 @@ import { Gauge as GaugeIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
+import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { DeveloperProjectResponse, DeveloperProjectSubscriptionResponse } from "@/features/developer/api";
 import { TierDropdown } from "@/features/developer/components/TierDropdown";
@@ -12,8 +13,6 @@ import { parseLimitOverride } from "@/features/developer/lib";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
-
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /**
  * Label and explanation per subscription state.
@@ -130,11 +129,11 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
       <DashboardSection.Body>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <span className={labelClass}>{dm.colTier}</span>
+            <span className={FIELD_LABEL_CLASS}>{dm.colTier}</span>
             <TierDropdown value={tierId} onChange={setTierDraft} aria-label={dm.colTier} />
           </div>
           <div>
-            <span className={labelClass}>{dm.projectSubscriptionState}</span>
+            <span className={FIELD_LABEL_CLASS}>{dm.projectSubscriptionState}</span>
             <Dropdown
               value={state}
               onChange={setStateDraft}
@@ -158,7 +157,7 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
       <DashboardSection.Body>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor="project-override-minute" className={labelClass}>
+            <label htmlFor="project-override-minute" className={FIELD_LABEL_CLASS}>
               {dm.projectOverrideMinute}
             </label>
             <DashboardInput
@@ -174,7 +173,7 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
             </p>
           </div>
           <div>
-            <label htmlFor="project-override-day" className={labelClass}>
+            <label htmlFor="project-override-day" className={FIELD_LABEL_CLASS}>
               {dm.projectOverrideDay}
             </label>
             <DashboardInput
