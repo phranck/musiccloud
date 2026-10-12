@@ -1,3 +1,4 @@
+import { ERROR_CODE_REGISTRY } from "@musiccloud/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./api", () => ({
@@ -31,8 +32,10 @@ describe("getPortalAvailability", () => {
 
     await expect(getPortalAvailability()).resolves.toBeNull();
     expect(warning).toHaveBeenCalledOnce();
-    expect(warning.mock.calls[0]?.[0]).toContain('"errorCode":"MC-DEV-0001"');
-    expect(warning.mock.calls[0]?.[0]).toContain('"outcome":"fail_closed"');
+    const logged = JSON.parse(String(warning.mock.calls[0]?.[0])) as { errorCode: string; outcome: string };
+    // The code an operator reads in the log has to be one the registry can explain.
+    expect(Object.keys(ERROR_CODE_REGISTRY)).toContain(logged.errorCode);
+    expect(logged.outcome).toBe("fail_closed");
 
     warning.mockRestore();
   });

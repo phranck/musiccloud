@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   type ApiErrorResponse,
-  formatUserMessage,
+  createApiErrorBody,
   getErrorEntry,
   LEGACY_TO_MC,
   MC_ERROR_CODE_PATTERN,
@@ -57,6 +57,17 @@ export function normalizeApiErrorPayload(
   return { ...additional, error: code, errorId, message } as ApiErrorResponse & ErrorPayload;
 }
 
+/**
+ * Builds an error body from the registry with a fresh incident reference.
+ *
+ * The body itself comes from the shared `createApiErrorBody`, which the site
+ * and the portal proxies use as well, so every service sends the same shape.
+ *
+ * @param code - An `MC-…` code or a legacy code the registry maps.
+ * @param options - The values for the message's placeholders, an incident
+ *   reference to reuse, and an optional message that replaces the registry's.
+ * @returns The body to send.
+ */
 export function createApiErrorResponse(
   code: string,
   options: {
@@ -65,13 +76,11 @@ export function createApiErrorResponse(
     overrideMessage?: string;
   } = {},
 ): ApiErrorResponse {
-  const entry = getErrorEntry(code);
-  return {
-    error: entry.code,
+  return createApiErrorBody(code, {
     errorId: options.errorId ?? randomUUID(),
-    message: formatUserMessage(entry.code, options.context, options.overrideMessage),
-    ...(options.context ? { context: options.context } : {}),
-  };
+    context: options.context,
+    overrideMessage: options.overrideMessage,
+  });
 }
 
 export function sanitizeErrorForLog(

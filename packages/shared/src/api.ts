@@ -16,7 +16,7 @@
  * one endpoint for all three without the frontend probing fields.
  */
 
-import type { McErrorCode } from "./error-codes.js";
+import { formatUserMessage, getErrorEntry, type McErrorCode } from "./error-codes.js";
 import type { MatchMethod } from "./services.js";
 import type { VinylLayout } from "./vinyl-layout.js";
 
@@ -110,6 +110,75 @@ export interface ApiErrorResponse {
    * should map `error` plus this context to localized copy.
    */
   context?: Record<string, string | number>;
+}
+
+/**
+ * The fields of an error body that are present and of the right type.
+ *
+ * Every field is optional, because a body can come from a proxy, a gateway or
+ * an older backend. Each caller decides what a missing field means for it.
+ */
+export interface ParsedApiError {
+  /** The machine code, usually an `MC-…` code. */
+  error?: string;
+  /** The rendered message, ending with the code in parentheses. */
+  message?: string;
+  /** The incident reference, never an empty string. */
+  errorId?: string;
+  /** The structured values the message was rendered from. */
+  context?: Record<string, string | number>;
+}
+
+/**
+ * Reads an error body without trusting its shape.
+ *
+ * The backend, the site and the portal proxies all send
+ * {@link ApiErrorResponse}, and every client reads it through this one
+ * function, so no client keeps its own idea of a missing or malformed field.
+ *
+ * @param payload - A parsed JSON body, or anything else a response carried.
+ * @returns The fields that are present and well typed.
+ */
+export function parseApiErrorResponse(payload: unknown): ParsedApiError {
+  if (typeof payload !== "object" || payload === null) return {};
+  const body = payload as Record<string, unknown>;
+  const parsed: ParsedApiError = {};
+  if (typeof body.error === "string") parsed.error = body.error;
+  if (typeof body.message === "string") parsed.message = body.message;
+  if (typeof body.errorId === "string" && body.errorId !== "") parsed.errorId = body.errorId;
+  if (typeof body.context === "object" && body.context !== null && !Array.isArray(body.context)) {
+    const context: Record<string, string | number> = {};
+    for (const [key, value] of Object.entries(body.context)) {
+      if (typeof value === "string" || typeof value === "number") context[key] = value;
+    }
+    parsed.context = context;
+  }
+  return parsed;
+}
+
+/**
+ * Builds an error body from the registry, the way every service answers.
+ *
+ * The caller passes the `errorId`, because generating one needs a random
+ * source this package does not import: the backend uses `node:crypto` and a
+ * browser or edge proxy its own.
+ *
+ * @param code - An `MC-…` code or a legacy code the registry maps.
+ * @param options - The incident reference, the values for the message's
+ *   placeholders, and an optional message that replaces the registry's.
+ * @returns The body to send, with the canonical code and the rendered message.
+ */
+export function createApiErrorBody(
+  code: string,
+  options: { errorId: string; context?: Record<string, string | number>; overrideMessage?: string },
+): ApiErrorResponse {
+  const entry = getErrorEntry(code);
+  return {
+    error: entry.code,
+    errorId: options.errorId,
+    message: formatUserMessage(entry.code, options.context, options.overrideMessage),
+    ...(options.context ? { context: options.context } : {}),
+  };
 }
 
 export type ResolveErrorResponse = ApiErrorResponse;

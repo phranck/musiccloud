@@ -314,14 +314,16 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     code: "MC-SYS-0002",
     httpStatus: 503,
     userMessage: "The backend could not be reached.",
-    internalNote: "The first-party frontend could not establish or complete its backend request.",
-    source: "apps/frontend/src/api/client.ts",
+    internalNote:
+      "A first-party app could not establish or complete its backend request. The developer portal logs its availability read under this code, with the failure named in `reason`.",
+    source: "apps/frontend/src/api/client.ts, apps/developer/src/lib/portal-availability.ts",
   },
   // ─── URL parsing / detection ───────────────────────────────────────────────
   "MC-URL-0001": {
     code: "MC-URL-0001",
     httpStatus: 400,
-    userMessage: "This platform isn't supported. Try a link from Spotify, Apple Music, or YouTube.",
+    userMessage:
+      "This URL isn't supported. Try a link from Spotify, Apple Music, YouTube, Tidal, Deezer, SoundCloud, or another supported service.",
     internalNote: "No adapter matched the URL. Either the host is unknown or the URL shape is off.",
     source: "apps/backend/src/lib/platform/url.ts validateMusicUrl",
   },
@@ -349,7 +351,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
   "MC-URL-0005": {
     code: "MC-URL-0005",
     httpStatus: 400,
-    userMessage: "We only support music tracks at the moment. Podcasts aren't resolved.",
+    userMessage: "Podcasts aren't resolved yet. Paste a link to a single track, album, or artist instead.",
     internalNote: "URL identifies a podcast.",
     source: "apps/backend/src/lib/platform/url.ts validateMusicUrl",
   },
@@ -389,7 +391,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
   "MC-API-0001": {
     code: "MC-API-0001",
     httpStatus: 503,
-    userMessage: "One of the services is temporarily unavailable. We returned what we could find.",
+    userMessage: "One of the services is temporarily unavailable. Please try again.",
     internalNote: "Generic service-down fallback. Adapter threw but wasn't marked unavailable.",
     source: "apps/backend/src/services/resolver.ts / album-resolver.ts",
   },

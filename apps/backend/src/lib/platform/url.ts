@@ -1,6 +1,13 @@
 import { ENDPOINTS, type ErrorCode, isMusicLinkHost, parseJamendoLink } from "@musiccloud/shared";
 
-export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorCode; message: string };
+/**
+ * Whether an input may enter the resolve pipeline as a link.
+ *
+ * A refusal carries a `message` only where it says something the registry's
+ * sentence for its code cannot, such as which endpoint a Jamendo link belongs
+ * to. Otherwise the registry's sentence is what callers receive.
+ */
+export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorCode; message?: string };
 
 // Patterns for unsupported content types (specific error messages)
 const PODCAST_REGEX = /spotify\.com\/(?:intl-\w+\/)?(?:episode|show)\//;
@@ -16,11 +23,7 @@ export function validateMusicUrl(input: string): UrlValidationResult {
 
   if (!url) {
     if (explicitUrl) {
-      return {
-        valid: false,
-        code: "INVALID_URL",
-        message: "That URL looks malformed. Please paste the full link from the streaming service.",
-      };
+      return { valid: false, code: "INVALID_URL" };
     }
     // Not a supported schemaless music URL candidate - treat as text search.
     return { valid: true };
@@ -28,11 +31,7 @@ export function validateMusicUrl(input: string): UrlValidationResult {
 
   // Check for unsupported content types (before host check, for better error messages)
   if (PODCAST_REGEX.test(input)) {
-    return {
-      valid: false,
-      code: "PODCAST_NOT_SUPPORTED",
-      message: "We only support music tracks at the moment.",
-    };
+    return { valid: false, code: "PODCAST_NOT_SUPPORTED" };
   }
 
   if (YOUTUBE_MUSIC_ALBUM_REGEX.test(input)) {
@@ -45,11 +44,7 @@ export function validateMusicUrl(input: string): UrlValidationResult {
   }
 
   if (PLAYLIST_REGEX.test(input)) {
-    return {
-      valid: false,
-      code: "PLAYLIST_NOT_SUPPORTED",
-      message: "We support single tracks right now. Try pasting a link to a specific song.",
-    };
+    return { valid: false, code: "PLAYLIST_NOT_SUPPORTED" };
   }
 
   // Jamendo is the Creative Commons catalog and resolves through its own
@@ -65,12 +60,7 @@ export function validateMusicUrl(input: string): UrlValidationResult {
   // Only a host of a supported service passes, before any request leaves the
   // server. The hosts are the shared table the web input reads as well.
   if (!isMusicLinkHost(url.hostname)) {
-    return {
-      valid: false,
-      code: "UNSUPPORTED_SERVICE",
-      message:
-        "This platform isn't supported. Try a link from Spotify, YouTube, Tidal, Deezer, SoundCloud, or another supported service.",
-    };
+    return { valid: false, code: "UNSUPPORTED_SERVICE" };
   }
 
   return { valid: true };

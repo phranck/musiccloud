@@ -56,10 +56,12 @@ function isPortalAvailability(value: unknown): value is PortalAvailability {
 function logAvailabilityDeviation(fields: { cause?: string; reason: string; status?: number }): void {
   // Do not include response bodies, endpoint URLs, headers, or error messages:
   // all can contain deployment details or credentials. The event stays useful
-  // for operators through its stable code and outcome.
+  // for operators through its stable code and outcome. The code is the
+  // registry's own for a first-party app that could not complete a backend
+  // request, so a search of the registry for it finds the entry.
   console.warn(
     JSON.stringify({
-      errorCode: "MC-DEV-0001",
+      errorCode: "MC-SYS-0002",
       operation: "developer_portal_availability_read",
       outcome: "fail_closed",
       ...fields,
