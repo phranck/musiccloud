@@ -26,7 +26,7 @@ if react_doctor_scan_repository > "$react_doctor_output" 2>&1; then
 else
   cat "$react_doctor_output" >&2
   rm -f "$react_doctor_output"
-  printf '%s\n' "React Doctor found repository regressions." "Run pnpm doctor to inspect and resolve the findings." >&2
+  printf '%s\n' "React Doctor found repository regressions." "Run pnpm run doctor to inspect and resolve the findings." >&2
   exit 1
 fi
 # react-doctor hook end
