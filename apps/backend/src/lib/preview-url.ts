@@ -1,9 +1,9 @@
 /**
  * @file Preview-URL freshness helpers.
  *
- * Most adapters serve permanent CDN URLs (Spotify, Apple Music, Tidal,
- * etc.) — for those `getPreviewExpiry` returns `null`, meaning the URL
- * never expires from our perspective. Deezer signs preview URLs with an
+ * Most adapters serve permanent CDN URLs (Spotify, Tidal, and others), and
+ * for those `getPreviewExpiry` returns `null`, meaning the URL never
+ * expires from our perspective. Deezer signs preview URLs with an
  * `hdnea=exp=<unix>` query parameter; we parse that and persist the
  * resulting timestamp on the `track_previews.expires_at` /
  * `album_previews.expires_at` columns so the resolver can refresh just

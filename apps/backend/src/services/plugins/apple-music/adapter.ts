@@ -46,6 +46,16 @@
  * source in the cross-service resolve pipeline along with Spotify
  * and Deezer.
  *
+ * ## No previews
+ *
+ * Apple Music answers a song with `previews`, and this adapter leaves them
+ * out on purpose. The Apple Developer Program License Agreement (section
+ * 3.3.6(D), as of August 2026) allows MusicKit content to play only as the
+ * MusicKit APIs or MusicKit JS render it, and musiccloud's player plays and
+ * analyzes preview audio in its own audio element. Deezer supplies the
+ * previews instead, refreshed on demand by the share-preview route. Decided
+ * in issue #290.
+ *
  * ## Artwork URL template
  *
  * Apple Music artwork URLs arrive with a `{w}x{h}` placeholder that
@@ -365,7 +375,6 @@ interface AppleMusicSongAttributes {
     width: number;
     height: number;
   };
-  previews?: Array<{ url: string }>;
   genreNames?: string[];
 }
 
@@ -434,7 +443,6 @@ function mapTrack(raw: AppleMusicSongResource): NormalizedTrack {
     releaseDate: attrs.releaseDate,
     isExplicit: attrs.contentRating === "explicit",
     artworkUrl,
-    previewUrl: attrs.previews?.[0]?.url,
     webUrl: attrs.url,
   };
 }
@@ -476,7 +484,8 @@ function mapAlbum(raw: AppleMusicAlbumResource): NormalizedAlbum {
 
 const capabilities: AdapterCapabilities = {
   supportsIsrc: true,
-  supportsPreview: true,
+  // Apple's previews are left out; see the file comment.
+  supportsPreview: false,
   supportsArtwork: true,
 };
 
