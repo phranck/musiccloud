@@ -2202,7 +2202,11 @@ export const apiAccessAuditEvents = pgTable(
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
     eventData: jsonb("event_data").notNull().default({}),
   },
-  (table) => [index("idx_api_access_audit_events_client_occurred").on(table.clientId, table.occurredAt)],
+  (table) => [
+    index("idx_api_access_audit_events_client_occurred").on(table.clientId, table.occurredAt),
+    // The admin audit read asks for one project's trail over a range.
+    index("idx_api_access_audit_events_project_occurred").on(table.projectId, table.occurredAt),
+  ],
 );
 
 export type ApiAccessAuditEventRow = typeof apiAccessAuditEvents.$inferSelect;

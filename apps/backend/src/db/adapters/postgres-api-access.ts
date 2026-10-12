@@ -16,6 +16,7 @@ import {
 import { nanoid } from "nanoid";
 import type { Pool } from "pg";
 import type {
+  ApiAccessAuditEntry,
   ApiAccessAuditEvent,
   ApiClient,
   ApiClientToken,
@@ -409,20 +410,15 @@ export async function listDeveloperProjectsByAccount(
 
 /**
  * Counts the projects an account currently holds, meaning every project that
- * has not been soft-deleted. A suspended project counts, because it still
- * exists and still owns its registrations. Served by
- * `idx_developer_projects_account_status`.
- *
- * @param pool - The Postgres pool.
- * @param developerAccountId - The owning developer account.
- * @returns The number of projects that count against the per-account ceiling.
- */
-/**
- * How many projects an account holds for the purposes of the ceiling.
+ * has not been soft-deleted. Served by `idx_developer_projects_account_status`.
  *
  * A suspended project still occupies its place and can be reactivated, so it
  * counts. Only a deleted one frees a slot; without that, an account could hold
  * any number of projects by suspending them.
+ *
+ * @param pool - The Postgres pool.
+ * @param developerAccountId - The owning developer account.
+ * @returns The number of projects that count against the per-account ceiling.
  */
 export async function countDeveloperProjectsAgainstCeiling(pool: Pool, developerAccountId: string): Promise<number> {
   const result = await pool.query(
@@ -918,6 +914,56 @@ export async function createApiAccessAuditEvent(
     ],
   );
   return rowToApiAccessAuditEvent(result.rows[0] as ApiAccessAuditEventRow);
+}
+
+/**
+ * Lists one project's audit trail inside a half-open range, newest first, with
+ * each actor's name joined in. Served by
+ * `idx_api_access_audit_events_project_occurred`. Rows with the same moment
+ * are ordered by id, so a page boundary never splits them differently twice.
+ *
+ * @param pool - The Postgres pool.
+ * @param projectId - The project whose trail to read.
+ * @param from - Start of the range, epoch ms, inclusive.
+ * @param to - End of the range, epoch ms, exclusive.
+ * @param limit - The most rows to return.
+ * @returns The entries.
+ */
+export async function listProjectAuditEvents(
+  pool: Pool,
+  projectId: string,
+  from: number,
+  to: number,
+  limit: number,
+): Promise<ApiAccessAuditEntry[]> {
+  const result = await pool.query(
+    `SELECT e.id, e.project_id, e.client_id, e.token_id, e.event_type, e.actor_admin_id,
+            e.actor_developer_account_id, e.occurred_at, e.event_data,
+            a.username AS actor_admin_username, d.email AS actor_developer_email
+     FROM api_access_audit_events e
+     LEFT JOIN admin_users a ON a.id = e.actor_admin_id
+     LEFT JOIN developer_accounts d ON d.id = e.actor_developer_account_id
+     WHERE e.project_id = $1 AND e.occurred_at >= $2 AND e.occurred_at < $3
+     ORDER BY e.occurred_at DESC, e.id DESC
+     LIMIT $4`,
+    [projectId, new Date(from), new Date(to), limit],
+  );
+  return result.rows.map((row) => {
+    const typed = row as ApiAccessAuditEventRow & {
+      actor_admin_username: string | null;
+      actor_developer_email: string | null;
+    };
+    return {
+      ...rowToApiAccessAuditEvent(typed),
+      actorAdminUsername: typed.actor_admin_username,
+      actorDeveloperEmail: typed.actor_developer_email,
+    };
+  });
+}
+
+export async function deleteApiAccessAuditEventsBefore(pool: Pool, cutoff: number): Promise<number> {
+  const result = await pool.query(`DELETE FROM api_access_audit_events WHERE occurred_at < $1`, [new Date(cutoff)]);
+  return result.rowCount ?? 0;
 }
 
 export async function countProjectUsage(pool: Pool, projectId: string, from: number, to: number): Promise<number> {

@@ -1,0 +1,1 @@
+CREATE INDEX "idx_api_access_audit_events_project_occurred" ON "api_access_audit_events" USING btree ("project_id","occurred_at");

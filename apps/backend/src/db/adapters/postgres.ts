@@ -35,6 +35,7 @@ import type {
   TrackListItem,
 } from "../admin-repository.js";
 import type {
+  ApiAccessAuditEntry,
   ApiAccessAuditEvent,
   ApiAccessRepository,
   ApiClient,
@@ -151,6 +152,7 @@ import {
   createApiClientToken as apiAccessCreateClientToken,
   createDeveloperProject as apiAccessCreateDeveloperProject,
   createApiUsageEvent as apiAccessCreateUsageEvent,
+  deleteApiAccessAuditEventsBefore as apiAccessDeleteAuditEventsBefore,
   deleteApiUsageEventsBefore as apiAccessDeleteUsageEventsBefore,
   findActiveApiClientByTokenHash as apiAccessFindActiveClientByTokenHash,
   findApiClientById as apiAccessFindClientById,
@@ -162,6 +164,7 @@ import {
   listApiClientsByProject as apiAccessListClientsByProject,
   listApiClientTokensByClient as apiAccessListClientTokensByClient,
   listDeveloperProjectsByAccount as apiAccessListDeveloperProjectsByAccount,
+  listProjectAuditEvents as apiAccessListProjectAuditEvents,
   revokeApiClientToken as apiAccessRevokeClientToken,
   rotateApiClientToken as apiAccessRotateClientToken,
   setDeveloperProjectSubscription as apiAccessSetDeveloperProjectSubscription,
@@ -1401,6 +1404,14 @@ export class PostgresAdapter
 
   deleteApiUsageEventsBefore(cutoff: number): Promise<number> {
     return apiAccessDeleteUsageEventsBefore(this.pool, cutoff);
+  }
+
+  listProjectAuditEvents(projectId: string, from: number, to: number, limit: number): Promise<ApiAccessAuditEntry[]> {
+    return apiAccessListProjectAuditEvents(this.pool, projectId, from, to, limit);
+  }
+
+  deleteApiAccessAuditEventsBefore(cutoff: number): Promise<number> {
+    return apiAccessDeleteAuditEventsBefore(this.pool, cutoff);
   }
 
   createApiUsageEvent(data: {
