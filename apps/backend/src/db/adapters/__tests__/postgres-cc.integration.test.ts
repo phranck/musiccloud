@@ -1,6 +1,9 @@
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { integrationDatabaseUrl } from "../../../__tests__/integration-database.js";
+import {
+  connectRepositoriesToIntegrationDatabase,
+  integrationDatabaseUrl,
+} from "../../../__tests__/integration-database.js";
 import { getCcRepository } from "../../index.js";
 import type { PersistCcAlbumData, PersistCcArtistData, PersistCcTrackData } from "../../repository.js";
 
@@ -18,6 +21,8 @@ import type { PersistCcAlbumData, PersistCcArtistData, PersistCcTrackData } from
  * because the CC FKs are `ON DELETE no action`.
  */
 describe.skipIf(!integrationDatabaseUrl())("CC repository (integration)", () => {
+  connectRepositoriesToIntegrationDatabase();
+
   const suffix = Math.random().toString(36).slice(2, 10);
   const jamendoTrackId = `ittrk-${suffix}`;
   const jamendoArtistId = `itart-${suffix}`;

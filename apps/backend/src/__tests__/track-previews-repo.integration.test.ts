@@ -1,9 +1,11 @@
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeRepository, getRepository } from "../db/index.js";
-import { integrationDatabaseUrl } from "./integration-database.js";
+import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from "./integration-database.js";
 
 describe.skipIf(!integrationDatabaseUrl())("track and album previews repository (integration)", () => {
+  connectRepositoriesToIntegrationDatabase();
+
   const suffix = Math.random().toString(36).slice(2, 10);
   const trackSourceUrl = `https://integration.test/track-preview/${suffix}`;
   const albumSourceUrl = `https://integration.test/album-preview/${suffix}`;
