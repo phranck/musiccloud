@@ -16,7 +16,9 @@ import {
   CONTENT_SLUG_PATTERN,
   CONTENT_TITLE_MAX_LENGTH,
   ContentContext,
+  isPortalReservedPath,
   isValidContentContextMask,
+  normalizeEditorialPath,
   OVERLAY_WIDTHS,
   PAGE_DISPLAY_MODES,
   PAGE_TITLE_ALIGNMENTS,
@@ -32,7 +34,6 @@ import type {
 } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 import { renderEditorialBody } from "./editorial-body.js";
-import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "./editorial-path.js";
 import { MARKDOWN_EXTENSION_REGISTRY, type MarkdownExtensionRegistry } from "./markdown/extension-registry.js";
 import { validateMarkdownForContexts } from "./markdown/validation.js";
 
@@ -210,7 +211,7 @@ export function normalizeAndValidateContentPublications(
     } catch (error) {
       return error instanceof Error ? error.message : "publication path invalid";
     }
-    if (publication.context === ContentContext.DeveloperPortal && isReservedDeveloperPortalPath(path)) {
+    if (publication.context === ContentContext.DeveloperPortal && isPortalReservedPath(path)) {
       return `Developer Portal path '${path}' is reserved`;
     }
 

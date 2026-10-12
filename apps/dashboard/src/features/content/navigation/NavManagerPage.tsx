@@ -12,6 +12,7 @@ import {
   type ContentPageSummary,
   expectedNavigationPlacements,
   hasAllContextBits,
+  isPortalDocsNavigationUrl,
   isSafeNavigationUrl,
   KNOWN_CONTENT_CONTEXT_MASK,
   NAVIGATION_SYSTEM_TARGETS,
@@ -218,22 +219,6 @@ function toConfigurationInput(entries: NavigationEntry[]): NavigationConfigurati
   };
 }
 
-function isSystemOwnedDocsUrl(value: string): boolean {
-  const candidate = value.trim();
-  if (!candidate.startsWith("/")) return false;
-  if (/%(?:2f|5c)/i.test(candidate) || candidate.includes("\\")) {
-    return candidate.toLowerCase().startsWith("/docs");
-  }
-
-  try {
-    const path = new URL(candidate, "https://navigation.invalid").pathname;
-    const normalized = `/${decodeURIComponent(path).split("/").filter(Boolean).join("/")}`;
-    return normalized === "/docs" || normalized.startsWith("/docs/");
-  } catch {
-    return candidate.toLowerCase().startsWith("/docs");
-  }
-}
-
 function errorDetails(error: unknown, fallback: string): SaveError {
   if (!(error instanceof Error)) return { message: fallback, errorId: null };
   const requestError = error as ApiRequestError;
@@ -396,7 +381,7 @@ function AddNavigationItem({ entries, nextId, onAdd, pages, text }: AddNavigatio
 
   const compatiblePages = pages.filter((page) => hasAllContextBits(page.contextMask, contextMask));
   const trimmedUrl = url.trim();
-  const docsOwned = type === NavigationAddType.Url && isSystemOwnedDocsUrl(trimmedUrl);
+  const docsOwned = type === NavigationAddType.Url && isPortalDocsNavigationUrl(trimmedUrl);
   const invalidUrl =
     type === NavigationAddType.Url && trimmedUrl.length > 0 && !docsOwned && !isSafeNavigationUrl(trimmedUrl);
   const canAdd =

@@ -3,8 +3,8 @@ import {
   expectedNavigationPlacements,
   hasAllContextBits,
   isNavigationSystemKey,
+  isPortalDocsNavigationUrl,
   isSafeNavigationUrl,
-  isSameSiteRelativePath,
   isValidContentContextMask,
   isValidNavigationAreaMask,
   NAVIGATION_SYSTEM_TARGETS,
@@ -28,7 +28,6 @@ import type {
   NavigationConfigurationReplaceInput,
 } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
-import { normalizeEditorialPath } from "./editorial-path.js";
 
 export type NavResult<T> = { ok: true; data: T } | { ok: false; code: "INVALID_INPUT"; message: string };
 
@@ -44,19 +43,8 @@ function invalid<T>(message: string): NavResult<T> {
   return { ok: false, code: "INVALID_INPUT", message };
 }
 
-function isProtectedDocsUrl(url: string): boolean {
-  if (!isSameSiteRelativePath(url)) return false;
-  try {
-    const path = new URL(url, "https://navigation.invalid").pathname;
-    const normalized = normalizeEditorialPath(path);
-    return normalized === "/docs" || normalized.startsWith("/docs/");
-  } catch {
-    return true;
-  }
-}
-
 function pageClaimsProtectedDocsNamespace(page: { publications?: Array<{ path: string }> }): boolean {
-  return page.publications?.some((publication) => isProtectedDocsUrl(publication.path)) ?? false;
+  return page.publications?.some((publication) => isPortalDocsNavigationUrl(publication.path)) ?? false;
 }
 
 function rowToNavigationEntry(row: NavigationConfigurationEntryRow): NavigationEntry {
@@ -294,7 +282,7 @@ async function validateNavigationEntry(
       raw.url.length === 0 ||
       raw.systemKey !== null ||
       !isSafeNavigationUrl(raw.url) ||
-      isProtectedDocsUrl(raw.url)
+      isPortalDocsNavigationUrl(raw.url)
     ) {
       return invalid(`entries[${entryIndex}] has invalid URL target fields`);
     }
@@ -411,7 +399,7 @@ export async function replaceManagedNavItems(navId: NavId, items: unknown): Prom
       return { ok: false, code: "INVALID_INPUT", message: `items[${i}]: either pageSlug or url is required` };
     }
 
-    if (url && (!isSafeNavigationUrl(url) || isProtectedDocsUrl(url))) {
+    if (url && (!isSafeNavigationUrl(url) || isPortalDocsNavigationUrl(url))) {
       return {
         ok: false,
         code: "INVALID_INPUT",

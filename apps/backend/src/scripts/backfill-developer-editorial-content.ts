@@ -1,4 +1,10 @@
-import { ContentContext, type ContentPublication, type SingleContentContext } from "@musiccloud/shared";
+import {
+  ContentContext,
+  type ContentPublication,
+  isPortalOwnedDocsPath,
+  normalizeEditorialPath,
+  type SingleContentContext,
+} from "@musiccloud/shared";
 
 import type {
   AdminRepository,
@@ -9,15 +15,17 @@ import type {
 } from "../db/admin-repository.js";
 import { ContentPublicationCutoverConflictError } from "../db/admin-repository.js";
 import {
+  canonicalRouteKey,
   fingerprintContentPage,
   PRIVACY_DEVELOPER_PUBLICATION,
   PRIVACY_FRONTEND_PREREQUISITE,
+  publicationContextMask,
+  samePublication,
   TERMS_DEVELOPER_PUBLICATION,
   TERMS_BOOTSTRAP_PAGE,
   TERMS_FRONTEND_PUBLICATION,
 } from "../db/content-publication-cutover.js";
 import { closeRepository, getAdminRepository } from "../db/index.js";
-import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../services/editorial-path.js";
 
 export interface DeveloperEditorialCutoverMapping {
   readonly sourceSlug: "privacy" | "terms";
@@ -202,7 +210,7 @@ export async function backfillDeveloperEditorialContent(
       routeClaims.push({ ownerPageId: ownerPageId ?? publication.pageId, publication, normalizedPath });
       claimsByCanonicalRoute.set(routeKey, routeClaims);
 
-      if (publication.context === ContentContext.DeveloperPortal && isDocsNamespace(normalizedPath)) {
+      if (publication.context === ContentContext.DeveloperPortal && isPortalOwnedDocsPath(normalizedPath)) {
         conflicts.push({
           code: "reserved-developer-path",
           context: publication.context,
@@ -519,27 +527,6 @@ function withoutPageId(publication: ContentPublicationRow): ContentPublication {
     status: publication.status,
     templateKey: publication.templateKey,
   };
-}
-
-function samePublication(current: ContentPublicationRow, desired: ContentPublication): boolean {
-  return (
-    current.context === desired.context &&
-    current.path === desired.path &&
-    current.status === desired.status &&
-    current.templateKey === desired.templateKey
-  );
-}
-
-function canonicalRouteKey(context: SingleContentContext, path: string): string {
-  return `${context}:${path}`;
-}
-
-function publicationContextMask(publications: ReadonlyArray<Pick<ContentPublication, "context">>): number {
-  return publications.reduce((mask, publication) => mask | publication.context, 0);
-}
-
-function isDocsNamespace(path: string): boolean {
-  return isReservedDeveloperPortalPath(path) && (path === "/docs" || path.startsWith("/docs/"));
 }
 
 function compareConflicts(left: DeveloperEditorialCutoverConflict, right: DeveloperEditorialCutoverConflict): number {

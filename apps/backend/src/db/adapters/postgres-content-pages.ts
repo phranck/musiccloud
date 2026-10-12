@@ -29,9 +29,13 @@ import type {
   PageType,
   SingleContentContext,
 } from "@musiccloud/shared";
-import { ContentContext } from "@musiccloud/shared";
+import {
+  ContentContext,
+  isPortalOwnedDocsPath,
+  isPortalReservedPath,
+  normalizeEditorialPath,
+} from "@musiccloud/shared";
 import type { Pool, PoolClient } from "pg";
-import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../../services/editorial-path.js";
 import {
   type BulkUpdatePagesPayload,
   type ContentPageCreateData,
@@ -47,10 +51,13 @@ import {
   type PageSegmentRow,
 } from "../admin-repository.js";
 import {
+  canonicalRouteKey,
   fingerprintContentPage,
   isCanonicalTermsBootstrapPage,
   PRIVACY_DEVELOPER_PUBLICATION,
   PRIVACY_FRONTEND_PREREQUISITE,
+  publicationContextMask,
+  samePublication,
   TERMS_DEVELOPER_PUBLICATION,
   TERMS_FRONTEND_PUBLICATION,
 } from "../content-publication-cutover.js";
@@ -407,7 +414,7 @@ export async function getPublishedContentPageByPath(
   path: string,
 ): Promise<ContentPageRow | null> {
   const normalizedPath = normalizeEditorialPath(path);
-  if (context === ContentContext.DeveloperPortal && isReservedDeveloperPortalPath(normalizedPath)) return null;
+  if (context === ContentContext.DeveloperPortal && isPortalReservedPath(normalizedPath)) return null;
 
   const result = await pool.query(
     `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
@@ -551,7 +558,7 @@ export async function applyContentPublicationCutover(
               (row) => row.page_id === expectedPageId && row.context === prerequisite.context,
             )
           : [];
-        if (current.length !== 1 || !sameLockedPublication(current[0]!, prerequisite)) {
+        if (current.length !== 1 || !samePublication(rowToContentPublication(current[0]!), prerequisite)) {
           throw cutoverConflict(`prerequisite publication ${entry.sourceSlug}`);
         }
       }
@@ -573,7 +580,7 @@ export async function applyContentPublicationCutover(
           pending.push({ sourceSlug: entry.sourceSlug, publication: desired });
           continue;
         }
-        if (current.length !== 1 || !sameLockedPublication(current[0]!, desired)) {
+        if (current.length !== 1 || !samePublication(rowToContentPublication(current[0]!), desired)) {
           throw cutoverConflict(`target publication ${entry.sourceSlug}`);
         }
       }
@@ -702,14 +709,7 @@ function hasExactPublicationSet(actual: unknown, expected: readonly Readonly<Con
 }
 
 function samePublicationValue(actual: unknown, expected: Readonly<ContentPublication>): boolean {
-  if (typeof actual !== "object" || actual === null) return false;
-  const publication = actual as Partial<ContentPublication>;
-  return (
-    publication.context === expected.context &&
-    publication.path === expected.path &&
-    publication.status === expected.status &&
-    publication.templateKey === expected.templateKey
-  );
+  return typeof actual === "object" && actual !== null && samePublication(actual as ContentPublication, expected);
 }
 
 function assertCanonicalDesiredPublication(sourceSlug: string, publication: ContentPublication): void {
@@ -721,7 +721,7 @@ function assertCanonicalDesiredPublication(sourceSlug: string, publication: Cont
   }
   if (
     normalizedPath !== publication.path ||
-    (publication.context === ContentContext.DeveloperPortal && isDocsNamespace(normalizedPath))
+    (publication.context === ContentContext.DeveloperPortal && isPortalOwnedDocsPath(normalizedPath))
   ) {
     throw cutoverConflict(`reserved or non-canonical desired path ${normalizedPath}`);
   }
@@ -736,7 +736,7 @@ function indexLockedPublicationClaims(rows: ContentPublicationSqlRow[]): Map<str
     } catch {
       throw cutoverConflict(`invalid existing path for Page ${row.page_id}`);
     }
-    if (row.context === ContentContext.DeveloperPortal && isDocsNamespace(normalizedPath)) {
+    if (row.context === ContentContext.DeveloperPortal && isPortalOwnedDocsPath(normalizedPath)) {
       throw cutoverConflict(`reserved docs claim ${normalizedPath}`);
     }
     const key = canonicalRouteKey(row.context as SingleContentContext, normalizedPath);
@@ -748,27 +748,6 @@ function indexLockedPublicationClaims(rows: ContentPublicationSqlRow[]): Map<str
     if (routeClaims.length > 1) throw cutoverConflict(`canonical duplicate ${key}`);
   }
   return claims;
-}
-
-function sameLockedPublication(row: ContentPublicationSqlRow, desired: ContentPublication): boolean {
-  return (
-    row.context === desired.context &&
-    row.path === desired.path &&
-    row.status === desired.status &&
-    row.template_key === desired.templateKey
-  );
-}
-
-function canonicalRouteKey(context: SingleContentContext, path: string): string {
-  return `${context}:${path}`;
-}
-
-function publicationContextMask(publications: ReadonlyArray<{ context: number }>): number {
-  return publications.reduce((mask, publication) => mask | publication.context, 0);
-}
-
-function isDocsNamespace(path: string): boolean {
-  return isReservedDeveloperPortalPath(path) && (path === "/docs" || path.startsWith("/docs/"));
 }
 
 function cutoverConflict(_reason: string): ContentPublicationCutoverConflictError {

@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 
-import { ContentContext, type ContentPublication, PageType } from "@musiccloud/shared";
+import { ContentContext, type ContentPublication, PageType, type SingleContentContext } from "@musiccloud/shared";
 import type { ContentPublicationCutoverPageCreate } from "./admin-repository.js";
+
+/** The fields that make two publications the same, whoever stored them. */
+type ComparablePublication = Pick<ContentPublication, "context" | "path" | "status" | "templateKey">;
 
 /** Existing canonical publication that must remain unchanged during the cutover. */
 export const PRIVACY_FRONTEND_PREREQUISITE = Object.freeze({
@@ -34,6 +37,48 @@ export const TERMS_DEVELOPER_PUBLICATION = Object.freeze({
   status: "published",
   templateKey: "developer-default",
 } as const satisfies ContentPublication);
+
+/**
+ * The key one route is claimed under: a context and a normalized path. The
+ * cutover preflight and the locked apply both index claims by it, so the two
+ * find the same duplicates.
+ *
+ * @param context - The context the route is published in.
+ * @param path - The path, already normalized.
+ * @returns A key that is equal for two claims on the same route.
+ */
+export function canonicalRouteKey(context: SingleContentContext, path: string): string {
+  return `${context}:${path}`;
+}
+
+/**
+ * The context mask a page's publications add up to. The cutover refuses a page
+ * whose stored mask differs from it, in the preflight and under lock alike.
+ *
+ * @param publications - The page's publications.
+ * @returns The contexts they publish in, as one mask.
+ */
+export function publicationContextMask(publications: ReadonlyArray<{ context: number }>): number {
+  return publications.reduce((mask, publication) => mask | publication.context, 0);
+}
+
+/**
+ * Whether two publications are the same: same context, path, status and
+ * template. The paths are compared as given, so a caller comparing a stored
+ * path normalizes it first.
+ *
+ * @param current - The publication as stored.
+ * @param desired - The publication the cutover or backfill wants.
+ * @returns `true` when nothing would change by writing `desired`.
+ */
+export function samePublication(current: ComparablePublication, desired: ComparablePublication): boolean {
+  return (
+    current.context === desired.context &&
+    current.path === desired.path &&
+    current.status === desired.status &&
+    current.templateKey === desired.templateKey
+  );
+}
 
 /** Stable, body-safe fingerprint shared by cutover preflight and locked apply. */
 export function fingerprintContentPage(page: { title: string; content: string }): string {

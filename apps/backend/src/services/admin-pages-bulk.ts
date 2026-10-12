@@ -5,7 +5,7 @@ import type {
   PagesBulkErrorDetail,
   PagesBulkRequest,
 } from "@musiccloud/shared";
-import { ContentContext } from "@musiccloud/shared";
+import { ContentContext, normalizeEditorialPath } from "@musiccloud/shared";
 
 import type { ContentPageMetaUpdate } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
@@ -17,7 +17,6 @@ import {
   validateContentPageBody,
   validateContentPageMeta,
 } from "./admin-content.js";
-import { normalizeEditorialPath } from "./editorial-path.js";
 
 export type BulkResult =
   | { ok: true; data: ContentPageSummary[] }

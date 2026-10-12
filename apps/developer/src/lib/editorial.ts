@@ -13,6 +13,7 @@ import {
   NavTarget,
   parseApiErrorResponse,
   type SingleNavigationArea,
+  tryNormalizeEditorialPath,
 } from "@musiccloud/shared";
 import { backendUrl, internalHeaders } from "./api";
 import { FOOTER_LINKS } from "./footerLinks";
@@ -32,26 +33,6 @@ export type EditorialResult<T> =
   | { status: "not-found" }
   | { status: "failure"; error: EditorialFailure };
 
-function normalizeManagedPath(path: string): string | null {
-  const candidate = path.trim();
-  if (!candidate || candidate.includes("\\") || /%(?:2f|5c)/i.test(candidate)) return null;
-
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(candidate);
-  } catch {
-    return null;
-  }
-  if (decoded.includes("?") || decoded.includes("#") || decoded.includes("\0")) return null;
-
-  const segments = decoded
-    .normalize("NFC")
-    .split("/")
-    .filter((segment) => segment.length > 0);
-  if (segments.some((segment) => segment === "." || segment === "..")) return null;
-  return segments.length === 0 ? "/" : `/${segments.join("/")}`;
-}
-
 /**
  * Whether a request may reach the managed editorial Page lookup.
  *
@@ -60,9 +41,8 @@ function normalizeManagedPath(path: string): string | null {
  * and that route looks the page up through here like every other.
  */
 export function isManagedEditorialPath(path: string): boolean {
-  const normalized = normalizeManagedPath(path);
-  if (!normalized) return false;
-  return !isPortalReservedPath(normalized);
+  const normalized = tryNormalizeEditorialPath(path);
+  return normalized !== null && !isPortalReservedPath(normalized);
 }
 
 function syntheticFailure(status: number, message: string, code = "MC-SYS-0001"): EditorialFailure {
@@ -154,8 +134,8 @@ function logFailure(operation: string, outcome: string, error: EditorialFailure,
 
 /** Reads one published managed Page without exposing context selection. */
 export async function fetchEditorialPage(path: string): Promise<EditorialResult<DeveloperPortalEditorialPage>> {
-  const normalized = normalizeManagedPath(path);
-  if (!normalized || !isManagedEditorialPath(normalized)) return { status: "not-found" };
+  const normalized = tryNormalizeEditorialPath(path);
+  if (normalized === null || isPortalReservedPath(normalized)) return { status: "not-found" };
 
   try {
     const response = await fetch(backendUrl(ENDPOINTS.internal.developer.editorial.page(normalized)), {
