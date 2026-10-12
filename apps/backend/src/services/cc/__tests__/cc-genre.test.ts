@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { GENRE_ARTWORK_VERSION } from "../../genre-artwork/genre-key.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../cc-genre.js";
 import * as client from "../jamendo/client.js";
 import type { CcArtist, CcGenre, CcTrack } from "../jamendo/types.js";
@@ -76,8 +77,8 @@ describe("runCcGenreBrowse", () => {
 
     expect(response.status).toBe("genre-browse");
     expect(response.genres).toEqual([
-      { name: "jazz", displayName: "Jazz", artworkUrl: "/api/cc/genre-artwork/jazz?v=5" },
-      { name: "rock", displayName: "Rock", artworkUrl: "/api/cc/genre-artwork/rock?v=5" },
+      { name: "jazz", displayName: "Jazz", artworkUrl: `/api/cc/genre-artwork/jazz?v=${GENRE_ARTWORK_VERSION}` },
+      { name: "rock", displayName: "Rock", artworkUrl: `/api/cc/genre-artwork/rock?v=${GENRE_ARTWORK_VERSION}` },
     ]);
     expect(response.genres.every((tile) => !("accentColor" in tile))).toBe(true);
   });

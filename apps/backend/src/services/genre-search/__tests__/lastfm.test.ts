@@ -16,6 +16,7 @@ vi.mock("../../image-cache.js", () => ({
   trackImageKey: (artist: string, title: string) => `${artist}|${title}`,
 }));
 
+import { GENRE_ARTWORK_VERSION, GENRE_KEY_PATTERN } from "../../genre-artwork/genre-key.js";
 import { getGenreBrowseGrid, lastfmSearchByGenre, resetBrowseCache } from "../lastfm.js";
 
 const TOP_TAGS = Array.from({ length: 20 }, (_, index) => ({ name: `genre${index}`, reach: String(1000 - index) }));
@@ -150,6 +151,25 @@ describe("getGenreBrowseGrid", () => {
 
     await expect(getGenreBrowseGrid()).rejects.toThrow("error 29");
     expect(mocks.fetchWithTimeout.mock.calls.length).toBeGreaterThan(requestsAfterFirstCall);
+  });
+
+  it("drops a tag whose key the artwork route refuses, so no tile shows a broken image", async () => {
+    topTags = [...TOP_TAGS, { name: "post-punk/new wave", reach: "500" }, { name: "métal", reach: "400" }];
+
+    const tiles = await getGenreBrowseGrid();
+
+    expect(tiles.map((tile) => tile.name).filter((name) => !GENRE_KEY_PATTERN.test(name))).toEqual([]);
+    expect(probedTags).not.toContain("post-punk/new wave");
+  });
+
+  it("versions every tile URL with the one artwork version the CC tiles use as well", async () => {
+    const tiles = await getGenreBrowseGrid();
+
+    for (const tile of tiles) {
+      expect(new URL(tile.artworkUrl, "https://musiccloud.io").searchParams.get("v")).toBe(
+        String(GENRE_ARTWORK_VERSION),
+      );
+    }
   });
 
   it("probes every genre when the stored artworks cannot be read", async () => {

@@ -37,6 +37,7 @@
 import { mapWithConcurrency } from "../../lib/concurrency.js";
 import { log } from "../../lib/infra/logger.js";
 import { extractPrimaryArtist } from "../artist-utils.js";
+import { genreArtworkTileUrl, genreDisplayName, isValidGenreKey } from "../genre-artwork/genre-key.js";
 import { getStoredArtworkSummaries, type StoredArtworkSummary } from "../genre-artwork/index.js";
 import { cacheAlbumImage, cacheTrackImage, getArtistImages, getTrackImages, trackImageKey } from "../image-cache.js";
 import {
@@ -409,19 +410,6 @@ const FORCED_DECADE_TAGS: BrowseTag[] = [
 ];
 
 /**
- * Cache-bust version for artwork URLs. The endpoint's JPEG bytes are
- * served with `Cache-Control: immutable`, so browsers keep old images
- * forever once they've been fetched. Bump this integer whenever the
- * generator algorithm, font, layout, or colour rules change — every
- * tile URL becomes a new cache key and clients refetch.
- */
-const ARTWORK_VERSION = 6;
-
-function capitalize(s: string): string {
-  return s.replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-/**
  * Hard-coded aliases for genre shortforms whose letters sit directly
  * next to each other — regex normalisation can't tell them apart from a
  * real word (e.g. `rnb` vs `sundance`), so we treat them as an explicit
@@ -592,7 +580,9 @@ export async function getGenreBrowseGrid(): Promise<GenreTile[]> {
   if (browseCacheInflight) return browseCacheInflight;
 
   browseCacheInflight = (async () => {
-    const candidates = await fetchBrowseCandidates();
+    // A tag whose key the artwork route refuses, such as one with a slash or a
+    // non-ASCII letter, would show a broken image, so it never becomes a tile.
+    const candidates = (await fetchBrowseCandidates()).filter((tag) => isValidGenreKey(canonicalizeGenreKey(tag.name)));
     const keys = candidates.map((tag) => canonicalizeGenreKey(tag.name));
     const stored = await readStoredArtworks(keys);
 
@@ -607,13 +597,13 @@ export async function getGenreBrowseGrid(): Promise<GenreTile[]> {
       const hasCover = summary?.hasSourceCover === true || probes.get(index)?.hasCover === true;
       const tile: GenreTile = {
         name,
-        displayName: capitalize(name),
+        // The same name the artwork bakes in, so label and image agree.
+        displayName: genreDisplayName(name),
         // Points at the Astro frontend proxy, NOT the backend directly.
         // The browser resolves this relative URL against the page origin
         // (the Astro host), so the path must be the proxy path. The
         // proxy handler then forwards to `ENDPOINTS.v1.genreArtwork`.
-        // `?v=` is a cache-bust, see ARTWORK_VERSION above.
-        artworkUrl: `/api/genre-artwork/${encodeURIComponent(name)}?v=${ARTWORK_VERSION}`,
+        artworkUrl: genreArtworkTileUrl(name),
       };
       // The accent lets the frontend color the card before the JPEG loads.
       if (summary) tile.accentColor = summary.accentColor;
