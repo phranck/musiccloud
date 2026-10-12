@@ -758,7 +758,11 @@
     color: var(--color-danger);
   }
 
-  .status-pill {
+  /* The status badge of `@musiccloud/dashboard-ui` names no color of its own,
+     so the portal draws it as one of its pills. Its neutral tone is the pill's
+     muted text and needs no rule of its own. */
+  .status-pill,
+  .mc-status-badge {
     display: inline-flex;
     min-height: var(--mc-size-control-compact);
     align-items: center;
@@ -819,9 +823,12 @@
     font-size: var(--text-code);
   }
 
-  .status-pill--success { color: var(--color-success); }
-  .status-pill--warning { color: var(--color-warning); }
-  .status-pill--danger { color: var(--color-danger); }
+  .status-pill--success,
+  .mc-status-badge--success { color: var(--color-success); }
+  .status-pill--warning,
+  .mc-status-badge--warning { color: var(--color-warning); }
+  .status-pill--danger,
+  .mc-status-badge--danger { color: var(--color-danger); }
   .status-pill--info { color: var(--color-info); }
 
   .status-message {

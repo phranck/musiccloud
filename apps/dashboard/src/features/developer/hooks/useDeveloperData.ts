@@ -113,16 +113,8 @@ export function useCreateToken() {
 export function useUpdateDeveloperAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      ...body
-    }: {
-      id: string;
-      email?: string;
-      displayName?: string | null;
-      tierId?: string | null;
-      status?: string;
-    }) => updateDeveloperAccount(id, body),
+    mutationFn: ({ id, ...body }: { id: string } & Parameters<typeof updateDeveloperAccount>[1]) =>
+      updateDeveloperAccount(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer"] });
     },
@@ -162,16 +154,8 @@ export function useDeactivateToken() {
 export function useUpdateDeveloperProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      ...body
-    }: {
-      id: string;
-      displayName?: string;
-      status?: "active" | "suspended" | "deleted";
-      requestsPerMinute?: number | null;
-      requestsPerDay?: number | null;
-    }) => updateDeveloperProject(id, body),
+    mutationFn: ({ id, ...body }: { id: string } & Parameters<typeof updateDeveloperProject>[1]) =>
+      updateDeveloperProject(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer"] });
     },

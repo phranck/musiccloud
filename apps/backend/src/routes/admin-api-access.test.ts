@@ -20,7 +20,7 @@
  */
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { API_CLIENT_STATUSES, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -581,7 +581,7 @@ describe("adminApiAccessRoutes", () => {
       expect(mockRepo.updateApiClient).not.toHaveBeenCalled();
     });
 
-    it.each(["active", "suspended", "revoked"])("accepts the valid status %s", async (status) => {
+    it.each(API_CLIENT_STATUSES)("accepts the valid status %s", async (status) => {
       const { app, token } = await buildApp("owner");
       mockRepo.updateApiClient.mockResolvedValue(makeClient({ status }));
       const response = await app.inject({

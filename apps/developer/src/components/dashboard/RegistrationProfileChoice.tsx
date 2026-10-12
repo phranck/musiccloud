@@ -1,4 +1,4 @@
-import type { ClientRegistrationTypeValue } from "@/lib/apiAccessClient";
+import type { ClientRegistrationTypeValue } from "@musiccloud/shared";
 import { REGISTRATION_PROFILES } from "@/lib/registrationProfiles";
 
 /**

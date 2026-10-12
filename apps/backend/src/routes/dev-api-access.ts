@@ -11,7 +11,20 @@
  * open and nobody reviews it: a per-account throttle limits how fast records
  * appear, and a ceiling limits how many one account or project may hold.
  */
-import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import {
+  ApiClientStatus,
+  ClientRegistrationType,
+  type ClientRegistrationTypeValue,
+  DeveloperProjectStatus,
+  type DeveloperProjectStatusValue,
+  EmailAction,
+  ENDPOINTS,
+  isApiClientStatus,
+  isClientRegistrationType,
+  isDeveloperProjectStatus,
+  MAX_APP_NAME_LENGTH,
+  ROUTE_TEMPLATES,
+} from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ApiClient, ApiClientToken, DeveloperProject } from "../db/api-access-repository.js";
 import { getApiAccessRepository } from "../db/index.js";
@@ -19,14 +32,13 @@ import { setApiFailureDiagnostic } from "../lib/infra/api-error-handler.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
-import { generateApiToken } from "../services/api-access-token.js";
+import { generateApiToken, toTokenResponse } from "../services/api-access-token.js";
 import { buildApiUsageReport } from "../services/api-usage-report.js";
 import { isUsageWindowRejection, resolveUsageWindow } from "../services/api-usage-window.js";
 import { getMaxProjectsPerAccount, MAX_REGISTRATIONS_PER_PROJECT } from "../services/developer-limits.js";
 import { notifyDeveloper } from "../services/developer-notifications.js";
 import { listSelfServiceAssignableTiers } from "../services/signup-tier.js";
 
-const MAX_APP_NAME_LENGTH = 200;
 /** Long enough for any real application page, short enough not to be a place to put things. */
 const MAX_WEBSITE_URL_LENGTH = 500;
 
@@ -38,10 +50,6 @@ const PROJECT_CEILING_CODE = "MC-REQ-0003";
 const REGISTRATION_CEILING_CODE = "MC-REQ-0004";
 /** Refusal for a plan a developer may not put a project on themselves. */
 const PLAN_NOT_ASSIGNABLE_CODE = "MC-REQ-0005";
-/** The lifecycle states a registration may be moved to, matching `chk_api_clients_status`. */
-const REGISTRATION_STATUSES: readonly string[] = ["active", "suspended", "revoked"];
-/** The client profiles a registration may be created in, matching `chk_api_clients_registration_type`. */
-const REGISTRATION_TYPES: readonly string[] = ["development", "confidential", "public"];
 
 /** Dedicated per-developer throttle (20/min) for the three token-mutating routes, separate from the global apiRateLimiter. */
 const devApiAccessTokenRateLimiter = new RateLimiter(20, 60_000);
@@ -177,18 +185,6 @@ async function loadOwnedProject(
   return project?.developerAccountId === developerAccountId ? project : null;
 }
 
-/** Never includes `tokenHash` — the create/rotate handlers add the one-time raw token separately. */
-function toTokenResponse(token: ApiClientToken) {
-  return {
-    id: token.id,
-    tokenPrefix: token.tokenPrefix,
-    status: token.status,
-    createdAt: new Date(token.createdAt).toISOString(),
-    lastUsedAt: token.lastUsedAt ? new Date(token.lastUsedAt).toISOString() : null,
-    revokedAt: token.revokedAt ? new Date(token.revokedAt).toISOString() : null,
-  };
-}
-
 /**
  * Loads the token's owning client and verifies it belongs to the caller.
  *
@@ -208,10 +204,10 @@ async function loadOwnedClientForToken(
 
 /** Keeps credential issuance and rotation aligned with project/registration lifecycle. */
 function rejectInactiveCredentialOwner(client: ApiClient, reply: FastifyReply): FastifyReply | null {
-  if (client.projectStatus !== "active") {
+  if (client.projectStatus !== DeveloperProjectStatus.Active) {
     return reply.status(409).send({ error: "PROJECT_INACTIVE", message: "Project is not active." });
   }
-  if (client.status !== "active") {
+  if (client.status !== ApiClientStatus.Active) {
     return reply.status(409).send({ error: "REGISTRATION_INACTIVE", message: "This application is not active." });
   }
   return null;
@@ -244,7 +240,9 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     const body = request.body as { displayName?: string } | null;
     const displayName = body?.displayName?.trim() ?? "";
     if (!displayName || displayName.length > MAX_APP_NAME_LENGTH) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "displayName is required (max 200 chars)." });
+      return reply
+        .status(400)
+        .send({ error: "INVALID_REQUEST", message: `displayName is required (max ${MAX_APP_NAME_LENGTH} chars).` });
     }
     const repo = await getApiAccessRepository();
     // The count is read before the insert rather than inside it, so requests
@@ -306,13 +304,15 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
 
   app.patch(ROUTE_TEMPLATES.dev.apiAccess.projectDetail, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { displayName?: string; status?: "active" | "suspended" | "deleted" } | null;
-    if (body?.status && !["active", "suspended", "deleted"].includes(body.status)) {
+    const body = request.body as { displayName?: string; status?: DeveloperProjectStatusValue } | null;
+    if (body?.status && !isDeveloperProjectStatus(body.status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid project status." });
     }
     const displayName = body?.displayName?.trim();
     if (body?.displayName !== undefined && (!displayName || displayName.length > MAX_APP_NAME_LENGTH)) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "displayName must contain 1 to 200 chars." });
+      return reply
+        .status(400)
+        .send({ error: "INVALID_REQUEST", message: `displayName must contain 1 to ${MAX_APP_NAME_LENGTH} chars.` });
     }
     const repo = await getApiAccessRepository();
     const project = await loadOwnedProject(repo, id, request.developerAccountId!);
@@ -346,7 +346,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     const repo = await getApiAccessRepository();
     const project = await loadOwnedProject(repo, id, request.developerAccountId!);
     if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
-    if (project.status !== "active") {
+    if (project.status !== DeveloperProjectStatus.Active) {
       return reply.status(409).send({ error: "PROJECT_INACTIVE", message: "Project is not active." });
     }
 
@@ -395,12 +395,14 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
         name?: string;
         description?: string;
         websiteUrl?: string | null;
-        registrationType?: "development" | "confidential" | "public";
+        registrationType?: ClientRegistrationTypeValue;
         capabilities?: string[];
       } | null;
       const name = body?.name?.trim() ?? "";
       if (!name || name.length > MAX_APP_NAME_LENGTH) {
-        return reply.status(400).send({ error: "INVALID_REQUEST", message: "name is required (max 200 chars)." });
+        return reply
+          .status(400)
+          .send({ error: "INVALID_REQUEST", message: `name is required (max ${MAX_APP_NAME_LENGTH} chars).` });
       }
       // The website is optional, so an absent or empty value means there is
       // none; anything else has to parse as a web address.
@@ -414,8 +416,8 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
             .send({ error: "INVALID_REQUEST", message: "websiteUrl must be an http or https URL (max 500 chars)." });
         }
       }
-      const registrationType = body?.registrationType ?? "development";
-      if (!REGISTRATION_TYPES.includes(registrationType)) {
+      const registrationType = body?.registrationType ?? ClientRegistrationType.Development;
+      if (!isClientRegistrationType(registrationType)) {
         return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid registrationType." });
       }
       if (
@@ -427,7 +429,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
       const repo = await getApiAccessRepository();
       const project = await loadOwnedProject(repo, id, request.developerAccountId!);
       if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
-      if (project.status !== "active") {
+      if (project.status !== DeveloperProjectStatus.Active) {
         return reply.status(409).send({ error: "PROJECT_INACTIVE", message: "Project is not active." });
       }
       const heldRegistrations = await repo.countActiveApiClientsByProject(project.id);
@@ -473,7 +475,8 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const body = request.body as { status?: string; websiteUrl?: string | null; description?: string } | null;
 
-    if (body?.status !== undefined && !REGISTRATION_STATUSES.includes(body.status)) {
+    const status = body?.status;
+    if (status !== undefined && !isApiClientStatus(status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid application status." });
     }
 
@@ -499,7 +502,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     }
 
     const updated = await repo.updateApiClient(id, {
-      status: body?.status,
+      status,
       websiteUrl,
       description: body?.description?.trim(),
     });
@@ -508,9 +511,9 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     await repo.createApiAccessAuditEvent({
       projectId: registration.projectId,
       clientId: id,
-      eventType: body?.status ? `registration_${body.status}` : "registration_updated",
+      eventType: status ? `registration_${status}` : "registration_updated",
       actorDeveloperAccountId: request.developerAccountId!,
-      eventData: { status: body?.status, websiteUrl },
+      eventData: { status, websiteUrl },
     });
     return reply.send({ registration: toClientResponse(updated, []) });
   });

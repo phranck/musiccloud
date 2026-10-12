@@ -6,7 +6,8 @@
  * Keeping the transitions here as a pure reducer follows the same shape as the
  * other panels and keeps every transition testable without rendering.
  */
-import { type ApiClientDto, ClientRegistrationType, type ClientRegistrationTypeValue } from "@/lib/apiAccessClient";
+import { ClientRegistrationType, type ClientRegistrationTypeValue } from "@musiccloud/shared";
+import type { ApiClientDto } from "@/lib/apiAccessClient";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
 import type { PanelFailure } from "@/lib/projectsPanelState";
 

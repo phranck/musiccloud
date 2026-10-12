@@ -9,6 +9,7 @@ export * from "./content.js";
 export * from "./content-context.js";
 export * from "./crawler.js";
 export * from "./design-tokens.js";
+export * from "./developer-access.js";
 export * from "./developer-limits.js";
 export * from "./developer-portal-paths.js";
 export * from "./email-actions.js";

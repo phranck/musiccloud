@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { formatApiTokenForDisplay } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
-import { maskToken } from "@/lib/apiAccessClient";
 
 describe("released API-key presentation", () => {
   it("uses the released mc_live shape in the landing-page example", () => {
@@ -17,7 +17,7 @@ describe("released API-key presentation", () => {
   });
 
   it("masks stored token prefixes with the released public-key envelope", () => {
-    expect(maskToken("abc123def456")).toBe("mc_live_abc123def456_...");
+    expect(formatApiTokenForDisplay("abc123def456")).toBe("mc_live_abc123def456_...");
   });
 });
 

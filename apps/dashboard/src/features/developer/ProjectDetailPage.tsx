@@ -1,4 +1,5 @@
-import { DashboardActionButton, DashboardActionId } from "@musiccloud/dashboard-ui";
+import { DashboardActionButton, DashboardActionId, StatusBadge } from "@musiccloud/dashboard-ui";
+import { ApiTokenStatus, DeveloperProjectStatus } from "@musiccloud/shared";
 import { Code as CodeIcon, SpinnerGap as SpinnerGapIcon, Stack as StackIcon } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -8,9 +9,7 @@ import { PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse, DeveloperProjectResponse } from "@/features/developer/api";
 import { ProjectPlanSection } from "@/features/developer/components/ProjectPlanSection";
-import { ProjectStatusBadge } from "@/features/developer/components/ProjectStatusBadge";
 import { ProjectUsageSection } from "@/features/developer/components/ProjectUsageSection";
-import { ApiClientStatus, DeveloperProjectStatus } from "@/features/developer/domain";
 import { useDeveloperProject, useUpdateDeveloperProject } from "@/features/developer/hooks/useDeveloperData";
 import { formatEnglishDate } from "@/lib/format";
 
@@ -23,7 +22,7 @@ const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
  * One registration under the project, as a row in the registrations section.
  */
 function RegistrationRow({ registration }: { registration: ApiClientResponse }) {
-  const activeTokens = registration.tokens.filter((token) => token.status === ApiClientStatus.Active).length;
+  const activeTokens = registration.tokens.filter((token) => token.status === ApiTokenStatus.Active).length;
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--ds-border)] py-3 last:border-0">
       <span className="font-medium text-[var(--ds-text)]">{registration.appName}</span>
@@ -33,7 +32,7 @@ function RegistrationRow({ registration }: { registration: ApiClientResponse }) 
       <span className="text-xs text-[var(--ds-text-muted)]">
         {dm.clientsTokensLabel}: {activeTokens}
       </span>
-      <ProjectStatusBadge status={registration.status} />
+      <StatusBadge status={registration.status} />
     </li>
   );
 }
@@ -100,7 +99,7 @@ export function ProjectDetailPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <span className={labelClass}>{dm.colStatus}</span>
-                <ProjectStatusBadge status={project.status} />
+                <StatusBadge status={project.status} />
               </div>
               <div>
                 <span className={labelClass}>{dm.colCreated}</span>

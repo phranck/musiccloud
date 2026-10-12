@@ -1,5 +1,13 @@
-import { DEFAULT_TIER_COLOR, type VinylLayout } from "@musiccloud/shared";
-import { sql } from "drizzle-orm";
+import {
+  API_CLIENT_STATUSES,
+  API_TOKEN_STATUSES,
+  CLIENT_REGISTRATION_TYPES,
+  DEFAULT_TIER_COLOR,
+  DEVELOPER_ACCOUNT_STATUSES,
+  DEVELOPER_PROJECT_STATUSES,
+  type VinylLayout,
+} from "@musiccloud/shared";
+import { type SQL, sql } from "drizzle-orm";
 import {
   boolean,
   check,
@@ -28,6 +36,22 @@ const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
     return "bytea";
   },
 });
+
+/**
+ * The quoted list a check constraint compares a column against, such as
+ * `'active', 'suspended'`.
+ *
+ * The values are the shared package's own constants and never request input,
+ * so writing them into the SQL as text is safe. The constraint text comes out
+ * exactly as it was written by hand, so moving a check onto a shared list
+ * changes no migration.
+ *
+ * @param values - The allowed values.
+ * @returns The list as raw SQL.
+ */
+function sqlValueList(values: readonly string[]): SQL {
+  return sql.raw(values.map((value) => `'${value}'`).join(", "));
+}
 
 /**
  * Canonical track records resolved from streaming-service inputs.
@@ -1670,7 +1694,7 @@ export const developerAccounts = pgTable(
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   },
   (table) => [
-    check("chk_developer_accounts_status", sql`${table.status} IN ('active', 'suspended')`),
+    check("chk_developer_accounts_status", sql`${table.status} IN (${sqlValueList(DEVELOPER_ACCOUNT_STATUSES)})`),
     check(
       "chk_developer_accounts_avatar_source",
       sql`${table.avatarSource} IS NULL OR ${table.avatarSource} IN ('provider', 'upload', 'gravatar')`,
@@ -1813,7 +1837,7 @@ export const developerProjects = pgTable(
   },
   (table) => [
     index("idx_developer_projects_account_status").on(table.developerAccountId, table.status),
-    check("chk_developer_projects_status", sql`${table.status} IN ('active', 'suspended', 'deleted')`),
+    check("chk_developer_projects_status", sql`${table.status} IN (${sqlValueList(DEVELOPER_PROJECT_STATUSES)})`),
     check(
       "chk_developer_projects_requests_per_minute",
       sql`${table.requestsPerMinute} IS NULL OR ${table.requestsPerMinute} > 0`,
@@ -2042,10 +2066,10 @@ export const apiClients = pgTable(
     index("idx_api_clients_developer_account").on(table.developerAccountId),
     index("idx_api_clients_project_status").on(table.projectId, table.status),
     uniqueIndex("uq_api_clients_public_client_id").on(table.publicClientId),
-    check("chk_api_clients_status", sql`${table.status} IN ('active', 'suspended', 'revoked')`),
+    check("chk_api_clients_status", sql`${table.status} IN (${sqlValueList(API_CLIENT_STATUSES)})`),
     check(
       "chk_api_clients_registration_type",
-      sql`${table.registrationType} IN ('development', 'confidential', 'public')`,
+      sql`${table.registrationType} IN (${sqlValueList(CLIENT_REGISTRATION_TYPES)})`,
     ),
     check(
       "chk_api_clients_requests_per_minute",
@@ -2087,7 +2111,7 @@ export const apiClientTokens = pgTable(
     uniqueIndex("uq_api_client_tokens_prefix").on(table.tokenPrefix),
     uniqueIndex("uq_api_client_tokens_hash").on(table.tokenHash),
     index("idx_api_client_tokens_client_status").on(table.clientId, table.status),
-    check("chk_api_client_tokens_status", sql`${table.status} IN ('active', 'revoked', 'rotated')`),
+    check("chk_api_client_tokens_status", sql`${table.status} IN (${sqlValueList(API_TOKEN_STATUSES)})`),
   ],
 );
 

@@ -1,3 +1,5 @@
+import { StatusBadge } from "@musiccloud/dashboard-ui";
+import { ApiClientStatus, type ApiClientStatusValue, MAX_APP_NAME_LENGTH } from "@musiccloud/shared";
 import { type ChangeEvent, type SyntheticEvent, useCallback, useEffect, useReducer } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
@@ -5,17 +7,9 @@ import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
 import { CopyableCode } from "@/components/dashboard/CopyableCode";
 import { RegistrationProfileChoice } from "@/components/dashboard/RegistrationProfileChoice";
 import { RegistrationTokens } from "@/components/dashboard/RegistrationTokens";
-import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { ContentCard } from "@/components/docs/ContentCard";
 import { ContentPanel } from "@/components/docs/ContentPanel";
-import {
-  ApiClientStatus,
-  type ApiClientStatusValue,
-  createClientRegistration,
-  getDeveloperProject,
-  MAX_APP_NAME_LENGTH,
-  updateClientRegistration,
-} from "@/lib/apiAccessClient";
+import { createClientRegistration, getDeveloperProject, updateClientRegistration } from "@/lib/apiAccessClient";
 import { ButtonVariant } from "@/lib/buttonVariant";
 import { formatDate } from "@/lib/formatDate";
 import { FormPhase } from "@/lib/formPhase";

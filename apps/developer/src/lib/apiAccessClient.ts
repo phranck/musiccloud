@@ -9,59 +9,17 @@
  * describe what they render. Server-side (SSR) reads live in
  * `apiAccessServer.ts` instead: different transport, same DTOs.
  */
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import {
+  type ApiClientStatusValue,
+  type ApiTokenStatusValue,
+  type ClientRegistrationTypeValue,
+  type DeveloperProjectStatusValue,
+  ENDPOINTS,
+  ROUTE_TEMPLATES,
+} from "@musiccloud/shared";
 
-/** Maximum `appName` length accepted by the backend (mirrored for inline validation). */
-export const MAX_APP_NAME_LENGTH = 200;
 /** HTTP 429: the backend's rate-limit response, carrying `retryAfterSeconds`. */
 export const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
-
-/** Lifecycle of a registered API client ("app"). */
-export const ApiClientStatus = {
-  /** Live: its tokens authenticate requests. */
-  Active: "active",
-  /** Temporarily blocked by an admin. */
-  Suspended: "suspended",
-  /** Permanently withdrawn. */
-  Revoked: "revoked",
-} as const;
-
-/** An {@link ApiClientStatus} member value. */
-export type ApiClientStatusValue = (typeof ApiClientStatus)[keyof typeof ApiClientStatus];
-
-/** Lifecycle of a Developer Project, matching what the project route admits. */
-export const DeveloperProjectStatus = {
-  /** Live: its registrations can hold working credentials. */
-  Active: "active",
-  /** Temporarily stopped; reversible. */
-  Suspended: "suspended",
-  /** Soft-deleted: the row survives for the audit trail, the project does not. */
-  Deleted: "deleted",
-} as const;
-
-/** A {@link DeveloperProjectStatus} member value. */
-export type DeveloperProjectStatusValue = (typeof DeveloperProjectStatus)[keyof typeof DeveloperProjectStatus];
-
-export const ClientRegistrationType = {
-  Development: "development",
-  Confidential: "confidential",
-  Public: "public",
-} as const;
-
-export type ClientRegistrationTypeValue = (typeof ClientRegistrationType)[keyof typeof ClientRegistrationType];
-
-/** Lifecycle of an issued public API-key token. */
-export const ApiTokenStatus = {
-  /** Valid for authentication. */
-  Active: "active",
-  /** Explicitly revoked; permanently invalid. */
-  Revoked: "revoked",
-  /** Replaced by a rotation; permanently invalid. */
-  Rotated: "rotated",
-} as const;
-
-/** An {@link ApiTokenStatus} member value. */
-export type ApiTokenStatusValue = (typeof ApiTokenStatus)[keyof typeof ApiTokenStatus];
 
 /**
  * An issued token as returned by the self-service endpoints. `rawToken` is
@@ -70,10 +28,10 @@ export type ApiTokenStatusValue = (typeof ApiTokenStatus)[keyof typeof ApiTokenS
 export interface ApiTokenDto {
   /** Stable token id. */
   id: string;
-  /** Non-secret display prefix (see {@link maskToken}). */
+  /** Non-secret display prefix, shown through `formatApiTokenForDisplay`. */
   tokenPrefix: string;
-  /** Token status (an {@link ApiTokenStatus} value). */
-  status: string;
+  /** Token status. */
+  status: ApiTokenStatusValue;
   /** Creation timestamp, ISO-8601. */
   createdAt: string;
   /** Last authenticated use, ISO-8601, or `null` if never used. */
@@ -98,15 +56,15 @@ export interface ApiClientDto {
   capabilities: string[];
   /** Display name and lifecycle of the owning project. */
   projectDisplayName: string;
-  projectStatus: string;
+  projectStatus: DeveloperProjectStatusValue;
   /** Name of the app. */
   appName: string;
   /** Free-text description. */
   description: string;
   /** Where this one application can be looked at, or `null`. Always `http` or `https`. */
   websiteUrl: string | null;
-  /** Client status (an {@link ApiClientStatus} value). */
-  status: string;
+  /** Client status. */
+  status: ApiClientStatusValue;
   /** Per-minute request quota enforced by the public API, or `null` when the project has no granting plan. */
   requestsPerMinute: number | null;
   /** Per-day request quota enforced by the public API, or `null` when the project has no granting plan. */
@@ -120,7 +78,7 @@ export interface ApiClientDto {
 export interface DeveloperProjectDto {
   id: string;
   displayName: string;
-  status: string;
+  status: DeveloperProjectStatusValue;
   subscription: { tierId: string | null; tierName: string | null };
   quota: {
     /** The limit in force, or `null` when no granting subscription supplies a tier. */
@@ -250,17 +208,6 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiAcce
 }
 
 /**
- * Formats a token's stored prefix for display, mirroring the backend's
- * `formatApiTokenForDisplay`.
- *
- * @param tokenPrefix - The token's non-secret 12-character `tokenPrefix`.
- * @returns e.g. `mc_live_abc123def456_...`.
- */
-export function maskToken(tokenPrefix: string): string {
-  return `mc_live_${tokenPrefix}_...`;
-}
-
-/**
  * Lists the caller's own API clients including their tokens (never a hash).
  *
  * @param signal - Abort signal for the mount effect's cleanup.
@@ -305,7 +252,7 @@ export function getDeveloperProject(
 
 export function updateDeveloperProject(
   projectId: string,
-  body: { displayName?: string; status?: string },
+  body: { displayName?: string; status?: DeveloperProjectStatusValue },
 ): Promise<ApiAccessResult<{ project: DeveloperProjectDto }>> {
   return requestJson(ENDPOINTS.dev.apiAccess.projectDetail(projectId), {
     method: "PATCH",
@@ -356,7 +303,7 @@ export function createClientRegistration(
  */
 export function updateClientRegistration(
   registrationId: string,
-  body: { status?: string; websiteUrl?: string | null; description?: string },
+  body: { status?: ApiClientStatusValue; websiteUrl?: string | null; description?: string },
 ): Promise<ApiAccessResult<{ registration: ApiClientDto }>> {
   return requestJson(ENDPOINTS.dev.apiAccess.registrationDetail(registrationId), {
     method: "PATCH",

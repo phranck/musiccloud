@@ -1,9 +1,9 @@
-import { type ColumnDef, DataTable } from "@musiccloud/dashboard-ui";
+import { type ColumnDef, DataTable, StatusBadge } from "@musiccloud/dashboard-ui";
+import { MAX_APP_NAME_LENGTH } from "@musiccloud/shared";
 import { type ChangeEvent, type SyntheticEvent, useCallback, useEffect, useMemo, useReducer } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
-import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { ContentCard } from "@/components/docs/ContentCard";
 import { ContentPanel } from "@/components/docs/ContentPanel";
 import {
@@ -11,7 +11,6 @@ import {
   type DeveloperProjectDto,
   listApiClients,
   listDeveloperProjects,
-  MAX_APP_NAME_LENGTH,
 } from "@/lib/apiAccessClient";
 import { ButtonVariant } from "@/lib/buttonVariant";
 import { formatDate } from "@/lib/formatDate";

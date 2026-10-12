@@ -1,4 +1,4 @@
-import { type ColumnDef, DataTable, DataTableScroll } from "@musiccloud/dashboard-ui";
+import { type ColumnDef, DataTable, DataTableScroll, StatusBadge } from "@musiccloud/dashboard-ui";
 import { PencilSimple as PencilSimpleIcon, UsersThree as UsersThreeIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import { useNavigate } from "react-router";
@@ -10,14 +10,8 @@ import { PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { DeveloperAccountResponse } from "@/features/developer/api";
-import { DeveloperAccountStatus } from "@/features/developer/domain";
 import { useDeveloperAccounts } from "@/features/developer/hooks/useDeveloperData";
 import { formatDate } from "@/features/developer/lib";
-
-const STATUS_CLASS: Record<string, string> = {
-  [DeveloperAccountStatus.Active]: "bg-emerald-500/10 text-emerald-400",
-  [DeveloperAccountStatus.Suspended]: "bg-red-500/10 text-red-400",
-};
 
 function useAccountColumns(
   dm: (typeof dashboardCopy)["developer"],
@@ -73,18 +67,7 @@ function useAccountColumns(
         className: "w-28",
         headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.status,
-        cell: (a) => {
-          const cls = STATUS_CLASS[a.status] ?? "bg-gray-500/10 text-gray-400";
-          const labelMap: Record<string, string> = {
-            [DeveloperAccountStatus.Active]: dm.statusActive,
-            [DeveloperAccountStatus.Suspended]: dm.statusSuspended,
-          };
-          return (
-            <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${cls}`}>
-              {labelMap[a.status] ?? a.status}
-            </span>
-          );
-        },
+        cell: (a) => <StatusBadge status={a.status} />,
       },
       {
         id: "createdAt",

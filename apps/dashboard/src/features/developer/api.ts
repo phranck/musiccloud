@@ -1,4 +1,11 @@
-import { ENDPOINTS } from "@musiccloud/shared";
+import {
+  type ApiClientStatusValue,
+  type ApiTokenStatusValue,
+  type ClientRegistrationTypeValue,
+  type DeveloperAccountStatusValue,
+  type DeveloperProjectStatusValue,
+  ENDPOINTS,
+} from "@musiccloud/shared";
 import type { BillingPeriod, CreemMode, OfferCurrency, TaxCategory, TaxMode } from "@/features/developer/domain";
 import { api } from "@/lib/api";
 
@@ -62,7 +69,7 @@ export function updateDeveloperLimits(next: DeveloperLimits): Promise<DeveloperL
 export interface ApiClientTokenResponse {
   id: string;
   tokenPrefix: string;
-  status: string;
+  status: ApiTokenStatusValue;
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
@@ -73,10 +80,10 @@ export interface ApiClientResponse {
   developerAccountId: string;
   projectId: string;
   publicClientId: string;
-  registrationType: "development" | "confidential" | "public";
+  registrationType: ClientRegistrationTypeValue;
   capabilities: string[];
   projectDisplayName: string;
-  projectStatus: string;
+  projectStatus: DeveloperProjectStatusValue;
   projectRequestsPerMinute: number | null;
   projectRequestsPerDay: number | null;
   appName: string;
@@ -84,7 +91,7 @@ export interface ApiClientResponse {
   description: string;
   /** Where this one application can be looked at, or `null`. Always `http` or `https`. */
   websiteUrl: string | null;
-  status: string;
+  status: ApiClientStatusValue;
   /** Optional registration cap. It can narrow, never widen, the project limit. */
   requestsPerMinute: number | null;
   /** Optional daily registration cap, or `null` when the project limit applies. */
@@ -108,7 +115,7 @@ export interface DeveloperProjectResponse {
   id: string;
   developerAccountId: string;
   displayName: string;
-  status: "active" | "suspended" | "deleted";
+  status: DeveloperProjectStatusValue;
   requestsPerMinute: number | null;
   requestsPerDay: number | null;
   tierId: string | null;
@@ -179,7 +186,7 @@ export interface DeveloperAccountResponse {
   tierName: string | null;
   /** Whether the assigned tier is still offered; `false` marks a legacy assignment, `null` when unassigned. */
   tierEnabled: boolean | null;
-  status: string;
+  status: DeveloperAccountStatusValue;
   clientCount: number;
   appName: string | null;
   createdAt: string;
@@ -192,7 +199,7 @@ export function fetchDeveloperAccount(id: string): Promise<DeveloperAccountRespo
 
 export function updateDeveloperAccount(
   id: string,
-  body: { email?: string; displayName?: string | null; tierId?: string | null; status?: string },
+  body: { email?: string; displayName?: string | null; tierId?: string | null; status?: DeveloperAccountStatusValue },
 ): Promise<DeveloperAccountResponse> {
   return api.patch<DeveloperAccountResponse>(ENDPOINTS.admin.developer.accountDetail(id), body);
 }
@@ -260,7 +267,7 @@ export function updateDeveloperProject(
   id: string,
   body: {
     displayName?: string;
-    status?: "active" | "suspended" | "deleted";
+    status?: DeveloperProjectStatusValue;
     requestsPerMinute?: number | null;
     requestsPerDay?: number | null;
   },

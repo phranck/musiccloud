@@ -291,6 +291,8 @@
   --ds-badge-info-text: hsl(210 80% 72%);
   --ds-badge-review-bg: hsl(270 30% 25%);
   --ds-badge-review-text: hsl(270 80% 80%);
+  --ds-badge-padding-block: 0.125rem;
+  --ds-badge-padding-inline: 0.5rem;
 }
 
 /* The usage chart draws through `@musiccloud/dashboard-ui`, which names no
@@ -321,4 +323,35 @@
   background: var(--ds-surface) !important;
   color: var(--ds-text);
   font-size: 12px;
+}
+
+/* The status badge of `@musiccloud/dashboard-ui` names no color either. One
+   rule gives it its shape, and one per tone binds the tone to the dashboard's
+   badge tokens; the portal binds the same names to its own. */
+.mc-status-badge {
+  display: inline-flex;
+  border-radius: var(--ds-radius-sm);
+  padding: var(--ds-badge-padding-block) var(--ds-badge-padding-inline);
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+}
+
+.mc-status-badge--success {
+  background: var(--ds-badge-success-bg);
+  color: var(--ds-badge-success-text);
+}
+
+.mc-status-badge--warning {
+  background: var(--ds-badge-pending-bg);
+  color: var(--ds-badge-pending-text);
+}
+
+.mc-status-badge--danger {
+  background: var(--ds-badge-danger-bg);
+  color: var(--ds-badge-danger-text);
+}
+
+.mc-status-badge--neutral {
+  background: var(--ds-surface);
+  color: var(--ds-text-muted);
 }

@@ -1,5 +1,5 @@
+import { ClientRegistrationType } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
-import { ClientRegistrationType } from "./apiAccessClient";
 import { REGISTRATION_PROFILES, registrationProfileCopy } from "./registrationProfiles";
 
 describe("registration profile copy", () => {

@@ -1,5 +1,6 @@
+import { ClientRegistrationType } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
-import { type ApiClientDto, ClientRegistrationType } from "./apiAccessClient";
+import type { ApiClientDto } from "./apiAccessClient";
 import { FormPhase } from "./formPhase";
 import {
   REGISTRATIONS_PANEL_INITIAL_STATE,
