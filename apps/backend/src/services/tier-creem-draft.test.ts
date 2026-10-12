@@ -6,13 +6,14 @@
  * and the period. The one derived decision is the billing type, which Creem
  * ties to the period.
  */
+
+import type { ApiTier, TierOffer } from "@musiccloud/shared";
 import { BILLING_PERIODS, BillingPeriod } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
-import type { Tier, TierOffer } from "../db/tiers-repository.js";
 import { creemProductName, draftCreemProductForOffer } from "./tier-creem-draft.js";
 
 /** A plan, of which only the name reaches a Creem product. */
-function makeTier(overrides: Partial<Tier> = {}): Tier {
+function makeTier(overrides: Partial<ApiTier> = {}): ApiTier {
   return {
     id: "tier_club",
     name: "Club",

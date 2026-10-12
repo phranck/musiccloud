@@ -5,14 +5,14 @@
  */
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
+import type { ApiTier } from "@musiccloud/shared";
 import { ENDPOINTS } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Tier } from "../db/tiers-repository.js";
 
 vi.stubEnv("DISABLE_RATE_LIMIT", "true");
 
-const freeTier: Tier = {
+const freeTier: ApiTier = {
   id: "tier_free",
   name: "Free",
   requestsPerMinute: 60,

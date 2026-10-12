@@ -31,10 +31,11 @@ import {
   type CreemModeValue,
   ENDPOINTS,
   ROUTE_TEMPLATES,
+  type TierOffer,
 } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { getTierRepository } from "../db/index.js";
-import type { TierCreemProductKey, TierOffer, TierRepository } from "../db/tiers-repository.js";
+import type { TierCreemProductKey, TierRepository } from "../db/tiers-repository.js";
 import { tierIdSchema } from "../db/tiers-repository.js";
 import { requireOwner, requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { configuredCreemModes } from "../lib/creem-config.js";

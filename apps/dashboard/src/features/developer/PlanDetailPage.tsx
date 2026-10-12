@@ -1,4 +1,5 @@
 import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
+import type { ApiTier } from "@musiccloud/shared";
 import {
   isRequestLimit,
   isTierColor,
@@ -16,7 +17,6 @@ import { LabeledSwitch } from "@/components/ui/LabeledSwitch";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { TierResponse } from "@/features/developer/api";
 import { PlanOffersSection } from "@/features/developer/components/PlanOffersSection";
 import { TierCreemProductsSection } from "@/features/developer/components/TierCreemProductsSection";
 import { TierFeatureBulletsEditor } from "@/features/developer/components/TierFeatureBulletsEditor";
@@ -51,7 +51,7 @@ interface PlanForm {
  * @param tier - The plan as the server holds it.
  * @returns The form values.
  */
-function toForm(tier: TierResponse): PlanForm {
+function toForm(tier: ApiTier): PlanForm {
   return {
     name: tier.name,
     description: tier.description,

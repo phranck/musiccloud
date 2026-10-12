@@ -18,14 +18,14 @@ vi.mock("@/features/developer/api", async (importOriginal) => ({
   archiveCreemProduct: mocks.archiveCreemProduct,
 }));
 
+import type { ApiTier, TierOffer } from "@musiccloud/shared";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { TierOffer, TierResponse } from "@/features/developer/api";
 import { TierCreemProductsSection } from "./TierCreemProductsSection";
 
 const dm = dashboardCopy.developer;
 
 /** The plan every case shows the products of. */
-function makeTier(overrides: Partial<TierResponse> = {}): TierResponse {
+function makeTier(overrides: Partial<ApiTier> = {}): ApiTier {
   return {
     id: "tier_club",
     name: "Club",
@@ -67,7 +67,7 @@ function makeOffer(billingPeriod: string, priceCents = 990): TierOffer {
   };
 }
 
-function renderSection(offers: TierOffer[] = [makeOffer("every-month")], tier: TierResponse = makeTier()) {
+function renderSection(offers: TierOffer[] = [makeOffer("every-month")], tier: ApiTier = makeTier()) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>

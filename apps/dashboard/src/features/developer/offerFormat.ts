@@ -1,3 +1,4 @@
+import type { TierOffer } from "@musiccloud/shared";
 import {
   BillingPeriod,
   type BillingPeriodValue,
@@ -7,7 +8,6 @@ import {
   type OfferCurrencyValue,
 } from "@musiccloud/shared";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { TierOffer } from "@/features/developer/api";
 
 const dm = dashboardCopy.developer;
 

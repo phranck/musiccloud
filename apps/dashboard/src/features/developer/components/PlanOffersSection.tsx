@@ -4,6 +4,7 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
+import type { TierOffer } from "@musiccloud/shared";
 import {
   BILLING_PERIODS,
   BillingPeriod,
@@ -22,7 +23,6 @@ import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { TierOffer } from "@/features/developer/api";
 import {
   useCreatePlanOffer,
   useDeletePlanOffer,

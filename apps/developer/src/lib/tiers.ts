@@ -7,38 +7,8 @@
  * nothing would say which was right.
  */
 
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, type PublicTier } from "@musiccloud/shared";
 import { backendUrl } from "@/lib/api";
-
-/** One plan as `GET /api/v1/tiers` returns it. */
-export interface PublicTier {
-  id: string;
-  name: string;
-  requestsPerMinute: number;
-  requestsPerDay: number;
-  attributionRequired: boolean;
-  /** Monthly price in euros as a numeric string, or `null` when the plan is not sold monthly. */
-  price: string | null;
-  /** Yearly price in euros as a numeric string, or `null` when no yearly billing is offered. */
-  priceYearly: string | null;
-  /** Whether the plan costs nothing. A paid plan can have neither price when it is sold over another period. */
-  free: boolean;
-  color: string;
-  /** Icon name, one of the shared tier icons, or `null` for none. */
-  icon: string | null;
-  /** Custom label for the call to action, or `null` to use the portal default. */
-  buttonLabel: string | null;
-  description: string;
-  enabled: boolean;
-  /** Whether a developer can put a project on this plan themselves today. */
-  selfServiceAssignable: boolean;
-  disableReason: string;
-  /** Whether this plan is highlighted as the recommended one. At most one is. */
-  recommended: boolean;
-  sortOrder: number;
-  /** Ordered feature bullets shown on the card, each a short label. */
-  features: string[];
-}
 
 /**
  * Reads the public plans, in the order they are meant to be shown.

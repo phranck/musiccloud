@@ -1,5 +1,7 @@
 /**
- * Wire-format types for the public resolve / share / artist-info APIs.
+ * Wire-format types for the public resolve / share / artist-info APIs, the
+ * error envelope every service answers with, and the plan catalogue the admin
+ * API and the public `GET /api/v1/tiers` return.
  *
  * Every type in this file is a direct shape of a JSON payload that crosses
  * the backend-frontend boundary. Changing one of these is a wire-format
@@ -179,6 +181,64 @@ export function createApiErrorBody(
     message: formatUserMessage(entry.code, options.context, options.overrideMessage),
     ...(options.context ? { context: options.context } : {}),
   };
+}
+
+/**
+ * A plan as the admin API returns it: its limits and how its pricing card
+ * looks.
+ *
+ * What a plan costs is not a field here. Its price is its offers, one per
+ * billing period, and a plan with none is free.
+ */
+export interface ApiTier {
+  id: string;
+  name: string;
+  requestsPerMinute: number;
+  requestsPerDay: number;
+  attributionRequired: boolean;
+  /** Accent color `#RRGGBB` as `TIER_COLOR_PATTERN` states it, `DEFAULT_TIER_COLOR` when none was chosen. */
+  color: string;
+  /** Iconsax icon name for the plan, one of `TIER_ICONS`, or `null` for none. */
+  icon: string | null;
+  /** Custom label for the pricing card's button, or `null` to use the portal default. */
+  buttonLabel: string | null;
+  /** Free-text description shown on the public pricing card; `""` when none is set. */
+  description: string;
+  /** Whether the plan is currently offered. A disabled plan stays visible on the pricing page, marked, but can no longer be assigned. */
+  enabled: boolean;
+  /** Reason shown for a disabled plan; `""` when none is set. Only meaningful when `enabled` is false. */
+  disableReason: string;
+  /**
+   * Whether this plan is the highlighted "recommended" one on the pricing
+   * page. The server keeps at most one plan recommended, and may keep none,
+   * in which case the cards render flat. Independent of `enabled`.
+   */
+  recommended: boolean;
+  sortOrder: number;
+  /** Ordered feature labels shown on the pricing card. An empty array when none are set. */
+  features: string[];
+  /** Unix epoch milliseconds. */
+  createdAt: number;
+  /** Unix epoch milliseconds. */
+  updatedAt: number;
+}
+
+/**
+ * A plan as the public catalogue `GET /api/v1/tiers` returns it.
+ *
+ * The route's response schema forbids properties it does not name, so a field
+ * added here and not to `PublicTierSchema` in the backend is removed from every
+ * response without an error. A test in the backend holds the two together.
+ */
+export interface PublicTier extends ApiTier {
+  /** Monthly price in euros as a numeric string, or `null` when the plan is not sold monthly. */
+  price: string | null;
+  /** Yearly price in euros as a numeric string, or `null` when no yearly billing is offered. */
+  priceYearly: string | null;
+  /** Whether the plan costs nothing. A paid plan can have neither price when it is sold over another period. */
+  free: boolean;
+  /** Whether a developer can put a project on this plan themselves today. */
+  selfServiceAssignable: boolean;
 }
 
 export type ResolveErrorResponse = ApiErrorResponse;

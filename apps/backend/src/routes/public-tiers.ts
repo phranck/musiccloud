@@ -2,7 +2,7 @@
  * Public tier listing for the Developer Portal pricing page (MC-092).
  * It is unguarded, because the pricing page is public.
  */
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, type PublicTier } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getTierRepository } from "../db/index.js";
 import { isFreeTier, isSelfServiceAssignableTier } from "../services/signup-tier.js";
@@ -33,11 +33,13 @@ export default async function publicTiersRoutes(app: FastifyInstance) {
       // Whether a plan is free and whether a developer may choose it are
       // decided in one place, and the catalogue carries both answers so the
       // pricing page and the plan step do not each work them out again.
-      return priced.map((tier) => ({
-        ...tier,
-        free: isFreeTier(tier, offers),
-        selfServiceAssignable: isSelfServiceAssignableTier(tier, offers),
-      }));
+      return priced.map(
+        (tier): PublicTier => ({
+          ...tier,
+          free: isFreeTier(tier, offers),
+          selfServiceAssignable: isSelfServiceAssignableTier(tier, offers),
+        }),
+      );
     },
   );
 }
