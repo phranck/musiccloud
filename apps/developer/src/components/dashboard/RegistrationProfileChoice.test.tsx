@@ -1,6 +1,6 @@
+import { ClientRegistrationType, type ClientRegistrationTypeValue } from "@musiccloud/shared";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ClientRegistrationType, type ClientRegistrationTypeValue } from "@/lib/apiAccessClient";
 import { RegistrationProfileChoice } from "./RegistrationProfileChoice";
 
 function render(value: ClientRegistrationTypeValue = ClientRegistrationType.Development) {

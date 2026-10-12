@@ -1,4 +1,4 @@
-import { type ColumnDef, DataTable, DataTableScroll } from "@musiccloud/dashboard-ui";
+import { type ColumnDef, DataTable, DataTableScroll, StatusBadge } from "@musiccloud/dashboard-ui";
 import { PencilSimple as PencilSimpleIcon, Stack as StackIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import { useNavigate } from "react-router";
@@ -6,7 +6,6 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse, DeveloperProjectResponse } from "@/features/developer/api";
-import { ProjectStatusBadge } from "@/features/developer/components/ProjectStatusBadge";
 import { useDeveloperProjects } from "@/features/developer/hooks/useDeveloperData";
 import { formatEnglishDate } from "@/lib/format";
 
@@ -94,7 +93,7 @@ function useProjectColumns(
         headerClassName: "whitespace-nowrap",
         className: "w-28",
         sortKey: (project) => project.status,
-        cell: (project) => <ProjectStatusBadge status={project.status} />,
+        cell: (project) => <StatusBadge status={project.status} />,
       },
       {
         id: "createdAt",

@@ -1,4 +1,5 @@
-import { type ColumnDef, DataTable, DataTableScroll } from "@musiccloud/dashboard-ui";
+import { type ColumnDef, DataTable, DataTableScroll, StatusBadge } from "@musiccloud/dashboard-ui";
+import { ApiTokenStatus } from "@musiccloud/shared";
 import {
   Code as CodeIcon,
   MagnifyingGlass as MagnifyingGlassIcon,
@@ -14,7 +15,6 @@ import { PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse } from "@/features/developer/api";
-import { ApiClientStatus, ApiTokenStatus } from "@/features/developer/domain";
 import { useApiAccessOverview } from "@/features/developer/hooks/useDeveloperData";
 
 const messages = dashboardCopy;
@@ -120,21 +120,7 @@ function useClientColumns(
         headerClassName: "whitespace-nowrap",
         className: "w-28",
         sortKey: (c) => c.status,
-        cell: (c) => {
-          const cls =
-            c.status === ApiClientStatus.Active
-              ? "bg-emerald-500/10 text-emerald-400"
-              : c.status === ApiClientStatus.Suspended
-                ? "bg-amber-500/10 text-amber-400"
-                : "bg-red-500/10 text-red-400";
-          const label =
-            c.status === ApiClientStatus.Active
-              ? dm.statusActive
-              : c.status === ApiClientStatus.Suspended
-                ? dm.statusSuspended
-                : dm.statusRevoked;
-          return <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${cls}`}>{label}</span>;
-        },
+        cell: (c) => <StatusBadge status={c.status} />,
       },
       {
         id: "actions",

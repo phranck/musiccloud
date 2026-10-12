@@ -1,4 +1,5 @@
 import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
+import { ApiTokenStatus } from "@musiccloud/shared";
 import { Code as CodeIcon, Copy as CopyIcon, SpinnerGap as SpinnerGapIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
@@ -7,7 +8,6 @@ import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
-import { ApiTokenStatus } from "@/features/developer/domain";
 import {
   useActivateToken,
   useApiAccessOverview,
@@ -260,7 +260,7 @@ export function ClientDetailPage() {
           ) : revokedToken ? (
             <DashboardActionButton
               action={DashboardActionId.Approve}
-              label={dm.statusActive}
+              label={dm.clientsActivateToken}
               onClick={() => activateToken.mutate(revokedToken.id)}
               disabled={activateToken.isPending}
               type="button"

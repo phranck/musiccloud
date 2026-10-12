@@ -10,6 +10,7 @@
  * create or a rotation. Nothing else in the model carries it, which is what a
  * test asserts rather than a comment claiming it.
  */
+import { ApiTokenStatus } from "@musiccloud/shared";
 import { type ApiAccessResult, type ApiTokenDto, HTTP_STATUS_TOO_MANY_REQUESTS } from "@/lib/apiAccessClient";
 import type { PanelFailure } from "@/lib/projectsPanelState";
 
@@ -146,7 +147,7 @@ export function registrationTokensReducer(
         tokens: [
           withoutIssuedValue(action.token),
           ...state.tokens.map((token) =>
-            token.id === action.previousTokenId ? { ...token, status: "rotated" } : token,
+            token.id === action.previousTokenId ? { ...token, status: ApiTokenStatus.Rotated } : token,
           ),
         ],
         reveal: action.token.rawToken ? { tokenId: action.token.id, value: action.token.rawToken } : null,

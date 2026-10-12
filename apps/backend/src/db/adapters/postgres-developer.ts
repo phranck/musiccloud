@@ -15,6 +15,7 @@
  * Timestamp columns are mapped to epoch milliseconds via {@link dateToMs}.
  */
 
+import type { DeveloperAccountStatusValue } from "@musiccloud/shared";
 import { nanoid } from "nanoid";
 import type { Pool } from "pg";
 import type { DeveloperAccount, DeveloperEmailToken, DeveloperIdentity } from "../developer-repository.js";
@@ -45,7 +46,7 @@ interface DeveloperAccountRow {
   pending_email: string | null;
   pending_email_requested_at: Date | null;
   tier_id: string | null;
-  status: string;
+  status: DeveloperAccountStatusValue;
   created_at: Date;
   updated_at: Date;
   last_login_at: Date | null;

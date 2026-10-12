@@ -1305,10 +1305,7 @@ export class PostgresAdapter
     return apiAccessListClients(this.pool, status);
   }
 
-  updateApiClient(
-    id: string,
-    data: { status?: string; requestsPerMinute?: number; requestsPerDay?: number },
-  ): Promise<ApiClient | null> {
+  updateApiClient(id: string, data: Parameters<typeof apiAccessUpdateClient>[2]): Promise<ApiClient | null> {
     return apiAccessUpdateClient(this.pool, id, data);
   }
 

@@ -165,6 +165,40 @@ describe("ProjectDetailPage", () => {
     expect(screen.getByText("Tokens: 1")).not.toBeNull();
   });
 
+  it("names a revoked application in the danger tone, as every other list does", async () => {
+    mocks.fetchProject.mockResolvedValue(makeDetail({ registrations: [makeRegistration({ status: "revoked" })] }));
+    renderPage();
+
+    const badge = await screen.findByText("Revoked");
+    expect(badge.classList.contains("mc-status-badge--danger")).toBe(true);
+    expect(screen.queryByText("revoked")).toBeNull();
+  });
+
+  it("counts an application's active tokens by the token's own state", async () => {
+    mocks.fetchProject.mockResolvedValue(
+      makeDetail({
+        registrations: [
+          makeRegistration({
+            tokens: [
+              { id: "token-1", tokenPrefix: "abc", status: "active", createdAt: "", lastUsedAt: null, revokedAt: null },
+              {
+                id: "token-2",
+                tokenPrefix: "def",
+                status: "rotated",
+                createdAt: "",
+                lastUsedAt: null,
+                revokedAt: null,
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+    renderPage();
+
+    expect(await screen.findByText("Tokens: 1")).not.toBeNull();
+  });
+
   it("goes back to the account that owns the project", async () => {
     mocks.fetchProject.mockResolvedValue(makeDetail());
     renderPage();

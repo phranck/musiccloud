@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatApiTokenForDisplay,
-  generateApiToken,
-  hashApiToken,
-  looksLikeApiAccessToken,
-} from "./api-access-token.js";
+import type { ApiClientToken } from "../db/api-access-repository.js";
+import { generateApiToken, hashApiToken, looksLikeApiAccessToken, toTokenResponse } from "./api-access-token.js";
 
 const LIVE_TOKEN_RE = /^mc_live_[a-z0-9]{12}_[A-Za-z0-9_-]{32,}$/;
 const UUID_V4 = "6121de17-1a63-4d44-95f2-ffa17452f715";
@@ -47,8 +43,32 @@ describe("looksLikeApiAccessToken", () => {
   });
 });
 
-describe("formatApiTokenForDisplay", () => {
-  it("masks the full token, keeping only the prefix visible", () => {
-    expect(formatApiTokenForDisplay("abc123def456")).toBe("mc_live_abc123def456_...");
+describe("toTokenResponse", () => {
+  /** A display prefix of the stored shape. Low entropy, so no secret scanner mistakes it for a key. */
+  const DISPLAY_PREFIX = "a".repeat(12);
+  const stored: ApiClientToken = {
+    id: "tok_1",
+    clientId: "client_1",
+    tokenPrefix: DISPLAY_PREFIX,
+    tokenHash: "f".repeat(64),
+    status: "active",
+    createdAt: Date.UTC(2026, 9, 12, 1, 0, 0),
+    lastUsedAt: null,
+    revokedAt: Date.UTC(2026, 9, 12, 2, 0, 0),
+    rotatedFromTokenId: null,
+  };
+
+  it("answers with the token's display fields and never its hash", () => {
+    const response = toTokenResponse(stored);
+
+    expect(response).toEqual({
+      id: "tok_1",
+      tokenPrefix: DISPLAY_PREFIX,
+      status: "active",
+      createdAt: "2026-10-12T01:00:00.000Z",
+      lastUsedAt: null,
+      revokedAt: "2026-10-12T02:00:00.000Z",
+    });
+    expect(JSON.stringify(response)).not.toContain(stored.tokenHash);
   });
 });

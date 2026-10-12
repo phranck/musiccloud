@@ -10,7 +10,7 @@
  * The copy lives here rather than in the component so the choice and the
  * explanation cannot drift apart, and so the wording can be asserted.
  */
-import { ClientRegistrationType, type ClientRegistrationTypeValue } from "@/lib/apiAccessClient";
+import { ClientRegistrationType, type ClientRegistrationTypeValue } from "@musiccloud/shared";
 
 /** How one profile is described at the point of choosing it. */
 export interface RegistrationProfileCopy {

@@ -15,6 +15,8 @@
  * exposing SQL to the route/service layer.
  */
 
+import type { DeveloperAccountStatusValue } from "@musiccloud/shared";
+
 /**
  * Developer-account DTO returned by the repository. Timestamp columns are
  * surfaced as epoch milliseconds (matching the {@link AdminUser} contract)
@@ -66,7 +68,7 @@ export interface DeveloperAccount {
   pendingEmail: string | null;
   pendingEmailRequestedAt: number | null;
   tierId: string | null;
-  status: string;
+  status: DeveloperAccountStatusValue;
   createdAt: number;
   updatedAt: number;
   lastLoginAt: number | null;
@@ -231,7 +233,7 @@ export interface DeveloperRepository {
       pendingEmail?: string | null;
       pendingEmailRequestedAt?: Date | null;
       tierId?: string | null;
-      status?: string;
+      status?: DeveloperAccountStatusValue;
     },
   ): Promise<DeveloperAccount | null>;
 

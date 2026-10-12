@@ -1,17 +1,11 @@
+import { StatusBadge } from "@musiccloud/dashboard-ui";
+import { ApiTokenStatus, formatApiTokenForDisplay } from "@musiccloud/shared";
 import { useCallback, useReducer, useRef } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
 import { QuickstartPanel } from "@/components/dashboard/QuickstartPanel";
-import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { TokenRevealBox } from "@/components/dashboard/TokenRevealBox";
-import {
-  type ApiTokenDto,
-  ApiTokenStatus,
-  createClientToken,
-  maskToken,
-  revokeClientToken,
-  rotateClientToken,
-} from "@/lib/apiAccessClient";
+import { type ApiTokenDto, createClientToken, revokeClientToken, rotateClientToken } from "@/lib/apiAccessClient";
 import { ButtonVariant } from "@/lib/buttonVariant";
 import { formatDate } from "@/lib/formatDate";
 import {
@@ -133,7 +127,7 @@ export function RegistrationTokens({
           {current.map((token) => (
             <li key={token.id} className="flex flex-col gap-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <code className="text-code font-mono text-code-fg">{maskToken(token.tokenPrefix)}</code>
+                <code className="text-code font-mono text-code-fg">{formatApiTokenForDisplay(token.tokenPrefix)}</code>
                 <StatusBadge status={token.status} />
                 <span className="text-body text-fg-muted">
                   created {formatDate(token.createdAt)} ·{" "}

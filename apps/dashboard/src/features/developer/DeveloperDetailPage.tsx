@@ -1,4 +1,5 @@
 import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
+import { DeveloperAccountStatus } from "@musiccloud/shared";
 import { SpinnerGap as SpinnerGapIcon, User as UserIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
@@ -9,7 +10,6 @@ import { PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
 import { AccountProjectsSection } from "@/features/developer/components/AccountProjectsSection";
 import { TierDropdown } from "@/features/developer/components/TierDropdown";
-import { DeveloperAccountStatus } from "@/features/developer/domain";
 import {
   useApiAccessOverview,
   useDeleteDeveloperAccount,

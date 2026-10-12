@@ -7,7 +7,16 @@
  * already let the JWT through, because that guard only checks the JWT's
  * `role: "admin"` claim, not the finer owner/admin/moderator distinction.
  */
-import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import {
+  ApiClientStatus,
+  DeveloperAccountStatus,
+  EmailAction,
+  ENDPOINTS,
+  isApiClientStatus,
+  isDeveloperAccountStatus,
+  isDeveloperProjectStatus,
+  ROUTE_TEMPLATES,
+} from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import type {
   ApiClient,
@@ -20,17 +29,10 @@ import { getApiAccessRepository, getDeveloperRepository, getTierRepository } fro
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { EMAIL_TAKEN_CODE, INVALID_EMAIL_CODE, normalizeEmailAddress } from "../lib/email-address.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
-import { generateApiToken } from "../services/api-access-token.js";
+import { generateApiToken, toTokenResponse } from "../services/api-access-token.js";
 import { buildApiUsageReport } from "../services/api-usage-report.js";
 import { isUsageWindowRejection, resolveUsageWindow } from "../services/api-usage-window.js";
 import { notifyDeveloper } from "../services/developer-notifications.js";
-
-/**
- * Resolves the caller's full DB record from the verified JWT payload,
- * mirroring `routes/admin-users.ts`'s `getCaller`: the JWT only carries
- * `sub`/`role`, but the owner/admin/moderator check here needs the fresh
- * DB role in case it changed since the token was issued.
- */
 
 function toClientResponse(client: ApiClient, tokens: ApiClientToken[]) {
   return {
@@ -129,18 +131,6 @@ function toAccountResponse(
   };
 }
 
-/** Never includes `tokenHash` or the token itself. The create handler adds the one-time raw token to its own response. */
-function toTokenResponse(token: ApiClientToken) {
-  return {
-    id: token.id,
-    tokenPrefix: token.tokenPrefix,
-    status: token.status,
-    createdAt: new Date(token.createdAt).toISOString(),
-    lastUsedAt: token.lastUsedAt ? new Date(token.lastUsedAt).toISOString() : null,
-    revokedAt: token.revokedAt ? new Date(token.revokedAt).toISOString() : null,
-  };
-}
-
 /**
  * Registers the admin API-access routes. Must be registered inside a
  * scope whose `preHandler` is `authenticateAdmin` (see `server.ts`
@@ -206,11 +196,12 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const body = request.body as {
       displayName?: string;
-      status?: "active" | "suspended" | "deleted";
+      status?: string;
       requestsPerMinute?: number | null;
       requestsPerDay?: number | null;
     } | null;
-    if (body?.status && !["active", "suspended", "deleted"].includes(body.status)) {
+    const status = body?.status || undefined;
+    if (status !== undefined && !isDeveloperProjectStatus(status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid project status." });
     }
     if (typeof body?.requestsPerMinute === "number" && body.requestsPerMinute < 1) {
@@ -224,7 +215,7 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     if (!existing) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
     const updated = await repo.updateDeveloperProject(id, {
       displayName: body?.displayName?.trim(),
-      status: body?.status,
+      status,
       requestsPerMinute: body?.requestsPerMinute,
       requestsPerDay: body?.requestsPerDay,
     });
@@ -342,7 +333,8 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       tierId?: string | null;
       status?: string;
     } | null;
-    if (body?.status && !["active", "suspended"].includes(body.status)) {
+    const status = body?.status || undefined;
+    if (status !== undefined && !isDeveloperAccountStatus(status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid status." });
     }
     // Stored in the form every sign-in path looks the address up in, because
@@ -381,16 +373,16 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       email,
       displayName: body?.displayName,
       tierId: body?.tierId,
-      status: body?.status,
+      status,
     });
     if (!updated) return reply.status(404).send({ error: "NOT_FOUND", message: "Developer account not found." });
 
     // Account suspension invalidates every API registration owned by that account.
-    if (body?.status === "suspended") {
+    if (status === DeveloperAccountStatus.Suspended) {
       const apiRepo = await getApiAccessRepository();
       const clients = await apiRepo.listApiClientsByDeveloperAccount(id);
       for (const client of clients) {
-        await apiRepo.updateApiClient(client.id, { status: "suspended" });
+        await apiRepo.updateApiClient(client.id, { status: ApiClientStatus.Suspended });
       }
     }
 
@@ -426,7 +418,8 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       requestsPerMinute?: number | null;
       requestsPerDay?: number | null;
     } | null;
-    if (body?.status && !["active", "suspended", "revoked"].includes(body.status)) {
+    const status = body?.status || undefined;
+    if (status !== undefined && !isApiClientStatus(status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid status." });
     }
     // `null` clears a registration cap so it inherits the project limit;
@@ -439,7 +432,7 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     }
     const repo = await getApiAccessRepository();
     const updated = await repo.updateApiClient(id, {
-      status: body?.status,
+      status,
       requestsPerMinute: body?.requestsPerMinute,
       requestsPerDay: body?.requestsPerDay,
     });

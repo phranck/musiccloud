@@ -5,6 +5,14 @@
  * milliseconds via {@link dateToMs}.
  */
 
+import {
+  type ApiClientStatusValue,
+  type ApiTokenStatusValue,
+  ClientRegistrationType,
+  type ClientRegistrationTypeValue,
+  DeveloperProjectStatus,
+  type DeveloperProjectStatusValue,
+} from "@musiccloud/shared";
 import { nanoid } from "nanoid";
 import type { Pool } from "pg";
 import type {
@@ -27,7 +35,7 @@ interface DeveloperProjectRow {
   id: string;
   developer_account_id: string;
   display_name: string;
-  status: string;
+  status: DeveloperProjectStatusValue;
   requests_per_minute: number | null;
   requests_per_day: number | null;
   tier_id: string | null;
@@ -65,10 +73,10 @@ interface ApiClientRow {
   developer_account_id: string;
   project_id: string | null;
   public_client_id: string | null;
-  registration_type: string | null;
+  registration_type: ClientRegistrationTypeValue | null;
   capabilities: unknown;
   project_display_name: string | null;
-  project_status: string | null;
+  project_status: DeveloperProjectStatusValue | null;
   project_requests_per_minute: number | null;
   project_requests_per_day: number | null;
   project_developer_account_id: string | null;
@@ -81,7 +89,7 @@ interface ApiClientRow {
   contact_email: string;
   description: string;
   website_url: string | null;
-  status: string;
+  status: ApiClientStatusValue;
   requests_per_minute: number | null;
   requests_per_day: number | null;
   tier_id: string | null;
@@ -98,7 +106,7 @@ interface ApiClientTokenRow {
   client_id: string;
   token_prefix: string;
   token_hash: string;
-  status: string;
+  status: ApiTokenStatusValue;
   created_at: Date;
   last_used_at: Date | null;
   revoked_at: Date | null;
@@ -275,12 +283,12 @@ function rowToApiClient(row: ApiClientRow): ApiClient {
     developerAccountId: row.developer_account_id,
     projectId: row.project_id ?? `legacy-account:${row.developer_account_id}`,
     publicClientId: row.public_client_id ?? row.id,
-    registrationType: row.registration_type ?? "development",
+    registrationType: row.registration_type ?? ClientRegistrationType.Development,
     capabilities: Array.isArray(row.capabilities)
       ? row.capabilities.filter((value): value is string => typeof value === "string")
       : [],
     projectDisplayName: row.project_display_name ?? row.app_name,
-    projectStatus: row.project_status ?? "active",
+    projectStatus: row.project_status ?? DeveloperProjectStatus.Active,
     projectRequestsPerMinute: row.project_requests_per_minute,
     projectRequestsPerDay: row.project_requests_per_day,
     appName: row.app_name,
@@ -667,7 +675,7 @@ export async function updateApiClient(
   pool: Pool,
   id: string,
   data: {
-    status?: string;
+    status?: ApiClientStatusValue;
     websiteUrl?: string | null;
     description?: string;
     requestsPerMinute?: number | null;

@@ -9,5 +9,7 @@ export * from "./ListboxPrimitives.js";
 export * from "./loadUsageChartFigure.js";
 export * from "./SegmentedControlPrimitive.js";
 export * from "./SegmentedControlPrimitiveTypes.js";
+export * from "./StatusBadge.js";
+export * from "./statusBadgeContract.js";
 export * from "./UsageChart.js";
 export * from "./usageChartContract.js";

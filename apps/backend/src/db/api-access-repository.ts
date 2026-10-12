@@ -10,6 +10,13 @@
  * merely act on it through different lenses.
  */
 
+import type {
+  ApiClientStatusValue,
+  ApiTokenStatusValue,
+  ClientRegistrationTypeValue,
+  DeveloperProjectStatusValue,
+} from "@musiccloud/shared";
+
 /**
  * Aggregate root for one independently subscribed and metered Developer API
  * application. Credential material is intentionally absent and remains owned
@@ -19,7 +26,7 @@ export interface DeveloperProject {
   id: string;
   developerAccountId: string;
   displayName: string;
-  status: string;
+  status: DeveloperProjectStatusValue;
   requestsPerMinute: number | null;
   requestsPerDay: number | null;
   tierId: string | null;
@@ -62,7 +69,7 @@ export interface DeveloperProjectSubscription {
  * @property contactEmail - Display contact email.
  * @property description - Free-text description.
  * @property websiteUrl - Where this one application can be looked at, or `null`. Always `http` or `https`.
- * @property status - `"active"` | `"suspended"` | `"revoked"`.
+ * @property status - The application's lifecycle state.
  * @property requestsPerMinute - Optional registration cap, or `null` to use the project limit.
  * @property requestsPerDay - Optional daily registration cap, or `null` to use the project limit.
  * @property tierId - The owning project's assigned tier id, or `null` when unassigned.
@@ -80,17 +87,17 @@ export interface ApiClient {
   developerAccountId: string;
   projectId: string;
   publicClientId: string;
-  registrationType: string;
+  registrationType: ClientRegistrationTypeValue;
   capabilities: string[];
   projectDisplayName: string;
-  projectStatus: string;
+  projectStatus: DeveloperProjectStatusValue;
   projectRequestsPerMinute: number | null;
   projectRequestsPerDay: number | null;
   appName: string;
   contactEmail: string;
   description: string;
   websiteUrl: string | null;
-  status: string;
+  status: ApiClientStatusValue;
   requestsPerMinute: number | null;
   requestsPerDay: number | null;
   tierId: string | null;
@@ -113,7 +120,7 @@ export interface ApiClient {
  * @property clientId - Owning client.
  * @property tokenPrefix - Non-secret display prefix.
  * @property tokenHash - Hex-encoded SHA-256 of the raw token.
- * @property status - `"active"` | `"revoked"` | `"rotated"`.
+ * @property status - The token's lifecycle state.
  * @property createdAt - Epoch ms.
  * @property lastUsedAt - Epoch ms, or `null` if never used (enforcement is MC-025 Phase 2, so this stays `null` in this round).
  * @property revokedAt - Epoch ms, or `null`.
@@ -124,7 +131,7 @@ export interface ApiClientToken {
   clientId: string;
   tokenPrefix: string;
   tokenHash: string;
-  status: string;
+  status: ApiTokenStatusValue;
   createdAt: number;
   lastUsedAt: number | null;
   revokedAt: number | null;
@@ -244,7 +251,7 @@ export interface ApiAccessRepository {
     id: string,
     data: {
       displayName?: string;
-      status?: "active" | "suspended" | "deleted";
+      status?: DeveloperProjectStatusValue;
       requestsPerMinute?: number | null;
       requestsPerDay?: number | null;
     },
@@ -271,7 +278,7 @@ export interface ApiAccessRepository {
   createApiClient(data: {
     developerAccountId: string;
     projectId?: string | null;
-    registrationType?: "development" | "confidential" | "public";
+    registrationType?: ClientRegistrationTypeValue;
     capabilities?: string[];
     appName: string;
     contactEmail: string;
@@ -303,7 +310,7 @@ export interface ApiAccessRepository {
   countActiveApiClientsByProject(projectId: string): Promise<number>;
 
   /** Lists clients, newest first, optionally filtered by `status`. */
-  listApiClients(status?: string): Promise<ApiClient[]>;
+  listApiClients(status?: ApiClientStatusValue): Promise<ApiClient[]>;
 
   /**
    * Patches `status`/`requestsPerMinute`/`requestsPerDay` and bumps
@@ -314,7 +321,7 @@ export interface ApiAccessRepository {
   updateApiClient(
     id: string,
     data: {
-      status?: string;
+      status?: ApiClientStatusValue;
       websiteUrl?: string | null;
       description?: string;
       requestsPerMinute?: number | null;
