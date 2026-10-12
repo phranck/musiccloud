@@ -7,11 +7,7 @@
  * resolver internals not needed here).
  */
 
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
-import { readDeezerJson } from "./deezer-response.js";
-
-const API_BASE = "https://api.deezer.com";
-const TIMEOUT_MS = 5000;
+import { deezerGet } from "./deezer-response.js";
 
 interface DeezerArtistResponse {
   id: number | string;
@@ -26,7 +22,6 @@ interface DeezerArtistResponse {
  * @throws {UpstreamUnavailableError} when Deezer did not answer.
  */
 export async function fetchDeezerFanCount(artistId: string): Promise<number | null> {
-  const response = await fetchWithTimeout(`${API_BASE}/artist/${encodeURIComponent(artistId)}`, {}, TIMEOUT_MS);
-  const data = await readDeezerJson<DeezerArtistResponse>(response, "artist lookup");
+  const data = await deezerGet<DeezerArtistResponse>(`/artist/${encodeURIComponent(artistId)}`, "artist lookup");
   return typeof data?.nb_fan === "number" ? data.nb_fan : null;
 }

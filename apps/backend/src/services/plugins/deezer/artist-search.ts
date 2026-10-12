@@ -4,11 +4,7 @@
  * search round-trip.
  */
 
-import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { readDeezerJson } from "./deezer-response.js";
-
-const API_BASE = "https://api.deezer.com";
-const TIMEOUT_MS = 5000;
+import { deezerGet } from "./deezer-response.js";
 
 export interface DeezerArtistSearchHit {
   id: number;
@@ -31,7 +27,9 @@ interface DeezerArtistSearchResponse {
  *   can tell an outage apart from an unknown artist.
  */
 export async function searchDeezerArtist(name: string): Promise<DeezerArtistSearchHit | null> {
-  const res = await fetchWithTimeout(`${API_BASE}/search/artist?q=${encodeURIComponent(name)}&limit=1`, {}, TIMEOUT_MS);
-  const data = await readDeezerJson<DeezerArtistSearchResponse>(res, "artist search");
+  const data = await deezerGet<DeezerArtistSearchResponse>(
+    `/search/artist?q=${encodeURIComponent(name)}&limit=1`,
+    "artist search",
+  );
   return data?.data?.[0] ?? null;
 }

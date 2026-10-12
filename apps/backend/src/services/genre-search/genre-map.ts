@@ -34,10 +34,9 @@
  * can return a 400 with an actionable message instead of a generic "not
  * found".
  */
-import { fetchWithTimeout } from "../../lib/infra/fetch.js";
 import { log } from "../../lib/infra/logger.js";
+import { deezerFetch } from "../plugins/deezer/deezer-response.js";
 
-const DEEZER_GENRE_URL = "https://api.deezer.com/genre";
 const TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface ResolvedGenre {
@@ -76,7 +75,7 @@ function normalize(value: string): string {
 }
 
 async function fetchGenres(): Promise<DeezerGenre[]> {
-  const res = await fetchWithTimeout(DEEZER_GENRE_URL, {}, 5000);
+  const res = await deezerFetch("/genre");
   if (!res.ok) {
     throw new Error(`Deezer /genre returned HTTP ${res.status}`);
   }

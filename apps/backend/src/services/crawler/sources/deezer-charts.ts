@@ -1,7 +1,7 @@
 /**
  * @file Crawler source: Deezer Charts.
  *
- * Pulls the per-genre chart top tracks from `https://api.deezer.com/chart/{genreId}/tracks`
+ * Pulls the per-genre chart top tracks from Deezer's `/chart/{genreId}/tracks`
  * for a configured set of genre IDs. The endpoint is keyless and returns
  * each track's `link` and `isrc` (verified via Deezer Community Q&A on
  * ISRC support in the public API), so candidates are emitted as
@@ -10,7 +10,7 @@
  * Default genre set: global (0) plus the major Deezer genres
  * (Pop=132, Rap/HipHop=116, Rock=152, Dance=113, Jazz=165,
  * Classical=153, R&B=144, Reggae=75, Country=84, Metal=464).
- * Genre IDs come from `https://api.deezer.com/genre`.
+ * Genre IDs come from Deezer's `/genre`.
  *
  * Rate limiting: Deezer's public API has no documented throttle but the
  * community-reported ceiling is around ~50 requests per 5 seconds. We
@@ -21,8 +21,7 @@
  * run as an error and counts it towards the source's auto-disable, which an
  * empty success would never do.
  */
-import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { readDeezerJson } from "../../plugins/deezer/deezer-response.js";
+import { deezerGet } from "../../plugins/deezer/deezer-response.js";
 import {
   type Candidate,
   type CrawlerSource,
@@ -36,13 +35,6 @@ interface DeezerChartTrackResponse {
     isrc?: string;
   }>;
 }
-
-/**
- * Longest one chart request may take, its answer included. The heartbeat runs
- * the due sources one after another while this source holds its lock, so an
- * unbounded request would hold up every source behind it.
- */
-const REQUEST_TIMEOUT_MS = 5000;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -93,10 +85,14 @@ export const deezerChartsSource: CrawlerSource = {
 
     const candidates: Candidate[] = [];
     for (const genreId of genres) {
-      const url = `https://api.deezer.com/chart/${genreId}/tracks?limit=${limit}`;
-      const response = await fetchWithTimeout(url, {}, REQUEST_TIMEOUT_MS);
-      // A genre without a chart answers "no data", which reads as `null` and is skipped.
-      const chart = await readDeezerJson<DeezerChartTrackResponse>(response, `Chart request for genre ${genreId}`);
+      // A genre without a chart answers "no data", which reads as `null` and is
+      // skipped. Every request is bounded by the Deezer client's timeout, which
+      // matters because the heartbeat runs the due sources one after another
+      // while this source holds its lock.
+      const chart = await deezerGet<DeezerChartTrackResponse>(
+        `/chart/${genreId}/tracks?limit=${limit}`,
+        `Chart request for genre ${genreId}`,
+      );
       for (const track of chart?.data ?? []) {
         if (track.link) {
           candidates.push({ kind: "url", url: track.link, isrc: track.isrc });

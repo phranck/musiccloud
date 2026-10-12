@@ -12,11 +12,8 @@
  */
 
 import type { ArtistTopTrack } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { readDeezerJson } from "./deezer-response.js";
+import { deezerGet } from "./deezer-response.js";
 
-const API_BASE = "https://api.deezer.com";
-const TIMEOUT_MS = 5000;
 const SEARCH_LIMIT = 3;
 
 interface DeezerSearchTrackHit {
@@ -35,14 +32,14 @@ interface DeezerSearchTrackResponse {
 export type DeezerTrackEnrichment = Pick<ArtistTopTrack, "artworkUrl" | "albumName" | "durationMs" | "deezerUrl">;
 
 /**
- * Looks a Last.fm top track up on Deezer for its cover, album, duration and link.
+ * Whether a Deezer hit is the track that was asked for.
  *
- * @param title - The track title.
- * @param artistName - The artist the track has to belong to.
- * @returns The first plausible match, or `null` when Deezer has none.
- * @throws {UpstreamUnavailableError} when Deezer did not answer.
+ * @param candidateTitle - The hit's title.
+ * @param candidateArtist - The hit's artist.
+ * @param wantedTitle - The title searched for.
+ * @param wantedArtist - The artist searched for.
+ * @returns `true` when each title and each artist contains the other.
  */
-
 export function isPlausibleMatch(
   candidateTitle: string,
   candidateArtist: string,
@@ -60,13 +57,20 @@ export function isPlausibleMatch(
   return titleMatches && artistMatches;
 }
 
+/**
+ * Looks a Last.fm top track up on Deezer for its cover, album, duration and link.
+ *
+ * @param title - The track title.
+ * @param artistName - The artist the track has to belong to.
+ * @returns The first plausible match, or `null` when Deezer has none.
+ * @throws {UpstreamUnavailableError} when Deezer did not answer.
+ */
 export async function searchDeezerTrackForArtist(
   title: string,
   artistName: string,
 ): Promise<DeezerTrackEnrichment | null> {
   const q = encodeURIComponent(`${title} ${artistName}`);
-  const res = await fetchWithTimeout(`${API_BASE}/search/track?q=${q}&limit=${SEARCH_LIMIT}`, {}, TIMEOUT_MS);
-  const data = await readDeezerJson<DeezerSearchTrackResponse>(res, "track search");
+  const data = await deezerGet<DeezerSearchTrackResponse>(`/search/track?q=${q}&limit=${SEARCH_LIMIT}`, "track search");
   for (const c of data?.data ?? []) {
     if (isPlausibleMatch(c.title, c.artist.name, title, artistName)) {
       return {

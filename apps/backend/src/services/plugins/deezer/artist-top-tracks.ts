@@ -5,11 +5,7 @@
  */
 
 import type { ArtistTopTrack } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { readDeezerJson } from "./deezer-response.js";
-
-const API_BASE = "https://api.deezer.com";
-const TIMEOUT_MS = 5000;
+import { deezerGet } from "./deezer-response.js";
 
 interface DeezerTopTrack {
   title: string;
@@ -33,12 +29,10 @@ interface DeezerTopTracksResponse {
  * @throws {UpstreamUnavailableError} when Deezer did not answer.
  */
 export async function fetchDeezerArtistTopTracks(artistId: number | string, limit = 3): Promise<ArtistTopTrack[]> {
-  const res = await fetchWithTimeout(
-    `${API_BASE}/artist/${encodeURIComponent(String(artistId))}/top?limit=${limit}`,
-    {},
-    TIMEOUT_MS,
+  const data = await deezerGet<DeezerTopTracksResponse>(
+    `/artist/${encodeURIComponent(String(artistId))}/top?limit=${limit}`,
+    "artist top tracks",
   );
-  const data = await readDeezerJson<DeezerTopTracksResponse>(res, "artist top tracks");
   return (data?.data ?? []).map(
     (t): ArtistTopTrack => ({
       title: t.title,
