@@ -16,10 +16,15 @@ function readFixture(name: string): unknown {
 }
 
 describe("/docs/api content", () => {
-  it("pre-renders the API reference without a request-time session lookup", () => {
+  /**
+   * The page is rendered on demand so the middleware gives it the portal's
+   * headers, and the middleware hands one render to every visitor. That is
+   * only safe while the page looks up no session.
+   */
+  it("renders the API reference on demand without a request-time session lookup", () => {
     const page = readFileSync(join(rootDir, "pages/docs/api.astro"), "utf8");
 
-    expect(page).toContain("export const prerender = true;");
+    expect(page).toContain("export const prerender = false;");
     expect(page).not.toContain('import { getDeveloperSession } from "@/lib/session";');
     expect(page).not.toContain("getDeveloperSession(Astro)");
     expect(page).toContain('<PublicHeader account={null} active="api" />');

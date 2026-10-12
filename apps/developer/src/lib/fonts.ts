@@ -12,6 +12,7 @@
  * rule take their address from the same `?url` import, so they cannot point
  * at different files and fetch one twice.
  */
+import { createHash } from "node:crypto";
 import audiowide400 from "@fontsource/audiowide/files/audiowide-latin-400-normal.woff2?url";
 import barlow400 from "@fontsource/barlow/files/barlow-latin-400-normal.woff2?url";
 import barlow500 from "@fontsource/barlow/files/barlow-latin-500-normal.woff2?url";
@@ -50,6 +51,13 @@ export const PORTAL_FONT_FACE_CSS = PORTAL_FONTS.map(
   ({ family, weight, url }) =>
     `@font-face{font-family:"${family}";font-style:normal;font-display:optional;font-weight:${weight};src:url(${url}) format("woff2")}`,
 ).join("");
+
+/**
+ * The content-policy hash of {@link PORTAL_FONT_FACE_CSS}, for the pages that
+ * write it as an inline `<style>` block. Taken from the constant, so it names
+ * exactly the text the layout renders.
+ */
+export const PORTAL_FONT_FACE_HASH = `sha256-${createHash("sha256").update(PORTAL_FONT_FACE_CSS).digest("base64")}`;
 
 /**
  * The preload tags for every font, for a page rendered as a string.

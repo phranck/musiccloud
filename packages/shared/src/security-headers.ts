@@ -7,30 +7,23 @@
  * and none of those has a plugin doing it for them. A framework protects what
  * it serves, so the policy lives here and each host applies it.
  *
- * ## Why a public surface's CSP arrives in two headers
+ * ## Enforced where the inline content is known, reported elsewhere
  *
- * On the public site and the developer portal, the enforced policy carries
- * only the directives that cannot stop a resource from loading: where the
- * document may be framed, where forms may post, what `<base>` may claim, and
- * that plugins are refused. Getting those wrong changes nothing about how the
- * page renders.
+ * A document can enforce its complete policy once every inline block it
+ * carries is named by a hash: see {@link buildEnforcedContentSecurityPolicy}.
+ * The hashes come from the source text or from Astro, never from the rendered
+ * page, because a hash of the output would also cover a script someone
+ * injected into it. The developer portal's pages and its gate page enforce
+ * their policy this way, and the admin dashboard enforces its own, with inline
+ * styles allowed for the reasons at {@link PRIVATE_STYLE_SOURCES}.
  *
- * Their directives that govern loading arrive as `Content-Security-Policy-Report-Only`,
- * because the pages carry inline `<script>` and inline `<style>` blocks that a
- * strict `script-src` and `style-src` would refuse. Report-Only names each of
- * them in the browser console without breaking anything, which is the
- * measurement needed before the policy can be enforced. Adding `'unsafe-inline'`
- * to silence the reports would defeat the exercise, so it is deliberately absent.
- *
- * The admin dashboard enforces its complete policy, because it ships no inline
- * script at all. Its styles may be inline, for the reasons at
- * {@link PRIVATE_STYLE_SOURCES}.
- *
- * A public document whose inline blocks are all known, because it is built
- * from constants, enforces the complete policy too, with the hashes of those
- * blocks: see {@link buildEnforcedContentSecurityPolicy}. The hashes are taken
- * from the source text, never from the rendered page, because a hash of the
- * output would also cover a script someone injected into it.
+ * Every other public response gets the default from
+ * {@link buildSecurityHeaders}: the directives that cannot stop a resource from
+ * loading are enforced, and the loading directives arrive as
+ * `Content-Security-Policy-Report-Only`. Report-Only names each refusal in the
+ * browser console without breaking anything, which is the measurement needed
+ * before the policy can be enforced there too. Adding `'unsafe-inline'` to
+ * silence the reports would defeat the exercise, so it is deliberately absent.
  */
 
 /**
@@ -131,7 +124,8 @@ function frameAncestors(exposure: SurfaceExposure): string {
  * Builds the response headers a musiccloud host sends with every document.
  *
  * A private surface gets its complete policy enforced. A public one gets the
- * non-loading directives enforced and the rest reported, see the file header.
+ * non-loading directives enforced and the rest reported, which is the default
+ * for a response whose inline content is not known. The file header says why.
  *
  * `X-Frame-Options` repeats what `frame-ancestors` already says. It stays
  * because it is the directive older browsers understand, and the two never
@@ -163,17 +157,25 @@ export function buildSecurityHeaders(exposure: SurfaceExposure): Record<string, 
 }
 
 /**
- * The hashes of a document's own inline blocks, as CSP hash sources without
- * their quotes, such as `sha256-…`. Each is taken from the text the document
- * renders, never from the rendered document.
+ * What a document's own inline content needs from its content policy. Each
+ * hash is a CSP hash source without its quotes, such as `sha256-…`, taken from
+ * the text the document renders, never from the rendered document.
  *
- * @property scripts - Hashes of the inline `<script>` blocks that run.
- * @property styles - Hashes of the inline `<style>` blocks.
+ * @property scriptHashes - Hashes of the inline `<script>` blocks that run.
+ * @property styleHashes - Hashes of the inline `<style>` blocks.
+ * @property styleAttributes - Whether the markup carries `style` attributes,
+ *   which no hash names. They are allowed through `style-src-attr
+ *   'unsafe-inline'`: an attribute sets a style, but it runs no script and
+ *   selects no other element.
  */
-export interface InlineBlockHashes {
-  scripts?: readonly string[];
-  styles?: readonly string[];
+export interface InlineContent {
+  scriptHashes?: readonly string[];
+  styleHashes?: readonly string[];
+  styleAttributes?: boolean;
 }
+
+/** The directive that admits every `style` attribute while `style-src` stays on hashes. */
+const STYLE_ATTRIBUTES_ALLOWED = "style-src-attr 'unsafe-inline'";
 
 /** A source list followed by the quoted hashes that extend it. */
 function withHashes(sources: string, hashes: readonly string[] = []): string {
@@ -185,26 +187,55 @@ function withHashes(sources: string, hashes: readonly string[] = []): string {
  * are all known.
  *
  * It carries every directive {@link buildSecurityHeaders} reports, with the
- * given hashes added to `script-src` and `style-src`, and every directive it
- * enforces. A response that sets this needs no Report-Only header beside it,
- * and {@link applySecurityHeaders} adds none.
+ * given hashes added to `script-src` and `style-src` and, where the markup
+ * carries `style` attributes, `style-src-attr 'unsafe-inline'`, and every
+ * directive it enforces. A response that sets this needs no Report-Only
+ * header beside it, and {@link applySecurityHeaders} adds none.
  *
  * A private surface allows inline styles through `'unsafe-inline'` and takes
  * no style hashes, because a browser that finds a hash in the same list
  * ignores `'unsafe-inline'`.
  *
  * @param exposure - What kind of surface the document belongs to.
- * @param hashes - The hashes of the document's own inline blocks.
+ * @param inline - What the document's own inline content needs.
  * @returns The value of a `Content-Security-Policy` header.
  */
-export function buildEnforcedContentSecurityPolicy(exposure: SurfaceExposure, hashes: InlineBlockHashes = {}): string {
+export function buildEnforcedContentSecurityPolicy(exposure: SurfaceExposure, inline: InlineContent = {}): string {
   const styleSources = exposure === SurfaceExposure.Private ? PRIVATE_STYLE_SOURCES : STYLE_SOURCES;
-  const loading = REPORTED_DIRECTIVES.map((directive) => {
-    if (directive === SCRIPT_SOURCES) return withHashes(directive, hashes.scripts);
-    if (directive === STYLE_SOURCES) return withHashes(styleSources, hashes.styles);
-    return directive;
+  const loading = REPORTED_DIRECTIVES.flatMap((directive) => {
+    if (directive === SCRIPT_SOURCES) return [withHashes(directive, inline.scriptHashes)];
+    if (directive !== STYLE_SOURCES) return [directive];
+    const styles = withHashes(styleSources, inline.styleHashes);
+    return inline.styleAttributes ? [styles, STYLE_ATTRIBUTES_ALLOWED] : [styles];
   });
   return [...loading, ...ENFORCED_DIRECTIVES, frameAncestors(exposure)].join("; ");
+}
+
+/** A CSP hash source inside its quotes, such as `'sha256-…'`. */
+const QUOTED_HASH_SOURCE = /'(sha(?:256|384|512)-[^']+)'/g;
+
+/**
+ * The hashes Astro lists in the `content-security-policy` header it writes
+ * when `experimental.csp` is on.
+ *
+ * Astro computes them from what it emits, its island runtime and the scripts
+ * and styles it bundles, never from a rendered page, so they are safe to
+ * carry into the complete policy. Astro's own header carries no other
+ * directive the hosts need, which is why it is replaced rather than kept.
+ *
+ * @param astroPolicy - The value of the header Astro set on a response.
+ * @returns The script and style hashes, without their quotes.
+ */
+export function hashesFromAstroPolicy(
+  astroPolicy: string,
+): Required<Pick<InlineContent, "scriptHashes" | "styleHashes">> {
+  const directive = (name: string) =>
+    astroPolicy
+      .split(";")
+      .map((entry) => entry.trim())
+      .find((entry) => entry.startsWith(`${name} `)) ?? "";
+  const hashesOf = (entry: string) => [...entry.matchAll(QUOTED_HASH_SOURCE)].map((match) => match[1]);
+  return { scriptHashes: hashesOf(directive("script-src")), styleHashes: hashesOf(directive("style-src")) };
 }
 
 /**
