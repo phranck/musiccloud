@@ -37,10 +37,10 @@
  * shape; no numeric-ID fallback exists. Downstream consumers should
  * treat the sourceId as opaque.
  */
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -51,6 +51,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { throwIfNoCandidateAnswered } from "../_shared/candidates.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
@@ -159,7 +160,10 @@ function parseJsonLd(html: string): BandcampJsonLd | null {
 
 async function fetchTrackByUrl(trackUrl: string): Promise<NormalizedTrack | null> {
   const response = await bandcampFetch(trackUrl);
-  if (!response.ok) return null;
+  // A page Bandcamp does not have answers 404, which is an answer. Any other
+  // error status is a failure.
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.BandCamp, response.status, ResourceKind.Track, trackUrl);
 
   const html = await response.text();
   const embedData = parseEmbedData(html);
@@ -218,13 +222,17 @@ function normalizeBandcampResultUrl(rawUrl: string | undefined, kind: "track" | 
 async function searchBandcamp(query: string): Promise<BandcampSearchResult[]> {
   const searchUrl = `https://bandcamp.com/api/fuzzysearch/2/app_autocomplete?q=${encodeURIComponent(query)}&param_with_locations=true`;
   const response = await bandcampFetch(searchUrl);
-  if (!response.ok) return [];
+  // A search without results answers 200 with an empty list, so an error
+  // status or a body that is not JSON is a failure rather than an answer.
+  if (!response.ok) {
+    throw serviceHttpError(Service.BandCamp, response.status, ResourceKind.Track, query, Operation.Search);
+  }
 
-  const payload = (await response.json().catch(() => null)) as BandcampFuzzySearchResponse | null;
+  const payload = (await response.json()) as BandcampFuzzySearchResponse;
   const results: BandcampSearchResult[] = [];
   const seenUrls = new Set<string>();
 
-  for (const item of payload?.results ?? []) {
+  for (const item of payload.results ?? []) {
     if (item.type !== "t" && item.type !== "a") continue;
 
     const kind = item.type === "t" ? "track" : "album";
@@ -285,7 +293,8 @@ function trackUrlFromAlbum(albumUrl: string, titleLink: string | undefined): str
 
 async function fetchTracksByAlbumUrl(albumUrl: string): Promise<NormalizedTrack[]> {
   const response = await bandcampFetch(albumUrl);
-  if (!response.ok) return [];
+  if (response.status === 404) return [];
+  if (!response.ok) throw serviceHttpError(Service.BandCamp, response.status, ResourceKind.Album, albumUrl);
 
   const html = await response.text();
   const jsonLd = parseAlbumJsonLd(html);
@@ -340,6 +349,7 @@ async function findBestBandcampMatch(
   let bestConfidence = 0;
 
   const candidateResults = await Promise.allSettled(results.map((r) => fetchTracksForSearchResult(r)));
+  throwIfNoCandidateAnswered(candidateResults);
 
   for (let i = 0; i < candidateResults.length; i++) {
     const result = candidateResults[i];
@@ -377,7 +387,8 @@ function parseAlbumJsonLd(html: string): BandcampAlbumJsonLd | null {
 
 async function fetchAlbumByUrl(albumUrl: string): Promise<NormalizedAlbum | null> {
   const response = await bandcampFetch(albumUrl);
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.BandCamp, response.status, ResourceKind.Album, albumUrl);
   const html = await response.text();
   const jsonLd = parseAlbumJsonLd(html);
   if (!jsonLd) return null;
@@ -446,28 +457,23 @@ export const bandcampAdapter: ServiceAdapter = {
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = searchText(query);
 
-    try {
-      const results = await searchBandcamp(q);
-      if (results.length === 0) log.debug("Bandcamp", "Search returned no results for:", q);
-      else log.debug("Bandcamp", `Search returned ${results.length} results for: ${q}`);
+    const results = await searchBandcamp(q);
+    if (results.length === 0) log.debug("Bandcamp", "Search returned no results for:", q);
+    else log.debug("Bandcamp", `Search returned ${results.length} results for: ${q}`);
 
-      const best = await findBestBandcampMatch(query, results);
+    const best = await findBestBandcampMatch(query, results);
 
-      if (!best.track || best.confidence < MATCH_MIN_CONFIDENCE) {
-        log.debug("Bandcamp", `Best confidence ${best.confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-        return { found: false, confidence: best.confidence, matchMethod: "search" };
-      }
-
-      return {
-        found: true,
-        track: best.track,
-        confidence: best.confidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("Bandcamp", "Search failed:", error instanceof Error ? error.message : error);
-      return { found: false, confidence: 0, matchMethod: "search" };
+    if (!best.track || best.confidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("Bandcamp", `Best confidence ${best.confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
+      return { found: false, confidence: best.confidence, matchMethod: "search" };
     }
+
+    return {
+      found: true,
+      track: best.track,
+      confidence: best.confidence,
+      matchMethod: "search",
+    };
   },
 
   albumCapabilities: {
@@ -489,31 +495,27 @@ export const bandcampAdapter: ServiceAdapter = {
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
-    try {
-      const results = await searchBandcampAlbums(q);
-      if (results.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
+    const results = await searchBandcampAlbums(q);
+    if (results.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
-      const albumResults = await Promise.allSettled(results.map((r) => fetchAlbumByUrl(r.url)));
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
+    const albumResults = await Promise.allSettled(results.map((r) => fetchAlbumByUrl(r.url)));
+    throwIfNoCandidateAnswered(albumResults);
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
 
-      for (const result of albumResults) {
-        if (result.status !== "fulfilled" || !result.value) continue;
-        const album = result.value;
-        const confidence = scoreAlbumCandidate(query, album);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = album;
-        }
+    for (const result of albumResults) {
+      if (result.status !== "fulfilled" || !result.value) continue;
+      const album = result.value;
+      const confidence = scoreAlbumCandidate(query, album);
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = album;
       }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("Bandcamp", "Album search failed:", error instanceof Error ? error.message : error);
-      return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
