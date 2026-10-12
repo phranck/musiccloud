@@ -1,17 +1,4 @@
-/**
- * The two Creem environments. They are separate accounts that share nothing,
- * so a product created in one does not exist in the other, and every product
- * id belongs to exactly one of them.
- */
-export const CreemMode = {
-  /** The sandbox, where no payment moves real money. */
-  Test: "test",
-  /** The live account, where a payment charges a real card. */
-  Live: "live",
-} as const;
-
-/** A {@link CreemMode} member value. */
-export type CreemModeValue = (typeof CreemMode)[keyof typeof CreemMode];
+import { CREEM_MODES, CreemMode, type CreemModeValue } from "@musiccloud/shared";
 
 /** The key prefix Creem gives a sandbox key. Anything else is a live key. */
 const TEST_KEY_PREFIX = "creem_test_";
@@ -105,7 +92,7 @@ export interface CreemConfig {
 export function getCreemConfig(): CreemConfig {
   const apiKeys: Partial<Record<CreemModeValue, string>> = {};
 
-  for (const mode of Object.values(CreemMode)) {
+  for (const mode of CREEM_MODES) {
     const value = process.env[KEY_VARIABLE[mode]];
     if (!value) continue;
     const actual = modeOfApiKey(value);
@@ -144,7 +131,7 @@ export function getCreemConfig(): CreemConfig {
  */
 export function configuredCreemModes(): CreemModeValue[] {
   const { apiKeys } = getCreemConfig();
-  return Object.values(CreemMode).filter((mode) => apiKeys[mode] !== undefined);
+  return CREEM_MODES.filter((mode) => apiKeys[mode] !== undefined);
 }
 
 /**

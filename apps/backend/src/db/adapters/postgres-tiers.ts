@@ -1,11 +1,13 @@
-import { DEFAULT_TIER_COLOR } from "@musiccloud/shared";
+import {
+  type BillingPeriodValue,
+  type CreemModeValue,
+  DEFAULT_TIER_COLOR,
+  type OfferCurrencyValue,
+} from "@musiccloud/shared";
 import { nanoid } from "nanoid";
 import type { Pool } from "pg";
-import type { CreemModeValue } from "../../lib/creem-config.js";
 import { log } from "../../lib/infra/logger.js";
 import type {
-  BillingPeriodValue,
-  OfferCurrencyValue,
   OfferCustomField,
   Tier,
   TierCreateData,

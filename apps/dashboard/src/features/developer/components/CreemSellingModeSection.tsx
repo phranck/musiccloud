@@ -1,4 +1,5 @@
 import { DashboardActionId } from "@musiccloud/dashboard-ui";
+import { CreemMode, type CreemModeValue } from "@musiccloud/shared";
 import { CreditCard as CreditCardIcon } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -6,7 +7,6 @@ import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { CreemModeReadiness } from "@/features/developer/api";
-import { CreemMode } from "@/features/developer/domain";
 import { useCreemSellingMode, useUpdateCreemSellingMode } from "@/features/developer/hooks/useDeveloperData";
 import { CREEM_MODE_OPTIONS, creemModeLabel } from "@/features/developer/offerFormat";
 
@@ -58,7 +58,7 @@ export function CreemSellingModeSection() {
   // Moving to the sandbox happens on the press. Moving to production asks first,
   // because it is the one control here whose effect is somebody's money.
   const handleChange = useCallback(
-    (next: CreemMode) => {
+    (next: CreemModeValue) => {
       if (next === selling) return;
       if (next === CreemMode.Live) {
         setConfirmingLive(true);

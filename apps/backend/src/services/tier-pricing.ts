@@ -8,7 +8,8 @@
  * yearly euro string, either of them `null` when that period is not sold.
  */
 
-import { BillingPeriod, type BillingPeriodValue, type Tier, type TierOffer } from "../db/tiers-repository.js";
+import { BillingPeriod, type BillingPeriodValue } from "@musiccloud/shared";
+import type { Tier, TierOffer } from "../db/tiers-repository.js";
 import { CreemKeyMissingError } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { type CreemCatalog, CreemPriceOutcome, getCreemCatalog } from "./creem-catalog.js";

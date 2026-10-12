@@ -78,6 +78,10 @@ export async function backfillDeveloperProjects(pool: Pool): Promise<DeveloperPr
          )`,
     );
 
+    // The retired `developer_subscriptions` table spells an interval `month` or
+    // `year`. A project subscription spells it as the billing period of the
+    // offer it is to, so the copy translates, or the check on
+    // `developer_project_subscriptions.interval` refuses the whole backfill.
     await client.query(
       `WITH selected_legacy_subscription AS (
          SELECT DISTINCT ON (subscription.account_id)
@@ -112,7 +116,11 @@ export async function backfillDeveloperProjects(pool: Pool): Promise<DeveloperPr
            creem_subscription_id = selected.creem_subscription_id,
            creem_customer_id = selected.creem_customer_id,
            status = selected.status,
-           interval = selected.interval,
+           interval = CASE selected.interval
+                        WHEN 'month' THEN 'every-month'
+                        WHEN 'year' THEN 'every-year'
+                        ELSE selected.interval
+                      END,
            current_period_end = selected.current_period_end,
            cancel_at_period_end = selected.cancel_at_period_end,
            created_at = LEAST(project_subscription.created_at, selected.created_at),

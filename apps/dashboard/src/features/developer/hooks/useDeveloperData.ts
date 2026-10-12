@@ -1,3 +1,4 @@
+import type { BillingPeriodValue, CreemModeValue } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type ApiAccessOverview,
@@ -37,7 +38,6 @@ import {
   updatePlanOffer,
   updateTier,
 } from "@/features/developer/api";
-import type { BillingPeriod, CreemMode } from "@/features/developer/domain";
 
 export function useApiAccessOverview() {
   return useQuery<ApiAccessOverview>({
@@ -259,8 +259,15 @@ export function useCreateCreemProduct() {
 export function useUpdateCreemProductPrice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ tierId, billingPeriod, mode }: { tierId: string; billingPeriod: BillingPeriod; mode: CreemMode }) =>
-      updateCreemProductPrice(tierId, billingPeriod, mode),
+    mutationFn: ({
+      tierId,
+      billingPeriod,
+      mode,
+    }: {
+      tierId: string;
+      billingPeriod: BillingPeriodValue;
+      mode: CreemModeValue;
+    }) => updateCreemProductPrice(tierId, billingPeriod, mode),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
     },
@@ -275,8 +282,15 @@ export function useUpdateCreemProductPrice() {
 export function useArchiveCreemProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ tierId, billingPeriod, mode }: { tierId: string; billingPeriod: BillingPeriod; mode: CreemMode }) =>
-      archiveCreemProduct(tierId, billingPeriod, mode),
+    mutationFn: ({
+      tierId,
+      billingPeriod,
+      mode,
+    }: {
+      tierId: string;
+      billingPeriod: BillingPeriodValue;
+      mode: CreemModeValue;
+    }) => archiveCreemProduct(tierId, billingPeriod, mode),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
       qc.invalidateQueries({ queryKey: ["developer", "tiers"] });

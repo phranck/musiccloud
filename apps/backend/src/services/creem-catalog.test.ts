@@ -17,10 +17,9 @@
  * 4. Only the selling environment's mappings are read.
  */
 
+import { CreemMode, type CreemModeValue } from "@musiccloud/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { getTierRepository } from "../db/index.js";
-import { CreemMode, type CreemModeValue } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { CreemPriceOutcome, getCreemCatalog, resetCreemCatalogCache } from "./creem-catalog.js";
 import { getCreemClient } from "./creem-client.js";

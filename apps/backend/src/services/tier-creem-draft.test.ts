@@ -6,9 +6,10 @@
  * and the period. The one derived decision is the billing type, which Creem
  * ties to the period.
  */
+import { BILLING_PERIODS, BillingPeriod } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
-import { BillingPeriod, type Tier, type TierOffer } from "../db/tiers-repository.js";
-import { creemProductName, draftCreemProductForOffer, isBillingPeriod } from "./tier-creem-draft.js";
+import type { Tier, TierOffer } from "../db/tiers-repository.js";
+import { creemProductName, draftCreemProductForOffer } from "./tier-creem-draft.js";
 
 /** A plan, of which only the name reaches a Creem product. */
 function makeTier(overrides: Partial<Tier> = {}): Tier {
@@ -54,17 +55,6 @@ function makeOffer(overrides: Partial<TierOffer> = {}): TierOffer {
   };
 }
 
-describe("isBillingPeriod", () => {
-  it("accepts every period Creem sells over and nothing else", () => {
-    for (const period of Object.values(BillingPeriod)) {
-      expect(isBillingPeriod(period)).toBe(true);
-    }
-    expect(isBillingPeriod("month")).toBe(false);
-    expect(isBillingPeriod("every-week")).toBe(false);
-    expect(isBillingPeriod(undefined)).toBe(false);
-  });
-});
-
 describe("creemProductName", () => {
   it("names the product after the plan and the period", () => {
     expect(creemProductName("Club", BillingPeriod.Monthly)).toBe("musiccloud Club (monthly)");
@@ -109,7 +99,7 @@ describe("draftCreemProductForOffer", () => {
   });
 
   it("calls every recurring period recurring", () => {
-    for (const period of Object.values(BillingPeriod).filter((value) => value !== BillingPeriod.Once)) {
+    for (const period of BILLING_PERIODS.filter((value) => value !== BillingPeriod.Once)) {
       expect(draftCreemProductForOffer(makeTier(), makeOffer({ billingPeriod: period })).billingType).toBe("recurring");
     }
   });

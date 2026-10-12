@@ -13,9 +13,11 @@ import {
   EmailAction,
   ENDPOINTS,
   isApiClientStatus,
+  isBillingPeriod,
   isDeveloperAccountStatus,
   isDeveloperProjectStatus,
   isRequestLimit,
+  isSubscriptionStatus,
   ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
@@ -266,13 +268,10 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     if (body?.tierId === undefined) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "tierId is required." });
     }
-    if (
-      body.status !== undefined &&
-      !["active", "trialing", "paused", "past_due", "expired", "canceled", "scheduled_cancel"].includes(body.status)
-    ) {
+    if (body.status !== undefined && !isSubscriptionStatus(body.status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid subscription status." });
     }
-    if (body.interval !== undefined && body.interval !== null && !["month", "year"].includes(body.interval)) {
+    if (body.interval !== undefined && body.interval !== null && !isBillingPeriod(body.interval)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid subscription interval." });
     }
     if (body.cancelAtPeriodEnd !== undefined && typeof body.cancelAtPeriodEnd !== "boolean") {

@@ -8,8 +8,10 @@
  * tier editor maintains products in each, whilst the shop sells from whichever
  * one is switched on.
  */
+
+import { CreemMode, type CreemModeValue } from "@musiccloud/shared";
 import { Creem, ServerList, ServerProd, ServerTest } from "creem";
-import { CreemMode, type CreemModeValue, requireCreemApiKey } from "../lib/creem-config.js";
+import { requireCreemApiKey } from "../lib/creem-config.js";
 
 /** One cached client per environment, filled on first use. */
 const instances = new Map<CreemModeValue, Creem>();

@@ -736,6 +736,27 @@
       "when": 1791766187147,
       "tag": "0104_remove_deezer_placeholder_artist_images",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1791773340878,
+      "tag": "0105_widen_project_subscription_interval",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1791773347555,
+      "tag": "0106_spell_subscription_intervals_as_billing_periods",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1791773378809,
+      "tag": "0107_narrow_project_subscription_interval",
+      "breakpoints": true
     }
   ]
 }

@@ -280,7 +280,7 @@ describe("project subscription updates", () => {
           creem_subscription_id: "sub_existing",
           creem_customer_id: "cus_existing",
           status: "active",
-          interval: "month",
+          interval: "every-month",
           current_period_end: new Date(1_800_000_000_000),
           cancel_at_period_end: true,
           created_at: new Date(1_700_000_000_000),

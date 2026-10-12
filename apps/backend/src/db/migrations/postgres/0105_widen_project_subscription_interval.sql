@@ -1,0 +1,2 @@
+ALTER TABLE "developer_project_subscriptions" DROP CONSTRAINT "chk_developer_project_subscriptions_interval";--> statement-breakpoint
+ALTER TABLE "developer_project_subscriptions" ADD CONSTRAINT "chk_developer_project_subscriptions_interval" CHECK ("developer_project_subscriptions"."interval" IS NULL OR "developer_project_subscriptions"."interval" IN ('month', 'year', 'once', 'every-day', 'every-month', 'every-three-months', 'every-six-months', 'every-year'));

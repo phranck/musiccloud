@@ -1,3 +1,10 @@
+import type {
+  BillingPeriodValue,
+  CreemModeValue,
+  OfferCurrencyValue,
+  TaxCategoryValue,
+  TaxModeValue,
+} from "@musiccloud/shared";
 import {
   type ApiClientStatusValue,
   type ApiTokenStatusValue,
@@ -6,7 +13,6 @@ import {
   type DeveloperProjectStatusValue,
   ENDPOINTS,
 } from "@musiccloud/shared";
-import type { BillingPeriod, CreemMode, OfferCurrency, TaxCategory, TaxMode } from "@/features/developer/domain";
 import { api } from "@/lib/api";
 
 /** The two switches behind the developer portal's gate. */
@@ -385,9 +391,9 @@ export function deleteTier(id: string): Promise<void> {
 export interface CreemProductMapping {
   tierId: string;
   /** The offer's billing period, in Creem's own spelling. */
-  billingPeriod: BillingPeriod;
+  billingPeriod: BillingPeriodValue;
   /** Which Creem environment holds this product. */
-  mode: CreemMode;
+  mode: CreemModeValue;
   /** The Creem product id. */
   creemProductId: string;
 }
@@ -402,7 +408,7 @@ export interface CreemProductMapping {
  * control that simply fails.
  */
 export interface CreemProductsResponse {
-  writableModes: CreemMode[];
+  writableModes: CreemModeValue[];
   products: CreemProductMapping[];
 }
 
@@ -418,8 +424,8 @@ export function fetchCreemProducts(): Promise<CreemProductsResponse> {
  */
 export function createCreemProduct(body: {
   tierId: string;
-  billingPeriod: BillingPeriod;
-  mode: CreemMode;
+  billingPeriod: BillingPeriodValue;
+  mode: CreemModeValue;
   creemProductId?: string;
 }): Promise<CreemProductMapping> {
   return api.post<CreemProductMapping>(ENDPOINTS.admin.developer.creemProducts, body);
@@ -439,8 +445,8 @@ export function createCreemProduct(body: {
  */
 export function updateCreemProductPrice(
   tierId: string,
-  billingPeriod: BillingPeriod,
-  mode: CreemMode,
+  billingPeriod: BillingPeriodValue,
+  mode: CreemModeValue,
 ): Promise<CreemProductMapping & { price: number; currency: string }> {
   return api.patch<CreemProductMapping & { price: number; currency: string }>(
     ENDPOINTS.admin.developer.creemProductDetail(tierId, billingPeriod, mode),
@@ -454,13 +460,17 @@ export function updateCreemProductPrice(
  * @param billingPeriod - Which of the plan's products to archive.
  * @param mode - The Creem environment the product lives in.
  */
-export function archiveCreemProduct(tierId: string, billingPeriod: BillingPeriod, mode: CreemMode): Promise<void> {
+export function archiveCreemProduct(
+  tierId: string,
+  billingPeriod: BillingPeriodValue,
+  mode: CreemModeValue,
+): Promise<void> {
   return api.delete(ENDPOINTS.admin.developer.creemProductDetail(tierId, billingPeriod, mode));
 }
 
 /** Whether one Creem environment could be sold from, and what is missing if not. */
 export interface CreemModeReadiness {
-  mode: CreemMode;
+  mode: CreemModeValue;
   /** Whether this deployment holds an API key for that environment. */
   hasKey: boolean;
   /** Buyable plans that have no product there yet, named for the operator. */
@@ -469,8 +479,8 @@ export interface CreemModeReadiness {
 
 /** Which environment the shop sells from, and what each one would need. */
 export interface CreemSellingModeResponse {
-  sellingMode: CreemMode;
-  configuredModes: CreemMode[];
+  sellingMode: CreemModeValue;
+  configuredModes: CreemModeValue[];
   readiness: CreemModeReadiness[];
 }
 
@@ -487,7 +497,7 @@ export function fetchCreemSellingMode(): Promise<CreemSellingModeResponse> {
  *
  * @param sellingMode - The environment to sell from.
  */
-export function updateCreemSellingMode(sellingMode: CreemMode): Promise<CreemSellingModeResponse> {
+export function updateCreemSellingMode(sellingMode: CreemModeValue): Promise<CreemSellingModeResponse> {
   return api.patch<CreemSellingModeResponse>(ENDPOINTS.admin.developer.creemSellingMode, { sellingMode });
 }
 
@@ -507,14 +517,14 @@ export interface OfferCustomField {
 export interface TierOffer {
   id: string;
   tierId: string;
-  billingPeriod: BillingPeriod;
+  billingPeriod: BillingPeriodValue;
   /** The amount in the smallest currency unit, which is what Creem takes. */
   priceCents: number;
-  currency: OfferCurrency;
+  currency: OfferCurrencyValue;
   /** `null` leaves the decision to Creem. */
-  taxMode: TaxMode | null;
+  taxMode: TaxModeValue | null;
   /** `null` leaves the decision to Creem. */
-  taxCategory: TaxCategory | null;
+  taxCategory: TaxCategoryValue | null;
   imageUrl: string | null;
   successUrl: string | null;
   customFields: OfferCustomField[];
