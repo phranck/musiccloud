@@ -28,7 +28,17 @@ describe("buildSecurityHeaders", () => {
     expect(buildSecurityHeaders(SurfaceExposure.Public)["Referrer-Policy"]).toBe("strict-origin-when-cross-origin");
   });
 
-  it("keeps every loading directive out of the enforced policy", () => {
+  it("enforces a private surface's complete policy, with inline styles and no inline scripts", () => {
+    const headers = buildSecurityHeaders(SurfaceExposure.Private);
+    const directives = headers["Content-Security-Policy"].split("; ");
+
+    expect(directives).toContain("default-src 'self'");
+    expect(directives).toContain("script-src 'self'");
+    expect(directives).toContain("style-src 'self' 'unsafe-inline'");
+    expect(headers).not.toHaveProperty("Content-Security-Policy-Report-Only");
+  });
+
+  it("keeps every loading directive out of a public surface's enforced policy", () => {
     const enforced = buildSecurityHeaders(SurfaceExposure.Public)["Content-Security-Policy"];
 
     for (const directive of ["default-src", "script-src", "style-src", "img-src", "connect-src", "font-src"]) {
@@ -75,12 +85,11 @@ describe("buildEnforcedContentSecurityPolicy", () => {
     expect(policy).toContain("frame-ancestors 'self'");
   });
 
-  it("allows no inline script it was not given a hash for", () => {
-    const policy = directives(buildEnforcedContentSecurityPolicy(SurfaceExposure.Private));
+  it("allows no inline script or style on a public surface that it was not given a hash for", () => {
+    const policy = directives(buildEnforcedContentSecurityPolicy(SurfaceExposure.Public));
 
     expect(policy).toContain("script-src 'self'");
     expect(policy).toContain("style-src 'self'");
-    expect(policy).toContain("frame-ancestors 'none'");
     expect(policy.join("; ")).not.toContain("unsafe-inline");
   });
 });

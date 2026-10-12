@@ -23,15 +23,24 @@ describe("dashboard nginx security headers", () => {
     expect(expected["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
   });
 
-  it("keeps the loading directives out of the enforced policy", () => {
-    // Enforcing script-src while the SPA shell and its inline blocks are
-    // unhashed would serve a blank page. Those directives are Report-Only
-    // until each violation has been answered.
-    expect(expected["Content-Security-Policy"]).not.toContain("script-src");
-    expect(expected["Content-Security-Policy-Report-Only"]).toContain("script-src 'self'");
+  it("enforces the complete policy, with scripts from its own origin only", () => {
+    const directives = expected["Content-Security-Policy"].split("; ");
+
+    expect(directives).toContain("script-src 'self'");
+    expect(directives).toContain("default-src 'self'");
+    expect(siteConfig).not.toContain("Content-Security-Policy-Report-Only");
   });
 
-  it("does not weaken the reported policy with unsafe-inline", () => {
-    expect(expected["Content-Security-Policy-Report-Only"]).not.toContain("unsafe-inline");
+  /**
+   * The editors, the overlays and the email preview write styles at runtime,
+   * so styles may be inline. Scripts never may, which is what stops an
+   * injected script.
+   */
+  it("allows inline styles and never inline scripts", () => {
+    const directives = expected["Content-Security-Policy"].split("; ");
+
+    expect(directives).toContain("style-src 'self' 'unsafe-inline'");
+    expect(directives.filter((directive) => directive.includes("unsafe-inline"))).toHaveLength(1);
+    expect(expected["Content-Security-Policy"]).not.toContain("unsafe-eval");
   });
 });

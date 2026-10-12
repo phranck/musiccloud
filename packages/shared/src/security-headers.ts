@@ -7,22 +7,27 @@
  * and none of those has a plugin doing it for them. A framework protects what
  * it serves, so the policy lives here and each host applies it.
  *
- * ## Why the CSP arrives in two headers
+ * ## Why a public surface's CSP arrives in two headers
  *
- * The enforced policy carries only the directives that cannot stop a resource
- * from loading: where the document may be framed, where forms may post, what
- * `<base>` may claim, and that plugins are refused. Getting those wrong changes
- * nothing about how the page renders.
+ * On the public site and the developer portal, the enforced policy carries
+ * only the directives that cannot stop a resource from loading: where the
+ * document may be framed, where forms may post, what `<base>` may claim, and
+ * that plugins are refused. Getting those wrong changes nothing about how the
+ * page renders.
  *
- * The directives that govern loading arrive as `Content-Security-Policy-Report-Only`,
+ * Their directives that govern loading arrive as `Content-Security-Policy-Report-Only`,
  * because the pages carry inline `<script>` and inline `<style>` blocks that a
  * strict `script-src` and `style-src` would refuse. Report-Only names each of
  * them in the browser console without breaking anything, which is the
  * measurement needed before the policy can be enforced. Adding `'unsafe-inline'`
  * to silence the reports would defeat the exercise, so it is deliberately absent.
  *
- * A document whose inline blocks are all known, because it is built from
- * constants, enforces the complete policy instead, with the hashes of those
+ * The admin dashboard enforces its complete policy, because it ships no inline
+ * script at all. Its styles may be inline, for the reasons at
+ * {@link PRIVATE_STYLE_SOURCES}.
+ *
+ * A public document whose inline blocks are all known, because it is built
+ * from constants, enforces the complete policy too, with the hashes of those
  * blocks: see {@link buildEnforcedContentSecurityPolicy}. The hashes are taken
  * from the source text, never from the rendered page, because a hash of the
  * output would also cover a script someone injected into it.
@@ -76,6 +81,18 @@ const SCRIPT_SOURCES = "script-src 'self'";
 const STYLE_SOURCES = "style-src 'self'";
 
 /**
+ * The style sources of the admin dashboard, which allow inline styles.
+ *
+ * The dashboard writes styles at runtime that no hash can name. The code
+ * editor mounts a `<style>` element whose rules follow its configuration, the
+ * overlays mount their keyframes, and the email preview renders a template's
+ * own `<style>` blocks and `style` attributes in a `srcdoc` frame, which is
+ * held to this policy. Scripts stay on `'self'`, which is what stops an
+ * injected script.
+ */
+const PRIVATE_STYLE_SOURCES = `${STYLE_SOURCES} 'unsafe-inline'`;
+
+/**
  * The policy being worked towards, reported rather than enforced.
  *
  * `img-src` and `media-src` allow any HTTPS origin because artwork and audio
@@ -113,6 +130,9 @@ function frameAncestors(exposure: SurfaceExposure): string {
 /**
  * Builds the response headers a musiccloud host sends with every document.
  *
+ * A private surface gets its complete policy enforced. A public one gets the
+ * non-loading directives enforced and the rest reported, see the file header.
+ *
  * `X-Frame-Options` repeats what `frame-ancestors` already says. It stays
  * because it is the directive older browsers understand, and the two never
  * disagree because both are derived from the same argument.
@@ -121,13 +141,19 @@ function frameAncestors(exposure: SurfaceExposure): string {
  * @returns Header names mapped to their values, ready to apply to a response.
  */
 export function buildSecurityHeaders(exposure: SurfaceExposure): Record<string, string> {
+  const contentPolicy: Record<string, string> =
+    exposure === SurfaceExposure.Private
+      ? { [CONTENT_SECURITY_POLICY]: buildEnforcedContentSecurityPolicy(exposure) }
+      : {
+          [CONTENT_SECURITY_POLICY]: [...ENFORCED_DIRECTIVES, frameAncestors(exposure)].join("; "),
+          [CONTENT_SECURITY_POLICY_REPORT_ONLY]: [
+            ...REPORTED_DIRECTIVES,
+            ...ENFORCED_DIRECTIVES,
+            frameAncestors(exposure),
+          ].join("; "),
+        };
   return {
-    [CONTENT_SECURITY_POLICY]: [...ENFORCED_DIRECTIVES, frameAncestors(exposure)].join("; "),
-    [CONTENT_SECURITY_POLICY_REPORT_ONLY]: [
-      ...REPORTED_DIRECTIVES,
-      ...ENFORCED_DIRECTIVES,
-      frameAncestors(exposure),
-    ].join("; "),
+    ...contentPolicy,
     "X-Frame-Options": exposure === SurfaceExposure.Private ? "DENY" : "SAMEORIGIN",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": exposure === SurfaceExposure.Private ? "no-referrer" : "strict-origin-when-cross-origin",
@@ -163,14 +189,19 @@ function withHashes(sources: string, hashes: readonly string[] = []): string {
  * enforces. A response that sets this needs no Report-Only header beside it,
  * and {@link applySecurityHeaders} adds none.
  *
+ * A private surface allows inline styles through `'unsafe-inline'` and takes
+ * no style hashes, because a browser that finds a hash in the same list
+ * ignores `'unsafe-inline'`.
+ *
  * @param exposure - What kind of surface the document belongs to.
  * @param hashes - The hashes of the document's own inline blocks.
  * @returns The value of a `Content-Security-Policy` header.
  */
 export function buildEnforcedContentSecurityPolicy(exposure: SurfaceExposure, hashes: InlineBlockHashes = {}): string {
+  const styleSources = exposure === SurfaceExposure.Private ? PRIVATE_STYLE_SOURCES : STYLE_SOURCES;
   const loading = REPORTED_DIRECTIVES.map((directive) => {
     if (directive === SCRIPT_SOURCES) return withHashes(directive, hashes.scripts);
-    if (directive === STYLE_SOURCES) return withHashes(directive, hashes.styles);
+    if (directive === STYLE_SOURCES) return withHashes(styleSources, hashes.styles);
     return directive;
   });
   return [...loading, ...ENFORCED_DIRECTIVES, frameAncestors(exposure)].join("; ");
