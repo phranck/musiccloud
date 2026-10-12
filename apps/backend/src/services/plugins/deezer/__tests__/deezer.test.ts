@@ -523,7 +523,7 @@ describe("Deezer: searchTrackWithCandidates", () => {
 // artist pictures
 // =============================================================================
 
-/** The stock picture Deezer answers for an artist without one; its path holds the empty-string MD5. */
+/** The stock picture for an artist without one, under the empty-string MD5, where Deezer's CDN redirects the empty-hash form. */
 const SILHOUETTE = "https://e-cdns-images.dzcdn.net/images/artist/d41d8cd98f00b204e9800998ecf8427e/1000x1000.jpg";
 
 describe("Deezer: artist pictures", () => {
@@ -555,6 +555,24 @@ describe("Deezer: artist pictures", () => {
 
     expect(result.found).toBe(true);
     expect(result.artist?.imageUrl).toBeUndefined();
+  });
+
+  it("gives an artist whose picture has the empty hash Deezer's API sends no image in getArtist", async () => {
+    const emptyHash = (size: number) => `https://cdn-images.dzcdn.net/images/artist//${size}x${size}-000000-80-0-0.jpg`;
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: 81722612,
+          name: "Demo Band",
+          picture_xl: emptyHash(1000),
+          picture_big: emptyHash(500),
+          picture_medium: emptyHash(250),
+        }),
+        { status: 200 },
+      ),
+    );
+
+    expect((await deezerAdapter.getArtist("81722612")).imageUrl).toBeUndefined();
   });
 
   it("keeps a real picture", async () => {

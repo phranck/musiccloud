@@ -729,6 +729,13 @@
       "when": 1791762534795,
       "tag": "0103_normalize_album_release_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1791766187147,
+      "tag": "0104_remove_deezer_placeholder_artist_images",
+      "breakpoints": true
     }
   ]
 }
