@@ -27,6 +27,7 @@ import { dashboardCopy } from "@/copy/dashboard";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { InfiniteAdminTable } from "@/features/music/InfiniteAdminTable";
 import { formatEnglishDate } from "@/lib/format";
+import { SHARE_BASE } from "@/lib/shareBase";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
 
@@ -42,8 +43,6 @@ interface TrackListItem {
   createdAt: number;
   shortId: string | null;
 }
-
-const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "https://musiccloud.io";
 
 function formatDate(ts: number): string {
   return formatEnglishDate(ts, { dateStyle: "medium" });

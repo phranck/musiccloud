@@ -11,7 +11,7 @@
  * Creative Commons. A 404 (no CC tracks shared yet) is handled gracefully by the
  * frontend falling back to the commercial example.
  */
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, SITE_ORIGIN } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getCcRepository } from "../db/index.js";
 
@@ -25,8 +25,7 @@ export default async function ccRandomExampleRoutes(app: FastifyInstance) {
         description: "Returns one randomly selected existing Creative-Commons track share code.",
         response: {
           200: {
-            description:
-              "`CcRandomExampleResponse`. Pass its `shortId` to `GET /api/v1/share/{shortId}` or append it to `https://musiccloud.io/` to open the public share page.",
+            description: `\`CcRandomExampleResponse\`. Pass its \`shortId\` to \`GET /api/v1/share/{shortId}\` or append it to \`${SITE_ORIGIN.site}/\` to open the public share page.`,
             $ref: "CcRandomExampleResponse#",
           },
           404: {

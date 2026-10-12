@@ -1,5 +1,5 @@
 ---
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, SITE_ORIGIN } from "@musiccloud/shared";
 import { fetchCcRandomExample, fetchNavigation, fetchRandomExample } from "@/api/client";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
@@ -14,12 +14,13 @@ const [footerNav, randomExample, ccRandomExample] = await Promise.all([
 ]);
 const exampleShortId = randomExample?.shortId ?? null;
 const ccExampleShortId = ccRandomExample?.shortId ?? null;
+const shareImageUrl = `${SITE_ORIGIN.site}/og/musiccloud.jpg`;
 ---
 
 <BaseLayout
   title="musiccloud - Share music across every platform"
   description="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
-  canonicalUrl="https://musiccloud.io"
+  canonicalUrl={SITE_ORIGIN.site}
 >
   <Fragment slot="head">
     <meta name="title" content="musiccloud - Share music across every platform" />
@@ -28,9 +29,9 @@ const ccExampleShortId = ccRandomExample?.shortId ?? null;
     <meta property="og:type" content="website" />
     <meta property="og:title" content="musiccloud" />
     <meta property="og:description" content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere." />
-    <meta property="og:url" content="https://musiccloud.io" />
+    <meta property="og:url" content={SITE_ORIGIN.site} />
     <meta property="og:site_name" content="musiccloud" />
-    <meta property="og:image" content="https://musiccloud.io/og/musiccloud.jpg" />
+    <meta property="og:image" content={shareImageUrl} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="musiccloud - Share music across every platform" />
@@ -40,7 +41,7 @@ const ccExampleShortId = ccRandomExample?.shortId ?? null;
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="musiccloud" />
     <meta name="twitter:description" content="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere." />
-    <meta name="twitter:image" content="https://musiccloud.io/og/musiccloud.jpg" />
+    <meta name="twitter:image" content={shareImageUrl} />
 
     <!-- JSON-LD: WebApplication -->
     <script is:inline type="application/ld+json" set:html={JSON.stringify({
@@ -48,8 +49,8 @@ const ccExampleShortId = ccRandomExample?.shortId ?? null;
       "@type": "WebApplication",
       "name": "musiccloud",
       "description": "Share music across every platform",
-      "url": "https://musiccloud.io",
-      "image": "https://musiccloud.io/og/musiccloud.jpg",
+      "url": SITE_ORIGIN.site,
+      "image": shareImageUrl,
       "applicationCategory": "MusicApplication",
       "operatingSystem": "Web",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }

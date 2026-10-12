@@ -1,5 +1,6 @@
 import node from "@astrojs/node";
 import react from "@astrojs/react";
+import { SITE_ORIGIN } from "@musiccloud/shared";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 import { astroViteCacheDir } from "../../scripts/astro-vite-cache-dir.mjs";
@@ -35,5 +36,5 @@ export default defineConfig({
     resolve: { dedupe: ["react", "react-dom"] },
     ssr: { noExternal: ["@musiccloud/dashboard-ui"] },
   },
-  site: "https://developer.musiccloud.io",
+  site: SITE_ORIGIN.developer,
 });

@@ -22,6 +22,7 @@ import {
   type JamendoAudioFormat,
   parseJamendoAudioFormat,
   ROUTE_TEMPLATES,
+  SITE_ORIGIN,
   swapStreamFormat,
 } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
@@ -83,7 +84,7 @@ export default async function ccAudioRoutes(app: FastifyInstance) {
         summary: "Stream a full Creative Commons track",
         description:
           "Returns the selected full-track representation as raw audio bytes, not JSON. For ordinary browser playback, point an `<audio>` element directly at the endpoint:\n\n" +
-          '```html\n<audio controls src="https://api.musiccloud.io/api/v1/cc/audio/123456?format=mp32"></audio>\n```\n\n' +
+          `\`\`\`html\n<audio controls src="${SITE_ORIGIN.api}/api/v1/cc/audio/123456?format=mp32"></audio>\n\`\`\`\n\n` +
           "For `fetch`, consume `response.body` as a byte stream or call `response.blob()`; do not call `response.json()`. A `Blob` is available only after the complete response has been buffered, so use streaming or a direct `<audio>` URL for long tracks.\n\n" +
           "**Formats.** `format=mp31` selects MP3 at `96 kbps`; `format=mp32` selects MP3 at approximately `256 kbps`; `format=ogg` selects Ogg Vorbis; and `format=flac` selects lossless FLAC. The default is `mp32`. The response `Content-Type` identifies the actual representation.\n\n" +
           "**Seeking and resumable reads.** Send a valid HTTP range such as `Range: bytes=0-1048575` or `Range: bytes=-1048576`. A satisfiable range returns `206` and `Content-Range`; a complete representation returns `200`. `Accept-Ranges` is always `bytes`. `Content-Length` and `Cache-Control` are included only when supplied for the selected representation.",

@@ -11,7 +11,7 @@
  * `Wordmark` component, so the maintenance page looks like the live portal.
  */
 
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, SITE_ORIGIN } from "@musiccloud/shared";
 import { PORTAL_FONT_FACE_CSS, portalFontPreloadTags } from "./fonts";
 
 /** The Umami website the developer portal's visits are counted under. */
@@ -73,7 +73,7 @@ export function renderPortalGateHtml(mode: PortalGateMode): string {
       name="description"
       content="${copy.description}"
     />
-    <link rel="canonical" href="https://developer.musiccloud.io/" />
+    <link rel="canonical" href="${SITE_ORIGIN.developer}/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="musiccloud" />
     <meta property="og:title" content="${copy.metaTitle}" />
@@ -81,8 +81,8 @@ export function renderPortalGateHtml(mode: PortalGateMode): string {
       property="og:description"
       content="${copy.description}"
     />
-    <meta property="og:url" content="https://developer.musiccloud.io/" />
-    <meta property="og:image" content="https://musiccloud.io/img/developer-og.png" />
+    <meta property="og:url" content="${SITE_ORIGIN.developer}/" />
+    <meta property="og:image" content="${SITE_ORIGIN.site}/img/developer-og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="musiccloud / developer" />
@@ -93,7 +93,7 @@ export function renderPortalGateHtml(mode: PortalGateMode): string {
       name="twitter:description"
       content="${copy.description}"
     />
-    <meta name="twitter:image" content="https://musiccloud.io/img/developer-og.png" />
+    <meta name="twitter:image" content="${SITE_ORIGIN.site}/img/developer-og.png" />
 
     <link rel="stylesheet" href="/developer-theme.css" />
     ${portalFontPreloadTags()}
@@ -333,8 +333,8 @@ export function renderPortalGateHtml(mode: PortalGateMode): string {
 
       <div class="actions">
         <a class="btn primary" href="/docs/api">View API reference</a>
-        <a class="btn" href="https://status.musiccloud.io"><span class="dot"></span> ${copy.statusLabel}</a>
-        <a class="btn" href="https://musiccloud.io">Back to musiccloud</a>
+        <a class="btn" href="${SITE_ORIGIN.status}"><span class="dot"></span> ${copy.statusLabel}</a>
+        <a class="btn" href="${SITE_ORIGIN.site}">Back to musiccloud</a>
       </div>
     </main>
 

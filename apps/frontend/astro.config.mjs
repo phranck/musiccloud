@@ -1,6 +1,7 @@
 import node from "@astrojs/node";
 import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
+import { SITE_ORIGIN } from "@musiccloud/shared";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 import { astroViteCacheDir } from "../../scripts/astro-vite-cache-dir.mjs";
@@ -20,5 +21,5 @@ export default defineConfig({
       allowedHosts: ["localhost", "musiccloud.test"],
     },
   },
-  site: "https://musiccloud.io",
+  site: SITE_ORIGIN.site,
 });

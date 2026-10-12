@@ -12,7 +12,7 @@ import type {
   PageTitleAlignment as PageTitleAlignmentValue,
   SingleContentContext,
 } from "@musiccloud/shared";
-import { ContentContext } from "@musiccloud/shared";
+import { ContentContext, SITE_ORIGIN } from "@musiccloud/shared";
 import {
   EyeIcon,
   FileLockIcon,
@@ -56,8 +56,8 @@ const FONT_SIZE_KEY = "content-editor-source-font-size";
 const FONT_SIZE_MIN = 10;
 const FONT_SIZE_MAX = 24;
 const FONT_SIZE_DEFAULT = 13;
-const FRONTEND_PREVIEW_BASE_URL = import.meta.env.DEV ? "http://localhost:3001" : "https://musiccloud.io";
-const DEVELOPER_PREVIEW_BASE_URL = import.meta.env.DEV ? "http://localhost:3100" : "https://developer.musiccloud.io";
+const FRONTEND_PREVIEW_BASE_URL = import.meta.env.DEV ? "http://localhost:3001" : SITE_ORIGIN.site;
+const DEVELOPER_PREVIEW_BASE_URL = import.meta.env.DEV ? "http://localhost:3100" : SITE_ORIGIN.developer;
 
 function loadFontSize(): number {
   if (typeof localStorage === "undefined") return FONT_SIZE_DEFAULT;
