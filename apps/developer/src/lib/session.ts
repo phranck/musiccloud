@@ -66,9 +66,21 @@ export interface Account {
    * `/me` endpoint resolves it, and that is the endpoint this helper calls.
    */
   tierName: string | null;
+  /**
+   * Whether an invitation admitted this account into the portal while it is
+   * closed. The middleware reads it to let the account past the gate.
+   */
+  portalAccess: boolean;
   /** Account creation timestamp as an ISO-8601 string. */
   createdAt: string;
 }
+
+/**
+ * What {@link getDeveloperSession} reads from a request: its cookies and the
+ * visitor's address. A page's `Astro` global and the middleware's context both
+ * carry them.
+ */
+export type SessionRequestContext = Pick<AstroGlobal, "cookies" | "clientAddress">;
 
 /**
  * Resolve the current developer account from the request's session cookie.
@@ -79,12 +91,12 @@ export interface Account {
  * the account on `200` or `null` on any non-200 / transport failure. Never
  * throws, so a protected page can branch on `null` without a try/catch.
  *
- * @param astro - The Astro global (page frontmatter) or API context; only
- *   `cookies` and `clientAddress` are read.
+ * @param astro - The Astro global, the middleware's context, or an API
+ *   context; only `cookies` and `clientAddress` are read.
  * @returns The authenticated {@link Account}, or `null` when there is no valid
  *   session.
  */
-export async function getDeveloperSession(astro: AstroGlobal): Promise<Account | null> {
+export async function getDeveloperSession(astro: SessionRequestContext): Promise<Account | null> {
   const sessionCookie = astro.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (!sessionCookie) return null;
 

@@ -32,9 +32,9 @@ process.env.DEVELOPER_URL = "https://developer.test";
 const {
   bindPortalInvitation,
   invitePortalDeveloper,
-  isPortalInvitationPassOpen,
   listPortalInvitations,
   PortalInvitationMailError,
+  readOpenPortalInvitationPass,
   redeemPortalInvitation,
   resendPortalInvitation,
   withdrawPortalInvitation,
@@ -186,20 +186,20 @@ describe.skipIf(!integrationDatabaseUrl())("developer portal invitations (integr
     const invitation = await invitePortalDeveloper("new@example.com", "owner-a");
     await redeemPortalInvitation(lastMailedToken());
 
-    await expect(isPortalInvitationPassOpen(invitation.id)).resolves.toBe(true);
+    await expect(readOpenPortalInvitationPass(invitation.id)).resolves.toEqual({ email: "new@example.com" });
     await expect(bindPortalInvitation(invitation.id, "acc-1")).resolves.toBe(true);
     await expect(bindPortalInvitation(invitation.id, "acc-2")).resolves.toBe(false);
 
     expect(await grantOf("acc-1")).not.toBeNull();
     expect(await grantOf("acc-2")).toBeNull();
-    await expect(isPortalInvitationPassOpen(invitation.id)).resolves.toBe(false);
+    await expect(readOpenPortalInvitationPass(invitation.id)).resolves.toBeNull();
   });
 
   it("binds nothing for an invitation whose link was never followed", async () => {
     await createAccount("acc-1", "someone@example.com");
     const invitation = await invitePortalDeveloper("new@example.com", "owner-a");
 
-    await expect(isPortalInvitationPassOpen(invitation.id)).resolves.toBe(false);
+    await expect(readOpenPortalInvitationPass(invitation.id)).resolves.toBeNull();
     await expect(bindPortalInvitation(invitation.id, "acc-1")).resolves.toBe(false);
     expect(await grantOf("acc-1")).toBeNull();
   });
@@ -237,7 +237,7 @@ describe.skipIf(!integrationDatabaseUrl())("developer portal invitations (integr
 
     await withdrawPortalInvitation(invitation.id);
 
-    await expect(isPortalInvitationPassOpen(invitation.id)).resolves.toBe(false);
+    await expect(readOpenPortalInvitationPass(invitation.id)).resolves.toBeNull();
     await expect(bindPortalInvitation(invitation.id, "acc-1")).resolves.toBe(false);
   });
 

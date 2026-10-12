@@ -79,6 +79,21 @@ export type PortalInvitationNextValue = (typeof PortalInvitationNext)[keyof type
 /** What redeeming an invitation link answers when it works. */
 export interface PortalInvitationRedemption {
   next: PortalInvitationNextValue;
-  /** The address the invitation was sent to, which the sign-up form starts with. */
+  /** The address the invitation was sent to. */
   email: string;
 }
+
+/**
+ * Name of the httpOnly cookie carrying an invitation pass, which opens
+ * sign-up while the portal is closed. The backend sets and reads it, and the
+ * portal forwards it, so both take the name from here.
+ */
+export const INVITATION_PASS_COOKIE_NAME = "mc_dev_invite_pass";
+
+/**
+ * What the backend answers when the portal's gate asks about a pass.
+ *
+ * The address travels with the answer so the sign-up form can start with it,
+ * rather than in the page's address where logs and histories would keep it.
+ */
+export type PortalInvitationPass = { valid: true; email: string } | { valid: false; email: null };

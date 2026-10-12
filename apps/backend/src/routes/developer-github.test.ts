@@ -19,14 +19,14 @@
  */
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
-import { EmailAction, ENDPOINTS } from "@musiccloud/shared";
+import { EmailAction, ENDPOINTS, INVITATION_PASS_COOKIE_NAME } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DeveloperAccount, DeveloperRepository } from "../db/developer-repository.js";
 import { getDeveloperRepository } from "../db/index.js";
 import authPlugin from "../plugins/auth.js";
-import { INVITATION_PASS_COOKIE_NAME, issueInvitationPass, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
+import { issueInvitationPass, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
 import { exchangeGitHubCode, fetchGitHubProfile, GitHubOAuth } from "../services/developer-github.js";
 import { bindPortalInvitation } from "../services/developer-portal-invitations.js";
 import { triggerEmailAction } from "../services/email-actions.js";
