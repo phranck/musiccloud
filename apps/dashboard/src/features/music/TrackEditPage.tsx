@@ -13,11 +13,11 @@ import { useCallback, useEffect, useReducer } from "react";
 import { useNavigate, useParams } from "react-router";
 import { EditorPageShell } from "@/components/ui/EditorPageShell";
 import { EditorToolbarButton } from "@/components/ui/EditorToolbarButton";
-import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { dashboardCopy } from "@/copy/dashboard";
 import { api } from "@/lib/api";
 import { formatEnglishDate } from "@/lib/format";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
+import { FormLabel } from "@/shared/ui/FormPrimitives";
 
 interface TrackDetail {
   id: string;
@@ -327,9 +327,7 @@ export function TrackEditPage() {
         <div className="flex-1 min-w-0 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="track-title" className={FIELD_LABEL_CLASS}>
-                {m.title}
-              </label>
+              <FormLabel htmlFor="track-title">{m.title}</FormLabel>
               <DashboardInput
                 id="track-title"
                 type="text"
@@ -338,9 +336,7 @@ export function TrackEditPage() {
               />
             </div>
             <div>
-              <label htmlFor="track-artists" className={FIELD_LABEL_CLASS}>
-                {m.artists}
-              </label>
+              <FormLabel htmlFor="track-artists">{m.artists}</FormLabel>
               <DashboardInput
                 id="track-artists"
                 type="text"
@@ -363,9 +359,7 @@ export function TrackEditPage() {
               ) : null}
             </div>
             <div>
-              <label htmlFor="track-album" className={FIELD_LABEL_CLASS}>
-                {m.albumName}
-              </label>
+              <FormLabel htmlFor="track-album">{m.albumName}</FormLabel>
               <DashboardInput
                 id="track-album"
                 type="text"
@@ -374,9 +368,7 @@ export function TrackEditPage() {
               />
             </div>
             <div>
-              <label htmlFor="track-isrc" className={FIELD_LABEL_CLASS}>
-                {m.isrc}
-              </label>
+              <FormLabel htmlFor="track-isrc">{m.isrc}</FormLabel>
               <DashboardInput
                 id="track-isrc"
                 type="text"
@@ -388,9 +380,7 @@ export function TrackEditPage() {
 
           {/* Artwork URL */}
           <div>
-            <label htmlFor="track-artwork-url" className={FIELD_LABEL_CLASS}>
-              {m.artworkUrl}
-            </label>
+            <FormLabel htmlFor="track-artwork-url">{m.artworkUrl}</FormLabel>
             <DashboardInput
               id="track-artwork-url"
               type="text"
@@ -411,9 +401,7 @@ export function TrackEditPage() {
                 const url = linksByService.get(service);
                 return (
                   <div key={service}>
-                    <label htmlFor={`service-url-${service}`} className={FIELD_LABEL_CLASS}>
-                      {label}
-                    </label>
+                    <FormLabel htmlFor={`service-url-${service}`}>{label}</FormLabel>
                     <div className="flex items-center gap-2">
                       <DashboardInput
                         id={`service-url-${service}`}

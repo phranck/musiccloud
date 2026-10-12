@@ -9,7 +9,6 @@ import { CreemMode, type CreemModeValue } from "@musiccloud/shared";
 import { CurrencyEur as CurrencyEurIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { dashboardCopy } from "@/copy/dashboard";
@@ -20,6 +19,7 @@ import {
   useUpdateCreemProductPrice,
 } from "@/features/developer/hooks/useDeveloperData";
 import { CREEM_MODE_OPTIONS, creemModeLabel, formatOfferPrice, periodLabel } from "@/features/developer/offerFormat";
+import { FormLabel } from "@/shared/ui/FormPrimitives";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
@@ -105,9 +105,7 @@ function TierCreemProductRow({ tier, offer, mode, mapping, writable }: TierCreem
             />
           </div>
           <div>
-            <label htmlFor={`creem-attach-${fieldId}`} className={FIELD_LABEL_CLASS}>
-              {dm.creemAttach}
-            </label>
+            <FormLabel htmlFor={`creem-attach-${fieldId}`}>{dm.creemAttach}</FormLabel>
             <div className="flex items-center gap-2">
               <DashboardInput
                 id={`creem-attach-${fieldId}`}

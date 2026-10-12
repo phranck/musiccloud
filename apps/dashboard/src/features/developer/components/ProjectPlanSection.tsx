@@ -4,12 +4,12 @@ import { Gauge as GaugeIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
-import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { DeveloperProjectResponse, DeveloperProjectSubscriptionResponse } from "@/features/developer/api";
 import { TierDropdown } from "@/features/developer/components/TierDropdown";
 import { useSetProjectSubscription, useUpdateDeveloperProject } from "@/features/developer/hooks/useDeveloperData";
 import { parseLimitOverride } from "@/features/developer/lib";
+import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
@@ -129,11 +129,11 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
       <DashboardSection.Body>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <span className={FIELD_LABEL_CLASS}>{dm.colTier}</span>
+            <FormLabelText>{dm.colTier}</FormLabelText>
             <TierDropdown value={tierId} onChange={setTierDraft} aria-label={dm.colTier} />
           </div>
           <div>
-            <span className={FIELD_LABEL_CLASS}>{dm.projectSubscriptionState}</span>
+            <FormLabelText>{dm.projectSubscriptionState}</FormLabelText>
             <Dropdown
               value={state}
               onChange={setStateDraft}
@@ -157,9 +157,7 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
       <DashboardSection.Body>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor="project-override-minute" className={FIELD_LABEL_CLASS}>
-              {dm.projectOverrideMinute}
-            </label>
+            <FormLabel htmlFor="project-override-minute">{dm.projectOverrideMinute}</FormLabel>
             <DashboardInput
               id="project-override-minute"
               type="number"
@@ -173,9 +171,7 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
             </p>
           </div>
           <div>
-            <label htmlFor="project-override-day" className={FIELD_LABEL_CLASS}>
-              {dm.projectOverrideDay}
-            </label>
+            <FormLabel htmlFor="project-override-day">{dm.projectOverrideDay}</FormLabel>
             <DashboardInput
               id="project-override-day"
               type="number"

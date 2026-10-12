@@ -21,7 +21,6 @@ import { Link, useNavigate, useParams } from "react-router";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
@@ -29,6 +28,7 @@ import { dashboardCopy } from "@/copy/dashboard";
 import { useArtistEntityDetail } from "@/features/music/hooks/useArtistEntityDetail";
 import { formatEnglishDate, formatPartialDate } from "@/lib/format";
 import { SHARE_BASE } from "@/lib/shareBase";
+import { FormLabelText, FormValue } from "@/shared/ui/FormPrimitives";
 import { HttpStatus } from "@/shared/utils/api-error";
 
 const me = dashboardCopy.music.artistEntities;
@@ -227,8 +227,8 @@ function FactTableSection<T extends { id: string }>({
 function IdentityFact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <span className={FIELD_LABEL_CLASS}>{label}</span>
-      <div className="text-sm text-[var(--ds-text)]">{children}</div>
+      <FormLabelText>{label}</FormLabelText>
+      <FormValue>{children}</FormValue>
     </div>
   );
 }
