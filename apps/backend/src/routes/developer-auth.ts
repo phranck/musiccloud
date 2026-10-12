@@ -90,6 +90,7 @@ import { triggerEmailAction } from "../services/email-actions.js";
 import { erasePersonalData } from "../services/gdpr-erase.js";
 import { buildPersonalDataExport } from "../services/gdpr-export.js";
 import { resolveSignupTierId } from "../services/signup-tier.js";
+import { applyInvitationPass } from "./developer-portal-invitations.js";
 
 /** Verification-token lifetime: 24 hours from issuance. */
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -167,10 +168,12 @@ async function throttleCredentials(request: FastifyRequest, reply: FastifyReply)
  *   Only `/me` resolves it (the portal renders every protected page from a
  *   fresh `/me`); the signup/login/OAuth responses pass the default `null`.
  * @returns The wire-level account object: `emailVerifiedAt` is collapsed to the
- *   boolean `emailVerified`, `passwordHash` is collapsed to the boolean
- *   `hasPassword` (lets the portal decide whether `/delete-account` needs a
- *   password confirmation — `false` for a GitHub-only account), and `createdAt`
- *   (epoch ms) is rendered as an ISO string for JSON-safe transport. The raw
+ *   boolean `emailVerified`, and `passwordHash` to the boolean `hasPassword`.
+ *   The portal reads `hasPassword` to decide whether `/delete-account` needs a
+ *   password confirmation, which a GitHub-only account cannot give.
+ *   `portalAccessGrantedAt` is collapsed to the boolean `portalAccess`, which
+ *   the portal's gate asks while the portal is closed, and `createdAt` (epoch
+ *   ms) is rendered as an ISO string for JSON-safe transport. The raw
  *   `passwordHash`, `status` and `updatedAt`/`lastLoginAt` are intentionally
  *   omitted.
  */
@@ -190,6 +193,7 @@ export function buildAccountResponse(account: DeveloperAccount, tierName: string
     gravatarUrl: account.gravatarUrl,
     avatarSource: account.avatarSource,
     technicalContactEmail: account.technicalContactEmail,
+    portalAccess: account.portalAccessGrantedAt !== null,
     tierName,
     createdAt: new Date(account.createdAt).toISOString(),
   };
@@ -367,6 +371,10 @@ export async function devAuthRoutes(app: FastifyInstance) {
       throw error;
     }
 
+    // Somebody who followed an invitation link signs up holding its pass,
+    // and the access it gives lands on the account they have just created.
+    await applyInvitationPass(app, request, reply, account.id);
+
     const { raw, hash } = generateEmailToken();
     await repo.createDeveloperEmailToken({
       accountId: account.id,
@@ -473,6 +481,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(403).send(ACCOUNT_SUSPENDED_BODY);
     }
     reply.setCookie(SESSION_COOKIE_NAME, session.token, session.cookieOptions);
+    await applyInvitationPass(app, request, reply, account.id);
 
     // Update last login timestamp (fire and forget): a failed stat write must
     // not block or fail the login response.

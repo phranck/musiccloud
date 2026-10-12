@@ -60,6 +60,11 @@ import {
   developerPortalAvailabilityAdminRoutes,
   developerPortalAvailabilityInternalRoutes,
 } from "./routes/developer-portal-availability.js";
+import {
+  developerPortalInvitationAdminRoutes,
+  developerPortalInvitationInternalRoutes,
+  devPortalInvitationRoutes,
+} from "./routes/developer-portal-invitations.js";
 import emailAssetServeRoutes from "./routes/email-assets.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import { internalEditorialRoutes } from "./routes/internal-editorial.js";
@@ -562,6 +567,11 @@ async function buildApp(options: BuildAppOptions = {}) {
   // and issues the same `mc_dev_session` cookie as email login.
   await app.register(devGitHubRoutes);
 
+  // Developer-portal invitation redemption (public, root scope). The person
+  // following an invitation link may hold no session yet, which is the case
+  // the link exists for.
+  await app.register(devPortalInvitationRoutes);
+
   // Developer-portal self-service API-access routes (MC-025/MC-077):
   // list and create the caller's own projects and registrations, and
   // manage the caller's own tokens.
@@ -583,6 +593,7 @@ async function buildApp(options: BuildAppOptions = {}) {
   await app.register(async function internalRoutes(internalApp) {
     internalApp.addHook("preValidation", internalApp.authenticateInternal);
     await internalApp.register(developerPortalAvailabilityInternalRoutes);
+    await internalApp.register(developerPortalInvitationInternalRoutes);
     await internalApp.register(internalEditorialRoutes);
   });
 
@@ -671,6 +682,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(adminPluginsRoutes);
     await adminApp.register(adminCrawlerRoutes);
     await adminApp.register(developerPortalAvailabilityAdminRoutes);
+    await adminApp.register(developerPortalInvitationAdminRoutes);
     await adminApp.register(developerLimitsAdminRoutes);
   });
 

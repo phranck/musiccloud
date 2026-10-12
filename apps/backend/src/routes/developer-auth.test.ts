@@ -34,7 +34,14 @@ import { getDeveloperRepository, getTierRepository } from "../db/index.js";
 import type { TierRepository } from "../db/tiers-repository.js";
 import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
 import authPlugin from "../plugins/auth.js";
-import { hashEmailToken, hashPassword, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
+import {
+  hashEmailToken,
+  hashPassword,
+  INVITATION_PASS_COOKIE_NAME,
+  issueInvitationPass,
+  SESSION_COOKIE_NAME,
+} from "../services/developer-auth.js";
+import { bindPortalInvitation } from "../services/developer-portal-invitations.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 import { erasePersonalData } from "../services/gdpr-erase.js";
 import { buildPersonalDataExport } from "../services/gdpr-export.js";
@@ -47,6 +54,10 @@ vi.mock("../db/index.js", () => ({
 
 vi.mock("../services/email-actions.js", () => ({
   triggerEmailAction: vi.fn(async () => undefined),
+}));
+
+vi.mock("../services/developer-portal-invitations.js", () => ({
+  bindPortalInvitation: vi.fn(async () => true),
 }));
 
 vi.mock("../services/gdpr-erase.js", () => ({
@@ -92,6 +103,7 @@ function makeAccount(overrides: Partial<DeveloperAccount> = {}): DeveloperAccoun
     technicalContactEmail: null,
     pendingEmail: null,
     pendingEmailRequestedAt: null,
+    portalAccessGrantedAt: null,
     tierId: null,
     status: "active",
     createdAt: 1_699_000_000_000,
@@ -441,6 +453,76 @@ describe("POST /api/dev/auth/signup", () => {
   });
 });
 
+describe("an invitation pass at sign-up and sign-in", () => {
+  /** The `Set-Cookie` line that touches the pass, or `undefined`. */
+  function passSetCookie(raw: string | string[] | undefined): string | undefined {
+    const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    return list.find((line) => line.startsWith(`${INVITATION_PASS_COOKIE_NAME}=`));
+  }
+
+  function passCookie(app: FastifyInstance): string {
+    const pass = issueInvitationPass("inv-1", (payload, options) => app.jwt.sign(payload, options));
+    return `${INVITATION_PASS_COOKIE_NAME}=${pass.token}`;
+  }
+
+  it("ends the pass on the account that signs up with it, and clears it", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.signup,
+      headers: { cookie: passCookie(app) },
+      payload: { email: "new@example.com", password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(vi.mocked(bindPortalInvitation)).toHaveBeenCalledWith("inv-1", "dev-acc-1");
+    expect(passSetCookie(res.headers["set-cookie"])).toMatch(new RegExp(`^${INVITATION_PASS_COOKIE_NAME}=;`));
+  });
+
+  it("ends the pass on the account that signs in with it", async () => {
+    const passwordHash = await hashPassword(VALID_PASSWORD);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(makeAccount({ id: "dev-acc-2", passwordHash }));
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.login,
+      headers: { cookie: passCookie(app) },
+      payload: { email: "dev@example.com", password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(vi.mocked(bindPortalInvitation)).toHaveBeenCalledWith("inv-1", "dev-acc-2");
+    expect(passSetCookie(res.headers["set-cookie"])).toBeDefined();
+  });
+
+  it("binds nothing for a forged pass, and clears it all the same", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.signup,
+      headers: { cookie: `${INVITATION_PASS_COOKIE_NAME}=forged` },
+      payload: { email: "new@example.com", password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(vi.mocked(bindPortalInvitation)).not.toHaveBeenCalled();
+    expect(passSetCookie(res.headers["set-cookie"])).toMatch(new RegExp(`^${INVITATION_PASS_COOKIE_NAME}=;`));
+  });
+
+  it("leaves sign-up without a pass as it was", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.signup,
+      payload: { email: "new@example.com", password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(vi.mocked(bindPortalInvitation)).not.toHaveBeenCalled();
+    expect(passSetCookie(res.headers["set-cookie"])).toBeUndefined();
+  });
+});
+
 describe("POST /api/dev/auth/verify-email", () => {
   it("marks the email verified and consumes the token on a valid token", async () => {
     vi.mocked(repo.findActiveDeveloperEmailToken).mockResolvedValueOnce(makeToken({ purpose: "verify" }));
@@ -719,6 +801,22 @@ describe("GET /api/dev/auth/me", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().account.id).toBe("dev-acc-1");
     expect(res.json().account).not.toHaveProperty("passwordHash");
+    expect(res.json().account.portalAccess).toBe(false);
+  });
+
+  it("says whether an invitation admitted the account, without saying when", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(
+      makeAccount({ portalAccessGrantedAt: 1_700_000_000_000 }),
+    );
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: ENDPOINTS.dev.auth.me,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    expect(res.json().account.portalAccess).toBe(true);
+    expect(res.json().account).not.toHaveProperty("portalAccessGrantedAt");
   });
 
   it("returns 401 without a session cookie", async () => {

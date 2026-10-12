@@ -3,11 +3,15 @@ import bcrypt from "bcryptjs";
 import Fastify from "fastify";
 import { describe, expect, it, vi } from "vitest";
 import {
+  clearedInvitationPassCookieOptions,
   generateEmailToken,
   hashEmailToken,
   hashPassword,
+  INVITATION_PASS_MAX_AGE_SECONDS,
   isDeveloperAccountActive,
   issueDeveloperSession,
+  issueInvitationPass,
+  readInvitationPass,
   SESSION_MAX_AGE_SECONDS,
   SessionKind,
   sessionCookieOptions,
@@ -51,6 +55,56 @@ describe("developer sessions", () => {
   it("counts only an active account as one that may hold a session", () => {
     expect(isDeveloperAccountActive({ status: "active" })).toBe(true);
     expect(isDeveloperAccountActive({ status: "suspended" })).toBe(false);
+  });
+});
+
+describe("invitation passes", () => {
+  async function signer() {
+    const app = Fastify();
+    await app.register(jwt, { secret: "test-invitation-pass-secret" });
+    await app.ready();
+    return app;
+  }
+
+  it("names the invitation it was issued for, and lives a day in its cookie", async () => {
+    const app = await signer();
+    const pass = issueInvitationPass("invitation-1", (payload, options) => app.jwt.sign(payload, options));
+
+    expect(readInvitationPass(pass.token, (token) => app.jwt.verify(token))).toBe("invitation-1");
+    const decoded = app.jwt.decode<{ iat: number; exp: number }>(pass.token);
+    expect(decoded!.exp - decoded!.iat).toBe(INVITATION_PASS_MAX_AGE_SECONDS);
+    expect(pass.cookieOptions).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/" });
+    expect(pass.cookieOptions.maxAge).toBe(INVITATION_PASS_MAX_AGE_SECONDS);
+    expect(clearedInvitationPassCookieOptions().maxAge).toBe(0);
+    await app.close();
+  });
+
+  it("refuses a session token in its place, because the kinds differ", async () => {
+    const app = await signer();
+    const session = issueDeveloperSession({ id: "dev-acc-1", status: "active" }, (payload, options) =>
+      app.jwt.sign(payload, options),
+    );
+
+    expect(readInvitationPass(session!.token, (token) => app.jwt.verify(token))).toBeNull();
+    await app.close();
+  });
+
+  it("refuses a pass signed with another key, a garbled one, and none at all", async () => {
+    const app = await signer();
+    const elsewhere = await (async () => {
+      const other = Fastify();
+      await other.register(jwt, { secret: "somebody-elses-secret" });
+      await other.ready();
+      const token = issueInvitationPass("invitation-1", (payload, options) => other.jwt.sign(payload, options)).token;
+      await other.close();
+      return token;
+    })();
+    const verify = (token: string) => app.jwt.verify(token);
+
+    expect(readInvitationPass(elsewhere, verify)).toBeNull();
+    expect(readInvitationPass("not-a-token", verify)).toBeNull();
+    expect(readInvitationPass(undefined, verify)).toBeNull();
+    await app.close();
   });
 });
 

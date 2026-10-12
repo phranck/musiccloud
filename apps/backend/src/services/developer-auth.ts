@@ -13,8 +13,9 @@
  *    verify their passwords with {@link hashPassword} and
  *    {@link verifyPassword} as well, so both surfaces share one work factor
  *    and one timing protection.
- * 2. **Session-cookie mechanics.** The cookie name, lifetime, and the
- *    serialize options for setting and clearing the `mc_dev_session` cookie.
+ * 2. **Cookie mechanics.** The names, lifetimes and serialize options of the
+ *    `mc_dev_session` cookie and of the invitation pass, which opens sign-up
+ *    while the portal is closed.
  *
  * The session **JWT** is signed through a signer the route passes in, because
  * signing needs the Fastify instance (`app.jwt.sign`) and this module does not
@@ -197,41 +198,121 @@ export function hashEmailToken(raw: string): string {
 }
 
 /**
- * Serialize options for **setting** the developer session cookie. The cookie
- * is httpOnly (no JS access), `secure` in production (HTTPS-only; left off in
- * dev so it works over plain-HTTP localhost), `sameSite: "lax"` (sent on
- * top-level navigations but not cross-site POSTs, a sensible CSRF baseline for
- * a portal session), scoped to `/`, and lived for {@link SESSION_MAX_AGE_SECONDS}.
+ * The attributes every portal cookie the backend sets carries: httpOnly (no
+ * JS access), `secure` in production (HTTPS-only; left off in dev so it works
+ * over plain-HTTP localhost), `sameSite: "lax"` (sent on top-level navigations
+ * but not cross-site POSTs, a sensible CSRF baseline for a portal session) and
+ * scoped to `/`. Setting and clearing differ only in `maxAge`, so the browser
+ * matches the cookie it clears to the one it holds.
  *
- * @returns Cookie serialize options for `reply.setCookie(SESSION_COOKIE_NAME, …)`.
+ * @param maxAge - Lifetime in seconds, `0` to expire the cookie at once.
+ * @returns Cookie serialize options.
  */
-export function sessionCookieOptions(): CookieSerializeOptions {
+function portalCookieOptions(maxAge: number): CookieSerializeOptions {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
+    maxAge,
   };
 }
 
 /**
+ * Serialize options for **setting** the developer session cookie, lived for
+ * {@link SESSION_MAX_AGE_SECONDS}.
+ *
+ * @returns Cookie serialize options for `reply.setCookie(SESSION_COOKIE_NAME, …)`.
+ */
+export function sessionCookieOptions(): CookieSerializeOptions {
+  return portalCookieOptions(SESSION_MAX_AGE_SECONDS);
+}
+
+/**
  * Serialize options for **clearing** the developer session cookie on logout.
- * Identical attributes to {@link sessionCookieOptions} (so the browser matches
- * and overwrites the existing cookie) but with `maxAge: 0`, expiring it
- * immediately.
  *
  * @returns Cookie serialize options for `reply.clearCookie` / an expiring
  *   `reply.setCookie(SESSION_COOKIE_NAME, "", …)`.
  */
 export function clearedSessionCookieOptions(): CookieSerializeOptions {
+  return portalCookieOptions(0);
+}
+
+/**
+ * Name of the httpOnly cookie carrying an invitation pass: what lets a person
+ * who followed an invitation link reach sign-up while the portal is closed.
+ */
+export const INVITATION_PASS_COOKIE_NAME = "mc_dev_invite_pass";
+
+/**
+ * How long a pass lives, in seconds. A day, because it only has to survive one
+ * sign-up; the access itself is written onto the account the pass ends on.
+ */
+export const INVITATION_PASS_MAX_AGE_SECONDS = 60 * 60 * 24;
+
+/**
+ * The `kind` claim of an invitation pass. The session guard and the GitHub
+ * state verifier each accept only their own kind, and {@link readInvitationPass}
+ * only this one, so the three tokens the backend signs with one key cannot
+ * stand in for each other.
+ */
+export const INVITATION_PASS_KIND = "portal-invitation";
+
+/** Signs a pass the way `app.jwt.sign` does. Passed in so this module stays framework-free. */
+export type InvitationPassSigner = (
+  payload: { kind: typeof INVITATION_PASS_KIND; invitationId: string },
+  options: { expiresIn: number },
+) => string;
+
+/**
+ * Issues the pass for an invitation that has just been redeemed.
+ *
+ * It says which invitation it came from and nothing about the person, because
+ * when it is issued nobody knows who they are.
+ *
+ * @param invitationId - The redeemed invitation.
+ * @param sign - The signer, `(payload, options) => app.jwt.sign(payload, options)`.
+ * @returns The token and the options to set its cookie with.
+ */
+export function issueInvitationPass(
+  invitationId: string,
+  sign: InvitationPassSigner,
+): { token: string; cookieOptions: CookieSerializeOptions } {
   return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
+    token: sign({ kind: INVITATION_PASS_KIND, invitationId }, { expiresIn: INVITATION_PASS_MAX_AGE_SECONDS }),
+    cookieOptions: portalCookieOptions(INVITATION_PASS_MAX_AGE_SECONDS),
   };
+}
+
+/**
+ * Reads the invitation a pass names.
+ *
+ * Whether that invitation still opens anything is a separate question for the
+ * database; this answers only whether the token is a pass at all.
+ *
+ * @param token - The cookie's value, or `undefined` where there is none.
+ * @param verify - The verifier, `(token) => app.jwt.verify(token)`, which
+ *   throws on a bad signature or an expired token.
+ * @returns The invitation id, or `null` for anything that is not a valid pass.
+ */
+export function readInvitationPass(token: string | undefined, verify: (token: string) => unknown): string | null {
+  if (!token) return null;
+  try {
+    const payload = verify(token) as { kind?: unknown; invitationId?: unknown };
+    if (payload.kind !== INVITATION_PASS_KIND || typeof payload.invitationId !== "string") return null;
+    return payload.invitationId;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Serialize options for clearing the pass once it has done its work.
+ *
+ * @returns Cookie serialize options for `reply.clearCookie(INVITATION_PASS_COOKIE_NAME, …)`.
+ */
+export function clearedInvitationPassCookieOptions(): CookieSerializeOptions {
+  return portalCookieOptions(0);
 }
 
 /**

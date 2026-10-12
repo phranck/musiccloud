@@ -1,25 +1,31 @@
 /**
- * @file Creates the two templates a change of sign-in address needs.
+ * @file Creates the templates the developer portal's address change and its
+ * invitations need.
  *
- * `developerEmailChangeRequested` is a required action, so without a template
- * bound to it the request fails and nothing can be changed. The notice to the
- * old address is optional, and it is seeded with it because a change nobody is
- * told about is the one worth telling somebody about.
+ * `developerEmailChangeRequested` and `developerPortalInviteSent` are required
+ * actions, so without a template bound to them the request fails and nothing
+ * is changed or sent. The notice to the old address is optional, and it is
+ * seeded with them because a change nobody is told about is the one worth
+ * telling somebody about.
  *
- * It creates and never overwrites: once a template exists under these names,
- * what it says is whatever was last written in the dashboard, and a seed that
- * reasserted itself would undo somebody's edit on the next deployment.
+ * It creates and never overwrites: once an action has an enabled template,
+ * what that template says is whatever was last written in the dashboard, and
+ * a seed that reasserted itself would undo somebody's edit on the next
+ * deployment.
  *
  * Run against the local database, then against the deployed one:
  *
  *   cd apps/backend
- *   DATABASE_URL=<target> pnpm tsx src/scripts/seed-email-change-templates.ts
- *   DATABASE_URL=<target> pnpm tsx src/scripts/seed-email-change-templates.ts --apply
+ *   DATABASE_URL=<target> pnpm tsx src/scripts/seed-developer-email-templates.ts
+ *   DATABASE_URL=<target> pnpm tsx src/scripts/seed-developer-email-templates.ts --apply
  */
 
 import { EmailAction } from "@musiccloud/shared";
 import { nanoid } from "nanoid";
 import * as pgModule from "pg";
+
+/** The prefix of every line this script prints, and the file name it runs under. */
+const SCRIPT_NAME = "seed-developer-email-templates";
 
 /** One template to create, and the action it answers. */
 interface SeedTemplate {
@@ -31,7 +37,7 @@ interface SeedTemplate {
   blocks: unknown[];
   /** The action this is bound to. */
   actionKey: string;
-  /** A stable binding id, so a second run recognises its own work. */
+  /** A stable binding id, so a second run recognizes its own work. */
   bindingId: string;
 }
 
@@ -72,6 +78,25 @@ const TEMPLATES: readonly SeedTemplate[] = [
     ],
     actionKey: EmailAction.DeveloperEmailChangeNotified,
     bindingId: "seed-developer-email-change-notice",
+  },
+  {
+    name: "Developer portal invitation",
+    subject: "You are invited to the musiccloud developer portal",
+    blocks: [
+      {
+        type: "text",
+        markdown:
+          "## Come in before everybody else\n\nHello {{username}}, the musiccloud developer portal is not open to everybody yet, and you are invited to use it now. Following the link lets you sign up, or sign in if you already have an account, and the access stays on that account.",
+      },
+      { type: "button", url: "{{inviteUrl}}", label: "Accept the invitation" },
+      {
+        type: "text",
+        markdown:
+          "The link works once and expires in 14 days. Whoever follows it first is let in, so please do not forward this message.",
+      },
+    ],
+    actionKey: EmailAction.DeveloperPortalInviteSent,
+    bindingId: "seed-developer-portal-invitation",
   },
 ];
 
@@ -116,7 +141,7 @@ async function main(): Promise<void> {
   const apply = process.argv.includes("--apply");
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
-    console.error("[seed-email-change-templates] DATABASE_URL is not set.");
+    console.error(`[${SCRIPT_NAME}] DATABASE_URL is not set.`);
     process.exit(1);
   }
 
@@ -126,17 +151,17 @@ async function main(): Promise<void> {
 
   try {
     for (const template of TEMPLATES) {
-      console.log(`[seed-email-change-templates] ${await seedTemplate(client, template, apply)}`);
+      console.log(`[${SCRIPT_NAME}] ${await seedTemplate(client, template, apply)}`);
     }
-    if (!apply) console.log("[seed-email-change-templates] pass --apply to write them.");
+    if (!apply) console.log(`[${SCRIPT_NAME}] pass --apply to write them.`);
   } finally {
     await client.end();
   }
 }
 
-if (process.argv[1]?.endsWith("seed-email-change-templates.ts")) {
+if (process.argv[1]?.endsWith(`${SCRIPT_NAME}.ts`)) {
   main().catch((error) => {
-    console.error("[seed-email-change-templates]", error);
+    console.error(`[${SCRIPT_NAME}]`, error);
     process.exit(1);
   });
 }

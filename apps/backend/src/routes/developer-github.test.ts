@@ -26,13 +26,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DeveloperAccount, DeveloperRepository } from "../db/developer-repository.js";
 import { getDeveloperRepository } from "../db/index.js";
 import authPlugin from "../plugins/auth.js";
-import { SESSION_COOKIE_NAME } from "../services/developer-auth.js";
+import { INVITATION_PASS_COOKIE_NAME, issueInvitationPass, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
 import { exchangeGitHubCode, fetchGitHubProfile, GitHubOAuth } from "../services/developer-github.js";
+import { bindPortalInvitation } from "../services/developer-portal-invitations.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 import { devGitHubRoutes } from "./developer-github.js";
 
 vi.mock("../services/email-actions.js", () => ({
   triggerEmailAction: vi.fn(async () => undefined),
+}));
+
+vi.mock("../services/developer-portal-invitations.js", () => ({
+  bindPortalInvitation: vi.fn(async () => true),
 }));
 
 vi.mock("../db/index.js", () => ({
@@ -82,6 +87,7 @@ function makeAccount(overrides: Partial<DeveloperAccount> = {}): DeveloperAccoun
     technicalContactEmail: null,
     pendingEmail: null,
     pendingEmailRequestedAt: null,
+    portalAccessGrantedAt: null,
     tierId: null,
     status: "active",
     createdAt: 1_699_000_000_000,
@@ -463,6 +469,28 @@ describe("POST /api/dev/auth/github/exchange", () => {
       expect.objectContaining({ to: { email: "dev@example.com" } }),
     );
     expect(findSessionSetCookie(res.headers["set-cookie"])).toBeDefined();
+  });
+
+  it("ends an invitation pass the callback forwards on the account GitHub signs in", async () => {
+    vi.mocked(exchangeGitHubCode).mockResolvedValueOnce("gho_token");
+    vi.mocked(fetchGitHubProfile).mockResolvedValueOnce(makeProfile({ email: "fresh@example.com" }));
+    vi.mocked(repo.findDeveloperIdentity).mockResolvedValueOnce(null);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(null);
+    vi.mocked(repo.createDeveloperAccount).mockResolvedValueOnce(makeAccount({ id: "dev-acc-new" }));
+
+    const app = await buildApp();
+    const pass = issueInvitationPass("inv-1", (payload, options) => app.jwt.sign(payload, options)).token;
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.github.exchange,
+      headers: { cookie: `${INVITATION_PASS_COOKIE_NAME}=${pass}` },
+      payload: { code: "c", state: signState(app, GitHubOAuth.StateKind, "signup") },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(vi.mocked(bindPortalInvitation)).toHaveBeenCalledWith("inv-1", "dev-acc-new");
+    const cookies = ([] as string[]).concat(res.headers["set-cookie"] ?? []);
+    expect(cookies.some((line) => line.startsWith(`${INVITATION_PASS_COOKIE_NAME}=;`))).toBe(true);
   });
 
   it("returns 422 NO_VERIFIED_EMAIL when GitHub reports no verified primary email", async () => {
