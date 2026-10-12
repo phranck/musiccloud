@@ -17,13 +17,13 @@ import {
 import { PlusCircleIcon } from "@phosphor-icons/react";
 import { useReducer } from "react";
 
-import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { dashboardCopy } from "@/copy/dashboard";
 import { isSystemOwnedDocsPath } from "@/features/content/editorialPageOwnership";
 import { useCreateContentPage } from "@/features/content/hooks/useAdminContent";
 import { PageContextControl } from "@/features/content/pages/PageContextControl";
 import { createPublicationDrafts } from "@/features/content/publicationDrafts";
+import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
 import type { ApiRequestError } from "@/shared/utils/api-error";
 

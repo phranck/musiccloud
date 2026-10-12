@@ -32,7 +32,6 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useReducer } fr
 import { useNavigate, useParams } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
@@ -53,6 +52,7 @@ import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import type { MetaFields } from "@/features/content/state/slices/metaSlice";
 import { PublicationsActionType } from "@/features/content/state/slices/publicationsSlice";
 import { formatEnglishDate } from "@/lib/format";
+import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 import { FormLabel } from "@/shared/ui/FormPrimitives";
 
 const MarkdownEditor = lazy(() =>
