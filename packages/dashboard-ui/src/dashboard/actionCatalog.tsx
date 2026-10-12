@@ -6,6 +6,7 @@ import {
   DownloadSimpleIcon,
   FloppyDiskIcon,
   type IconProps,
+  PaperPlaneTiltIcon,
   PauseCircleIcon,
   PencilSimpleIcon,
   PlusIcon,
@@ -36,6 +37,8 @@ export const DashboardActionId = {
   PutOnHold: "putOnHold",
   Overwrite: "overwrite",
   Skip: "skip",
+  /** Sends a mail, such as a test of a template or an invitation. */
+  Send: "send",
 } as const;
 
 export type DashboardActionId = (typeof DashboardActionId)[keyof typeof DashboardActionId];
@@ -195,6 +198,14 @@ export const DashboardActions = {
     colorRole: "neutral",
     icon: SkipForwardIcon,
     labelKey: "common.skip",
+    size: "action",
+    variant: DashboardButtonVariant.Neutral,
+  },
+  [DashboardActionId.Send]: {
+    ariaBehavior: "visible-label",
+    colorRole: "neutral",
+    icon: PaperPlaneTiltIcon,
+    labelKey: "common.send",
     size: "action",
     variant: DashboardButtonVariant.Neutral,
   },

@@ -25,6 +25,7 @@ import {
   updateDeveloperPortalAvailability,
 } from "@/features/developer/api";
 import { CreemSellingModeSection } from "@/features/developer/components/CreemSellingModeSection";
+import { PortalInvitationsSection } from "@/features/developer/components/PortalInvitationsSection";
 import { formatAdminName, formatEnglishDate } from "@/lib/format";
 
 const PORTAL_AVAILABILITY_QUERY_KEY = ["admin", "developer", "portal-availability"] as const;
@@ -133,7 +134,11 @@ function SelfServiceLimitsSection() {
   );
 }
 
-/** Owner-only controls for the availability state of the public Developer Portal. */
+/**
+ * Owner-only controls for the public Developer Portal: whether it is open,
+ * whom it admits while it is closed, how far self-service reaches, and which
+ * Creem environment it sells from.
+ */
 export function DeveloperSettingsPage() {
   const messages = dashboardCopy;
   const dm = messages.developer;
@@ -228,6 +233,8 @@ export function DeveloperSettingsPage() {
             {updateMutation.isError && <p className="text-sm text-[var(--ds-danger-text)]">{errorMessage}</p>}
           </DashboardSection.Body>
         </DashboardSection>
+
+        <PortalInvitationsSection />
 
         <SelfServiceLimitsSection />
 

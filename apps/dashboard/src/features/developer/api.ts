@@ -4,6 +4,7 @@ import type {
   BillingPeriodValue,
   CreemModeValue,
   CreemProductMapping,
+  PortalInvitation,
   SellingModeReadiness,
   TierOffer,
 } from "@musiccloud/shared";
@@ -53,6 +54,42 @@ export function updateDeveloperPortalAvailability(
     public: next.public,
     maintenance: next.maintenance,
   });
+}
+
+export function fetchPortalInvitations(): Promise<{ invitations: PortalInvitation[] }> {
+  return api.get<{ invitations: PortalInvitation[] }>(ENDPOINTS.admin.developer.portalInvitations);
+}
+
+/**
+ * Invites an address into the closed portal, or sends its open invitation
+ * again. The invitation and its mail are one step on the server, so a failure
+ * here means nothing was stored.
+ *
+ * @param email - The address to invite.
+ * @returns The invitation as it now stands.
+ */
+export function invitePortalDeveloper(email: string): Promise<{ invitation: PortalInvitation }> {
+  return api.post<{ invitation: PortalInvitation }>(ENDPOINTS.admin.developer.portalInvitations, { email });
+}
+
+/**
+ * Sends an open invitation again, with a new link. The old link stops working.
+ *
+ * @param id - The invitation.
+ * @returns The invitation as it now stands.
+ */
+export function resendPortalInvitation(id: string): Promise<{ invitation: PortalInvitation }> {
+  return api.post<{ invitation: PortalInvitation }>(ENDPOINTS.admin.developer.portalInvitationResend(id));
+}
+
+/**
+ * Withdraws an invitation, together with the access it gave.
+ *
+ * @param id - The invitation.
+ * @returns The invitation as it now stands.
+ */
+export function withdrawPortalInvitation(id: string): Promise<{ invitation: PortalInvitation }> {
+  return api.delete<{ invitation: PortalInvitation }>(ENDPOINTS.admin.developer.portalInvitationDetail(id));
 }
 
 /** The bounds the operator has set on the open self-service creation path. */

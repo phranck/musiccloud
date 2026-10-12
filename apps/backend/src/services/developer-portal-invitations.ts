@@ -15,6 +15,7 @@
 import {
   EmailAction,
   EmailRecipientKind,
+  PORTAL_INVITATION_TTL_DAYS,
   type PortalInvitation,
   PortalInvitationRefusal,
   type PortalInvitationRefusalValue,
@@ -28,14 +29,6 @@ import { getDatabasePool } from "../db/pool.js";
 import { requireEnv } from "../lib/env.js";
 import { generateEmailToken, hashEmailToken } from "./developer-auth.js";
 import { triggerEmailAction } from "./email-actions.js";
-
-/**
- * How long an invitation link works, in days.
- *
- * Two weeks, because an invitation waits for somebody else's calendar rather
- * than for a form they have open, and the link is spent on first use anyway.
- */
-export const PORTAL_INVITATION_TTL_DAYS = 14;
 
 /** One day in milliseconds. */
 const DAY_MS = 24 * 60 * 60 * 1000;

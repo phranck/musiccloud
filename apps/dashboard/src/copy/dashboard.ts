@@ -405,6 +405,33 @@ export const dashboardCopy = {
     portalStateMaintenance: "In maintenance",
     portalStateClosed: "Closed",
     portalLastChange: "{state} since {when}, set by {name}.",
+    invitationsTitle: "Invitations",
+    invitationsDescription:
+      "While the portal is closed, an invited person can still use it. The link works once and for {days} days. The access stays on the account it ends on, and withdrawing the invitation takes it back.",
+    invitationEmailLabel: "Email address",
+    invitationEmailPlaceholder: "developer@example.com",
+    invitationSend: "Invite",
+    invitationSending: "Sending…",
+    invitationSent: "Invitation sent to {email}.",
+    invitationsEmpty: "Nobody has been invited yet.",
+    invitationsUnavailable: "Could not load the invitations.",
+    invitationColAddress: "Address",
+    invitationColState: "State",
+    invitationColAccount: "Account",
+    invitationColSent: "Sent",
+    invitationColActions: "Actions",
+    invitationAccountNone: "None yet",
+    invitationSentBy: "by {name}",
+    invitationStates: {
+      open: "Open",
+      used: "Used",
+      expired: "Expired",
+      withdrawn: "Withdrawn",
+    } as Record<string, string>,
+    invitationResend: "Send again",
+    invitationWithdraw: "Withdraw",
+    invitationWithdrawConfirm:
+      "Withdraw the invitation for {email}? Its link stops working, and while the portal is closed the account it admitted loses its access.",
   },
   music: {
     columns: {
