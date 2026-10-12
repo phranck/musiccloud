@@ -1,12 +1,12 @@
 import {
+  DashboardActionButton,
+  DashboardActionId,
   DashboardActionStatus,
-  DashboardButton,
-  DashboardButtonVariant,
   DashboardInput,
   SaveActionButton,
 } from "@musiccloud/dashboard-ui";
 import type { EmailBlock } from "@musiccloud/shared";
-import { ArticleIcon, CheckCircleIcon, EnvelopeSimpleIcon, PaperPlaneTiltIcon, TagIcon } from "@phosphor-icons/react";
+import { ArticleIcon, CheckCircleIcon, EnvelopeSimpleIcon, TagIcon } from "@phosphor-icons/react";
 import { useCallback, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -312,16 +312,13 @@ function EmailTemplateHeaderActions({
       )}
       {error && <p className="text-xs text-red-500">{error}</p>}
       {status.showSendTest && (
-        <DashboardButton
+        <DashboardActionButton
+          action={DashboardActionId.Send}
           disabled={!status.canSendTest}
-          leadingIcon={<PaperPlaneTiltIcon weight="duotone" className="size-3.5" />}
+          label={status.isSendingTest ? sendingTestLabel : sendTestLabel}
           onClick={onSendTest}
-          size="action"
           type="button"
-          variant={DashboardButtonVariant.Neutral}
-        >
-          {status.isSendingTest ? sendingTestLabel : sendTestLabel}
-        </DashboardButton>
+        />
       )}
       <SaveActionButton
         type="button"
