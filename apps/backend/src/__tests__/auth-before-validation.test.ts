@@ -56,4 +56,14 @@ describe("guarded scopes without credentials", () => {
 
     expect(res.statusCode).toBe(401);
   });
+
+  it.each([
+    "/api/v1/artists/events?month=13&day=7",
+    "/api/v1/artists/not%20an%20id/members",
+    "/api/v1/artists/not%20an%20id/memberships",
+  ])("refuse the keyless artist identity read %s as unauthenticated", async (url) => {
+    const res = await app.inject({ method: "GET", url });
+
+    expect(res.statusCode).toBe(401);
+  });
 });

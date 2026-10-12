@@ -1,4 +1,9 @@
-import type { VinylLayout } from "@musiccloud/shared";
+import type {
+  ArtistLifecycleEventType,
+  ArtistEntityType as SharedArtistEntityType,
+  DatePrecision as SharedDatePrecision,
+  VinylLayout,
+} from "@musiccloud/shared";
 import type {
   ArtistCredit,
   ExternalIdRecord,
@@ -241,13 +246,13 @@ export interface ArtistInfoEntity {
 // ─── Normalized Artist Identity Types ────────────────────────────────────────
 
 /** Artist entity type union used by the database repository layer. */
-export type ArtistEntityType = "person" | "group" | "persona" | "unknown";
+export type ArtistEntityType = SharedArtistEntityType;
 /** Artist verification status union used by the database repository layer. */
 export type ArtistVerificationStatus = "candidate" | "verified" | "rejected";
 /** Artist identity event type union used by the database repository layer. */
-export type ArtistIdentityEventType = "birth" | "death" | "formed" | "disbanded";
+export type ArtistIdentityEventType = ArtistLifecycleEventType;
 /** Date precision union used by the database repository layer. */
-export type DatePrecision = "year" | "month" | "day" | "unknown";
+export type DatePrecision = SharedDatePrecision;
 
 /** Artist identity event record shape returned or accepted by the database repository layer. */
 export interface ArtistIdentityEventRecord {
@@ -281,9 +286,13 @@ export interface ArtistGroupMembershipRecord {
   beginDate: string | null;
   beginDatePrecision: DatePrecision;
   beginYear: number | null;
+  beginMonth: number | null;
+  beginDay: number | null;
   endDate: string | null;
   endDatePrecision: DatePrecision;
   endYear: number | null;
+  endMonth: number | null;
+  endDay: number | null;
   isCurrent: boolean | null;
   sourceProvider: string | null;
   sourceUrl: string | null;

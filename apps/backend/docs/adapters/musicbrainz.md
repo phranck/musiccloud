@@ -42,6 +42,8 @@ Each check is recorded in `artist_identity_checks`. A check holds for 90 days an
 
 A refetch replaces what MusicBrainz said before, so dates and memberships never appear twice. MusicBrainz lists one relation per instrument, and relations to the same band over the same years become one membership with every role.
 
+The keyed operations `GET /api/v1/artists/events`, `GET /api/v1/artists/{artistEntityId}/members` and `GET /api/v1/artists/{artistEntityId}/memberships` publish these dates and memberships. They leave out the source, its URL and its confidence, and `services/artist-identity/public.ts` builds their answers.
+
 ## Operational Notes
 
 Every MusicBrainz call, the adapter's and the enrichment's, goes through `mbFetch()`. That helper enforces the 1 request per second gate, sets User-Agent and JSON headers, and retries one transient `503` using `Retry-After`.

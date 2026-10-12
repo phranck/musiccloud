@@ -55,6 +55,15 @@ export const ENDPOINTS = {
     sharePreview: (shortId: string) => `/api/v1/share/${shortId}/preview`,
     /** GET `/api/v1/artist-info?…`: Last.fm + Ticketmaster aggregated artist info. */
     artistInfo: "/api/v1/artist-info",
+    /** Artist lifecycle dates and band memberships, keyed. */
+    artists: {
+      /** GET `/api/v1/artists/events?month&day&eventType`: lifecycle events on one calendar day. */
+      events: "/api/v1/artists/events",
+      /** GET `/api/v1/artists/:artistEntityId/members`: the members of a group. */
+      members: (artistEntityId: string) => `/api/v1/artists/${encodeURIComponent(artistEntityId)}/members`,
+      /** GET `/api/v1/artists/:artistEntityId/memberships`: the groups an artist belongs to. */
+      memberships: (artistEntityId: string) => `/api/v1/artists/${encodeURIComponent(artistEntityId)}/memberships`,
+    },
     /** GET `/api/v1/random-example`: pick a random short URL (track or album). */
     randomExample: "/api/v1/random-example",
     /** GET `/api/v1/cc/random-example`: pick a random CC track short URL, for the
@@ -540,6 +549,10 @@ export const ROUTE_TEMPLATES = {
     share: "/api/v1/share/:shortId",
     sharePreview: "/api/v1/share/:shortId/preview",
     link: "/api/v1/link/:id",
+    artists: {
+      members: "/api/v1/artists/:artistEntityId/members",
+      memberships: "/api/v1/artists/:artistEntityId/memberships",
+    },
     genreArtwork: "/api/v1/genre-artwork/:genreKey",
     /** Route template for ENDPOINTS.v1.ccGenreArtwork (CC genre tile cover, Jamendo-sourced). */
     ccGenreArtwork: "/api/v1/cc/genre-artwork/:genreKey",

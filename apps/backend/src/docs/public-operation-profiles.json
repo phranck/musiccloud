@@ -8,6 +8,21 @@
     },
     {
       "method": "GET",
+      "path": "/api/v1/artists/events",
+      "operationId": "listArtistLifecycleEvents"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/artists/{artistEntityId}/members",
+      "operationId": "listArtistMembers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/artists/{artistEntityId}/memberships",
+      "operationId": "listArtistMemberships"
+    },
+    {
+      "method": "GET",
       "path": "/api/v1/cc/artist-info",
       "operationId": "retrieveCcArtistInfo"
     },

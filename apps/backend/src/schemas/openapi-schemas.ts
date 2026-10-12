@@ -24,6 +24,7 @@ import {
   PAGE_TYPES,
   TIER_COLOR_PATTERN,
 } from "@musiccloud/shared";
+import { ARTIST_IDENTITY_OPENAPI_SCHEMAS } from "./artist-identity-openapi-schemas.js";
 
 export const ArtistCreditSchema = {
   $id: "ArtistCredit",
@@ -36,7 +37,7 @@ export const ArtistCreditSchema = {
     artistEntityId: {
       type: "string",
       description:
-        "Stable musiccloud artist-correlation ID. It links credits that refer to the same artist; no public request parameter currently accepts this value.",
+        "Stable musiccloud artist entity ID. It links credits that refer to the same artist. Pass it as `artistEntityId` to `GET /api/v1/artist-info`, `GET /api/v1/artists/{artistEntityId}/members`, or `GET /api/v1/artists/{artistEntityId}/memberships`.",
     },
     name: { type: "string", description: "Display credit exactly as stored for this track or album." },
     role: {
@@ -2593,4 +2594,5 @@ export const OPENAPI_SCHEMAS = [
   ContentPageSummarySchema,
   NavItemSchema,
   ActiveServiceSchema,
+  ...ARTIST_IDENTITY_OPENAPI_SCHEMAS,
 ] as const;
