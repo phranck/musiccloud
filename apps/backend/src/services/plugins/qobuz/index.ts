@@ -6,10 +6,12 @@ export const qobuzPlugin: ServicePlugin = {
   manifest: {
     id: Service.Qobuz,
     displayName: "Qobuz",
-    description: "Resolves Qobuz track and album URLs via the Qobuz API (user-auth required).",
+    description: "Resolves Qobuz track and album URLs via the Qobuz API.",
     defaultEnabled: true,
-    requiredEnv: ["QOBUZ_EMAIL", "QOBUZ_PASSWORD"],
-    optionalEnv: ["QOBUZ_APP_ID"],
+    // The adapter works without an account from unrestricted addresses, and a
+    // pasted Qobuz link has to reach it rather than read as an unknown service,
+    // so the account improves it without being required.
+    optionalEnv: ["QOBUZ_EMAIL", "QOBUZ_PASSWORD", "QOBUZ_APP_ID"],
   },
   adapter: qobuzAdapter,
 };

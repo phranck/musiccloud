@@ -6,7 +6,7 @@ import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import swagger from "@fastify/swagger";
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { ENDPOINTS, ROUTE_TEMPLATES, Service } from "@musiccloud/shared";
 import Fastify, { type FastifyLoggerOptions } from "fastify";
 import { runMigrations } from "./db/run-migrations.js";
 import {
@@ -76,7 +76,7 @@ import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site
 import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
 import { isEmailProviderHealthy } from "./services/email-provider.js";
-import { validateAdapters } from "./services/index.js";
+import { isPluginAvailable, validateAdapters } from "./services/index.js";
 import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -697,7 +697,7 @@ async function start() {
     app.log.info(`Backend listening on ${HOST}:${PORT}`);
     validateAdapters();
     // Pre-warm Apple Music developer token (avoids first-request latency)
-    warmAppleMusicToken();
+    if (isPluginAvailable(Service.AppleMusic)) warmAppleMusicToken();
   } catch (err) {
     app.log.error(err);
     process.exit(1);

@@ -2,8 +2,8 @@
  * @file YouTube adapter: video-as-track + channel-as-artist resolves.
  *
  * Credentialed: requires `YOUTUBE_API_KEY` (Google Cloud Console, YouTube
- * Data API v3). Missing the key means the adapter reports `isAvailable()
- * === false` and is skipped across resolves.
+ * Data API v3), which its manifest lists as `requiredEnv`. Missing the key
+ * makes the plugin unavailable, and it is skipped across resolves.
  *
  * ## Track = video (no album support)
  *
@@ -195,10 +195,6 @@ export const youtubeAdapter: ServiceAdapter = {
   displayName: "YouTube",
   capabilities,
   artistCapabilities,
-
-  isAvailable(): boolean {
-    return Boolean(process.env.YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY);
-  },
 
   detectUrl(url: string): string | null {
     const match = YOUTUBE_REGEX.exec(url);

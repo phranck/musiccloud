@@ -9,6 +9,8 @@ export const appleMusicPlugin: ServicePlugin = {
     description: "Resolves Apple Music track, album and artist URLs via the Apple Music API (JWT signed).",
     defaultEnabled: true,
     requiredEnv: ["APPLE_MUSIC_KEY_ID", "APPLE_MUSIC_TEAM_ID", "APPLE_MUSIC_PRIVATE_KEY"],
+    // A developer token minted elsewhere serves in place of the signing keys.
+    alternativeEnv: ["APPLE_MUSIC_TOKEN"],
   },
   adapter: appleMusicAdapter,
 };

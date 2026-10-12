@@ -327,10 +327,6 @@ export const soundcloudAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    return true;
-  },
-
   detectUrl(url: string): string | null {
     const match = SOUNDCLOUD_TRACK_REGEX.exec(url);
     if (!match) return null;

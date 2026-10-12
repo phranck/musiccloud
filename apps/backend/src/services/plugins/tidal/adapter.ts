@@ -295,10 +295,6 @@ export const tidalAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    return tokenManager.isConfigured();
-  },
-
   detectUrl(url: string): string | null {
     const match = TIDAL_TRACK_REGEX.exec(url);
     return match ? match[1] : null;

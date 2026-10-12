@@ -356,10 +356,6 @@ export const pandoraAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    return true;
-  },
-
   detectUrl(url: string): string | null {
     const match = PANDORA_TRACK_REGEX.exec(url);
     return match?.[1] ?? null;

@@ -126,7 +126,6 @@ export interface ServiceAdapter {
   readonly displayName: string;
   readonly capabilities: AdapterCapabilities;
 
-  isAvailable(): boolean;
   detectUrl(url: string): string | null;
   /**
    * Turns an id from `detectUrl` or `detectAlbumUrl` into the id the catalog

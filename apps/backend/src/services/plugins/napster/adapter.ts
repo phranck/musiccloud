@@ -180,10 +180,6 @@ export const napsterAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    return Boolean(process.env.NAPSTER_API_KEY);
-  },
-
   detectUrl(url: string): string | null {
     const match = NAPSTER_TRACK_REGEX.exec(url);
     if (!match) return null;

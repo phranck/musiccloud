@@ -15,6 +15,7 @@ export {
   getEnabledMap,
   identifyService,
   invalidateEnabledCache,
+  isPluginAvailable,
   listPlugins,
 } from "./plugins/registry.js";
 

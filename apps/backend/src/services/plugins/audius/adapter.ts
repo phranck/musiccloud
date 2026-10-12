@@ -178,10 +178,6 @@ export const audiusAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    return true;
-  },
-
   detectUrl(url: string): string | null {
     const match = AUDIUS_TRACK_REGEX.exec(url);
     return match ? match[1] : null;

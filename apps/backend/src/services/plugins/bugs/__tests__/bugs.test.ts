@@ -19,12 +19,6 @@ describe("Bugs!: detectUrl", () => {
   });
 });
 
-describe("Bugs!: isAvailable", () => {
-  it("should always return true", () => {
-    expect(bugsAdapter.isAvailable()).toBe(true);
-  });
-});
-
 describe("Bugs!: getTrack", () => {
   it("should fetch and map OG tag data", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(

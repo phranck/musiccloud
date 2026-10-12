@@ -26,12 +26,6 @@ describe("NetEase: detectUrl", () => {
   });
 });
 
-describe("NetEase: isAvailable", () => {
-  it("should always return true", () => {
-    expect(neteaseAdapter.isAvailable()).toBe(true);
-  });
-});
-
 describe("NetEase: getTrack", () => {
   it("should fetch and map track data", async () => {
     const mockResponse = {

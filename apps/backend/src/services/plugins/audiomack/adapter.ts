@@ -229,10 +229,6 @@ export const audiomackAdapter: ServiceAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    return true; // Public search works without API key
-  },
-
   detectUrl(url: string): string | null {
     const match = AUDIOMACK_TRACK_REGEX.exec(url);
     if (!match) return null;

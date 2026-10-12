@@ -23,12 +23,6 @@ describe("Audiomack: detectUrl", () => {
   });
 });
 
-describe("Audiomack: isAvailable", () => {
-  it("should always return true", () => {
-    expect(audiomackAdapter.isAvailable()).toBe(true);
-  });
-});
-
 describe("Audiomack: searchTrack", () => {
   it("should find track with search API", async () => {
     const mockResponse = {

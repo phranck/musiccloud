@@ -9,9 +9,12 @@ vi.mock("../../../plugins/apple-music/adapter.js", () => ({
   appleMusicFetch: (...args: unknown[]) => appleMusicFetchMock(...args),
   assertAppleMusicDeveloperToken: () => assertAppleMusicDeveloperTokenMock(),
   appleMusicAdapter: {
-    isAvailable: () => appleMusicAvailableMock(),
     detectUrl: (url: string) => (url.startsWith("https://music.apple.com/") ? "at:1" : null),
   },
+}));
+
+vi.mock("../../../plugins/registry.js", () => ({
+  isPluginAvailable: () => appleMusicAvailableMock(),
 }));
 
 vi.mock("../../../../lib/infra/logger.js", () => ({

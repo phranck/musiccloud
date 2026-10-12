@@ -37,10 +37,10 @@ export interface PluginInfo {
   description: string;
   /** Admin toggle state (DB override or manifest.defaultEnabled). */
   enabled: boolean;
-  /** `adapter.isAvailable()`: credentials present / reachable. */
+  /** Whether the plugin's credentials are present, as its manifest states them. */
   available: boolean;
   requiredEnv: readonly string[];
-  /** Subset of requiredEnv whose values are missing from process.env. */
+  /** Subset of requiredEnv whose values are missing from process.env, and empty for an available plugin. */
   missingEnv: readonly string[];
   capabilities: PluginCapabilities;
   hasAlbumSupport: boolean;

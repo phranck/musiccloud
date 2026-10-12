@@ -69,7 +69,7 @@ export async function loadByShortId(
   const expired = !!data.track.previewUrl && isExpiredDeezerPreviewUrl(data.track.previewUrl);
   if (expired) data.track.previewUrl = null;
 
-  const previewRefreshable = !data.track.previewUrl && !!data.track.isrc && deezerAdapter.isAvailable();
+  const previewRefreshable = !data.track.previewUrl && !!data.track.isrc;
   return enrichWithOGMeta(
     { ...data, links: rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront) },
     data.shortId,
@@ -92,7 +92,7 @@ export async function loadByTrackId(
   const expired = !!data.track.previewUrl && isExpiredDeezerPreviewUrl(data.track.previewUrl);
   if (expired) data.track.previewUrl = null;
 
-  const previewRefreshable = !data.track.previewUrl && !!data.track.isrc && deezerAdapter.isAvailable();
+  const previewRefreshable = !data.track.previewUrl && !!data.track.isrc;
   return enrichWithOGMeta(
     { ...data, links: rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront) },
     data.shortId,
@@ -167,8 +167,7 @@ export async function loadAlbumByShortId(
 
   const expired = !!data.album.previewUrl && isExpiredDeezerPreviewUrl(data.album.previewUrl);
   if (expired) data.album.previewUrl = null;
-  const previewRefreshable =
-    !data.album.previewUrl && deezerAlbumIdFromLinks(data.links) !== null && deezerAdapter.isAvailable();
+  const previewRefreshable = !data.album.previewUrl && deezerAlbumIdFromLinks(data.links) !== null;
 
   const og = generateAlbumOGMeta({
     title: data.album.title,
