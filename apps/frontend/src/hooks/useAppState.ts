@@ -2,7 +2,6 @@ import {
   ENDPOINTS,
   parseJamendoLink,
   type ResolveDisambiguationResponse,
-  type ResolveErrorResponse,
   type ResolveGenreBrowseResponse,
   type ResolveGenreSearchResponse,
   type ResolveSuccessResponse,
@@ -328,8 +327,7 @@ async function resolveFetch(endpoint: string, body: unknown, signal: AbortSignal
       signal: controller.signal,
     });
     if (!response.ok) {
-      const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-      throw new ResolveApiError(errorData);
+      throw new ResolveApiError(await response.json().catch(() => null));
     }
     return response;
   } finally {

@@ -1,5 +1,6 @@
 export const prerender = false;
 
+import { createApiErrorBody } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 import { fetchPublicContentPage } from "@/api/client";
@@ -13,14 +14,10 @@ const JSON_HEADERS = { "Content-Type": "application/json", "Cache-Control": "no-
 export const GET: APIRoute = async ({ params, clientAddress }) => {
   const slug = params.slug;
   if (typeof slug !== "string" || slug.length === 0) {
-    return new Response(
-      JSON.stringify({
-        error: "MC-REQ-0001",
-        errorId: crypto.randomUUID(),
-        message: "The request is invalid. (MC-REQ-0001)",
-      }),
-      { status: 400, headers: JSON_HEADERS },
-    );
+    return new Response(JSON.stringify(createApiErrorBody("MC-REQ-0001", { errorId: crypto.randomUUID() })), {
+      status: 400,
+      headers: JSON_HEADERS,
+    });
   }
   const result = await fetchPublicContentPage(slug, clientAddress);
   if (result.kind === "success") {

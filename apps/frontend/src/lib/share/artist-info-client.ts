@@ -1,4 +1,4 @@
-import { type ArtistInfoResponse, ENDPOINTS } from "@musiccloud/shared";
+import { type ArtistInfoResponse, ENDPOINTS, parseApiErrorResponse } from "@musiccloud/shared";
 
 /**
  * Identifying context passed alongside an artist name when fetching artist
@@ -44,11 +44,9 @@ function isTransientStatus(status: number): boolean {
 }
 
 async function artistInfoApiError(response: Response): Promise<ArtistInfoApiError> {
-  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-  const error = typeof payload?.error === "string" ? payload.error : `HTTP ${response.status}`;
-  const errorId = typeof payload?.errorId === "string" ? payload.errorId : undefined;
-  const message = typeof payload?.message === "string" ? payload.message : `HTTP ${response.status}`;
-  return new ArtistInfoApiError(response.status, error, errorId, message);
+  const body = parseApiErrorResponse(await response.json().catch(() => null));
+  const statusLine = `HTTP ${response.status}`;
+  return new ArtistInfoApiError(response.status, body.error ?? statusLine, body.errorId, body.message ?? statusLine);
 }
 
 /**

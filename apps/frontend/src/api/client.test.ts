@@ -1,3 +1,4 @@
+import { ERROR_CODE_REGISTRY } from "@musiccloud/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 beforeEach(() => {
@@ -55,6 +56,34 @@ describe("fetchShareData", () => {
     const { fetchShareData } = await import("./client");
 
     await expect(fetchShareData("missing")).resolves.toMatchObject({ kind: "not-found", statusCode: 404 });
+  });
+
+  it("builds the envelope from the registry when the body is not one", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>Bad Gateway</html>", { status: 502 })));
+    const { fetchShareData } = await import("./client");
+
+    await expect(fetchShareData("abc")).resolves.toEqual({
+      error: {
+        error: "MC-SYS-0001",
+        errorId: expect.any(String),
+        message: `${ERROR_CODE_REGISTRY["MC-SYS-0001"].userMessage} (MC-SYS-0001)`,
+      },
+      kind: "error",
+      statusCode: 502,
+    });
+  });
+
+  it("renders the registry sentence for a code the body names without a message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "MC-RES-0001" }), { status: 404 })),
+    );
+    const { fetchShareData } = await import("./client");
+
+    await expect(fetchShareData("gone")).resolves.toMatchObject({
+      error: { error: "MC-RES-0001", message: `${ERROR_CODE_REGISTRY["MC-RES-0001"].userMessage} (MC-RES-0001)` },
+      kind: "not-found",
+    });
   });
 
   it("returns a reportable frontend incident when the backend cannot be reached", async () => {
@@ -289,7 +318,11 @@ describe("forwarding a browser request to the backend", () => {
     const response = await client.resolveCcTrack({ selectedCandidate: "jamendo:1" }, "203.0.113.10");
 
     expect(response.status).toBe(504);
-    await expect(response.json()).resolves.toMatchObject({ error: "MC-API-0005", errorId: expect.any(String) });
+    await expect(response.json()).resolves.toEqual({
+      error: "MC-API-0005",
+      errorId: expect.any(String),
+      message: `${ERROR_CODE_REGISTRY["MC-API-0005"].userMessage} (MC-API-0005)`,
+    });
   });
 
   it("relays a backend answer unchanged", async () => {

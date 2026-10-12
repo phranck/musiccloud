@@ -1,3 +1,4 @@
+import { createApiErrorBody } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 import { fetchArtistInfo } from "@/api/client";
@@ -21,17 +22,10 @@ export const GET: APIRoute = async ({ url, clientAddress }) => {
   const refresh = url.searchParams.get("refresh") === "profile" ? "profile" : undefined;
 
   if (!name.trim() && !artistEntityId.trim()) {
-    return new Response(
-      JSON.stringify({
-        error: "MC-REQ-0001",
-        errorId: crypto.randomUUID(),
-        message: "The request is invalid. (MC-REQ-0001)",
-      }),
-      {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return new Response(JSON.stringify(createApiErrorBody("MC-REQ-0001", { errorId: crypto.randomUUID() })), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const res = await fetchArtistInfo(name, region || undefined, clientAddress, {
