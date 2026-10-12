@@ -140,9 +140,13 @@ interface ArtistGroupMembershipSqlRow {
   begin_date: string | null;
   begin_date_precision: ArtistGroupMembershipRecord["beginDatePrecision"];
   begin_year: number | null;
+  begin_month: number | null;
+  begin_day: number | null;
   end_date: string | null;
   end_date_precision: ArtistGroupMembershipRecord["endDatePrecision"];
   end_year: number | null;
+  end_month: number | null;
+  end_day: number | null;
   is_current: boolean | null;
   source_provider: string | null;
   source_url: string | null;
@@ -885,9 +889,13 @@ async function listArtistGroupMemberships(
        agm.begin_date::text AS begin_date,
        agm.begin_date_precision,
        agm.begin_year,
+       agm.begin_month,
+       agm.begin_day,
        agm.end_date::text AS end_date,
        agm.end_date_precision,
        agm.end_year,
+       agm.end_month,
+       agm.end_day,
        agm.is_current,
        src.provider AS source_provider,
        src.source_url,
@@ -1046,9 +1054,13 @@ export function rowToArtistGroupMembership(row: ArtistGroupMembershipSqlRow): Ar
     beginDate: row.begin_date,
     beginDatePrecision: row.begin_date_precision,
     beginYear: row.begin_year,
+    beginMonth: row.begin_month,
+    beginDay: row.begin_day,
     endDate: row.end_date,
     endDatePrecision: row.end_date_precision,
     endYear: row.end_year,
+    endMonth: row.end_month,
+    endDay: row.end_day,
     isCurrent: row.is_current,
     sourceProvider: row.source_provider,
     sourceUrl: row.source_url,

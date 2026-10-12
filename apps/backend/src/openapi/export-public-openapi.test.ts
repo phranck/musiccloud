@@ -83,6 +83,9 @@ describe("exportPublicOpenApiContract", () => {
 
     expect(actual).toEqual({
       "GET /api/v1/artist-info": "retrieveArtistInfo",
+      "GET /api/v1/artists/events": "listArtistLifecycleEvents",
+      "GET /api/v1/artists/{artistEntityId}/members": "listArtistMembers",
+      "GET /api/v1/artists/{artistEntityId}/memberships": "listArtistMemberships",
       "GET /api/v1/cc/artist-info": "retrieveCcArtistInfo",
       "GET /api/v1/cc/audio/{jamendoId}": "streamCcAudio",
       "GET /api/v1/cc/bandcamp/{jamendoId}": "retrieveCcBandcampAvailability",

@@ -208,4 +208,19 @@ describe.skipIf(!integrationDatabaseUrl())("artist identity enrichment writes (i
     );
     expect(check.rows[0]?.outcome).toBe("conflict");
   });
+
+  it("reads back the month and day of a stint dated to the day", async () => {
+    const repo = await getRepository();
+    const dated = snapshot("band", "group", [
+      {
+        ...stint("group", "bo", 1991, null),
+        begin: { value: "1991-04-12", precision: "day", year: 1991, month: 4, day: 12 },
+      },
+    ]);
+
+    await repo.recordArtistIdentity(groupEntityId, dated, new Date());
+
+    const [member] = await repo.listArtistGroupMembers(groupEntityId);
+    expect(member).toMatchObject({ beginDatePrecision: "day", beginYear: 1991, beginMonth: 4, beginDay: 12 });
+  });
 });
