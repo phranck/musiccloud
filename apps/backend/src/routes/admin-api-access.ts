@@ -15,9 +15,10 @@ import {
   isApiClientStatus,
   isDeveloperAccountStatus,
   isDeveloperProjectStatus,
+  isRequestLimit,
   ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import type {
   ApiClient,
   ApiClientToken,
@@ -84,6 +85,33 @@ function toProjectResponse(project: DeveloperProject) {
     deletedAt: project.deletedAt ? new Date(project.deletedAt).toISOString() : null,
     createdByAdminId: project.createdByAdminId,
   };
+}
+
+/**
+ * Refuses a project override or an application cap the database cannot store.
+ *
+ * `null` clears the value so the plan's limit applies again, and an absent
+ * field leaves it alone. Anything else has to be a request limit, because a
+ * fraction or a string would otherwise reach the integer column and fail
+ * there as a server error.
+ *
+ * @param reply - The reply to answer on.
+ * @param body - The request body, whichever of the two fields it carries.
+ * @returns The reply when a field is refused, or `null` when both may stand.
+ */
+function refuseLimitOverrides(
+  reply: FastifyReply,
+  body: { requestsPerMinute?: unknown; requestsPerDay?: unknown } | null,
+): FastifyReply | null {
+  for (const field of ["requestsPerMinute", "requestsPerDay"] as const) {
+    const value = body?.[field];
+    if (value === undefined || value === null) continue;
+    if (typeof value === "number" && isRequestLimit(value)) continue;
+    return reply
+      .status(400)
+      .send({ error: "INVALID_REQUEST", message: `${field} must be a whole number of at least 1, or null.` });
+  }
+  return null;
 }
 
 function toProjectSubscriptionResponse(subscription: DeveloperProjectSubscription) {
@@ -204,12 +232,8 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     if (status !== undefined && !isDeveloperProjectStatus(status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid project status." });
     }
-    if (typeof body?.requestsPerMinute === "number" && body.requestsPerMinute < 1) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "requestsPerMinute must be > 0." });
-    }
-    if (typeof body?.requestsPerDay === "number" && body.requestsPerDay < 1) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "requestsPerDay must be > 0." });
-    }
+    const refusedLimit = refuseLimitOverrides(reply, body);
+    if (refusedLimit) return refusedLimit;
     const repo = await getApiAccessRepository();
     const existing = await repo.findDeveloperProjectById(id);
     if (!existing) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
@@ -424,12 +448,8 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     }
     // `null` clears a registration cap so it inherits the project limit;
     // numeric caps must stay positive.
-    if (typeof body?.requestsPerMinute === "number" && body.requestsPerMinute < 1) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "requestsPerMinute must be > 0." });
-    }
-    if (typeof body?.requestsPerDay === "number" && body.requestsPerDay < 1) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "requestsPerDay must be > 0." });
-    }
+    const refusedLimit = refuseLimitOverrides(reply, body);
+    if (refusedLimit) return refusedLimit;
     const repo = await getApiAccessRepository();
     const updated = await repo.updateApiClient(id, {
       status,

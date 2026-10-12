@@ -6,7 +6,9 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse, DeveloperProjectResponse } from "@/features/developer/api";
+import { CustomLimitBadge } from "@/features/developer/components/CustomLimitBadge";
 import { useDeveloperProjects } from "@/features/developer/hooks/useDeveloperData";
+import { hasLimitOverride } from "@/features/developer/lib";
 import { formatEnglishDate } from "@/lib/format";
 
 const messages = dashboardCopy;
@@ -71,11 +73,7 @@ function useProjectColumns(
         cell: (project) => (
           <span className="inline-flex items-center gap-1.5">
             <span>{limitsLabel(project)}</span>
-            {(project.requestsPerMinute != null || project.requestsPerDay != null) && (
-              <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-xs font-semibold text-violet-400">
-                {dm.clientCustomBadge}
-              </span>
-            )}
+            {hasLimitOverride(project.requestsPerMinute, project.requestsPerDay) && <CustomLimitBadge />}
           </span>
         ),
       },

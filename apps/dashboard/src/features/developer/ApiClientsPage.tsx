@@ -15,7 +15,9 @@ import { PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse } from "@/features/developer/api";
+import { CustomLimitBadge } from "@/features/developer/components/CustomLimitBadge";
 import { useApiAccessOverview } from "@/features/developer/hooks/useDeveloperData";
+import { hasLimitOverride } from "@/features/developer/lib";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
@@ -106,11 +108,7 @@ function useClientColumns(
         cell: (c) => (
           <span className="inline-flex items-center gap-1.5">
             <span>{trafficLabel(c)}</span>
-            {(c.projectRequestsPerMinute != null || c.projectRequestsPerDay != null) && (
-              <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-xs font-semibold text-violet-400">
-                {dm.clientCustomBadge}
-              </span>
-            )}
+            {hasLimitOverride(c.projectRequestsPerMinute, c.projectRequestsPerDay) && <CustomLimitBadge />}
           </span>
         ),
       },

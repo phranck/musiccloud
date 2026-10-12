@@ -208,6 +208,7 @@ export const dashboardCopy = {
     projectOverrideDay: "Override, requests / day",
     projectOverridePlaceholder: "From the plan",
     projectOverrideClear: "Clear overrides",
+    limitOverrideInvalid: "A limit is a whole number of at least one, or empty to use the plan's.",
     projectEnforcedNow: "Enforced now",
     projectOverrideNeedsPlan:
       "An override adjusts a plan's number rather than standing in for one. Without a plan this project has no quota, whatever is entered here.",

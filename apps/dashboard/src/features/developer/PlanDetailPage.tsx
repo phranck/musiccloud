@@ -1,7 +1,7 @@
 import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
 import {
+  isRequestLimit,
   isTierColor,
-  isTierRequestLimit,
   MAX_TIER_BUTTON_LABEL_LENGTH,
   MAX_TIER_DESCRIPTION_LENGTH,
   MAX_TIER_NAME_LENGTH,
@@ -111,7 +111,7 @@ export function PlanDetailPage() {
   const form = draft ?? toForm(plan);
   const nameUsable = form.name.trim().length > 0;
   const colorUsable = isTierColor(form.color);
-  const limitsUsable = isTierRequestLimit(form.requestsPerMinute) && isTierRequestLimit(form.requestsPerDay);
+  const limitsUsable = isRequestLimit(form.requestsPerMinute) && isRequestLimit(form.requestsPerDay);
   const savable = nameUsable && colorUsable && limitsUsable && !updateTier.isPending;
 
   function change(patch: Partial<PlanForm>) {

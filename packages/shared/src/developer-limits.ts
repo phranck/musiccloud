@@ -77,21 +77,24 @@ export const IMAGE_UPLOAD_ACCEPT = IMAGE_UPLOAD_MIME_TYPES.join(",");
 /** What an uploaded image may weigh once decoded, which is 5 MB. */
 export const IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 
-/** The fewest requests a plan may allow per minute or per day. */
-export const MIN_TIER_REQUEST_LIMIT = 1;
+/** The fewest requests a per-minute or per-day limit may allow. */
+export const MIN_REQUEST_LIMIT = 1;
 
-/** The most requests a plan may allow per minute or per day, which is the largest value its integer column holds. */
-export const MAX_TIER_REQUEST_LIMIT = 2_147_483_647;
+/** The most requests a per-minute or per-day limit may allow, which is the largest value its integer column holds. */
+export const MAX_REQUEST_LIMIT = 2_147_483_647;
 
 /**
- * Whether a value may be stored as a plan's per-minute or per-day limit.
+ * Whether a value may be stored as a per-minute or per-day request limit.
+ *
+ * One rule serves every place such a limit is written: a plan's limits, a
+ * project's administrative override and an application's cap.
  *
  * @param value - The candidate, already parsed.
- * @returns `true` when it is a whole number from {@link MIN_TIER_REQUEST_LIMIT}
- *   to {@link MAX_TIER_REQUEST_LIMIT}.
+ * @returns `true` when it is a whole number from {@link MIN_REQUEST_LIMIT}
+ *   to {@link MAX_REQUEST_LIMIT}.
  */
-export function isTierRequestLimit(value: number): boolean {
-  return Number.isInteger(value) && value >= MIN_TIER_REQUEST_LIMIT && value <= MAX_TIER_REQUEST_LIMIT;
+export function isRequestLimit(value: number): boolean {
+  return Number.isInteger(value) && value >= MIN_REQUEST_LIMIT && value <= MAX_REQUEST_LIMIT;
 }
 
 /** How long a plan's name may be. */
