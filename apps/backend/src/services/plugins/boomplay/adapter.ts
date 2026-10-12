@@ -206,10 +206,6 @@ export const boomplayAdapter: ServiceAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    return true; // No credentials needed
-  },
-
   detectUrl(url: string): string | null {
     const match = BOOMPLAY_SONG_REGEX.exec(url);
     return match?.[1] ?? null;

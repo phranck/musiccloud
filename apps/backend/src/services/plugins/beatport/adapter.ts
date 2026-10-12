@@ -344,10 +344,6 @@ export const beatportAdapter: ServiceAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    return true; // No credentials needed (SSR scraping)
-  },
-
   detectUrl(url: string): string | null {
     const match = BEATPORT_TRACK_REGEX.exec(url);
     return match?.[1] ?? null;

@@ -116,8 +116,8 @@
  *
  * ## OG-scrape fallback (`scrapeTrackFromPage`)
  *
- * When a URL belongs to a service whose adapter has no API
- * credentials (`isAvailable() === false`), we fall back to fetching
+ * When a URL belongs to a service whose plugin has no API
+ * credentials (`isPluginAvailable` is false), we fall back to fetching
  * the page and parsing OG meta tags. The trick is the
  * `User-Agent: facebookexternalhit/1.1` header: single-page app shells
  * do not server-render OG tags for regular browsers, but they DO render
@@ -164,7 +164,13 @@ import {
 } from "./constants.js";
 import { collectTrackExternalIds } from "./external-ids.js";
 import { RESOLVE_RESPONSE_DEADLINE_MS, settleWithinDeadline } from "./fan-out-deadline.js";
-import { filterDisabledLinks, findInactiveServiceFor, getActiveAdapters, identifyService } from "./index.js";
+import {
+  filterDisabledLinks,
+  findInactiveServiceFor,
+  getActiveAdapters,
+  identifyService,
+  isPluginAvailable,
+} from "./index.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   ExternalIdRecord,
@@ -724,7 +730,7 @@ async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> 
   try {
     sourceTrack = await sourceAdapter.getTrack(trackId);
   } catch (error) {
-    if (!sourceAdapter.isAvailable()) {
+    if (!isPluginAvailable(sourceAdapter.id)) {
       return resolveUrlViaScrape(cleanUrl, sourceAdapter.id);
     }
     if (error instanceof ResolveError) throw error;

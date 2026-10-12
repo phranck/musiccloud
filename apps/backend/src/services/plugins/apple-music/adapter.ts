@@ -271,9 +271,12 @@ async function getDevToken(): Promise<string> {
   return tokenPromise;
 }
 
-/** Pre-warm the developer token at startup to avoid first-request latency. */
+/**
+ * Pre-warm the developer token at startup to avoid first-request latency.
+ * The caller checks that the plugin is available, so this never tries to
+ * sign a token without keys.
+ */
 export async function warmAppleMusicToken(): Promise<void> {
-  if (!appleMusicAdapter.isAvailable()) return;
   try {
     await assertAppleMusicDeveloperToken();
     console.log("[Apple Music] Developer token pre-warmed");
@@ -528,13 +531,6 @@ export const appleMusicAdapter: ServiceAdapter = {
   capabilities,
   albumCapabilities,
   artistCapabilities,
-
-  isAvailable(): boolean {
-    return Boolean(
-      process.env.APPLE_MUSIC_TOKEN ||
-        (process.env.APPLE_MUSIC_KEY_ID && process.env.APPLE_MUSIC_TEAM_ID && process.env.APPLE_MUSIC_PRIVATE_KEY),
-    );
-  },
 
   /**
    * Returns the track id encoded as `{storefront}:{trackId}` (see

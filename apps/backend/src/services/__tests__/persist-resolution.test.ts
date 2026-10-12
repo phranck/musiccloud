@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../db/index.js", () => ({ getRepository: async () => mocks.repo }));
 vi.mock("../plugins/deezer/adapter.js", () => ({
-  deezerAdapter: { isAvailable: () => true, findByIsrc: mocks.deezerFindByIsrc },
+  deezerAdapter: { findByIsrc: mocks.deezerFindByIsrc },
 }));
 
 import { persistResolution } from "../persist-resolution.js";

@@ -30,10 +30,10 @@
  *
  * `enabled` is an admin toggle stored in `service_plugins`, falling
  * back to `manifest.defaultEnabled` for rows that have never been
- * touched. `available` is the adapter's self-report: for keyless
- * services it is always true; for credentialed services it is true
- * only when the env vars are present. A plugin has to be BOTH for
- * `getActiveAdapters` to include it.
+ * touched. `available` comes from the manifest through
+ * `evaluatePluginEnv`: a keyless plugin is always available, and a
+ * credentialed one when its `requiredEnv` or its `alternativeEnv` is set.
+ * A plugin has to be BOTH for `getActiveAdapters` to include it.
  *
  * ## `findInactiveServiceFor`
  *
@@ -66,7 +66,7 @@ import { bugsPlugin } from "./bugs/index.js";
 import { deezerPlugin } from "./deezer/index.js";
 import { jiosaavnPlugin } from "./jiosaavn/index.js";
 import { kkboxPlugin } from "./kkbox/index.js";
-import type { ServicePlugin } from "./manifest.js";
+import { evaluatePluginEnv, type ServicePlugin } from "./manifest.js";
 import { melonPlugin } from "./melon/index.js";
 import { musicbrainzPlugin } from "./musicbrainz/index.js";
 import { napsterPlugin } from "./napster/index.js";
@@ -183,7 +183,21 @@ export function invalidateEnabledCache(): void {
  */
 export async function getActiveAdapters(): Promise<readonly ServiceAdapter[]> {
   const enabled = await getEnabledMap();
-  return PLUGINS.filter((p) => enabled.get(p.manifest.id) === true && p.adapter.isAvailable()).map((p) => p.adapter);
+  return PLUGINS.filter((p) => enabled.get(p.manifest.id) === true && evaluatePluginEnv(p.manifest).available).map(
+    (p) => p.adapter,
+  );
+}
+
+/**
+ * Whether a plugin's credentials are present, whatever its admin toggle says.
+ *
+ * @param id - The plugin's service id.
+ * @returns `true` when the plugin exists and its manifest's environment is
+ *   satisfied, `false` for an unknown id.
+ */
+export function isPluginAvailable(id: ServiceId): boolean {
+  const plugin = PLUGINS.find((candidate) => candidate.manifest.id === id);
+  return plugin !== undefined && evaluatePluginEnv(plugin.manifest).available;
 }
 
 /**
@@ -218,7 +232,7 @@ export async function findInactiveServiceFor(url: string): Promise<ServiceId | n
       Boolean(adapter.detectArtistUrl?.(url)),
   );
   if (!plugin) return null;
-  const active = (await isPluginEnabled(plugin.manifest.id)) && plugin.adapter.isAvailable();
+  const active = (await isPluginEnabled(plugin.manifest.id)) && evaluatePluginEnv(plugin.manifest).available;
   return active ? null : plugin.manifest.id;
 }
 

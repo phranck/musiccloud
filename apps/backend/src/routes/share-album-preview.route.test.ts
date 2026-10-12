@@ -22,7 +22,6 @@ const repository = {
 };
 
 const deezer = {
-  isAvailable: vi.fn(),
   getAlbum: vi.fn(),
   findByIsrc: vi.fn(),
 };
@@ -105,7 +104,6 @@ beforeEach(() => {
   repository.loadByShortId.mockResolvedValue(null);
   repository.loadArtistByShortId.mockResolvedValue(null);
   loadCcByShortId.mockResolvedValue(null);
-  deezer.isAvailable.mockReturnValue(true);
 });
 
 afterEach(() => {

@@ -58,6 +58,40 @@ describe("GET /api/admin/plugins", () => {
     expect(res.statusCode).toBe(403);
   });
 
+  it("counts Apple Music available on a ready-made token alone, with nothing listed as missing", async () => {
+    vi.stubEnv("APPLE_MUSIC_KEY_ID", "");
+    vi.stubEnv("APPLE_MUSIC_TEAM_ID", "");
+    vi.stubEnv("APPLE_MUSIC_PRIVATE_KEY", "");
+    vi.stubEnv("APPLE_MUSIC_TOKEN", "developer-token");
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/admin/plugins",
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      const apple = (res.json() as Array<{ id: string }>).find((plugin) => plugin.id === "apple-music");
+      expect(apple).toMatchObject({ available: true, missingEnv: [] });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("counts Qobuz available without an account, with nothing listed as missing", async () => {
+    vi.stubEnv("QOBUZ_EMAIL", "");
+    vi.stubEnv("QOBUZ_PASSWORD", "");
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/admin/plugins",
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      const qobuz = (res.json() as Array<{ id: string }>).find((plugin) => plugin.id === "qobuz");
+      expect(qobuz).toMatchObject({ available: true, missingEnv: [] });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("returns one entry per installed plugin (21 total)", async () => {
     const res = await app.inject({
       method: "GET",
@@ -162,8 +196,8 @@ describe("PATCH /api/admin/plugins/:id", () => {
 
 describe("GET /api/v1/services/active", () => {
   beforeEach(() => {
-    // Guarantee credentials present so isAvailable() returns true for
-    // credential-gated adapters that get asserted below.
+    // Guarantee credentials present so the credential-gated plugins asserted
+    // below count as available.
     process.env.SPOTIFY_CLIENT_ID = "test";
     process.env.SPOTIFY_CLIENT_SECRET = "test";
   });

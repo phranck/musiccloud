@@ -74,30 +74,6 @@ describe("Napster: detectUrl", () => {
 });
 
 // =============================================================================
-// isAvailable
-// =============================================================================
-
-describe("Napster: isAvailable", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  afterEach(() => {
-    delete process.env.NAPSTER_API_KEY;
-  });
-
-  it("should return true when API key is set", () => {
-    process.env.NAPSTER_API_KEY = "test-api-key";
-    expect(napsterAdapter.isAvailable()).toBe(true);
-  });
-
-  it("should return false when API key is missing", () => {
-    delete process.env.NAPSTER_API_KEY;
-    expect(napsterAdapter.isAvailable()).toBe(false);
-  });
-});
-
-// =============================================================================
 // capabilities
 // =============================================================================
 

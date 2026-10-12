@@ -115,11 +115,7 @@ export async function persistResolution(result: ResolutionResult): Promise<Persi
   // Refresh missing or expired Deezer preview URLs before returning so
   // clients (route or crawler) do not surface dead signed preview links.
   let refreshedPreviewUrl: string | undefined = result.sourceTrack.previewUrl ?? undefined;
-  if (
-    (!refreshedPreviewUrl || isExpiredDeezerPreviewUrl(refreshedPreviewUrl)) &&
-    result.sourceTrack.isrc &&
-    deezerAdapter.isAvailable()
-  ) {
+  if ((!refreshedPreviewUrl || isExpiredDeezerPreviewUrl(refreshedPreviewUrl)) && result.sourceTrack.isrc) {
     try {
       const deezerTrack = await deezerAdapter.findByIsrc(result.sourceTrack.isrc);
       if (deezerTrack?.previewUrl) {

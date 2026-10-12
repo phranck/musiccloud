@@ -96,27 +96,6 @@ describe("KKBOX: detectUrl", () => {
 });
 
 // =============================================================================
-// isAvailable
-// =============================================================================
-
-describe("KKBOX: isAvailable", () => {
-  it("should return true with credentials", () => {
-    expect(kkboxAdapter.isAvailable()).toBe(true);
-  });
-
-  it("should return false without credentials", () => {
-    delete import.meta.env.KKBOX_CLIENT_ID;
-    delete import.meta.env.KKBOX_CLIENT_SECRET;
-    expect(kkboxAdapter.isAvailable()).toBe(false);
-  });
-
-  it("should return false with only client ID", () => {
-    delete import.meta.env.KKBOX_CLIENT_SECRET;
-    expect(kkboxAdapter.isAvailable()).toBe(false);
-  });
-});
-
-// =============================================================================
 // getTrack
 // =============================================================================
 

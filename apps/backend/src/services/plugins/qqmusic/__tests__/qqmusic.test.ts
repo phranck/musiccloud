@@ -19,12 +19,6 @@ describe("QQ Music: detectUrl", () => {
   });
 });
 
-describe("QQ Music: isAvailable", () => {
-  it("should always return true", () => {
-    expect(qqmusicAdapter.isAvailable()).toBe(true);
-  });
-});
-
 describe("QQ Music: searchTrack", () => {
   it("should find track with search API", async () => {
     const mockResponse = {

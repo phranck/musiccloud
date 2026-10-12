@@ -48,7 +48,7 @@ function deezerPreviewObservation(url: string): PreviewObservation {
 async function currentTrackPreview(repo: TrackRepository, data: SharePageDbResult): Promise<string | null> {
   const existing = data.track.previewUrl;
   if (existing && !isExpiredDeezerPreviewUrl(existing)) return existing;
-  if (!data.track.isrc || !deezerAdapter.isAvailable()) return null;
+  if (!data.track.isrc) return null;
 
   try {
     const deezerTrack = await deezerAdapter.findByIsrc(data.track.isrc);
@@ -82,7 +82,7 @@ async function currentAlbumPreview(repo: TrackRepository, data: SharePageAlbumRe
   const existing = data.album.previewUrl;
   if (existing && !isExpiredDeezerPreviewUrl(existing)) return existing;
   const deezerAlbumId = deezerAlbumIdFromLinks(data.links);
-  if (!deezerAlbumId || !deezerAdapter.isAvailable()) return null;
+  if (!deezerAlbumId) return null;
 
   try {
     const deezerAlbum = await deezerAdapter.getAlbum(deezerAlbumId);

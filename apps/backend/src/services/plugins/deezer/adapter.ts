@@ -219,11 +219,6 @@ export const deezerAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    // Deezer public API requires no credentials
-    return true;
-  },
-
   detectUrl(url: string): string | null {
     const match = DEEZER_TRACK_REGEX.exec(url);
     return match ? match[1] : null;

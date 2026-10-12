@@ -305,10 +305,6 @@ export const musicbrainzAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    return true;
-  },
-
   detectUrl(url: string): string | null {
     const match = RECORDING_URL_REGEX.exec(url);
     return match ? match[1].toLowerCase() : null;

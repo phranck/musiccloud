@@ -23,12 +23,6 @@ describe("Melon: detectUrl", () => {
   });
 });
 
-describe("Melon: isAvailable", () => {
-  it("should always return true", () => {
-    expect(melonAdapter.isAvailable()).toBe(true);
-  });
-});
-
 describe("Melon: getTrack", () => {
   it("should fetch and map JSON-LD data", async () => {
     const jsonLd = {

@@ -8,13 +8,16 @@
  * The shape of `PluginInfo` surfaces four distinct states that the admin
  * UI needs to distinguish, and which are easy to confuse:
  *
- * - `enabled` - the admin toggled this plugin on in the DB (`plugin_state`).
- * - `available` - the adapter itself reports it can serve traffic right now
- *   (credentials present, keyless services always return `true`).
- * - `requiredEnv` - the set of env vars declared as prerequisites in the
+ * - `enabled`: the admin toggled this plugin on in the DB (`plugin_state`).
+ * - `available`: the plugin's credentials are present, as its manifest
+ *   states them (keyless plugins are always available).
+ * - `requiredEnv`: the set of env vars declared as prerequisites in the
  *   plugin's manifest.
- * - `missingEnv` - the subset of `requiredEnv` not currently set in
- *   `process.env`.
+ * - `missingEnv`: the subset of `requiredEnv` not currently set, and empty
+ *   for an available plugin.
+ *
+ * `available` and `missingEnv` come from one call to `evaluatePluginEnv`, so
+ * the badge and the "Missing:" line beneath it cannot disagree.
  *
  * A plugin can be enabled-but-not-available (config missing at runtime) or
  * available-but-not-enabled (admin has it switched off); the UI needs both
@@ -24,16 +27,8 @@
 import { ENDPOINTS, isValidServiceId, type PluginInfo, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { upsertPluginState } from "../db/plugin-repository.js";
-import type { ServicePlugin } from "../services/plugins/manifest.js";
+import { evaluatePluginEnv, type ServicePlugin } from "../services/plugins/manifest.js";
 import { getEnabledMap, invalidateEnabledCache, listPlugins } from "../services/plugins/registry.js";
-
-/**
- * @param required - list of env var names the plugin's manifest requires
- * @returns the subset of `required` whose env vars are currently unset
- */
-function collectMissingEnv(required: readonly string[] = []): string[] {
-  return required.filter((key) => !process.env[key]);
-}
 
 /**
  * Builds the combined admin-facing view of every installed plugin: manifest
@@ -48,15 +43,15 @@ async function buildPluginInfoList(): Promise<PluginInfo[]> {
   const enabled = await getEnabledMap();
   return listPlugins().map((plugin: ServicePlugin) => {
     const { manifest, adapter } = plugin;
-    const requiredEnv = manifest.requiredEnv ?? [];
+    const { available, missingEnv } = evaluatePluginEnv(manifest);
     return {
       id: manifest.id,
       displayName: manifest.displayName,
       description: manifest.description,
       enabled: enabled.get(manifest.id) === true,
-      available: adapter.isAvailable(),
-      requiredEnv,
-      missingEnv: collectMissingEnv(requiredEnv),
+      available,
+      requiredEnv: manifest.requiredEnv ?? [],
+      missingEnv,
       capabilities: {
         supportsIsrc: adapter.capabilities.supportsIsrc,
         supportsPreview: adapter.capabilities.supportsPreview,

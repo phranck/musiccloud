@@ -62,7 +62,6 @@ const MOCK_DEEZER_ALBUM = {
 const mockSpotifyAdapter = {
   id: "spotify" as const,
   displayName: "Spotify",
-  isAvailable: vi.fn().mockReturnValue(true),
   detectUrl: vi.fn().mockReturnValue(null),
   detectAlbumUrl: vi
     .fn()
@@ -80,7 +79,6 @@ const mockSpotifyAdapter = {
 const mockDeezerAdapter = {
   id: "deezer" as const,
   displayName: "Deezer",
-  isAvailable: vi.fn().mockReturnValue(true),
   detectUrl: vi.fn().mockReturnValue(null),
   detectAlbumUrl: vi.fn().mockReturnValue(null),
   getAlbum: vi.fn(),
@@ -96,7 +94,6 @@ const mockDeezerAdapter = {
 const mockTidalAdapter = {
   id: "tidal" as const,
   displayName: "Tidal",
-  isAvailable: vi.fn().mockReturnValue(true),
   detectUrl: vi.fn().mockReturnValue(null),
   detectAlbumUrl: vi.fn().mockReturnValue(null),
   getAlbum: vi.fn(),

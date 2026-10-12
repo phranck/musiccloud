@@ -15,6 +15,7 @@ vi.mock("../services/index.js", () => ({
   // Identity pass-through — all tests assume every service is enabled unless
   // they opt in to the SERVICE_DISABLED scenario.
   filterDisabledLinks: vi.fn(async <T>(links: T[]) => links),
+  isPluginAvailable: vi.fn(() => true),
 }));
 
 // Mock the DB singleton
@@ -75,7 +76,6 @@ function createMockAdapter(overrides: Partial<ServiceAdapter> = {}): ServiceAdap
     id: "spotify",
     displayName: "Spotify",
     capabilities: { supportsIsrc: true, supportsPreview: true, supportsArtwork: true },
-    isAvailable: () => true,
     detectUrl: vi.fn(() => null),
     getTrack: vi.fn(),
     findByIsrc: vi.fn().mockResolvedValue(null),

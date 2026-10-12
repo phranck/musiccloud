@@ -219,10 +219,6 @@ export const spotifyAdapter = {
   displayName: "Spotify",
   capabilities,
 
-  isAvailable(): boolean {
-    return tokenManager.isConfigured();
-  },
-
   detectUrl(url: string): string | null {
     const trackMatch = SPOTIFY_TRACK_REGEX.exec(url);
     if (trackMatch) return trackMatch[1];

@@ -24,8 +24,8 @@ import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 /**
  * @file Qobuz adapter: track + album + artist resolves against the Qobuz API.
  *
- * Technically keyless in the credential sense (`isAvailable()` always
- * returns true) but in practice credentialed: the public endpoints
+ * Technically keyless in the credential sense (the manifest lists its
+ * account only under `optionalEnv`) but in practice credentialed: the public endpoints
  * return 401 from Czech Republic / other geo-restricted regions
  * unless a user auth token is attached. The adapter supports both
  * modes via `QOBUZ_EMAIL` / `QOBUZ_PASSWORD`. Without them, resolves
@@ -50,10 +50,11 @@ import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
  * etc.). Login request coalescing via `authTokenPromise` ensures a
  * burst of resolves does not re-login N times on cache miss.
  *
- * ## `isAvailable()` returns true regardless of config
+ * ## Available regardless of config
  *
- * Unlike most credentialed adapters, Qobuz reports itself as
- * available even when `QOBUZ_EMAIL` is unset. This is intentional:
+ * Unlike most credentialed adapters, Qobuz counts as available even
+ * when `QOBUZ_EMAIL` is unset, because its manifest requires no
+ * variable. This is intentional:
  * the URL detection path (`detectUrl`) must still work so that a
  * pasted Qobuz URL gets routed here (and produces a
  * `SERVICE_DISABLED` or a specific API error) instead of falling
@@ -340,12 +341,6 @@ export const qobuzAdapter = {
     supportsIsrc: true,
     supportsPreview: false,
     supportsArtwork: true,
-  },
-
-  isAvailable(): boolean {
-    // Always report as available - the adapter has a default app_id baked in.
-    // Returning false would prevent URL detection and cross-service matching.
-    return true;
   },
 
   detectUrl(url: string): string | null {

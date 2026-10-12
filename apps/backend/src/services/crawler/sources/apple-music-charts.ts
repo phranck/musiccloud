@@ -6,12 +6,14 @@
  * and in-page candidate filtering; the heartbeat retains lock, accounting,
  * shared dedupe, persistence, and auto-disable ownership.
  */
+import { Service } from "@musiccloud/shared";
 import { log } from "../../../lib/infra/logger.js";
 import {
   appleMusicAdapter,
   appleMusicFetch,
   assertAppleMusicDeveloperToken,
 } from "../../plugins/apple-music/adapter.js";
+import { isPluginAvailable } from "../../plugins/registry.js";
 import {
   type Candidate,
   type CrawlerSource,
@@ -72,7 +74,7 @@ function parseAppleMusicChartsConfig(config: unknown): AppleMusicChartsConfig {
 }
 
 async function assertAppleMusicChartsAvailable(): Promise<void> {
-  if (!appleMusicAdapter.isAvailable()) sourceUnavailable();
+  if (!isPluginAvailable(Service.AppleMusic)) sourceUnavailable();
   try {
     await assertAppleMusicDeveloperToken();
   } catch {

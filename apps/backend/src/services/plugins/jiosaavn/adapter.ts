@@ -337,10 +337,6 @@ export const jiosaavnAdapter: ServiceAdapter = {
     supportsArtwork: true,
   },
 
-  isAvailable(): boolean {
-    return true; // No credentials needed
-  },
-
   detectUrl(url: string): string | null {
     const match = JIOSAAVN_TRACK_REGEX.exec(url);
     return match?.[1] ?? null;

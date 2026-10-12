@@ -23,12 +23,6 @@ describe("Beatport: detectUrl", () => {
   });
 });
 
-describe("Beatport: isAvailable", () => {
-  it("should always return true", () => {
-    expect(beatportAdapter.isAvailable()).toBe(true);
-  });
-});
-
 describe("Beatport: getTrack", () => {
   it("should extract track from OG tags fallback", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
