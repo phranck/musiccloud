@@ -9,7 +9,6 @@ import type { EmailBlock } from "@musiccloud/shared";
 import { ArticleIcon, CheckCircleIcon, EnvelopeSimpleIcon, PaperPlaneTiltIcon, TagIcon } from "@phosphor-icons/react";
 import { useCallback, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -32,14 +31,11 @@ import {
 } from "@/features/templates/hooks/useEmailTemplates";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 import type { EmailTemplateBranding } from "@/shared/contracts/admin-email-templates";
+import { HttpStatus } from "@/shared/utils/api-error";
 
 const EmailTestFeedbackType = {
   Ok: "ok",
   Error: "err",
-} as const;
-
-const HttpStatus = {
-  Conflict: 409,
 } as const;
 
 type EmailTestFeedbackType = (typeof EmailTestFeedbackType)[keyof typeof EmailTestFeedbackType];

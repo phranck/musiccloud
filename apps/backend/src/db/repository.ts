@@ -1,6 +1,7 @@
 import type {
   ArtistLifecycleEventType,
   ArtistEntityType as SharedArtistEntityType,
+  ArtistVerificationStatus as SharedArtistVerificationStatus,
   DatePrecision as SharedDatePrecision,
   VinylLayout,
 } from "@musiccloud/shared";
@@ -248,7 +249,7 @@ export interface ArtistInfoEntity {
 /** Artist entity type union used by the database repository layer. */
 export type ArtistEntityType = SharedArtistEntityType;
 /** Artist verification status union used by the database repository layer. */
-export type ArtistVerificationStatus = "candidate" | "verified" | "rejected";
+export type ArtistVerificationStatus = SharedArtistVerificationStatus;
 /** Artist identity event type union used by the database repository layer. */
 export type ArtistIdentityEventType = ArtistLifecycleEventType;
 /** Date precision union used by the database repository layer. */
@@ -296,6 +297,8 @@ export interface ArtistGroupMembershipRecord {
   isCurrent: boolean | null;
   sourceProvider: string | null;
   sourceUrl: string | null;
+  /** When the source was last read, in epoch milliseconds, or `null` where that was not recorded. */
+  sourceFetchedAt: number | null;
   confidence: number | null;
 }
 

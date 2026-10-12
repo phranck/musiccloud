@@ -1,10 +1,16 @@
 import type {
+  AdminArtistEntityListItem,
+  AdminArtistEntityName,
   AdminArtistListItem,
+  ArtistEntityType,
+  ArtistLifecycleEventType,
   ArtistProfileRefreshOutcome,
+  ArtistVerificationStatus,
   ContentCardStyle,
   ContentContextMask,
   ContentPublication,
   ContentStatus,
+  DatePrecision,
   EmailBlock,
   NavigationAreaMask,
   NavigationEntryInput,
@@ -18,6 +24,7 @@ import type {
   SingleContentContext,
 } from "@musiccloud/shared";
 import type { ArtistCredit } from "../services/types.js";
+import type { ArtistGroupMembershipRecord } from "./repository.js";
 
 /** Admin user data shape returned or accepted by the database repository layer. */
 export interface AdminUser {
@@ -82,17 +89,45 @@ export interface ArtistProfileRefreshEvent {
   cause: string | null;
 }
 
-/** Artist entity list item shape returned or accepted by the database repository layer. */
-export interface ArtistEntityListItem {
+/** Artist entity list row, as the dashboard reads it. */
+export type ArtistEntityListItem = AdminArtistEntityListItem;
+
+/** One stored lifecycle event of an artist entity, with the source that stated it. */
+export interface ArtistEntityEventRecord {
   id: string;
+  eventType: ArtistLifecycleEventType;
+  datePrecision: DatePrecision;
+  eventYear: number | null;
+  eventMonth: number | null;
+  eventDay: number | null;
+  sourceProvider: string | null;
+  sourceUrl: string | null;
+  /** When the source was last read, in epoch milliseconds, or `null` where that was not recorded. */
+  sourceFetchedAt: number | null;
+}
+
+/**
+ * One artist entity with everything recorded about its identity: its names,
+ * its lifecycle events and its band memberships on both sides.
+ */
+export interface ArtistEntityIdentityRecord {
+  id: string;
+  /** The preferred name, or `[unnamed artist]` where the entity has none. */
   name: string;
-  entityType: string;
-  verificationStatus: string;
-  trackCreditCount: number;
-  albumCreditCount: number;
+  entityType: ArtistEntityType;
+  verificationStatus: ArtistVerificationStatus;
   hasProfile: boolean;
   shortId: string | null;
+  /** When the entity was created, in epoch milliseconds. */
   createdAt: number;
+  /** Every stored name, the preferred one first. */
+  names: AdminArtistEntityName[];
+  /** The lifecycle events, the earliest first. */
+  events: ArtistEntityEventRecord[];
+  /** The entity's members as a group, current stints first. */
+  members: ArtistGroupMembershipRecord[];
+  /** The groups the entity belongs or belonged to, current stints first. */
+  memberOf: ArtistGroupMembershipRecord[];
 }
 
 /** Track detail data shape returned or accepted by the database repository layer. */
@@ -540,6 +575,14 @@ export interface AdminRepository {
     sortBy?: string;
     sortDir?: "asc" | "desc";
   }): Promise<ListResult<ArtistEntityListItem>>;
+  /**
+   * Loads one artist entity with its names, lifecycle events and band
+   * memberships, each fact with the source that stated it.
+   *
+   * @param id - The artist entity id.
+   * @returns The entity, or `null` when no entity has this id.
+   */
+  getArtistEntityIdentity(id: string): Promise<ArtistEntityIdentityRecord | null>;
   /**
    * Deletes artists.
    *

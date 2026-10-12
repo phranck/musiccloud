@@ -6,8 +6,10 @@
  *
  * Grouped endpoints in this file:
  *
- * 1. **List + search** (tracks / albums / artists) - paginated, searchable,
- *    sortable. Heavy lifting is in `getAdminRepository().list*`.
+ * 1. **List + search** (tracks / albums / artists / artist entities) -
+ *    paginated, searchable, sortable. Heavy lifting is in
+ *    `getAdminRepository().list*`. One artist entity also has a detail read
+ *    with its names, lifecycle dates and memberships, each with its source.
  * 2. **Track detail GET + PATCH** - per-row view/edit for manual metadata
  *    fixes (wrong title, missing ISRC, bad artwork URL).
  * 3. **Bulk DELETE** - delete by `{ ids: string[] }` body across tracks,
@@ -54,6 +56,9 @@ import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getAdminRepository } from "../db/index.js";
 import type { ArtistCredit } from "../db/repository.js";
+import { artistEntityIdSchema } from "../docs/public-response-schema.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
+import { toAdminArtistEntityDetail } from "../services/artist-identity/admin.js";
 import { clearAllArtworks } from "../services/genre-artwork/index.js";
 import { resetBrowseCache } from "../services/genre-search/lastfm.js";
 
@@ -199,6 +204,26 @@ export default async function adminDataRoutes(app: FastifyInstance) {
     const repo = await getAdminRepository();
     return repo.listArtistEntities({ page, limit, q: search, sortBy: q.sortBy, sortDir });
   });
+
+  app.get<{ Params: { id: string } }>(
+    ROUTE_TEMPLATES.admin.artistEntities.detail,
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: { id: artistEntityIdSchema() },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request, reply) => {
+      const repo = await getAdminRepository();
+      const entity = await repo.getArtistEntityIdentity(request.params.id);
+      if (!entity) return reply.status(404).send(createApiErrorResponse("MC-RES-0003"));
+      return toAdminArtistEntityDetail(entity);
+    },
+  );
 
   app.delete(ENDPOINTS.admin.artists.list, async (request, reply) => {
     const body = request.body as { ids?: unknown };

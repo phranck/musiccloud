@@ -11,6 +11,8 @@ import {
   AdminLayout,
   AlbumsPage,
   ApiClientsPage,
+  ArtistEntitiesPage,
+  ArtistEntityDetailPage,
   ArtistsPage,
   ClientDetailPage,
   ContentEditorPage,
@@ -57,6 +59,8 @@ export const routes = createRoutesFromElements(
         <Route path="tracks/:id" element={lazyFallback(<TrackEditPage />)} />
         <Route path="albums" element={lazyFallback(<AlbumsPage />)} />
         <Route path="artists" element={lazyFallback(<ArtistsPage />)} />
+        <Route path="artist-entities" element={lazyFallback(<ArtistEntitiesPage />)} />
+        <Route path="artist-entities/:id" element={lazyFallback(<ArtistEntityDetailPage />)} />
 
         <Route element={<RequireArea area={AdminArea.Users} />}>
           <Route path="users" element={lazyFallback(<UsersPage />)} />

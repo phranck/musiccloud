@@ -1,7 +1,7 @@
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { closeRepository, getRepository } from "../db/index.js";
+import { closeRepository, getAdminRepository, getRepository } from "../db/index.js";
 import type { ArtistIdentitySnapshot, ArtistMembershipSnapshot, PartialDateRecord } from "../db/repository.js";
 import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from "./integration-database.js";
 
@@ -222,5 +222,32 @@ describe.skipIf(!integrationDatabaseUrl())("artist identity enrichment writes (i
 
     const [member] = await repo.listArtistGroupMembers(groupEntityId);
     expect(member).toMatchObject({ beginDatePrecision: "day", beginYear: 1991, beginMonth: 4, beginDay: 12 });
+  });
+
+  it("gives the dashboard the entity with every fact and the source that stated it", async () => {
+    const adminRepo = await getAdminRepository();
+
+    const entity = await adminRepo.getArtistEntityIdentity(groupEntityId);
+
+    expect(entity).toMatchObject({
+      id: groupEntityId,
+      name: `Band ${suffix}`,
+      entityType: "group",
+      hasProfile: true,
+      names: [{ name: `Band ${suffix}`, nameType: "canonical", locale: null }],
+      events: [
+        {
+          eventType: "formed",
+          datePrecision: "year",
+          eventYear: 1991,
+          sourceProvider: "musicbrainz",
+          sourceUrl: `https://musicbrainz.org/artist/${mbid("band")}`,
+          sourceFetchedAt: expect.any(Number),
+        },
+      ],
+      members: [{ memberName: `bo ${suffix}`, sourceProvider: "musicbrainz", sourceFetchedAt: expect.any(Number) }],
+      memberOf: [],
+    });
+    await expect(adminRepo.getArtistEntityIdentity(`identity-missing-${suffix}`)).resolves.toBeNull();
   });
 });

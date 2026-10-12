@@ -47,6 +47,7 @@ import {
   ALBUM_ARTIST_FIELDS_SELECT,
   ARTIST_NAME_LATERAL_JOIN,
   ARTIST_NAME_SELECT,
+  artistNamePreferenceOrder,
   type CountRow,
   dateToMs,
   replaceTrackArtistCredits,
@@ -55,6 +56,7 @@ import {
   safeParseArtistCredits,
   TRACK_ARTIST_FIELDS_SELECT,
   TRACK_PREVIEW_URL_SELECT,
+  UNNAMED_ARTIST_NAME,
 } from "./postgres-shared.js";
 
 // ============================================================================
@@ -589,7 +591,7 @@ export async function listArtistEntities(
     ae.id,
     ae.entity_type,
     ae.verification_status,
-    COALESCE(entity_name.name, '[unnamed artist]') AS display_name,
+    COALESCE(entity_name.name, '${UNNAMED_ARTIST_NAME}') AS display_name,
     ae.created_at,
     ap.artist_entity_id IS NOT NULL AS has_profile,
     asu.id AS short_id,
@@ -600,15 +602,7 @@ export async function listArtistEntities(
     SELECT n.name
     FROM artist_entity_names n
     WHERE n.artist_entity_id = ae.id
-    ORDER BY
-      CASE
-        WHEN n.name_type = 'canonical' AND n.locale IS NULL THEN 0
-        WHEN n.name_type = 'canonical' THEN 1
-        WHEN n.name_type = 'credit' THEN 2
-        WHEN n.locale IS NULL THEN 3
-        ELSE 4
-      END,
-      n.created_at ASC
+    ORDER BY ${artistNamePreferenceOrder("n")}
     LIMIT 1
   ) entity_name ON TRUE
   LEFT JOIN artist_profiles ap ON ap.artist_entity_id = ae.id
@@ -619,8 +613,8 @@ export async function listArtistEntities(
 
   const rows = await pool.query<{
     id: string;
-    entity_type: string;
-    verification_status: string;
+    entity_type: ArtistEntityListItem["entityType"];
+    verification_status: ArtistEntityListItem["verificationStatus"];
     display_name: string;
     created_at: Date;
     has_profile: boolean;

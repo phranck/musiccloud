@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ArtistGroupMembershipRecord } from "../../db/repository.js";
-import { toPublicMemberships, toPublicPartialDate } from "./public.js";
+import { toPublicMemberships } from "./public.js";
 
 const membership = (overrides: Partial<ArtistGroupMembershipRecord>): ArtistGroupMembershipRecord => ({
   membershipId: "membership-1",
@@ -24,20 +24,9 @@ const membership = (overrides: Partial<ArtistGroupMembershipRecord>): ArtistGrou
   isCurrent: null,
   sourceProvider: "musicbrainz",
   sourceUrl: null,
+  sourceFetchedAt: null,
   confidence: 0.9,
   ...overrides,
-});
-
-describe("toPublicPartialDate", () => {
-  it("clears the parts beyond the precision", () => {
-    expect(toPublicPartialDate("year", 1985, 6, 12)).toEqual({ precision: "year", year: 1985, month: null, day: null });
-    expect(toPublicPartialDate("month", 1985, 6, 12)).toEqual({ precision: "month", year: 1985, month: 6, day: null });
-    expect(toPublicPartialDate("day", 1985, 6, 12)).toEqual({ precision: "day", year: 1985, month: 6, day: 12 });
-  });
-
-  it("answers null where nothing is known", () => {
-    expect(toPublicPartialDate("unknown", null, null, null)).toBeNull();
-  });
 });
 
 describe("toPublicMemberships", () => {

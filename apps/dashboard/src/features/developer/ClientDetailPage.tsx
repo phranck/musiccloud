@@ -4,6 +4,7 @@ import { Code as CodeIcon, Copy as CopyIcon, SpinnerGap as SpinnerGapIcon } from
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
@@ -18,8 +19,6 @@ import {
   useUpdateDeveloperProject,
 } from "@/features/developer/hooks/useDeveloperData";
 import { formatDate, hasLimitOverride, parseLimitOverride } from "@/features/developer/lib";
-
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /**
  * Project rate-limit overrides as edited by the admin, kept separate from
@@ -178,7 +177,7 @@ export function ClientDetailPage() {
             <div className="space-y-3">
               <div className="flex items-end gap-4">
                 <div>
-                  <label htmlFor="edit-min" className={labelClass}>
+                  <label htmlFor="edit-min" className={FIELD_LABEL_CLASS}>
                     {dm.detailRateLimitMinute}
                   </label>
                   <DashboardInput
@@ -191,7 +190,7 @@ export function ClientDetailPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="edit-day" className={labelClass}>
+                  <label htmlFor="edit-day" className={FIELD_LABEL_CLASS}>
                     {dm.detailRateLimitDay}
                   </label>
                   <DashboardInput
@@ -210,7 +209,7 @@ export function ClientDetailPage() {
               {!limitsUsable && <p className="text-xs text-amber-400">{dm.limitOverrideInvalid}</p>}
             </div>
             <div>
-              <div className={labelClass}>
+              <div className={FIELD_LABEL_CLASS}>
                 {dm.clientsTokensLabel}
                 {(activeToken || revokedToken) && (
                   <span className="font-normal">, created: {formatDate((activeToken ?? revokedToken)!.createdAt)}</span>

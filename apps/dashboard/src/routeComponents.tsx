@@ -54,6 +54,18 @@ export const ArtistsPage = lazy(() =>
   })),
 );
 
+export const ArtistEntitiesPage = lazy(() =>
+  import("@/features/music/ArtistEntitiesPage").then((m) => ({
+    default: m.ArtistEntitiesPage,
+  })),
+);
+
+export const ArtistEntityDetailPage = lazy(() =>
+  import("@/features/music/ArtistEntityDetailPage").then((m) => ({
+    default: m.ArtistEntityDetailPage,
+  })),
+);
+
 export const UsersPage = lazy(() =>
   import("@/features/system/UsersPage").then((m) => ({
     default: m.UsersPage,

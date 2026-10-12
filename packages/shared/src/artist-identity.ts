@@ -29,6 +29,35 @@ export interface PartialDate {
   day: number | null;
 }
 
+/**
+ * A stored date in the form of {@link PartialDate}, with the parts beyond its
+ * precision cleared.
+ *
+ * The database keeps year, month and day in separate columns, and a source may
+ * have filled a month where it only vouched for the year. Clearing here is what
+ * makes `precision` the one field a reader has to check.
+ *
+ * @param precision - How much of the date the source stated.
+ * @param year - The stored year.
+ * @param month - The stored month, kept only for `month` and `day` precision.
+ * @param day - The stored day, kept only for `day` precision.
+ * @returns The date, or `null` where nothing at all is known about it.
+ */
+export function partialDateFromParts(
+  precision: DatePrecision,
+  year: number | null,
+  month: number | null,
+  day: number | null,
+): PartialDate | null {
+  if (precision === "unknown" && year === null) return null;
+  return {
+    precision,
+    year,
+    month: precision === "month" || precision === "day" ? month : null,
+    day: precision === "day" ? day : null,
+  };
+}
+
 /** One lifecycle event of one artist. */
 export interface ArtistLifecycleEvent {
   artistEntityId: string;

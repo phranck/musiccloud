@@ -34,6 +34,7 @@ function pathFromRoot(path: string): string {
 }
 
 const localeFieldAllowlist = new Map<string, string>([
+  ["apps/backend/src/db/adapters/postgres-admin-artist-entity.ts", "artist identity names in the admin entity detail"],
   ["apps/backend/src/db/adapters/postgres-artists.ts", "artist identity names, texts, events and memberships"],
   ["apps/backend/src/db/adapters/postgres.ts", "artist identity data"],
   ["apps/backend/src/db/repository.ts", "artist identity data and native app telemetry"],

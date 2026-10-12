@@ -20,6 +20,7 @@ import { Tag as TagIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
+import { FIELD_LABEL_CLASS } from "@/components/ui/fieldLabelClass";
 import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { SaveErrorMessage } from "@/components/ui/SaveErrorMessage";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
@@ -33,8 +34,6 @@ import { periodLabel, priceCentsFromField, priceFieldValue } from "@/features/de
 
 const messages = dashboardCopy;
 const dm = messages.developer;
-
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /** Every billing period Creem sells over, as the dropdown offers them. */
 const PERIOD_OPTIONS: DropdownOption[] = BILLING_PERIODS.map((period) => ({
@@ -117,7 +116,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
     <div className="border-t border-[var(--ds-border-subtle)] pt-4 first:border-t-0 first:pt-0">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <span className={labelClass}>{dm.offerPeriod}</span>
+          <span className={FIELD_LABEL_CLASS}>{dm.offerPeriod}</span>
           <Dropdown
             value={offer.billingPeriod}
             onChange={(billingPeriod) => changePeriod(billingPeriod as BillingPeriodValue)}
@@ -126,7 +125,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
           />
         </div>
         <div>
-          <label htmlFor={`offer-price-${offer.id}`} className={labelClass}>
+          <label htmlFor={`offer-price-${offer.id}`} className={FIELD_LABEL_CLASS}>
             {dm.offerPrice}
           </label>
           <div className="flex items-center gap-2">
@@ -161,7 +160,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
           )}
         </div>
         <div>
-          <span className={labelClass}>{dm.offerTaxMode}</span>
+          <span className={FIELD_LABEL_CLASS}>{dm.offerTaxMode}</span>
           <Dropdown
             value={offer.taxMode ?? ""}
             onChange={(taxMode) => change({ taxMode: (taxMode || null) as TaxModeValue | null })}
@@ -170,7 +169,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
           />
         </div>
         <div>
-          <span className={labelClass}>{dm.offerTaxCategory}</span>
+          <span className={FIELD_LABEL_CLASS}>{dm.offerTaxCategory}</span>
           <Dropdown
             value={offer.taxCategory ?? ""}
             onChange={(taxCategory) => change({ taxCategory: (taxCategory || null) as TaxCategoryValue | null })}
@@ -191,7 +190,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
       {showMore && (
         <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor={`offer-image-${offer.id}`} className={labelClass}>
+            <label htmlFor={`offer-image-${offer.id}`} className={FIELD_LABEL_CLASS}>
               {dm.offerImageUrl}
             </label>
             <DashboardInput
@@ -203,7 +202,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
             <p className="mt-1 text-xs text-[var(--ds-text-muted)]">{dm.offerUrlHint}</p>
           </div>
           <div>
-            <label htmlFor={`offer-success-${offer.id}`} className={labelClass}>
+            <label htmlFor={`offer-success-${offer.id}`} className={FIELD_LABEL_CLASS}>
               {dm.offerSuccessUrl}
             </label>
             <DashboardInput

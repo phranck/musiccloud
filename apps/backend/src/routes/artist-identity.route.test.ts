@@ -73,6 +73,7 @@ const membership = (overrides: Partial<ArtistGroupMembershipRecord>): ArtistGrou
   isCurrent: true,
   sourceProvider: "musicbrainz",
   sourceUrl: "https://musicbrainz.org/artist/a74b1b7f-71a5-4011-9441-d0b5e4122711",
+  sourceFetchedAt: 1_760_000_000_000,
   confidence: 0.9,
   ...overrides,
 });
