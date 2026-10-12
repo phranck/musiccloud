@@ -561,17 +561,24 @@ async function buildApp(options: BuildAppOptions = {}) {
 
   // Developer-portal self-service API-access routes (MC-025/MC-077):
   // list and create the caller's own projects and registrations, and
-  // manage the caller's own tokens. Guarded by authenticateDeveloper as
-  // this scope's preHandler, mirroring adminRoutes/protectedRoutes below.
+  // manage the caller's own tokens.
+  //
+  // Every guarded scope below authenticates in `preValidation`, which Fastify
+  // runs before it validates the body against the route's schema, so a route's
+  // schema never answers somebody who may not use the route. It is not
+  // `onRequest`, because the global rate limiter attaches itself to each route
+  // as a route-level `onRequest` hook, and those run after a scope's own: a
+  // guard there would refuse an anonymous caller before the limiter counted
+  // the request.
   await app.register(async function devProtectedRoutes(devApp) {
-    devApp.addHook("preHandler", devApp.authenticateDeveloper);
+    devApp.addHook("preValidation", devApp.authenticateDeveloper);
     await devApp.register(devApiAccessRoutes);
   });
 
   // Internal service-to-service routes. The Developer Portal uses this
   // narrow endpoint to read its availability state without direct DB access.
   await app.register(async function internalRoutes(internalApp) {
-    internalApp.addHook("preHandler", internalApp.authenticateInternal);
+    internalApp.addHook("preValidation", internalApp.authenticateInternal);
     await internalApp.register(developerPortalAvailabilityInternalRoutes);
     await internalApp.register(internalEditorialRoutes);
   });
@@ -631,7 +638,7 @@ async function buildApp(options: BuildAppOptions = {}) {
 
   // Protected API routes (X-API-Key)
   await app.register(async function protectedRoutes(protectedApp) {
-    protectedApp.addHook("preHandler", protectedApp.authenticatePublic);
+    protectedApp.addHook("preValidation", protectedApp.authenticatePublic);
 
     await protectedApp.register(resolveRoutes);
     await protectedApp.register(ccResolveRoutes);
@@ -640,7 +647,7 @@ async function buildApp(options: BuildAppOptions = {}) {
 
   // Admin-protected API routes (Bearer JWT with role: "admin")
   await app.register(async function adminRoutes(adminApp) {
-    adminApp.addHook("preHandler", adminApp.authenticateAdmin);
+    adminApp.addHook("preValidation", adminApp.authenticateAdmin);
     await adminApp.register(adminApiAccessRoutes);
     await adminApp.register(adminArtistProfileRoutes);
     await adminApp.register(adminTiersRoutes);

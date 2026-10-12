@@ -13,7 +13,7 @@
  * verb — see `admin-email-assets.ts`), but the path is only a naming
  * convention here, not an auth boundary. This file is registered at Fastify's
  * ROOT scope (mirroring exactly how `genreArtworkRoutes` is registered in
- * `server.ts`), so no `authenticateAdmin` preHandler ever reaches it.
+ * `server.ts`), so the `authenticateAdmin` hook never reaches it.
  *
  * That is required, not incidental: once a template is sent, its rendered
  * HTML embeds `<img src="…/api/admin/email-assets/:id">` and the *recipient's*
