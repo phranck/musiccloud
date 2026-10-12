@@ -1,4 +1,4 @@
-import { type ComponentType, type HTMLAttributes, type ReactNode, useCallback, useMemo } from "react";
+import { type ComponentType, type HTMLAttributes, type ReactNode, useCallback, useMemo, useState } from "react";
 import { TableSortHeader } from "../dashboard/DashboardControls.js";
 import { getTableSortAriaSort, type SortState } from "../dashboard/tableSort.js";
 
@@ -12,6 +12,7 @@ import {
   useDataTable,
 } from "./dataTableContext.js";
 import { useColumnWidths } from "./useColumnWidths.js";
+import { useShowsSecondaryColumns } from "./useShowsSecondaryColumns.js";
 import { useTableSort } from "./useTableSort.js";
 
 export type { ColumnDef, DataTableRowProps } from "./dataTableContext.js";
@@ -55,7 +56,8 @@ interface DataTableProps<T> {
  * leaves out the rest, rather than guarding every one of them by hand.
  *
  * @param columns - The columns, in render order. Their ids key both the sort
- *   state and the stored widths.
+ *   state and the stored widths. A column marked `secondary` leaves the table
+ *   while the table is too narrow for it.
  * @param data - The rows in their given order, before sorting.
  * @param getRowKey - Returns the React key of a row.
  * @param getRowClassName - Returns extra classes for a row, for selection or
@@ -73,7 +75,7 @@ interface DataTableProps<T> {
  * @param errorMessage - The message shown in the error state.
  */
 export function DataTable<T>({
-  columns,
+  columns: allColumns,
   data,
   getRowKey,
   getRowClassName,
@@ -86,6 +88,13 @@ export function DataTable<T>({
   errorMessage,
   children,
 }: DataTableProps<T>) {
+  const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(null);
+  const showsSecondary = useShowsSecondaryColumns(viewportElement);
+  const columns = useMemo(
+    () => (showsSecondary ? allColumns : allColumns.filter((column) => !column.secondary)),
+    [allColumns, showsSecondary],
+  );
+
   const columnIds = useMemo(() => columns.map((column) => column.id), [columns]);
   const { columnWidths, startResize } = useColumnWidths(columnIds);
 
@@ -128,6 +137,7 @@ export function DataTable<T>({
       state: resolvedState,
       errorMessage,
       RowComponent: RowComponent ?? DefaultRow,
+      viewportRef: setViewportElement,
     }),
     [
       columns,
@@ -206,12 +216,12 @@ interface DataTableViewportProps extends HTMLAttributes<HTMLDivElement> {
  * @param scroll - Whether this element scrolls or a surrounding one does.
  */
 function DataTableViewport({ scroll = DataTableScroll.Ancestor, className = "", children }: DataTableViewportProps) {
-  const { state } = useDataTable();
+  const { state, viewportRef } = useDataTable();
   if (state !== DataTableState.Ready) return null;
 
   const scrollClass = scroll === DataTableScroll.Self ? "min-h-0 flex-1 overflow-auto" : "";
   return (
-    <div className={`${scrollClass} ${className}`.trim()}>
+    <div ref={viewportRef} className={`${scrollClass} ${className}`.trim()}>
       <table className="w-full table-fixed border-collapse text-sm">{children}</table>
     </div>
   );

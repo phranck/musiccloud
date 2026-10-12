@@ -10,7 +10,9 @@ import {
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { renderElementsAtWidth } from "@/test-layout";
 
 interface Track {
   id: string;
@@ -147,6 +149,48 @@ describe("DataTable", () => {
 
   it("refuses to render a slot outside a table", () => {
     expect(() => render(<DataTable.Rows />)).toThrow(/inside a <DataTable>/);
+  });
+
+  describe("secondary columns", () => {
+    const columnsWithSecondary: ColumnDef<Track>[] = [
+      { id: "title", header: "Title", cell: (track) => track.title },
+      { id: "plays", header: "Plays", cell: (track) => track.plays, secondary: true },
+    ];
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    /** The 64rem the table needs for its secondary columns, at the 16px root jsdom reports. */
+    const SECONDARY_THRESHOLD_PX = 64 * 16;
+
+    function renderWithSecondary() {
+      return render(
+        <DataTable columns={columnsWithSecondary} data={tracks} getRowKey={(track) => track.id}>
+          <DataTable.Viewport>
+            <DataTable.Head />
+            <DataTable.Rows />
+          </DataTable.Viewport>
+        </DataTable>,
+      );
+    }
+
+    it("leaves them out of the header and the rows while the table is narrow", () => {
+      renderElementsAtWidth(SECONDARY_THRESHOLD_PX - 1);
+      renderWithSecondary();
+
+      expect(screen.getByText("Title")).not.toBeNull();
+      expect(screen.queryByText("Plays")).toBeNull();
+      expect(screen.queryByText("20")).toBeNull();
+    });
+
+    it("shows them once the table is wide enough", () => {
+      renderElementsAtWidth(SECONDARY_THRESHOLD_PX);
+      renderWithSecondary();
+
+      expect(screen.getByText("Plays")).not.toBeNull();
+      expect(screen.getByText("20")).not.toBeNull();
+    });
   });
 });
 

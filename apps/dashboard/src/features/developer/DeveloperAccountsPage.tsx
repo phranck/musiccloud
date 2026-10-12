@@ -23,21 +23,19 @@ function useAccountColumns(
       {
         id: "email",
         header: dm.colEmail,
-        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.email.toLowerCase(),
         cell: (a) => <span className="font-medium">{a.email}</span>,
       },
       {
         id: "displayName",
         header: dm.colDisplayName,
-        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.displayName ?? "",
         cell: (a) => <span className="text-[var(--ds-text-muted)]">{a.displayName ?? "—"}</span>,
       },
       {
         id: "appName",
+        secondary: true,
         header: dm.colAppName,
-        headerClassName: "whitespace-nowrap",
         sortKey: (a) => (a.appName ?? "").toLowerCase(),
         cell: (a) => <span className="text-[var(--ds-text-muted)]">{a.appName ?? "—"}</span>,
       },
@@ -45,7 +43,6 @@ function useAccountColumns(
         id: "tier",
         header: dm.colTier,
         className: "w-40",
-        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.tierName ?? "",
         cell: (a) =>
           a.tierName ? (
@@ -65,15 +62,14 @@ function useAccountColumns(
         id: "status",
         header: dm.colStatus,
         className: "w-28",
-        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.status,
         cell: (a) => <StatusBadge status={a.status} />,
       },
       {
         id: "createdAt",
+        secondary: true,
         header: dm.colRegistered,
         className: "w-36",
-        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.createdAt,
         cell: (a) => <span className="text-[var(--ds-text-muted)] whitespace-nowrap">{formatDate(a.createdAt)}</span>,
       },

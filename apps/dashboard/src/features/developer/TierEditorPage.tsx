@@ -486,7 +486,6 @@ function useTierColumns(
       {
         id: "name",
         header: dm.colName,
-        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.name.toLowerCase(),
         cell: (a) => (
           <span className="inline-flex items-center gap-2 font-medium" style={{ color: a.color }}>
@@ -516,7 +515,6 @@ function useTierColumns(
       {
         id: "traffic",
         header: dm.colTraffic,
-        headerClassName: "whitespace-nowrap",
         className: "w-40",
         sortKey: (a) => a.requestsPerMinute,
         cell: (a) => (
@@ -527,9 +525,9 @@ function useTierColumns(
       },
       {
         id: "attribution",
+        secondary: true,
         header: dm.colAttribution,
-        className: "w-28",
-        headerClassName: "whitespace-nowrap",
+        className: "w-40",
         sortKey: (a) => (a.attributionRequired ? 1 : 0),
         cell: (a) =>
           a.attributionRequired ? (
@@ -548,7 +546,6 @@ function useTierColumns(
         id: "price",
         header: dm.colPrice,
         className: "w-48",
-        headerClassName: "whitespace-nowrap",
         // A plan's offers are its price, so the cheapest one orders the list and
         // a plan without any is free.
         sortKey: (a) => (a.offers.length === 0 ? 0 : Math.min(...a.offers.map((offer) => offer.priceCents))),
@@ -567,9 +564,9 @@ function useTierColumns(
       },
       {
         id: "sortOrder",
+        secondary: true,
         header: dm.colSortOrder,
-        className: "w-20",
-        headerClassName: "whitespace-nowrap",
+        className: "w-36",
         sortKey: (a) => a.sortOrder,
         cell: (a) => <span className="text-[var(--ds-text-muted)]">{a.sortOrder}</span>,
       },

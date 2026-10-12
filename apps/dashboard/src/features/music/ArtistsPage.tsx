@@ -116,6 +116,7 @@ function useArtistColumns(
       },
       {
         id: "source",
+        secondary: true,
         header: mc.source,
         className: "w-28",
         cell: (artist) =>
@@ -134,6 +135,7 @@ function useArtistColumns(
       },
       {
         id: "createdAt",
+        secondary: true,
         header: mc.added,
         className: "w-36",
         serverSort: "created_at",

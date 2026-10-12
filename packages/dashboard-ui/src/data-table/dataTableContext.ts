@@ -56,6 +56,13 @@ export interface ColumnDef<T> {
    * alone would not be the order of the whole list.
    */
   serverSort?: string;
+  /**
+   * Whether the list can do without this column when it is narrow. A secondary
+   * column shows only while the table itself is wide enough, measured by
+   * `useShowsSecondaryColumns`, so the column a list is about keeps its room in
+   * a narrow window or a half-width section.
+   */
+  secondary?: boolean;
 }
 
 /**
@@ -86,6 +93,8 @@ export interface DataTableContextValue<T> {
   state: DataTableState;
   errorMessage?: string | null;
   RowComponent: ComponentType<DataTableRowProps<T>>;
+  /** Receives the element the table renders into, which decides whether secondary columns show. */
+  viewportRef: (element: HTMLDivElement | null) => void;
 }
 
 /**

@@ -59,7 +59,6 @@ function useClientColumns(
       {
         id: "apiKey",
         header: dm.colKey,
-        headerClassName: "whitespace-nowrap",
         sortKey: (c) => {
           const activeToken = c.tokens.find((t) => t.status === ApiTokenStatus.Active);
           return (activeToken?.tokenPrefix ?? "").toLowerCase();
@@ -77,7 +76,6 @@ function useClientColumns(
       {
         id: "appName",
         header: dm.colApp,
-        headerClassName: "whitespace-nowrap",
         sortKey: (c) => `${c.projectDisplayName} ${c.appName}`.toLowerCase(),
         cell: (c) => (
           <span className="flex flex-col">
@@ -91,7 +89,6 @@ function useClientColumns(
       {
         id: "contactEmail",
         header: dm.colDeveloper,
-        headerClassName: "whitespace-nowrap",
         sortKey: (c) => c.contactEmail.toLowerCase(),
         cell: (c) => (
           <a href={`mailto:${c.contactEmail}`} className="text-[var(--ds-text)] hover:underline">
@@ -101,8 +98,8 @@ function useClientColumns(
       },
       {
         id: "traffic",
+        secondary: true,
         header: dm.clientTrafficLabel,
-        headerClassName: "whitespace-nowrap",
         className: "w-52",
         sortKey: (c) => c.effectiveRequestsPerMinute ?? 0,
         cell: (c) => (
@@ -115,7 +112,6 @@ function useClientColumns(
       {
         id: "status",
         header: dm.colStatus,
-        headerClassName: "whitespace-nowrap",
         className: "w-28",
         sortKey: (c) => c.status,
         cell: (c) => <StatusBadge status={c.status} />,

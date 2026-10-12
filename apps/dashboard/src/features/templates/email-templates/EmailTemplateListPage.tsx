@@ -125,11 +125,13 @@ export function EmailTemplateListPage() {
       },
       {
         id: "subject",
+        secondary: true,
         header: m.templateSubject,
         cell: (tpl) => <span className="block truncate text-[var(--ds-text-muted)]">{tpl.subject || "—"}</span>,
       },
       {
         id: "createdAt",
+        secondary: true,
         header: m.tableCreated,
         // Right-aligned so the date sits directly beside the row actions, and
         // as narrow as its heading allows on one line.

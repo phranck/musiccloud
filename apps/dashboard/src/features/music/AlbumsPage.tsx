@@ -120,6 +120,7 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMe
       },
       {
         id: "source",
+        secondary: true,
         header: mc.source,
         className: "w-28",
         cell: (album) =>
@@ -131,6 +132,7 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMe
       },
       {
         id: "upc",
+        secondary: true,
         header: "UPC",
         className: "w-32",
         cell: (album) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">{album.upc ?? ""}</span>,
