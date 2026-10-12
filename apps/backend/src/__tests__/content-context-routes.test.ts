@@ -178,6 +178,28 @@ describe("contextual content route error contract", () => {
     ]);
   });
 
+  it("serves the card style a page is drawn with", async () => {
+    const app = await createApp([]);
+    mocks.getPublicContentPage.mockResolvedValue({
+      slug: "privacy",
+      title: "Privacy",
+      showTitle: true,
+      titleAlignment: "left",
+      pageType: "default",
+      displayMode: "fullscreen",
+      overlayWidth: "regular",
+      contentCardStyle: "recessed",
+      content: "Body",
+      contentHtml: "<p>Body</p>",
+      segments: [],
+    });
+
+    const page = await app.inject({ method: "GET", url: "/api/v1/content/privacy" });
+
+    expect(page.statusCode).toBe(200);
+    expect(page.json()).toMatchObject({ contentCardStyle: "recessed" });
+  });
+
   it("ignores legacy locale input for canonical public Page and Navigation reads", async () => {
     const app = await createApp([]);
     mocks.getPublicContentPage.mockResolvedValue({
