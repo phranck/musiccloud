@@ -186,11 +186,20 @@ describe("Napster: findByIsrc", () => {
     expect(track).toBeNull();
   });
 
-  it("should return null on HTTP error", async () => {
+  /**
+   * A failed lookup is not a missing track. Returning null would make the
+   * resolver skip Napster for that track for a month.
+   */
+  it("throws when the ISRC lookup fails", async () => {
     fetchWithTimeoutMock.mockResolvedValueOnce(new Response("Server Error", { status: 500 }));
 
-    const track = await napsterAdapter.findByIsrc("USMC16758823");
-    expect(track).toBeNull();
+    await expect(napsterAdapter.findByIsrc("USMC16758823")).rejects.toThrow(/500/);
+  });
+
+  it("returns null when the ISRC lookup answers 404", async () => {
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+
+    await expect(napsterAdapter.findByIsrc("USMC16758823")).resolves.toBeNull();
   });
 
   it("should use ISRC endpoint", async () => {
@@ -247,16 +256,16 @@ describe("Napster: searchTrack", () => {
     expect(result.confidence).toBe(0);
   });
 
-  it("should return not found on HTTP error", async () => {
+  it("throws when the search fails", async () => {
     fetchWithTimeoutMock.mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
-    const result = await napsterAdapter.searchTrack({
-      title: "Test",
-      artist: "Test",
-    });
+    await expect(napsterAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/500/);
+  });
 
-    expect(result.found).toBe(false);
-    expect(result.confidence).toBe(0);
+  it("throws when the artist search fails", async () => {
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response("Error", { status: 429 }));
+
+    await expect(napsterAdapter.searchArtist({ name: "Test" })).rejects.toThrow(/429/);
   });
 
   it("should use combined query for free-text search", async () => {

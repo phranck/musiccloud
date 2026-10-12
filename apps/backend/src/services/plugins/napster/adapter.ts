@@ -42,7 +42,7 @@
  * holds for artist images.
  *
  */
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
@@ -214,9 +214,11 @@ export const napsterAdapter = {
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
     const response = await napsterFetch(`/tracks/isrc/${encodeURIComponent(isrc)}`);
 
+    // An ISRC Napster does not have is an empty list or a 404, both answers.
+    // Any other error status is a failure.
+    if (response.status === 404) return null;
     if (!response.ok) {
-      log.debug("Napster", "ISRC lookup failed:", response.status);
-      return null;
+      throw serviceHttpError(Service.Napster, response.status, ResourceKind.Track, isrc, Operation.IsrcLookup);
     }
 
     const data = (await response.json()) as NapsterTracksResponse;
@@ -236,8 +238,7 @@ export const napsterAdapter = {
     const response = await napsterFetch(`/search?query=${encodeURIComponent(q)}&type=track&per_type_limit=5`);
 
     if (!response.ok) {
-      log.debug("Napster", "Search API failed:", response.status);
-      return { found: false, confidence: 0, matchMethod: "search" };
+      throw serviceHttpError(Service.Napster, response.status, ResourceKind.Track, q, Operation.Search);
     }
 
     const data = (await response.json()) as NapsterSearchResponse;
@@ -321,8 +322,7 @@ export const napsterAdapter = {
     const response = await napsterFetch(`/search?query=${encodeURIComponent(query.name)}&type=artist&per_type_limit=5`);
 
     if (!response.ok) {
-      log.debug("Napster", "Artist search API failed:", response.status);
-      return { found: false, confidence: 0, matchMethod: "search" };
+      throw serviceHttpError(Service.Napster, response.status, ResourceKind.Artist, query.name, Operation.Search);
     }
 
     const data = (await response.json()) as NapsterArtistSearchResponse;
