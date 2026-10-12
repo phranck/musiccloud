@@ -45,11 +45,6 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
   },
-  "pnpm": {
-    "overrides": {
-      "@types/node": "^22.20.5"
-    }
-  },
   "optionalDependencies": {
     "@rolldown/binding-linux-x64-musl": "1.0.0-rc.9",
     "@rollup/rollup-linux-x64-musl": "4.57.1",
