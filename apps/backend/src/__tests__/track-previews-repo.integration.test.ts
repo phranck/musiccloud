@@ -1,7 +1,11 @@
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeRepository, getRepository } from "../db/index.js";
-import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from "./integration-database.js";
+import {
+  connectRepositoriesToIntegrationDatabase,
+  integrationDatabaseUrl,
+  removePersistedCatalogRows,
+} from "./integration-database.js";
 
 describe.skipIf(!integrationDatabaseUrl())("track and album previews repository (integration)", () => {
   connectRepositoriesToIntegrationDatabase();
@@ -11,6 +15,7 @@ describe.skipIf(!integrationDatabaseUrl())("track and album previews repository 
   const albumSourceUrl = `https://integration.test/album-preview/${suffix}`;
   const isrc = `ITPREV${suffix.toUpperCase()}`;
   const upc = `UPCPREV${suffix.toUpperCase()}`;
+  const artistName = `Preview Integration Artist ${suffix}`;
 
   let client: pg.Client;
   let trackId: string;
@@ -25,7 +30,7 @@ describe.skipIf(!integrationDatabaseUrl())("track and album previews repository 
     const track = await repo.persistTrackWithLinks({
       sourceTrack: {
         title: `Preview Integration Track ${suffix}`,
-        artists: ["Integration Test"],
+        artists: [artistName],
         isrc,
         sourceService: "spotify",
         sourceUrl: trackSourceUrl,
@@ -37,7 +42,7 @@ describe.skipIf(!integrationDatabaseUrl())("track and album previews repository 
     const album = await repo.persistAlbumWithLinks({
       sourceAlbum: {
         title: `Preview Integration Album ${suffix}`,
-        artists: ["Integration Test"],
+        artists: [artistName],
         upc,
         sourceService: "spotify",
         sourceUrl: albumSourceUrl,
@@ -49,14 +54,7 @@ describe.skipIf(!integrationDatabaseUrl())("track and album previews repository 
   });
 
   afterAll(async () => {
-    await client.query(`DELETE FROM service_links WHERE track_id = $1`, [trackId]);
-    await client.query(`DELETE FROM short_urls WHERE track_id = $1`, [trackId]);
-    await client.query(`DELETE FROM tracks WHERE id = $1`, [trackId]);
-
-    await client.query(`DELETE FROM album_service_links WHERE album_id = $1`, [albumId]);
-    await client.query(`DELETE FROM album_short_urls WHERE album_id = $1`, [albumId]);
-    await client.query(`DELETE FROM albums WHERE id = $1`, [albumId]);
-
+    await removePersistedCatalogRows(client, { trackIds: [trackId], albumIds: [albumId], artistNames: [artistName] });
     await client.end();
     await closeRepository();
   });

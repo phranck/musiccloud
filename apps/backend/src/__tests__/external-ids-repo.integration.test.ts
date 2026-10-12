@@ -1,7 +1,12 @@
+import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { getRepository } from "../db/index.js";
+import { closeRepository, getRepository } from "../db/index.js";
 import { generateShortId, generateTrackId } from "../lib/short-id.js";
-import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from "./integration-database.js";
+import {
+  connectRepositoriesToIntegrationDatabase,
+  integrationDatabaseUrl,
+  removePersistedCatalogRows,
+} from "./integration-database.js";
 
 /**
  * Hits a live Postgres pointed at by `TEST_DATABASE_URL`. Exercises the
@@ -9,53 +14,57 @@ import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from
  * in migration 0019 plus the fallback paths in `findTrackByIsrc` /
  * `findAlbumByUpc`.
  *
- * The fixture creates a brand-new track and album with random IDs so it
- * does not collide with seeded data. afterAll deletes them via cascade
- * (ON DELETE CASCADE on the FK in the aggregation tables wipes the
- * external-id rows together with the parent).
+ * The fixture persists a new track and album credited to an artist named for
+ * this run, and afterAll removes all three. The external-id rows cascade with
+ * their track or album.
  */
 describe.skipIf(!integrationDatabaseUrl())("external-ids repository (integration)", () => {
   connectRepositoriesToIntegrationDatabase();
 
-  const trackId = generateTrackId();
-  const albumId = generateTrackId();
+  const suffix = Math.random().toString(36).slice(2, 10);
+  const artistName = `External Id Artist ${suffix}`;
   const isrc = `ITTEST${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
   const altIsrc = `ITALT${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
   const upc = `UPC${Math.random().toString(36).slice(2, 12).toUpperCase()}`;
 
+  let client: pg.Client;
+  const trackIds: string[] = [];
+  const albumIds: string[] = [];
+
   beforeAll(async () => {
+    client = new pg.Client({ connectionString: integrationDatabaseUrl() });
+    await client.connect();
     const repo = await getRepository();
 
-    await repo.persistTrackWithLinks({
+    const track = await repo.persistTrackWithLinks({
       sourceTrack: {
         title: "ext-id-test",
-        artists: ["Test"],
+        artists: [artistName],
         isrc,
         sourceService: "spotify",
-        sourceUrl: `https://open.spotify.com/track/${trackId}`,
+        sourceUrl: `https://open.spotify.com/track/${generateTrackId()}`,
       },
       links: [],
     });
+    trackIds.push(track.trackId);
 
-    await repo.persistAlbumWithLinks({
+    const album = await repo.persistAlbumWithLinks({
       sourceAlbum: {
         title: "ext-id-album",
-        artists: ["Test"],
+        artists: [artistName],
         upc,
         sourceService: "spotify",
-        sourceUrl: `https://open.spotify.com/album/${albumId}`,
+        sourceUrl: `https://open.spotify.com/album/${generateTrackId()}`,
       },
       links: [],
     });
+    albumIds.push(album.albumId);
   });
 
   afterAll(async () => {
-    const repo = await getRepository();
-    // Best-effort cleanup. Cascading FK takes care of the aggregation rows.
-    // The repository has no `deleteTrack` / `deleteAlbum` today, so this
-    // leaves the parent rows behind — they are flagged with the random
-    // ISRC/UPC prefix above and will not collide with future runs.
-    void repo;
+    await removePersistedCatalogRows(client, { trackIds, albumIds, artistNames: [artistName] });
+    await client.end();
+    await closeRepository();
   });
 
   it("addTrackExternalIds writes new rows and is idempotent on duplicates", async () => {
