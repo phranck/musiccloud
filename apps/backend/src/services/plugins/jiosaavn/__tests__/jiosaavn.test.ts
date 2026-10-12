@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
 import { jiosaavnAdapter } from "../adapter";
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+/** What JioSaavn answers with HTTP 200 for a call it refuses. */
+const REFUSED_CALL = { error: { code: "INPUT_INVALID", msg: "notExist operation is not supported" } };
 
 // =============================================================================
 // detectUrl
@@ -60,9 +64,20 @@ describe("JioSaavn: getTrack", () => {
     expect(track.durationMs).toBe(200000);
   });
 
-  it("should throw on invalid response", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("<!DOCTYPE html>", { status: 200 }));
+  // A token JioSaavn does not know answers an empty list.
+  it("should throw not found for a token JioSaavn does not know", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("[]", { status: 200 }));
     await expect(jiosaavnAdapter.getTrack("invalid")).rejects.toThrow("Track not found");
+  });
+
+  it("should throw an outage for an HTML page", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("<!DOCTYPE html>", { status: 200 }));
+    await expect(jiosaavnAdapter.getTrack("invalid")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
+  it("should throw on an error status", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 503 }));
+    await expect(jiosaavnAdapter.getTrack("Fj9GfAxDWUY")).rejects.toThrow(/503/);
   });
 });
 
@@ -97,10 +112,165 @@ describe("JioSaavn: searchTrack", () => {
   });
 
   it("should return not found for empty results", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ results: [] }), { status: 200 }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ total: 0, start: 1, results: [] }), { status: 200 }),
+    );
 
     const result = await jiosaavnAdapter.searchTrack({ title: "Nonexistent", artist: "Nobody" });
     expect(result.found).toBe(false);
+  });
+
+  /**
+   * A search that did not run is an outage. Answering "not found" would make
+   * the resolver record a miss and skip JioSaavn for that track for a month.
+   */
+  it("should throw on an error status", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
+
+    await expect(jiosaavnAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/500/);
+  });
+
+  it("should throw on an HTML page", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("<!DOCTYPE html>", { status: 200 }));
+
+    await expect(jiosaavnAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
+  });
+
+  it("should throw on a body that is not JSON", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Too many requests", { status: 200 }));
+
+    await expect(jiosaavnAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
+  });
+
+  it("should throw when JioSaavn refuses the call with an error object", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(REFUSED_CALL));
+
+    await expect(jiosaavnAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/INPUT_INVALID/);
+  });
+
+  it("should throw when the answer has no results list", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({ total: 0 }));
+
+    await expect(jiosaavnAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
+  });
+
+  it("should throw when the request fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("Outbound request failed"));
+
+    await expect(jiosaavnAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(
+      "Outbound request failed",
+    );
+  });
+});
+
+// =============================================================================
+// searchAlbum
+// =============================================================================
+
+describe("JioSaavn: searchAlbum", () => {
+  it("should return not found for empty results", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ total: 0, start: 1, results: [] }), { status: 200 }),
+    );
+
+    const result = await jiosaavnAdapter.searchAlbum?.({ title: "Nonexistent", artist: "Nobody" });
+    expect(result?.found).toBe(false);
+  });
+
+  it("should throw on an error status", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 502 }));
+
+    await expect(jiosaavnAdapter.searchAlbum?.({ title: "Test", artist: "Test" })).rejects.toThrow(/502/);
+  });
+
+  it("should throw when JioSaavn refuses the call", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(REFUSED_CALL));
+
+    await expect(jiosaavnAdapter.searchAlbum?.({ title: "Test", artist: "Test" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
+  });
+
+  it("should throw when the details of a candidate album cannot be fetched", async () => {
+    const searchAnswer = {
+      results: [{ id: "56783991", title: "Hunting High and Low", perma_url: "https://www.jiosaavn.com/album/x/y" }],
+    };
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json(searchAnswer))
+      .mockResolvedValueOnce(new Response("<!DOCTYPE html>", { status: 200 }));
+
+    await expect(
+      jiosaavnAdapter.searchAlbum?.({ title: "Hunting High and Low", artist: "Hunting High and Low" }),
+    ).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+});
+
+// =============================================================================
+// getArtist / searchArtist
+// =============================================================================
+
+describe("JioSaavn: getArtist", () => {
+  it("should fetch and map artist data", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      Response.json({
+        artistId: "615155",
+        name: "The Weeknd",
+        image: "https://c.saavncdn.com/artists/The_Weeknd_150x150.jpg",
+        perma_url: "https://www.jiosaavn.com/artist/the-weeknd-songs/FJRb7GbYWrQ_",
+      }),
+    );
+
+    const artist = await jiosaavnAdapter.getArtist?.("FJRb7GbYWrQ_");
+    expect(artist?.name).toBe("The Weeknd");
+    expect(artist?.sourceId).toBe("615155");
+  });
+
+  // A token JioSaavn does not know answers HTTP 200 with an empty body.
+  it("should throw not found for an empty body", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("", { status: 200 }));
+
+    await expect(jiosaavnAdapter.getArtist?.("zzzzzzzzzzz")).rejects.toThrow("Artist not found");
+  });
+
+  it("should throw not found for an artist without an id", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({ artistId: null, name: "" }));
+
+    await expect(jiosaavnAdapter.getArtist?.("Nonexistent123")).rejects.toThrow("Artist not found");
+  });
+
+  it("should throw an outage for an HTML page", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("<!DOCTYPE html>", { status: 200 }));
+
+    await expect(jiosaavnAdapter.getArtist?.("FJRb7GbYWrQ_")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+});
+
+describe("JioSaavn: searchArtist", () => {
+  it("should return not found for empty results", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ total: 0, start: 1, results: [] }), { status: 200 }),
+    );
+
+    const result = await jiosaavnAdapter.searchArtist?.({ name: "Nobody" });
+    expect(result?.found).toBe(false);
+  });
+
+  it("should throw on an error status", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 429 }));
+
+    await expect(jiosaavnAdapter.searchArtist?.({ name: "Test" })).rejects.toThrow(/429/);
+  });
+
+  it("should throw when JioSaavn refuses the call", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(REFUSED_CALL));
+
+    await expect(jiosaavnAdapter.searchArtist?.({ name: "Test" })).rejects.toBeInstanceOf(UpstreamUnavailableError);
   });
 });
 
