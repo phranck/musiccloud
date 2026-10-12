@@ -15,6 +15,7 @@
  */
 
 import {
+  CONTENT_CARD_STYLES,
   CONTENT_STATUSES,
   DEFAULT_TIER_COLOR,
   OVERLAY_WIDTHS,
@@ -2357,6 +2358,7 @@ export const PublicContentPageSchema = {
     "pageType",
     "displayMode",
     "overlayWidth",
+    "contentCardStyle",
     "content",
     "contentHtml",
     "segments",
@@ -2370,6 +2372,11 @@ export const PublicContentPageSchema = {
     pageType: { type: "string", enum: PAGE_TYPES },
     displayMode: { type: "string", enum: PAGE_DISPLAY_MODES },
     overlayWidth: { type: "string", enum: OVERLAY_WIDTHS },
+    contentCardStyle: {
+      type: "string",
+      enum: CONTENT_CARD_STYLES,
+      description: "Whether the body sits on the default card or in a recessed well.",
+    },
     content: { type: "string", description: "Original Markdown source." },
     contentHtml: { type: "string", description: "Server-rendered HTML (safe subset)." },
     segments: {
@@ -2386,6 +2393,7 @@ export const PublicContentPageSchema = {
     pageType: "default",
     displayMode: "fullscreen",
     overlayWidth: "regular",
+    contentCardStyle: "default",
     content:
       "## Our mission\n\nOne URL, every streaming service. musiccloud.io is a free tool that helps you share music across platforms without friction.",
     contentHtml:
