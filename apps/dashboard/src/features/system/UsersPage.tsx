@@ -14,12 +14,19 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAdminUsers, useDeleteUser } from "@/features/system/hooks/useAdminUsers";
-import { AdminRole } from "@/shared/constants/domain";
+import { AdminArea, AdminRole, canAccessArea } from "@/shared/constants/domain";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 import { UserAvatar } from "./UserAvatar";
 import { UserCreateCard } from "./UserCreateCard";
 import { UserEditCard } from "./UserEditCard";
+
+/** The badge colors per role in the user list. */
+const ROLE_BADGE_CLASS: Record<AdminRole, string> = {
+  [AdminRole.Owner]: "bg-amber-900/40 text-amber-400",
+  [AdminRole.Admin]: "bg-blue-900/40 text-blue-400",
+  [AdminRole.Moderator]: "bg-gray-800 text-gray-400",
+};
 
 export function UsersPage() {
   const messages = dashboardCopy;
@@ -34,6 +41,7 @@ export function UsersPage() {
   const deleteMutation = useDeleteUser();
 
   const deleteTarget = users.find((u) => u.id === deleteId);
+  const canManageUsers = canAccessArea(me?.role, AdminArea.Users);
 
   return (
     <PageLayout>
@@ -58,20 +66,8 @@ export function UsersPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-medium text-[var(--ds-text)]">{user.username}</p>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      user.role === AdminRole.Owner
-                        ? "bg-amber-900/40 text-amber-400"
-                        : user.role === AdminRole.Admin
-                          ? "bg-blue-900/40 text-blue-400"
-                          : "bg-gray-800 text-gray-400"
-                    }`}
-                  >
-                    {user.role === AdminRole.Owner
-                      ? usersMessages.role.owner
-                      : user.role === AdminRole.Admin
-                        ? usersMessages.role.admin
-                        : usersMessages.role.moderator}
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_BADGE_CLASS[user.role]}`}>
+                    {usersMessages.role[user.role]}
                   </span>
                   {user.id === me?.id && (
                     <span className="text-xs bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)] px-2 py-0.5 rounded-full">
@@ -82,7 +78,7 @@ export function UsersPage() {
                 <p className="text-sm text-[var(--ds-text-subtle)]">{user.email}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {(me?.isOwner || user.id === me?.id) && (
+                {(canManageUsers || user.id === me?.id) && (
                   <DashboardActionButton
                     action={DashboardActionId.Edit}
                     icon={<FileTextIcon weight="duotone" className="w-3.5 h-3.5" />}
@@ -92,7 +88,7 @@ export function UsersPage() {
                     type="button"
                   />
                 )}
-                {me?.isOwner && user.id !== me?.id && (
+                {canManageUsers && user.id !== me?.id && (
                   <DashboardActionButton
                     action={DashboardActionId.Delete}
                     icon={<TrashIcon weight="duotone" className="w-3.5 h-3.5" />}

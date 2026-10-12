@@ -45,9 +45,9 @@ import { isMetaDirty } from "@/features/content/state/slices/metaSlice";
 import { SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
+import { AdminArea, canAccessArea } from "@/shared/constants/domain";
 import type { AdminRole } from "@/shared/types/admin";
 
-const ROLE_RANK: Record<AdminRole, number> = { owner: 2, admin: 1, moderator: 0 };
 const SIDEBAR_GROUP_STORAGE_KEYS = ["sidebar-pages-open", "sidebar-email-templates-open"] as const;
 
 interface SidebarProps {
@@ -544,11 +544,12 @@ function SidebarMusicSection({
 }
 
 function SidebarDeveloperSection({
-  isOwner,
+  showSettings,
   onItemClick,
   s,
 }: {
-  isOwner: boolean;
+  /** Whether the signed-in role may open the developer settings. */
+  showSettings: boolean;
   onItemClick?: () => void;
   s: SidebarLabels;
 }) {
@@ -584,7 +585,7 @@ function SidebarDeveloperSection({
               />
             )}
           </NavLink>
-          {isOwner && (
+          {showSettings && (
             <NavLink to="/developer/settings" onClick={onItemClick} className="contents">
               {({ isActive }) => (
                 <DashboardSection.Item
@@ -614,8 +615,10 @@ export function Sidebar({
 }: SidebarProps) {
   const messages = dashboardCopy;
   const s = messages.layout.sidebar;
-  const isAdmin = role !== undefined && ROLE_RANK[role] >= ROLE_RANK.admin;
-  const isOwner = role !== undefined && ROLE_RANK[role] === ROLE_RANK.owner;
+  // Each link is shown to exactly the roles its route guard admits.
+  const isAdmin = canAccessArea(role, AdminArea.Administration);
+  const showUsers = canAccessArea(role, AdminArea.Users);
+  const showDeveloperSettings = canAccessArea(role, AdminArea.DeveloperSettings);
   const { data: stats } = useAdminStats();
 
   const [groupStatus, setGroupStatus] = useState<Record<string, boolean>>(() =>
@@ -747,7 +750,7 @@ export function Sidebar({
         )}
 
         {/* Developer */}
-        {isAdmin && <SidebarDeveloperSection isOwner={isOwner} onItemClick={onItemClick} s={s} />}
+        {isAdmin && <SidebarDeveloperSection showSettings={showDeveloperSettings} onItemClick={onItemClick} s={s} />}
 
         {/* System */}
         {isAdmin && (
@@ -758,15 +761,17 @@ export function Sidebar({
                 title={s.sectionSystem}
               />
               <DashboardSection.Body className="!gap-0.5 !p-2">
-                <NavLink to="/users" onClick={onItemClick} className="contents">
-                  {({ isActive }) => (
-                    <DashboardSection.Item
-                      icon={<UsersThreeIcon weight="duotone" className="w-4 h-4" />}
-                      label={s.users}
-                      active={isActive}
-                    />
-                  )}
-                </NavLink>
+                {showUsers && (
+                  <NavLink to="/users" onClick={onItemClick} className="contents">
+                    {({ isActive }) => (
+                      <DashboardSection.Item
+                        icon={<UsersThreeIcon weight="duotone" className="w-4 h-4" />}
+                        label={s.users}
+                        active={isActive}
+                      />
+                    )}
+                  </NavLink>
+                )}
                 <NavLink to="/services" onClick={onItemClick} className="contents">
                   {({ isActive }) => (
                     <DashboardSection.Item

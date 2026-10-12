@@ -14,7 +14,7 @@ import type { DashboardCopy } from "@/copy/dashboard";
 import { dashboardCopy } from "@/copy/dashboard";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
-import { AdminRole, type EditableAdminRole } from "@/shared/constants/domain";
+import { AdminArea, AdminRole, canAccessArea, type EditableAdminRole } from "@/shared/constants/domain";
 import type { AdminUser } from "@/shared/types/admin";
 import { AlertDialog } from "@/shared/ui/AlertDialog";
 import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
@@ -338,7 +338,7 @@ function UserEditCardForm({
   const isError = updateUser.isError || saveAvatar.isError || setGravatar.isError || deleteAvatar.isError;
   const error = updateUser.error ?? saveAvatar.error ?? setGravatar.error ?? deleteAvatar.error;
 
-  const canChangeRole = Boolean(me?.isOwner) && user.id !== me?.id && user.role !== AdminRole.Owner;
+  const canChangeRole = canAccessArea(me?.role, AdminArea.Users) && user.id !== me?.id && user.role !== AdminRole.Owner;
   const roleChanged =
     canChangeRole && draft.role !== (user.role === AdminRole.Moderator ? AdminRole.Moderator : AdminRole.Admin);
   const savedSessionTimeout = user.sessionTimeoutMinutes != null ? String(user.sessionTimeoutMinutes) : "";
