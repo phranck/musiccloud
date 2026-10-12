@@ -163,27 +163,11 @@ export interface ServiceAdapter {
   detectArtistUrl?(url: string): string | null;
   getArtist?(artistId: string): Promise<NormalizedArtist>;
   searchArtist?(query: ArtistSearchQuery): Promise<ArtistMatchResult>;
-
-  // Optional genre-based discovery search (adapters implement as needed).
-  // The generic orchestrator picks whichever adapter declares this.
-  searchByGenre?(input: GenreSearchInput): Promise<GenreSearchResult>;
 }
 
 // ─── Genre-search Types ─────────────────────────────────────────────────────
 
-/** Input to an adapter's genre-based discovery search. */
-export interface GenreSearchInput {
-  /** User-supplied genre names, already parsed. OR-combined. */
-  genres: string[];
-  /** Sampling mode: `"hot"` = top-N, `"mixed"` = stratified random sample. */
-  vibe: "hot" | "mixed";
-  /** Desired count per type. `0` means "don't fetch this type". */
-  tracks: number;
-  albums: number;
-  artists: number;
-}
-
-/** Result of a genre-based discovery search. */
+/** Result of a genre-based discovery search, which runs on Last.fm (`genre-search/lastfm.ts`). */
 export interface GenreSearchResult {
   tracks: NormalizedTrack[];
   albums: NormalizedAlbum[];
