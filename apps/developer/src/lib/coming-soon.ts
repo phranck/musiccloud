@@ -2,11 +2,20 @@
  * @file Self-contained Developer Portal availability pages.
  *
  * Served by `src/middleware.ts` when the persisted portal state is closed or
- * in maintenance. Its only same-origin dependency is the public runtime theme.
+ * in maintenance. Everything the page loads comes from the portal's own
+ * origin, which is all the content policy allows: the public runtime theme,
+ * the self-hosted fonts under `/_astro/` and the analytics script through the
+ * `/api/mc` proxy. The middleware keeps those paths reachable in every state.
  *
  * Styling mirrors `src/styles/global.css` (the night-mode tokens) and the
  * `Wordmark` component, so the maintenance page looks like the live portal.
  */
+
+import { ENDPOINTS } from "@musiccloud/shared";
+import { PORTAL_FONT_FACE_CSS, portalFontPreloadTags } from "./fonts";
+
+/** The Umami website the developer portal's visits are counted under. */
+const DEVELOPER_PORTAL_UMAMI_WEBSITE_ID = "bb2ed9b3-7601-499e-97fa-c3c98a86a67b";
 
 /**
  * The availability pages ship full SEO metadata (description,
@@ -86,20 +95,18 @@ export function renderPortalGateHtml(mode: PortalGateMode): string {
     />
     <meta name="twitter:image" content="https://musiccloud.io/img/developer-og.png" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="/developer-theme.css" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Audiowide&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Umami analytics (developer portal). -->
+    ${portalFontPreloadTags()}
+    <!-- Umami analytics (developer portal), through the portal's own proxy. -->
     <script
       defer
-      src="https://umami.layered.work/script.js"
-      data-website-id="bb2ed9b3-7601-499e-97fa-c3c98a86a67b"
+      src="${ENDPOINTS.frontend.umami}/script.js"
+      data-website-id="${DEVELOPER_PORTAL_UMAMI_WEBSITE_ID}"
+      data-host-url="${ENDPOINTS.frontend.umami}"
     ></script>
     <style>
+      ${PORTAL_FONT_FACE_CSS}
+
       * {
         box-sizing: border-box;
       }

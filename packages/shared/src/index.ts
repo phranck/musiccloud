@@ -36,5 +36,6 @@ export * from "./security-headers.js";
 export * from "./services.js";
 export * from "./site-variables.js";
 export * from "./tier-icons.js";
+export * from "./umami-proxy.js";
 export * from "./utils.js";
 export * from "./vinyl-layout.js";

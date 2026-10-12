@@ -57,13 +57,23 @@ export type SurfaceExposure = (typeof SurfaceExposure)[keyof typeof SurfaceExpos
 const ENFORCED_DIRECTIVES = ["base-uri 'self'", "object-src 'none'", "form-action 'self'"] as const;
 
 /**
+ * Where musiccloud's Umami analytics instance runs.
+ *
+ * No page loads anything from it. The site and the developer portal serve the
+ * script and accept its events through their own `/api/mc` routes, which call
+ * this host server-side, so the policy below needs no entry for it and the
+ * beacons stay clear of the blocklists that drop third-party trackers.
+ */
+export const UMAMI_ORIGIN = "https://umami.layered.work";
+
+/**
  * The policy being worked towards, reported rather than enforced.
  *
  * `img-src` and `media-src` allow any HTTPS origin because artwork and audio
  * previews come from the streaming services' own CDNs, which are numerous and
  * change without notice. Everything else is same-origin: the Umami script is
- * served through the frontend's own `/api/mc` proxy rather than fetched from
- * `umami.layered.work`, so it needs no entry of its own.
+ * served through each host's own `/api/mc` proxy rather than fetched from
+ * {@link UMAMI_ORIGIN}, so it needs no entry of its own.
  */
 const REPORTED_DIRECTIVES = [
   "default-src 'self'",

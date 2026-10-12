@@ -65,8 +65,7 @@ function internalHeaders(extra?: Record<string, string>): Record<string, string>
  *
  * This is the canonical helper for a project-wide rule: any SSR proxy or
  * fetch that re-issues a request must forward the visitor IP, or downstream
- * IP consumers (rate limiter, analytics geo, …) see the pod IP. See
- * `docs/ssr-proxy-x-forwarded-for.md`.
+ * IP consumers (rate limiter, analytics geo, …) see the pod IP.
  */
 function forwardedForExtra(clientIp: string | undefined): Record<string, string> | undefined {
   return clientIp ? { "X-Forwarded-For": clientIp } : undefined;

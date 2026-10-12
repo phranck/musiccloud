@@ -1,5 +1,5 @@
 import { defineMiddleware } from "astro:middleware";
-import { applySecurityHeaders, SurfaceExposure } from "@musiccloud/shared";
+import { applySecurityHeaders, ENDPOINTS, SurfaceExposure } from "@musiccloud/shared";
 
 import { PortalGateMode, renderPortalGateHtml } from "./lib/coming-soon";
 import { getPortalAvailability } from "./lib/portal-availability";
@@ -7,12 +7,20 @@ import { getPortalAvailability } from "./lib/portal-availability";
 const DOCUMENTATION_PATH = "/docs";
 const ALWAYS_REACHABLE_PATHS = new Set(["/developer-theme.css", "/favicon.svg"]);
 
+/**
+ * Whether a path stays reachable whatever state the portal is in.
+ *
+ * The gate pages load the theme, the fonts under `/_astro/` and the analytics
+ * proxy from this origin, so those have to pass the gate, or it would answer
+ * each of them with its own page.
+ */
 function isAlwaysReachable(pathname: string): boolean {
   return (
     ALWAYS_REACHABLE_PATHS.has(pathname) ||
     pathname === DOCUMENTATION_PATH ||
     pathname.startsWith(`${DOCUMENTATION_PATH}/`) ||
-    pathname.startsWith("/_astro/")
+    pathname.startsWith("/_astro/") ||
+    pathname.startsWith(`${ENDPOINTS.frontend.umami}/`)
   );
 }
 

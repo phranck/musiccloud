@@ -200,11 +200,10 @@ export class DynamicRateLimiter {
 // runaway BFF loops. External callers without the key go through the
 // per-IP limiter unchanged.
 //
-// Both pre-conditions are instances of a wider recurring incident class:
-// "an SSR proxy hides the real visitor IP from a downstream consumer". The
-// same root has also broken Umami geo-analytics. See
-// `docs/ssr-proxy-x-forwarded-for.md` for the full incident history and the
-// checklist any new proxy must clear.
+// Both pre-conditions are instances of a wider rule: an SSR proxy that hides
+// the real visitor IP breaks every consumer downstream that reads it, this
+// limiter as much as Umami's geolocation. Any new proxy forwards the visitor
+// IP.
 //
 // Cleanup cadence is 5 minutes: aggressive enough that a burst of unique IPs
 // does not bloat the Map for long, slack enough that cleanup itself is
