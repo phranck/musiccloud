@@ -12,23 +12,24 @@
  *
  * ## Key rules
  *
- * - Keys are case-insensitive. Values preserve their original case (the genre
- *   name matcher does its own normalization downstream).
+ * - Keys are case-insensitive. Values keep their original case and are passed
+ *   on as written.
  * - Whitespace around `:` and `,` is collapsed.
  * - `|` inside a value is the OR separator (only meaningful for `genre`).
  * - If no type-specific count (`tracks`/`albums`/`artists`) is provided, all
  *   three types are requested with the default count of 10. If *any* type is
  *   provided explicitly, only those types are returned — the others become
  *   `null` (not requested).
- * - `count` is a shorthand for "same count across all three types" and is
- *   mutually exclusive with the type-specific keys. `genre: jazz, count: 15`
- *   returns 15 tracks, 15 albums, 15 artists. Combining `count` with any of
- *   `tracks`/`albums`/`artists` is rejected to keep intent unambiguous.
+ * - `count` is a shorthand for the same count across all three types.
+ *   `genre: jazz, count: 15` returns 15 tracks, 15 albums, 15 artists. Combined
+ *   with `tracks`/`albums`/`artists`, the fields apply in the order written,
+ *   so the later one wins per field, and the result carries a warning.
  * - Unknown keys, duplicate keys, missing values, and malformed numbers are
- *   all hard errors — the parser never silently ignores input.
+ *   hard errors. The parser never ignores input silently.
  *
- * The parser does **not** know which genres Deezer supports. That lookup
- * happens in `genre-map.ts`. The parser only enforces syntax.
+ * The parser does **not** know which genres exist. Last.fm tags are
+ * free-form, so every name goes on to the Last.fm search in `lastfm.ts`. The
+ * parser only enforces syntax.
  */
 
 /** Final shape consumed by the genre-search orchestrator. */
@@ -65,8 +66,8 @@ type ValidKey = (typeof VALID_KEYS)[number];
 //
 // Users sometimes forget the comma between fields: `genre: jazz count: 15`.
 // Without help, the parser would read the whole thing as a genre value
-// ("jazz count: 15") and later fail at genre-name resolution with a confusing
-// error. Instead, we pre-scan the raw input for keyword markers that are
+// ("jazz count: 15") and search for a tag of that name instead of jazz.
+// Instead, we pre-scan the raw input for keyword markers that are
 // preceded by whitespace but *not* by a comma and insert the comma ourselves.
 //
 // The regex matches `<whitespace><keyword>:` where the character immediately

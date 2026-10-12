@@ -80,8 +80,6 @@ import type {
   ArtistCapabilities,
   ArtistMatchResult,
   ArtistSearchQuery,
-  GenreSearchInput,
-  GenreSearchResult,
   MatchResult,
   NormalizedAlbum,
   NormalizedArtist,
@@ -90,7 +88,6 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
-import { appleSearchByGenre } from "./genre-search.js";
 
 /**
  * Apple Music URL regex - URL-based flows (detectUrl / detectAlbumUrl).
@@ -307,10 +304,10 @@ export async function assertAppleMusicDeveloperToken(): Promise<void> {
 }
 
 /**
- * Internal HTTP helper shared with sibling files under `plugins/apple-music/*`
- * (notably `genre-search.ts`). Not part of the public adapter surface —
- * exported purely so the split-out genre-search code doesn't have to
- * re-implement JWT handling.
+ * Authenticated request against the Apple Music API. Not part of the public
+ * adapter surface. It is exported for the `apple-music-charts` crawler source
+ * (`services/crawler/sources/apple-music-charts.ts`), which reuses the token
+ * cache and timeout instead of signing its own developer token.
  */
 export async function appleMusicFetch(endpoint: string): Promise<Response> {
   const token = await getDevToken();
@@ -791,13 +788,5 @@ export const appleMusicAdapter: ServiceAdapter = {
       confidence: bestConfidence,
       matchMethod: "search",
     };
-  },
-
-  // --- Genre-search support ---
-  // Thin delegate; all the work lives in `./genre-search.ts` so the main
-  // adapter stays focused on URL-resolve flows.
-
-  async searchByGenre(input: GenreSearchInput): Promise<GenreSearchResult> {
-    return appleSearchByGenre(input);
   },
 };
