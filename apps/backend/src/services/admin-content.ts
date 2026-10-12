@@ -165,6 +165,37 @@ function pagePublications(page: Pick<ContentPageSummaryRow, "slug" | "status" | 
     : legacyFrontendPublication(page.slug, page.status);
 }
 
+/**
+ * The publications a meta update leaves a page with, before they are checked.
+ * The single save and the bulk save both derive them here, so a rename or a
+ * status change moves the same publications on both paths.
+ *
+ * Publications given with the update stand as they are. Otherwise the page's
+ * stored ones carry over: the one at the page's own slug path follows a rename,
+ * and the Frontend one takes a changed status, because the page status is what
+ * a page without context publications was published by.
+ *
+ * @param existing - The page as it is stored.
+ * @param meta - The update's slug, status and publications, where given.
+ * @returns The publications to check and store.
+ */
+export function publicationsForMetaUpdate(
+  existing: Pick<ContentPageSummaryRow, "slug" | "status" | "publications">,
+  meta: { slug?: string; status?: ContentStatus; publications?: ContentPublication[] },
+): ContentPublication[] {
+  if (meta.publications) return meta.publications;
+  const renamedSlug = meta.slug !== undefined && meta.slug !== existing.slug ? meta.slug : null;
+  return pagePublications(existing).map((publication) => {
+    const renamed =
+      renamedSlug !== null && publication.path === normalizeEditorialPath(existing.slug)
+        ? { ...publication, path: normalizeEditorialPath(renamedSlug) }
+        : publication;
+    return meta.status !== undefined && renamed.context === ContentContext.Frontend
+      ? { ...renamed, status: meta.status }
+      : renamed;
+  });
+}
+
 export function contentContextRemovalNavigationError(
   entries: ReadonlyArray<Pick<NavigationConfigurationEntryRow, "pageId" | "contextMask">>,
   pageId: string,
@@ -341,23 +372,12 @@ export async function updateManagedContentPageMeta(
   if (contextualUpdate) {
     const validation = normalizeAndValidateContentPublications(
       contextMask,
-      data.publications ??
-        pagePublications(existing).map((publication) => {
-          const renamed =
-            renamesLegacyPath && publication.path === normalizeEditorialPath(existing.slug)
-              ? { ...publication, path: normalizeEditorialPath(data.slug!) }
-              : publication;
-          return data.status !== undefined && renamed.context === ContentContext.Frontend
-            ? { ...renamed, status: data.status }
-            : renamed;
-        }),
+      publicationsForMetaUpdate(existing, data),
       existing.content,
     );
     if (typeof validation === "string") return { ok: false, code: "INVALID_INPUT", message: validation };
     normalizedPublications = validation;
   }
-  // Detect segmented → default transition so we can clean up orphaned segments.
-  // Also fetch existing row to detect title changes that should bump content_updated_at.
   let row: ContentPageRow;
   try {
     const updated = await repo.updateContentPageMeta(existing.slug, {
@@ -389,13 +409,6 @@ export async function updateManagedContentPageMeta(
     }
     throw error;
   }
-  if (existing?.pageType === "segmented" && row.pageType === "default") {
-    await repo.deleteSegmentsForOwner(row.slug);
-  }
-  // Bump content_updated_at when the canonical title changes.
-  if (data.title !== undefined && existing && data.title !== existing.title) {
-    await repo.setContentPageContentUpdatedAt(row.slug, new Date());
-  }
   const effectiveSlug = row.slug;
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
   const [usernames, segments] = await Promise.all([
@@ -413,7 +426,6 @@ export async function updateManagedContentPageBody(
   const invalidBody = validateContentPageBody(content);
   if (invalidBody) return { ok: false, code: "INVALID_INPUT", message: invalidBody };
   const repo = await getAdminRepository();
-  // Fetch existing row to detect actual content change before updating.
   const existing = await getContentPageByIdentity(repo, identity);
   if (!existing) return { ok: false, code: "NOT_FOUND", message: "Content page not found" };
   const publications = pagePublications(existing);
@@ -431,10 +443,6 @@ export async function updateManagedContentPageBody(
   }
   const row = await repo.updateContentPageBody(existing.slug, content, updatedBy);
   if (!row) return { ok: false, code: "NOT_FOUND", message: "Content page not found" };
-  // Bump content_updated_at only when content actually changed.
-  if (content !== existing.content) {
-    await repo.setContentPageContentUpdatedAt(existing.slug, new Date());
-  }
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
   const [usernames, segments] = await Promise.all([
     repo.getAdminUsernamesByIds(userIds),

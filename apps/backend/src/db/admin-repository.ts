@@ -346,6 +346,8 @@ export interface BulkUpdatePagesPayload {
   pages: Array<{ slug: string; meta?: ContentPageMetaUpdate; content?: string }>;
   segments: Array<{ ownerSlug: string; segments: PageSegmentInputRow[] }>;
   topLevelOrder: string[];
+  /** The admin saving, recorded on every page whose body the save writes. */
+  updatedBy: string | null;
 }
 
 // ----------------------------------------------------------------------------
@@ -927,13 +929,6 @@ export interface AdminRepository {
    * @returns The matching rows.
    */
   bulkUpdatePages(payload: BulkUpdatePagesPayload): Promise<ContentPageSummaryRow[]>;
-  /**
-   * Deletes segments for owner.
-   *
-   * @param ownerSlug - The `ownerSlug` value.
-   * @returns A promise that resolves when the operation completes.
-   */
-  deleteSegmentsForOwner(ownerSlug: string): Promise<void>;
   /** Fetch multiple content pages by slug (published + unpublished). Returns rows in input slugs' order is NOT guaranteed. */
   /**
    * Gets content pages by slugs.
@@ -950,14 +945,4 @@ export interface AdminRepository {
    * @returns The matching rows.
    */
   getPublishedContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]>;
-
-  /** Bump content_pages.content_updated_at (and updated_at) for a given slug. */
-  /**
-   * Sets content page content updated at.
-   *
-   * @param slug - The `slug` value.
-   * @param when - The `when` value.
-   * @returns A promise that resolves when the operation completes.
-   */
-  setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void>;
 }

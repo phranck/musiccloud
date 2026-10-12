@@ -226,7 +226,6 @@ import {
   contentPageSlugExists as contentPagesContentPageSlugExists,
   createContentPage as contentPagesCreateContentPage,
   deleteContentPage as contentPagesDeleteContentPage,
-  deleteSegmentsForOwner as contentPagesDeleteSegmentsForOwner,
   getAdminUsernamesByIds as contentPagesGetAdminUsernamesByIds,
   getContentPageById as contentPagesGetContentPageById,
   getContentPageBySlug as contentPagesGetContentPageBySlug,
@@ -239,7 +238,6 @@ import {
   listSegmentsForOwner as contentPagesListSegmentsForOwner,
   replaceContentPublications as contentPagesReplaceContentPublications,
   replaceSegmentsForOwner as contentPagesReplaceSegmentsForOwner,
-  setContentPageContentUpdatedAt as contentPagesSetContentPageContentUpdatedAt,
   updateContentPageBody as contentPagesUpdateContentPageBody,
   updateContentPageMeta as contentPagesUpdateContentPageMeta,
 } from "./postgres-content-pages.js";
@@ -1019,16 +1017,8 @@ export class PostgresAdapter
     return contentPagesBulkUpdatePages(this.pool, payload);
   }
 
-  setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void> {
-    return contentPagesSetContentPageContentUpdatedAt(this.pool, slug, when);
-  }
-
   listSegmentsForOwner(ownerSlug: string): Promise<PageSegmentRow[]> {
     return contentPagesListSegmentsForOwner(this.pool, ownerSlug);
-  }
-
-  deleteSegmentsForOwner(ownerSlug: string): Promise<void> {
-    return contentPagesDeleteSegmentsForOwner(this.pool, ownerSlug);
   }
 
   replaceSegmentsForOwner(ownerSlug: string, segments: PageSegmentInputRow[]): Promise<PageSegmentRow[]> {
