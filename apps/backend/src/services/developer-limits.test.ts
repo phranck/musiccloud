@@ -5,6 +5,11 @@
  * row, a value somebody typed by hand, or a stored value outside the permitted
  * range all have to resolve to a real limit rather than to none.
  */
+import {
+  isAssignableMaxProjects,
+  MAX_MAX_PROJECTS_PER_ACCOUNT,
+  MIN_MAX_PROJECTS_PER_ACCOUNT,
+} from "@musiccloud/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./site-settings.js", () => ({
@@ -15,9 +20,6 @@ vi.mock("./site-settings.js", () => ({
 import {
   DEFAULT_MAX_PROJECTS_PER_ACCOUNT,
   getMaxProjectsPerAccount,
-  isAssignableMaxProjects,
-  MAX_MAX_PROJECTS_PER_ACCOUNT,
-  MIN_MAX_PROJECTS_PER_ACCOUNT,
   setMaxProjectsPerAccount,
 } from "./developer-limits.js";
 import { getSetting, setSetting } from "./site-settings.js";

@@ -30,6 +30,3 @@ export function toFeatureLabels(features: FormFeatureBullet[]): string[] {
   }
   return labels;
 }
-
-/** The most feature bullets a plan's pricing card carries. */
-export const MAX_FEATURES = 12;

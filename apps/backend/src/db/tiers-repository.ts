@@ -6,14 +6,6 @@
 
 import type { CreemModeValue } from "../lib/creem-config.js";
 
-/** Default tier accent colour (neutral slate) applied when none is supplied. */
-export const DEFAULT_TIER_COLOR = "#64748b";
-
-/** Maximum number of feature bullets shown on a tier's pricing card. */
-export const MAX_TIER_FEATURES = 12;
-/** Maximum length of a single feature bullet. */
-export const MAX_TIER_FEATURE_LABEL_LENGTH = 80;
-
 /**
  * A plan a developer account is on: its limits and how its pricing card looks.
  *
@@ -26,7 +18,7 @@ export interface Tier {
   requestsPerMinute: number;
   requestsPerDay: number;
   attributionRequired: boolean;
-  /** Hex accent colour `#RRGGBB` (validated at the API boundary; default `#64748b`). */
+  /** Accent color `#RRGGBB` as `TIER_COLOR_PATTERN` in the shared package states it, `DEFAULT_TIER_COLOR` when none was chosen. */
   color: string;
   /** Iconsax icon name for the tier (one of the shared `TIER_ICONS`), or `null` for none. */
   icon: string | null;

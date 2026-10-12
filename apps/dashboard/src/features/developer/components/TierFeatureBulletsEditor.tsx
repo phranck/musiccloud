@@ -1,3 +1,4 @@
+import { MAX_TIER_FEATURE_LABEL_LENGTH, MAX_TIER_FEATURES } from "@musiccloud/shared";
 import {
   ArrowDown as ArrowDownIcon,
   ArrowUp as ArrowUpIcon,
@@ -5,7 +6,7 @@ import {
   Trash as TrashIcon,
 } from "@phosphor-icons/react";
 import type { dashboardCopy } from "@/copy/dashboard";
-import { type FormFeatureBullet, MAX_FEATURES, nextFeatureId } from "@/features/developer/featureBullets";
+import { type FormFeatureBullet, nextFeatureId } from "@/features/developer/featureBullets";
 import { FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
 
 interface TierFeatureBulletsEditorProps {
@@ -22,7 +23,7 @@ interface TierFeatureBulletsEditorProps {
  *
  * Renders each feature as a row containing a text input for the label plus
  * up/down reorder buttons and a remove button. An "Add feature" button appends
- * a new empty row; it is disabled once the maximum of 12 is reached.
+ * a new empty row; it is disabled once `MAX_TIER_FEATURES` rows exist.
  *
  * @param features - The current ordered list of feature rows (with local stable ids).
  * @param onChange - Called with a new list whenever the user edits, adds, reorders, or removes a row.
@@ -52,11 +53,11 @@ export function TierFeatureBulletsEditor({ features, onChange, dm }: TierFeature
   }
 
   function handleAdd() {
-    if (features.length >= MAX_FEATURES) return;
+    if (features.length >= MAX_TIER_FEATURES) return;
     onChange([...features, { id: nextFeatureId(), label: "" }]);
   }
 
-  const atMax = features.length >= MAX_FEATURES;
+  const atMax = features.length >= MAX_TIER_FEATURES;
 
   return (
     <div>
@@ -73,7 +74,7 @@ export function TierFeatureBulletsEditor({ features, onChange, dm }: TierFeature
                 className={`${formInputClass} flex-1`}
                 value={feature.label}
                 onChange={(e) => handleLabelChange(feature.id, e.target.value)}
-                maxLength={80}
+                maxLength={MAX_TIER_FEATURE_LABEL_LENGTH}
                 placeholder={dm.featureLabelPlaceholder}
               />
 

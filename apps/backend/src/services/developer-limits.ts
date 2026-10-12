@@ -8,6 +8,7 @@
  * that enforces a limit and the screen that sets it cannot disagree about what
  * it is or what happens when it has never been set.
  */
+import { isAssignableMaxProjects } from "@musiccloud/shared";
 import { getSetting, setSetting } from "./site-settings.js";
 
 /** Where the per-account project ceiling is stored. */
@@ -31,10 +32,6 @@ export const MAX_REGISTRATIONS_PER_PROJECT = 5;
  */
 export const DEFAULT_MAX_PROJECTS_PER_ACCOUNT = 3;
 
-/** The narrowest and widest values the setting accepts. */
-export const MIN_MAX_PROJECTS_PER_ACCOUNT = 1;
-export const MAX_MAX_PROJECTS_PER_ACCOUNT = 1000;
-
 /**
  * How many projects one account may hold.
  *
@@ -52,16 +49,6 @@ export async function getMaxProjectsPerAccount(): Promise<number> {
   // falls back to a stated default.
   const parsed = Number(stored);
   return isAssignableMaxProjects(parsed) ? parsed : DEFAULT_MAX_PROJECTS_PER_ACCOUNT;
-}
-
-/**
- * Whether a value may be stored as the ceiling.
- *
- * @param value - The candidate, already parsed.
- * @returns `true` when it is a whole number inside the permitted range.
- */
-export function isAssignableMaxProjects(value: number): boolean {
-  return Number.isInteger(value) && value >= MIN_MAX_PROJECTS_PER_ACCOUNT && value <= MAX_MAX_PROJECTS_PER_ACCOUNT;
 }
 
 /**

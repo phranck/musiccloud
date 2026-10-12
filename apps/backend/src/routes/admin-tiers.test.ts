@@ -89,7 +89,18 @@ beforeEach(async () => {
   vi.clearAllMocks();
   app = await buildApp();
   mockAdminRepo.findAdminById.mockResolvedValue({ id: "admin-1", role: "admin" });
+  mockTierRepo.listTiers.mockResolvedValue([freeTier]);
 });
+
+/** Sends a new plan with the required fields and whatever `extra` adds or overrides. */
+function postTier(extra: Record<string, unknown>) {
+  return app.inject({
+    method: "POST",
+    url: ENDPOINTS.admin.developer.tiers,
+    headers: { authorization: `Bearer ${bearerToken()}` },
+    payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, ...extra },
+  });
+}
 
 describe("GET /api/admin/developer/tiers", () => {
   it("returns the tier list sorted by sort_order", async () => {
@@ -328,10 +339,42 @@ describe("POST /api/admin/developer/tiers", () => {
         name: "Pro",
         requestsPerMinute: 120,
         requestsPerDay: 50000,
-        features: [42],
+        features: ["   "],
       },
     });
     expect(bad.statusCode).toBe(400);
+  });
+
+  it("refuses a limit that is not a number before it reaches the database", async () => {
+    const res = await postTier({ requestsPerMinute: "abc" });
+
+    expect(res.statusCode).toBe(400);
+    expect(mockTierRepo.createTier).not.toHaveBeenCalled();
+  });
+
+  it("refuses a fractional limit", async () => {
+    const res = await postTier({ requestsPerDay: 1.5 });
+
+    expect(res.statusCode).toBe(400);
+    expect(mockTierRepo.createTier).not.toHaveBeenCalled();
+  });
+
+  it("refuses a color of eight hex digits, which the portal would paint but the plan cannot store", async () => {
+    expect((await postTier({ color: "#64748bff" })).statusCode).toBe(400);
+  });
+
+  it("refuses a name over 60 characters and a name of only spaces", async () => {
+    expect((await postTier({ name: "x".repeat(61) })).statusCode).toBe(400);
+    expect((await postTier({ name: "   " })).statusCode).toBe(400);
+    expect(mockTierRepo.createTier).not.toHaveBeenCalled();
+  });
+
+  it("answers a name another plan has as a conflict", async () => {
+    const res = await postTier({ name: freeTier.name });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe("MC-REQ-0002");
+    expect(mockTierRepo.createTier).not.toHaveBeenCalled();
   });
 });
 
@@ -368,6 +411,54 @@ describe("PATCH /api/admin/developer/tiers/:id", () => {
       payload: { recommended: "yes" },
     });
     expect(bad.statusCode).toBe(400);
+  });
+
+  it("answers a name another plan has as a conflict, and keeps a plan's own name", async () => {
+    const proTier = { ...freeTier, id: "tier_pro", name: "Pro" };
+    mockTierRepo.listTiers.mockResolvedValue([freeTier, proTier]);
+    mockTierRepo.updateTier.mockResolvedValue(proTier);
+
+    const taken = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.admin.developer.tierDetail("tier_pro"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: freeTier.name },
+    });
+    expect(taken.statusCode).toBe(409);
+    expect(taken.json().error).toBe("MC-REQ-0002");
+
+    const own = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.admin.developer.tierDetail("tier_pro"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro" },
+    });
+    expect(own.statusCode).toBe(200);
+    expect(mockTierRepo.updateTier).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a limit that is not a number", async () => {
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.admin.developer.tierDetail("tier_free"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { requestsPerMinute: "abc" },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(mockTierRepo.updateTier).not.toHaveBeenCalled();
+  });
+
+  it("answers a plan that does not exist as missing", async () => {
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.admin.developer.tierDetail("tier_gone"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Gone" },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(mockTierRepo.updateTier).not.toHaveBeenCalled();
   });
 });
 

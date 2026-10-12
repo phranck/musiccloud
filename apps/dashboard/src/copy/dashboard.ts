@@ -1,3 +1,5 @@
+import { MAX_TIER_FEATURES } from "@musiccloud/shared";
+
 export const dashboardCopy = {
   common: {
     ok: "OK",
@@ -242,7 +244,6 @@ export const dashboardCopy = {
     colKey: "API Key",
     tiersTitle: "Plans",
     tierCreate: "Create plan",
-    tierEdit: "Edit plan",
     tierDeleteTitle: "Delete plan",
     tierDeleteConfirm: "Are you sure you want to delete this plan?",
     colName: "Name",
@@ -270,7 +271,7 @@ export const dashboardCopy = {
     featureMoveUp: "Move up",
     featureMoveDown: "Move down",
     featureRemove: "Remove",
-    featureMaxReached: "Maximum of 12 features allowed.",
+    featureMaxReached: `Maximum of ${MAX_TIER_FEATURES} features allowed.`,
     creemTitle: "Creem products",
     creemIntro:
       "What a customer actually pays is the Creem product's price, and the pricing page follows it. Every offer above gets one product per environment here, and a changed offer price reaches Creem once it is applied here.",
@@ -299,8 +300,8 @@ export const dashboardCopy = {
     planLimitsTitle: "Limits",
     planNotFound: "Plan not found",
     planNotFoundHint: "It may have been removed. Go back to the plan list to see what is there.",
-    planColorInvalid: "A colour is six hex digits after a hash, such as #00a8ff.",
-    planLimitsInvalid: "Both limits have to be at least one request.",
+    planColorInvalid: "A color is six hex digits after a hash, such as #00a8ff.",
+    planLimitsInvalid: "Both limits have to be whole numbers of at least one request.",
     offersTitle: "Offers",
     offersDescription:
       "What this plan costs, one row per thing a customer can buy. An offer is exactly what Creem calls a product, so what stands here is what reaches Creem.",

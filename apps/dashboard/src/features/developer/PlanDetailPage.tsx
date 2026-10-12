@@ -1,4 +1,11 @@
 import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  isTierColor,
+  isTierRequestLimit,
+  MAX_TIER_BUTTON_LABEL_LENGTH,
+  MAX_TIER_DESCRIPTION_LENGTH,
+  MAX_TIER_NAME_LENGTH,
+} from "@musiccloud/shared";
 import { Gauge as GaugeIcon, ListBullets as ListBulletsIcon, Stack as StackIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useParams } from "react-router";
@@ -20,9 +27,6 @@ import { FormLabel, formInputClass, formTextareaClass } from "@/shared/ui/FormPr
 
 const messages = dashboardCopy;
 const dm = messages.developer;
-
-/** Matches a 6-digit hex colour like `#RRGGBB`. */
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 /** What the plan cards edit, which is every column except the identifier. */
 interface PlanForm {
@@ -106,8 +110,8 @@ export function PlanDetailPage() {
   const plan = tier;
   const form = draft ?? toForm(plan);
   const nameUsable = form.name.trim().length > 0;
-  const colorUsable = HEX_COLOR_RE.test(form.color);
-  const limitsUsable = form.requestsPerMinute >= 1 && form.requestsPerDay >= 1;
+  const colorUsable = isTierColor(form.color);
+  const limitsUsable = isTierRequestLimit(form.requestsPerMinute) && isTierRequestLimit(form.requestsPerDay);
   const savable = nameUsable && colorUsable && limitsUsable && !updateTier.isPending;
 
   function change(patch: Partial<PlanForm>) {
@@ -171,7 +175,7 @@ export function PlanDetailPage() {
                     className={formInputClass}
                     value={form.name}
                     onChange={(event) => change({ name: event.target.value })}
-                    maxLength={60}
+                    maxLength={MAX_TIER_NAME_LENGTH}
                   />
                 </div>
                 <div className="flex items-end gap-3">
@@ -202,7 +206,7 @@ export function PlanDetailPage() {
                     className={formTextareaClass}
                     value={form.description}
                     onChange={(event) => change({ description: event.target.value })}
-                    maxLength={500}
+                    maxLength={MAX_TIER_DESCRIPTION_LENGTH}
                   />
                 </div>
                 <TierIconPicker
@@ -233,7 +237,7 @@ export function PlanDetailPage() {
                     className={formInputClass}
                     value={form.buttonLabel}
                     onChange={(event) => change({ buttonLabel: event.target.value })}
-                    maxLength={40}
+                    maxLength={MAX_TIER_BUTTON_LABEL_LENGTH}
                     placeholder={dm.colButtonLabelPlaceholder}
                   />
                 </div>

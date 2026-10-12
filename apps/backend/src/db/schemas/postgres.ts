@@ -1,4 +1,4 @@
-import type { VinylLayout } from "@musiccloud/shared";
+import { DEFAULT_TIER_COLOR, type VinylLayout } from "@musiccloud/shared";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -2173,7 +2173,7 @@ export const tiers = pgTable(
     requestsPerMinute: integer("requests_per_minute").notNull(),
     requestsPerDay: integer("requests_per_day").notNull(),
     attributionRequired: boolean("attribution_required").notNull().default(false),
-    color: text("color").notNull().default("#64748b"),
+    color: text("color").notNull().default(DEFAULT_TIER_COLOR),
     icon: text("icon"),
     buttonLabel: text("button_label"),
     description: text("description").notNull().default(""),

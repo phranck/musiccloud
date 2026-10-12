@@ -11,6 +11,9 @@
  * 256 icons, grouped by theme purely for readability. The order also drives the
  * picker's grid order. Crypto coins, brand logos and zodiac signs are
  * deliberately excluded.
+ *
+ * A plan's accent color rule and its default live here as well, beside the
+ * icon, because the backend, the dashboard and the portal each read both.
  */
 
 /**
@@ -304,4 +307,20 @@ export type TierIconName = (typeof TIER_ICONS)[number];
 /** Runtime guard: whether `value` is a selectable tier icon name. */
 export function isTierIconName(value: unknown): value is TierIconName {
   return typeof value === "string" && (TIER_ICONS as readonly string[]).includes(value);
+}
+
+/** The accent color a plan has when none was chosen, a neutral slate. */
+export const DEFAULT_TIER_COLOR = "#64748b";
+
+/** A plan's accent color: exactly six hex digits after `#`. */
+export const TIER_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+
+/**
+ * Whether `value` is a plan accent color the backend stores.
+ *
+ * The dashboard checks a color with this before it sends one, and the portal
+ * before it paints one, so neither accepts a value the other refuses.
+ */
+export function isTierColor(value: unknown): value is string {
+  return typeof value === "string" && TIER_COLOR_PATTERN.test(value);
 }

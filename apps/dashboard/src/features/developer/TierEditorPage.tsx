@@ -7,6 +7,14 @@ import {
   DataTableScroll,
 } from "@musiccloud/dashboard-ui";
 import {
+  DEFAULT_TIER_COLOR,
+  isTierRequestLimit,
+  MAX_TIER_BUTTON_LABEL_LENGTH,
+  MAX_TIER_DESCRIPTION_LENGTH,
+  MAX_TIER_DISABLE_REASON_LENGTH,
+  MAX_TIER_NAME_LENGTH,
+} from "@musiccloud/shared";
+import {
   CheckCircle as CheckCircleIcon,
   PencilSimple as PencilSimpleIcon,
   PlusCircle as PlusCircleIcon,
@@ -28,8 +36,8 @@ import { dashboardCopy } from "@/copy/dashboard";
 import type { TierListItem, TierResponse } from "@/features/developer/api";
 import { TierFeatureBulletsEditor } from "@/features/developer/components/TierFeatureBulletsEditor";
 import { TierIconGlyph, TierIconPicker } from "@/features/developer/components/TierIconPicker";
-import { type FormFeatureBullet, toFormFeatures } from "@/features/developer/featureBullets";
-import { useCreateTier, useDeleteTier, useTiers, useUpdateTier } from "@/features/developer/hooks/useDeveloperData";
+import { type FormFeatureBullet, toFeatureLabels } from "@/features/developer/featureBullets";
+import { useCreateTier, useDeleteTier, useTiers } from "@/features/developer/hooks/useDeveloperData";
 import { formatOfferPrice, periodLabel } from "@/features/developer/offerFormat";
 import { FormLabel, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
 
@@ -37,12 +45,7 @@ import { FormLabel, formInputClass, formTextareaClass } from "@/shared/ui/FormPr
 // Tier form data & validation
 // -----------------------------------------------------------------------------
 
-/**
- * Form-local representation of a single feature label with a stable `id`
- * used as the React list key and for reordering. The `id` is never sent to
- * the backend; it is assigned when populating the form from server data or
- * when the user adds a new row.
- */
+/** What the create dialog edits, before it becomes the body of a new plan. */
 interface TierFormData {
   name: string;
   requestsPerMinute: number;
@@ -56,7 +59,7 @@ interface TierFormData {
   disableReason: string;
   recommended: boolean;
   sortOrder: number;
-  /** Ordered feature bullets for the public pricing card. At most 12 entries. */
+  /** Ordered feature bullets for the public pricing card, at most `MAX_TIER_FEATURES`. */
   features: FormFeatureBullet[];
 }
 
@@ -65,7 +68,7 @@ const EMPTY_FORM: TierFormData = {
   requestsPerMinute: 60,
   requestsPerDay: 10000,
   attributionRequired: false,
-  color: "#64748b",
+  color: DEFAULT_TIER_COLOR,
   icon: null,
   buttonLabel: "",
   description: "",
@@ -77,8 +80,6 @@ const EMPTY_FORM: TierFormData = {
   sortOrder: 0,
   features: [],
 };
-
-/** Maximum number of feature bullets the backend accepts per tier. */
 
 function toSubmitBody(data: TierFormData) {
   return {
@@ -94,20 +95,15 @@ function toSubmitBody(data: TierFormData) {
     disableReason: data.disableReason,
     recommended: data.recommended,
     sortOrder: data.sortOrder,
-    // Strip rows whose label is blank so the backend never receives an empty label.
-    features: data.features.reduce<string[]>((acc, f) => {
-      const label = f.label.trim();
-      if (label !== "") acc.push(label);
-      return acc;
-    }, []),
+    features: toFeatureLabels(data.features),
   };
 }
 
 function validateForm(data: TierFormData): Partial<Record<keyof TierFormData, string>> {
   const errs: Partial<Record<keyof TierFormData, string>> = {};
   if (!data.name.trim()) errs.name = "Name is required";
-  if (data.requestsPerMinute < 1) errs.requestsPerMinute = "Must be > 0";
-  if (data.requestsPerDay < 1) errs.requestsPerDay = "Must be > 0";
+  if (!isTierRequestLimit(data.requestsPerMinute)) errs.requestsPerMinute = "Must be a whole number > 0";
+  if (!isTierRequestLimit(data.requestsPerDay)) errs.requestsPerDay = "Must be a whole number > 0";
   return errs;
 }
 
@@ -117,7 +113,6 @@ function validateForm(data: TierFormData): Partial<Record<keyof TierFormData, st
 
 interface TierEditorState {
   dialogOpen: boolean;
-  editingTier: TierResponse | null;
   form: TierFormData;
   errors: Partial<Record<keyof TierFormData, string>>;
   /** What the server refused the last save with, or `null` when it did not. */
@@ -127,7 +122,6 @@ interface TierEditorState {
 
 const TierEditorActionType = {
   OpenCreate: "OPEN_CREATE",
-  OpenEdit: "OPEN_EDIT",
   CloseDialog: "CLOSE_DIALOG",
   SetForm: "SET_FORM",
   SetErrors: "SET_ERRORS",
@@ -138,7 +132,6 @@ const TierEditorActionType = {
 
 type TierEditorAction =
   | { type: typeof TierEditorActionType.OpenCreate }
-  | { type: typeof TierEditorActionType.OpenEdit; tier: TierResponse }
   | { type: typeof TierEditorActionType.CloseDialog }
   | { type: typeof TierEditorActionType.SetForm; patch: Partial<TierFormData> }
   | { type: typeof TierEditorActionType.SetErrors; errors: Partial<Record<keyof TierFormData, string>> }
@@ -166,30 +159,7 @@ function saveErrorMessage(error: unknown, cm: (typeof dashboardCopy)["common"]):
 function tierEditorReducer(state: TierEditorState, action: TierEditorAction): TierEditorState {
   switch (action.type) {
     case TierEditorActionType.OpenCreate:
-      return { ...state, dialogOpen: true, editingTier: null, form: EMPTY_FORM, errors: {}, saveError: null };
-    case TierEditorActionType.OpenEdit:
-      return {
-        ...state,
-        dialogOpen: true,
-        editingTier: action.tier,
-        form: {
-          name: action.tier.name,
-          requestsPerMinute: action.tier.requestsPerMinute,
-          requestsPerDay: action.tier.requestsPerDay,
-          attributionRequired: action.tier.attributionRequired,
-          color: action.tier.color,
-          icon: action.tier.icon,
-          buttonLabel: action.tier.buttonLabel ?? "",
-          description: action.tier.description,
-          enabled: action.tier.enabled,
-          disableReason: action.tier.disableReason,
-          recommended: action.tier.recommended,
-          sortOrder: action.tier.sortOrder,
-          features: toFormFeatures(action.tier.features ?? []),
-        },
-        errors: {},
-        saveError: null,
-      };
+      return { ...state, dialogOpen: true, form: EMPTY_FORM, errors: {}, saveError: null };
     case TierEditorActionType.CloseDialog:
       return { ...state, dialogOpen: false };
     case TierEditorActionType.SetForm:
@@ -208,12 +178,11 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
 }
 
 // -----------------------------------------------------------------------------
-// Tier form dialog (create / edit)
+// Tier create dialog
 // -----------------------------------------------------------------------------
 
 interface TierFormDialogProps {
   open: boolean;
-  editingTier: TierResponse | null;
   form: TierFormData;
   errors: Partial<Record<keyof TierFormData, string>>;
   /** What the server refused the last save with, shown beside the actions. */
@@ -226,17 +195,17 @@ interface TierFormDialogProps {
 }
 
 /**
- * Modal form for creating or editing a single API tier.
+ * Modal form for creating a single API tier.
  *
  * Renders inputs for name, a free-text description, per-minute / per-day request
- * limits, an attribution-required toggle and a sort order. What the plan costs
- * is entered as offers on the plan's own page, which opens once it is created.
- * The dialog is presentational: validation errors are passed in via `errors`
- * and all state changes are surfaced through the `onFormChange` / `onSave`
- * callbacks.
+ * limits, an attribution-required toggle and a sort order. What the plan costs,
+ * and every later change to it, is entered on the plan's own page, which opens
+ * once the plan is created. Each text field stops at the length the
+ * backend accepts. The dialog is presentational: validation errors are passed
+ * in via `errors` and all state changes are surfaced through the
+ * `onFormChange` / `onSave` callbacks.
  *
  * @param open - Whether the dialog is visible.
- * @param editingTier - The tier being edited, or `null` for create mode (drives title and submit label).
  * @param form - Current form values.
  * @param errors - Per-field validation messages to display.
  * @param saveError - What the server refused the last save with, or `null`.
@@ -246,23 +215,12 @@ interface TierFormDialogProps {
  * @param onFormChange - Invoked with a partial patch whenever a field changes.
  * @param onSave - Invoked when the user confirms create/save.
  */
-function TierFormDialog({
-  open,
-  editingTier,
-  form,
-  errors,
-  saveError,
-  dm,
-  cm,
-  onClose,
-  onFormChange,
-  onSave,
-}: TierFormDialogProps) {
+function TierFormDialog({ open, form, errors, saveError, dm, cm, onClose, onFormChange, onSave }: TierFormDialogProps) {
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title={editingTier ? dm.tierEdit : dm.tierCreate}
+      title={dm.tierCreate}
       titleIcon={<StackIcon weight="duotone" className={dialogHeaderIconClass} />}
       maxWidth="sm"
     >
@@ -278,6 +236,7 @@ function TierFormDialog({
                 className={formInputClass}
                 value={form.name}
                 onChange={(e) => onFormChange({ name: e.target.value })}
+                maxLength={MAX_TIER_NAME_LENGTH}
                 placeholder="e.g. Pro"
               />
               {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
@@ -308,7 +267,7 @@ function TierFormDialog({
                   className={formTextareaClass}
                   value={form.disableReason}
                   onChange={(e) => onFormChange({ disableReason: e.target.value })}
-                  maxLength={200}
+                  maxLength={MAX_TIER_DISABLE_REASON_LENGTH}
                   placeholder="e.g. Replaced by the new Pro plan."
                 />
               </div>
@@ -324,7 +283,7 @@ function TierFormDialog({
             className={formTextareaClass}
             value={form.description}
             onChange={(e) => onFormChange({ description: e.target.value })}
-            maxLength={500}
+            maxLength={MAX_TIER_DESCRIPTION_LENGTH}
             placeholder="e.g. For hobby projects and evaluation."
           />
         </div>
@@ -409,7 +368,7 @@ function TierFormDialog({
             className={formInputClass}
             value={form.buttonLabel}
             onChange={(e) => onFormChange({ buttonLabel: e.target.value })}
-            maxLength={40}
+            maxLength={MAX_TIER_BUTTON_LABEL_LENGTH}
             placeholder={dm.colButtonLabelPlaceholder}
           />
         </div>
@@ -431,12 +390,7 @@ function TierFormDialog({
           type="button"
           variant={DashboardButtonVariant.Neutral}
         />
-        <DashboardActionButton
-          action={DashboardActionId.Save}
-          label={editingTier ? cm.save : cm.create}
-          onClick={onSave}
-          type="button"
-        />
+        <DashboardActionButton action={DashboardActionId.Save} label={cm.create} onClick={onSave} type="button" />
         {saveError && (
           <p role="alert" className="mr-auto text-sm text-[var(--ds-danger-text)]">
             {saveError}
@@ -649,8 +603,8 @@ function useTierColumns(
 /**
  * Admin page for managing API rate-limit tiers.
  *
- * Lists all tiers in a sortable table and provides create, edit and delete
- * flows via modal dialogs. While the tiers query is loading the page shows a
+ * Lists all tiers in a sortable table, creates and deletes them through modal
+ * dialogs, and opens a tier's own page to edit it. While the tiers query is loading the page shows a
  * neutral {@link ContentLoadingView}; once settled it renders either the empty
  * state ({@link ContentUnavailableView}) or the populated table.
  */
@@ -661,11 +615,9 @@ export function TierEditorPage() {
   const { data: tiers, isLoading } = useTiers();
   const navigate = useNavigate();
   const createTier = useCreateTier();
-  const _updateTier = useUpdateTier();
   const deleteTier = useDeleteTier();
   const [state, dispatch] = useReducer(tierEditorReducer, {
     dialogOpen: false,
-    editingTier: null,
     form: EMPTY_FORM,
     errors: {},
     saveError: null,
@@ -687,18 +639,13 @@ export function TierEditorPage() {
       dispatch({ type: TierEditorActionType.SetErrors, errors: errs });
       return;
     }
-    const outcome = {
-      onSuccess: () => dispatch({ type: TierEditorActionType.CloseDialog }),
-      onError: (error: unknown) =>
-        dispatch({ type: TierEditorActionType.SaveFailed, message: saveErrorMessage(error, cm) }),
-    };
-
     createTier.mutate(toSubmitBody(state.form), {
-      ...outcome,
       onSuccess: (created) => {
         dispatch({ type: TierEditorActionType.CloseDialog });
         navigate(`/developer/plans/${created.id}`);
       },
+      onError: (error: unknown) =>
+        dispatch({ type: TierEditorActionType.SaveFailed, message: saveErrorMessage(error, cm) }),
     });
   }
 
@@ -754,7 +701,6 @@ export function TierEditorPage() {
 
       <TierFormDialog
         open={state.dialogOpen}
-        editingTier={state.editingTier}
         form={state.form}
         errors={state.errors}
         saveError={state.saveError}
