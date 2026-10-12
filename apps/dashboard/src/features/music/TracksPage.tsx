@@ -24,6 +24,7 @@ import { dashboardCopy } from "@/copy/dashboard";
 import { AdminListSearchField } from "@/features/music/AdminListSearchField";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { InfiniteAdminTable } from "@/features/music/InfiniteAdminTable";
+import { linkCountColumn } from "@/features/music/linkCountColumn";
 import { formatEnglishDate } from "@/lib/format";
 import { SHARE_BASE } from "@/lib/shareBase";
 import { Checkbox } from "@/shared/ui/Checkbox";
@@ -133,18 +134,7 @@ function useTrackColumns(
         className: "w-32",
         cell: (track) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">{track.isrc ?? ""}</span>,
       },
-      {
-        id: "links",
-        header: mc.links,
-        className: "w-24",
-        headerClassName: "w-24 text-right",
-        cellClassName: "w-24 text-right",
-        cell: (track) => (
-          <span className="inline-block min-w-6 px-1.5 py-0.5 rounded text-xs font-medium text-center border border-[var(--ds-border)] text-[var(--ds-text)]">
-            {track.linkCount}
-          </span>
-        ),
-      },
+      linkCountColumn<TrackListItem>(mc.links),
       {
         id: "createdAt",
         header: mc.added,

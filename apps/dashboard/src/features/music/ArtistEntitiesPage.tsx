@@ -19,7 +19,7 @@ type ArtistEntityMessages = (typeof dashboardCopy)["music"]["artistEntities"];
 type MusicColumnMessages = (typeof dashboardCopy)["music"]["columns"];
 
 /** The classes of a right-aligned count column, header and cells alike, wide enough for its heading on one line. */
-const COUNT_COLUMN_CLASS = "w-44 text-right tabular-nums";
+const COUNT_COLUMN_CLASS = "w-28 text-right tabular-nums";
 
 function useArtistEntityColumns(
   me: ArtistEntityMessages,
@@ -50,7 +50,7 @@ function useArtistEntityColumns(
       {
         id: "verificationStatus",
         header: me.colStatus,
-        className: "w-32",
+        className: "w-28",
         serverSort: "verification_status",
         cell: (entity) => <span className="text-sm">{me.statuses[entity.verificationStatus]}</span>,
       },

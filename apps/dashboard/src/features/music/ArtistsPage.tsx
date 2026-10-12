@@ -23,6 +23,7 @@ import { AdminListSearchField } from "@/features/music/AdminListSearchField";
 import { ArtistProfileCacheStatus } from "@/features/music/ArtistProfileCacheStatus";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { InfiniteAdminTable } from "@/features/music/InfiniteAdminTable";
+import { linkCountColumn } from "@/features/music/linkCountColumn";
 import { RefreshArtistProfileButton } from "@/features/music/RefreshArtistProfileButton";
 import { ReResolveArtistButton } from "@/features/music/ReResolveArtistButton";
 import { formatEnglishDate } from "@/lib/format";
@@ -124,21 +125,11 @@ function useArtistColumns(
             </span>
           ) : null,
       },
-      {
-        id: "links",
-        header: mc.links,
-        className: "w-24",
-        headerClassName: "w-24 text-right",
-        cellClassName: "w-24 text-right",
-        cell: (artist) => (
-          <span className="inline-block min-w-6 px-1.5 py-0.5 rounded text-xs font-medium text-center border border-[var(--ds-border)] text-[var(--ds-text)]">
-            {artist.linkCount}
-          </span>
-        ),
-      },
+      linkCountColumn<AdminArtistListItem>(mc.links),
       {
         id: "profileCache",
         header: ma.colProfileCache,
+        className: "w-40",
         cell: (artist) => <ArtistProfileCacheStatus status={artist.profileCache} />,
       },
       {

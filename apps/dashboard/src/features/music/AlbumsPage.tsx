@@ -22,6 +22,7 @@ import { dashboardCopy } from "@/copy/dashboard";
 import { AdminListSearchField } from "@/features/music/AdminListSearchField";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { InfiniteAdminTable } from "@/features/music/InfiniteAdminTable";
+import { linkCountColumn } from "@/features/music/linkCountColumn";
 import { formatEnglishDate } from "@/lib/format";
 import { SHARE_BASE } from "@/lib/shareBase";
 import { Checkbox } from "@/shared/ui/Checkbox";
@@ -142,18 +143,7 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMe
         cellClassName: "w-24 text-right",
         cell: (album) => <span className="text-sm text-[var(--ds-text-muted)]">{album.totalTracks ?? ""}</span>,
       },
-      {
-        id: "links",
-        header: mc.links,
-        className: "w-24",
-        headerClassName: "w-24 text-right",
-        cellClassName: "w-24 text-right",
-        cell: (album) => (
-          <span className="inline-block min-w-6 px-1.5 py-0.5 rounded text-xs font-medium text-center border border-[var(--ds-border)] text-[var(--ds-text)]">
-            {album.linkCount}
-          </span>
-        ),
-      },
+      linkCountColumn<AlbumListItem>(mc.links),
       {
         id: "createdAt",
         header: mc.added,

@@ -223,6 +223,10 @@ function DataTableViewport({ scroll = DataTableScroll.Ancestor, className = "", 
  * The header row, carrying the sort control and the resize handle of each
  * column.
  *
+ * A heading never wraps, because a reader scans along the headings to find a
+ * column and a two-line heading costs them that line. Under the table's fixed
+ * layout a column therefore has to be wide enough for its heading.
+ *
  * @param sticky - Whether the header holds the top edge of the scroll port
  *   whilst the rows pass underneath.
  */
@@ -239,7 +243,7 @@ function DataTableHead({ sticky = false }: { sticky?: boolean }) {
             <th
               key={column.id}
               aria-sort={sortable ? getTableSortAriaSort(direction) : undefined}
-              className={`section-header px-4 ${column.headerClassName ?? column.className ?? ""} ${
+              className={`section-header whitespace-nowrap px-4 ${column.headerClassName ?? column.className ?? ""} ${
                 sortable ? "select-none" : ""
               }`}
               style={
