@@ -34,10 +34,10 @@
  * handles Unicode fine) but produce downstream noise when logs mix
  * scripts. The preference hint does not change the schema content.
  */
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -47,6 +47,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { throwIfNoCandidateAnswered } from "../_shared/candidates.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
@@ -117,7 +118,10 @@ function parseJsonLd(html: string): MelonJsonLd | null {
 async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   const url = `https://www.melon.com/song/detail.htm?songId=${songId}`;
   const response = await melonFetch(url);
-  if (!response.ok) return null;
+  // Melon answers a song it does not have with 200 and a page without
+  // metadata. A 404 means the same; any other error status is a failure.
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.Melon, response.status, ResourceKind.Track, songId);
 
   const html = await response.text();
 
@@ -166,7 +170,10 @@ async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
 async function searchForSongIds(query: string): Promise<string[]> {
   const searchUrl = `https://www.melon.com/search/song/index.htm?q=${encodeURIComponent(query)}`;
   const response = await melonFetch(searchUrl);
-  if (!response.ok) return [];
+  // A search without results answers 200 with no song ids.
+  if (!response.ok) {
+    throw serviceHttpError(Service.Melon, response.status, ResourceKind.Track, query, Operation.Search);
+  }
 
   const html = await response.text();
 
@@ -200,7 +207,8 @@ function parseMelonAlbumJsonLd(html: string): MelonAlbumJsonLd | null {
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const url = `https://www.melon.com/album/detail.htm?albumId=${albumId}`;
   const response = await melonFetch(url);
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.Melon, response.status, ResourceKind.Album, albumId);
 
   const html = await response.text();
 
@@ -249,7 +257,9 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
 async function searchMelonAlbumIds(query: string): Promise<string[]> {
   const searchUrl = `https://www.melon.com/search/album/index.htm?q=${encodeURIComponent(query)}`;
   const response = await melonFetch(searchUrl);
-  if (!response.ok) return [];
+  if (!response.ok) {
+    throw serviceHttpError(Service.Melon, response.status, ResourceKind.Album, query, Operation.Search);
+  }
 
   const html = await response.text();
   const albumIds: string[] = [];
@@ -294,54 +304,50 @@ export const melonAdapter: ServiceAdapter = {
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = searchText(query);
 
-    try {
-      const songIds = await searchForSongIds(q);
-      if (songIds.length === 0) {
-        log.debug("Melon", "Search returned no song IDs for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Melon", `Search returned ${songIds.length} IDs for: ${q}`);
-
-      // Fetch track pages in parallel
-      const trackResults = await Promise.allSettled(songIds.map((id) => fetchTrackById(id)));
-
-      let bestMatch: NormalizedTrack | null = null;
-      let bestConfidence = 0;
-
-      for (let i = 0; i < trackResults.length; i++) {
-        const result = trackResults[i];
-        if (result.status !== "fulfilled" || !result.value) continue;
-
-        const track = result.value;
-        const confidence = scoreSearchCandidate(query, track, i);
-
-        log.debug(
-          "Melon",
-          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-        );
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        log.debug("Melon", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return {
-        found: true,
-        track: bestMatch,
-        confidence: bestConfidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("Melon", "Search failed:", error instanceof Error ? error.message : error);
+    const songIds = await searchForSongIds(q);
+    if (songIds.length === 0) {
+      log.debug("Melon", "Search returned no song IDs for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Melon", `Search returned ${songIds.length} IDs for: ${q}`);
+
+    // Fetch track pages in parallel
+    const trackResults = await Promise.allSettled(songIds.map((id) => fetchTrackById(id)));
+    throwIfNoCandidateAnswered(trackResults);
+
+    let bestMatch: NormalizedTrack | null = null;
+    let bestConfidence = 0;
+
+    for (let i = 0; i < trackResults.length; i++) {
+      const result = trackResults[i];
+      if (result.status !== "fulfilled" || !result.value) continue;
+
+      const track = result.value;
+      const confidence = scoreSearchCandidate(query, track, i);
+
+      log.debug(
+        "Melon",
+        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = track;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("Melon", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
   },
 
   albumCapabilities: {
@@ -363,37 +369,33 @@ export const melonAdapter: ServiceAdapter = {
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
-    try {
-      const albumIds = await searchMelonAlbumIds(q);
-      if (albumIds.length === 0) {
-        log.debug("Melon", "Album search returned no IDs for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Melon", `Album search returned ${albumIds.length} IDs for: ${q}`);
-
-      const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
-
-      for (const result of albumResults) {
-        if (result.status !== "fulfilled" || !result.value) continue;
-        const album = result.value;
-        const confidence = scoreAlbumCandidate(query, album);
-        log.debug("Melon", `  "${album.title}" -> confidence=${confidence.toFixed(3)}`);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = album;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("Melon", "Album search failed:", error instanceof Error ? error.message : error);
+    const albumIds = await searchMelonAlbumIds(q);
+    if (albumIds.length === 0) {
+      log.debug("Melon", "Album search returned no IDs for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Melon", `Album search returned ${albumIds.length} IDs for: ${q}`);
+
+    const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
+    throwIfNoCandidateAnswered(albumResults);
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const result of albumResults) {
+      if (result.status !== "fulfilled" || !result.value) continue;
+      const album = result.value;
+      const confidence = scoreAlbumCandidate(query, album);
+      log.debug("Melon", `  "${album.title}" -> confidence=${confidence.toFixed(3)}`);
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = album;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
