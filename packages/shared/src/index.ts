@@ -1,6 +1,7 @@
 export * from "./admin-artist-entity.js";
 export * from "./admin-events.js";
 export * from "./api.js";
+export * from "./api-access-audit.js";
 export * from "./artist-identity.js";
 export * from "./artist-profile-cache.js";
 export * from "./audio-format.js";

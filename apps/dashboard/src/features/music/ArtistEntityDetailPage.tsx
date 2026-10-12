@@ -29,7 +29,7 @@ import { useArtistEntityDetail } from "@/features/music/hooks/useArtistEntityDet
 import { formatEnglishDate, formatPartialDate } from "@/lib/format";
 import { SHARE_BASE } from "@/lib/shareBase";
 import { FormLabelText, FormValue } from "@/shared/ui/FormPrimitives";
-import { HttpStatus } from "@/shared/utils/api-error";
+import { describeRequestFailure, HttpStatus } from "@/shared/utils/api-error";
 
 const me = dashboardCopy.music.artistEntities;
 const md = dashboardCopy.music.artistEntityDetail;
@@ -296,8 +296,7 @@ export function ArtistEntityDetailPage() {
 
   if (query.isError) {
     const notFound = query.error.status === HttpStatus.NotFound;
-    const errorId = query.error.errorId;
-    const failure = errorId ? `${query.error.message} ${md.errorId.replace("{id}", errorId)}` : query.error.message;
+    const failure = describeRequestFailure(query.error, dashboardCopy.common.errorId);
     return (
       <PageLayout>
         <PageHeader title="" renderLeading={backButton} />
