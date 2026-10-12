@@ -16,7 +16,7 @@
  *   DATABASE_URL=<target> pnpm tsx src/scripts/seed-portal-home.ts --apply
  */
 
-import { ContentContext } from "@musiccloud/shared";
+import { ContentContext, defaultPublicationTemplateKey } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import {
   PORTAL_HOME_CONTENT,
@@ -26,7 +26,7 @@ import {
 } from "../services/content/portal-home-page.js";
 
 /** What the portal's own pages are published under. */
-const TEMPLATE_KEY = "developer-default";
+const TEMPLATE_KEY = defaultPublicationTemplateKey(ContentContext.DeveloperPortal);
 
 /**
  * Whether the page is already there.

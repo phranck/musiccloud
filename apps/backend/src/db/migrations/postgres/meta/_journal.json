@@ -757,6 +757,13 @@
       "when": 1791773378809,
       "tag": "0107_narrow_project_subscription_interval",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1791787358578,
+      "tag": "0108_one_frontend_template_key",
+      "breakpoints": true
     }
   ]
 }

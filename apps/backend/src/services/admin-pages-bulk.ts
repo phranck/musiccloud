@@ -5,7 +5,7 @@ import type {
   PagesBulkErrorDetail,
   PagesBulkRequest,
 } from "@musiccloud/shared";
-import { ContentContext, normalizeEditorialPath } from "@musiccloud/shared";
+import { ContentContext, normalizeEditorialPath, PublicationTemplateKey } from "@musiccloud/shared";
 
 import type { ContentPageMetaUpdate } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
@@ -91,7 +91,7 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
                 context: ContentContext.Frontend,
                 path: normalizeEditorialPath(current.slug),
                 status: current.status,
-                templateKey: "frontend-default",
+                templateKey: PublicationTemplateKey.FrontendDefault,
               },
             ]
         ).map((publication) => {

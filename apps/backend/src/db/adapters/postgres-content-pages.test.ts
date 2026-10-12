@@ -5,7 +5,13 @@ import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { backfillDeveloperEditorialContent } from "../../scripts/backfill-developer-editorial-content.js";
 import type { AdminRepository, ContentPageSummaryRow, ContentPublicationCutoverInput } from "../admin-repository.js";
-import { applyContentPublicationCutover, getPublishedContentPageByPath } from "./postgres-content-pages.js";
+import {
+  applyContentPublicationCutover,
+  getPublishedContentPageByPath,
+  getPublishedContentPagesBySlugs,
+  listPublishedContentPages,
+  PUBLISHED_IN_FRONTEND_CONDITION,
+} from "./postgres-content-pages.js";
 
 const TERMS_PLACEHOLDER =
   "The full Terms of Service for the musiccloud developer portal and API are being finalised and will be published here before public API access opens. Until then, this page is a placeholder.";
@@ -380,6 +386,20 @@ describe("cutover preflight and locked apply", () => {
     await expect(
       cutoverVerdicts([privacy, terms, ...extraPages], [...canonical, ...extraPublications]),
     ).resolves.toEqual({ preflight: proceeds, apply: proceeds });
+  });
+});
+
+describe("published in the Frontend", () => {
+  it("is decided by one condition for the page list and the page reads", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const pool = { query } as unknown as Pool;
+
+    await listPublishedContentPages(pool);
+    await getPublishedContentPagesBySlugs(pool, ["privacy"]);
+
+    expect(query).toHaveBeenCalledTimes(2);
+    for (const [sql] of query.mock.calls) expect(sql).toContain(PUBLISHED_IN_FRONTEND_CONDITION);
+    expect(PUBLISHED_IN_FRONTEND_CONDITION).toContain(`publication.context = ${ContentContext.Frontend}`);
   });
 });
 

@@ -10,11 +10,16 @@ import type {
 import {
   CONTENT_SLUG_MAX_LENGTH,
   CONTENT_SLUG_PATTERN,
+  CONTENT_STATUSES,
   contentSlugFromText,
+  defaultPublicationTemplateKey,
   isNavigationSystemKey,
+  isOneOf,
+  isPublicationTemplateKey,
   NAVIGATION_SYSTEM_TARGETS,
   NavigationSystemKey,
   NavigationTargetKind,
+  PublicationTemplateKey,
 } from "../content.js";
 import { ContentContext, NavigationArea } from "../content-context.js";
 import * as sharedExports from "../index.js";
@@ -168,6 +173,22 @@ describe("canonical editorial content types", () => {
     };
 
     expect(configuration.entries[0]?.systemKey).toBe("docs");
+  });
+});
+
+describe("publication vocabulary", () => {
+  it("gives each context its own template key and accepts no other", () => {
+    expect(defaultPublicationTemplateKey(ContentContext.Frontend)).toBe(PublicationTemplateKey.FrontendDefault);
+    expect(defaultPublicationTemplateKey(ContentContext.DeveloperPortal)).toBe(PublicationTemplateKey.DeveloperDefault);
+    expect(isPublicationTemplateKey("frontend-default")).toBe(true);
+    expect(isPublicationTemplateKey("frontend-segmented")).toBe(false);
+    expect(isPublicationTemplateKey(undefined)).toBe(false);
+  });
+
+  it("checks a value against a fixed list, whatever its type", () => {
+    expect(isOneOf(CONTENT_STATUSES, "hidden")).toBe(true);
+    expect(isOneOf(CONTENT_STATUSES, "archived")).toBe(false);
+    expect(isOneOf(CONTENT_STATUSES, 1)).toBe(false);
   });
 });
 

@@ -1,12 +1,16 @@
 import { DashboardInput } from "@musiccloud/dashboard-ui";
-import { ContentContext, type ContentPublication, type ContentStatus } from "@musiccloud/shared";
+import {
+  ContentContext,
+  type ContentPublication,
+  ContentStatus,
+  defaultPublicationTemplateKey,
+} from "@musiccloud/shared";
 import { BrowserIcon, CodeIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { isSystemOwnedPublication } from "@/features/content/editorialPageOwnership";
-import { ContentPublicationStatus } from "@/features/content/publicationDrafts";
 import { FormLabel } from "@/shared/ui/FormPrimitives";
 
 export interface PagePublicationSettingsLabels {
@@ -60,13 +64,13 @@ export function PagePublicationSettings({
   const isFrontend = publication.context === ContentContext.Frontend;
   const title = isFrontend ? labels.frontendTitle : labels.developerPortalTitle;
   const statusOptions: DropdownOption<ContentStatus>[] = [
-    { value: ContentPublicationStatus.Draft, label: labels.draft },
-    ...(markdownValid || publication.status === ContentPublicationStatus.Published
-      ? [{ value: ContentPublicationStatus.Published, label: labels.published }]
+    { value: ContentStatus.Draft, label: labels.draft },
+    ...(markdownValid || publication.status === ContentStatus.Published
+      ? [{ value: ContentStatus.Published, label: labels.published }]
       : []),
-    { value: ContentPublicationStatus.Hidden, label: labels.hidden },
+    { value: ContentStatus.Hidden, label: labels.hidden },
   ];
-  const defaultTemplate = isFrontend ? "frontend-default" : "developer-default";
+  const defaultTemplate = defaultPublicationTemplateKey(publication.context);
   const templateOptions: DropdownOption<string>[] = Array.from(new Set([publication.templateKey, defaultTemplate])).map(
     (templateKey) => ({ value: templateKey, label: templateKey }),
   );

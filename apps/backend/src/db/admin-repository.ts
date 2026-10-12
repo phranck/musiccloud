@@ -4,6 +4,7 @@ import type {
   ContentCardStyle,
   ContentContextMask,
   ContentPublication,
+  ContentStatus,
   EmailBlock,
   NavigationAreaMask,
   NavigationEntryInput,
@@ -215,9 +216,6 @@ export interface EmailActionBindingDto {
 // ----------------------------------------------------------------------------
 // Content pages (managed in dashboard, rendered by Astro frontend at /:slug)
 // ----------------------------------------------------------------------------
-
-/** Content status union used by the database repository layer. */
-export type ContentStatus = "draft" | "published" | "hidden";
 
 /** Content page summary row shape returned or accepted by the database repository layer. */
 export interface ContentPageSummaryRow {
@@ -868,13 +866,6 @@ export interface AdminRepository {
    * @returns The matching rows.
    */
   listPublishedContentPages(): Promise<Array<{ slug: string; title: string }>>;
-  /**
-   * Gets published content page by slug.
-   *
-   * @param slug - The `slug` value.
-   * @returns The matching record, or `null` when no row matches.
-   */
-  getPublishedContentPageBySlug(slug: string): Promise<ContentPageRow | null>;
   /** Lists every context publication assigned to a stable page identity. */
   listContentPublications(pageId: string): Promise<ContentPublicationRow[]>;
   /** Resolves one published page by canonical path inside a content context. */

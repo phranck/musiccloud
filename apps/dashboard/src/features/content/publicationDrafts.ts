@@ -1,26 +1,15 @@
 import {
   activeContentContexts,
-  ContentContext,
   type ContentContextMask,
   type ContentPublication,
   type SingleContentContext,
 } from "@musiccloud/shared";
 
 import { isSystemOwnedPublication } from "@/features/content/editorialPageOwnership";
-
-export const ContentPublicationStatus = {
-  Draft: "draft",
-  Published: "published",
-  Hidden: "hidden",
-} as const;
+import { defaultPublication } from "@/features/content/state/slices/publicationsSlice";
 
 export function createPublicationDrafts(slug: string, contextMask: ContentContextMask): ContentPublication[] {
-  return activeContentContexts(contextMask).map((context) => ({
-    context,
-    path: `/${slug}`,
-    status: ContentPublicationStatus.Draft,
-    templateKey: context === ContentContext.Frontend ? "frontend-default" : "developer-default",
-  }));
+  return activeContentContexts(contextMask).map((context) => defaultPublication(context, slug));
 }
 
 export interface PublicationPreview {
