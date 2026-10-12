@@ -1,4 +1,5 @@
 import { DashboardButtonVariant, DashboardInput, getDashboardIconButtonClassName } from "@musiccloud/dashboard-ui";
+import { PlatformIcon } from "@musiccloud/dashboard-ui/platform-icon";
 import type { ServiceId } from "@musiccloud/shared";
 import { ENDPOINTS, isValidServiceId, PLATFORM_CONFIG, SERVICE_DISPLAY_ORDER } from "@musiccloud/shared";
 import {
@@ -17,7 +18,6 @@ import { dashboardCopy } from "@/copy/dashboard";
 import { api } from "@/lib/api";
 import { formatEnglishDate } from "@/lib/format";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
-import { PlatformIcon } from "@/shared/ui/PlatformIcon";
 
 interface TrackDetail {
   id: string;

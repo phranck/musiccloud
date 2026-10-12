@@ -28,14 +28,16 @@ test("a change in a leaf marks its dependents and not its dependencies", () => {
   assert.deepEqual(marked(fixture, ["packages/leaf/src/index.ts"], Purpose.Validate), ["base", "leaf", "site"]);
 });
 
-test("a dashboard-ui change deploys and validates both sites that ship it", () => {
+test("a dashboard-ui change deploys and validates every app that ships it", () => {
   const files = ["packages/dashboard-ui/src/index.ts"];
 
-  assert.deepEqual(marked(repositoryWorkspaces, files, Purpose.Deploy), ["dashboard", "developer"]);
+  // The site ships the platform icon from the package.
+  assert.deepEqual(marked(repositoryWorkspaces, files, Purpose.Deploy), ["dashboard", "developer", "frontend"]);
   assert.deepEqual(marked(repositoryWorkspaces, files, Purpose.Validate), [
     "dashboard",
     "dashboard_ui",
     "developer",
+    "frontend",
     "shared",
   ]);
 });

@@ -1,6 +1,6 @@
+import { PlatformIcon } from "@musiccloud/dashboard-ui/platform-icon";
 import { type MatchMethod, PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import { type CSSProperties, memo } from "react";
-import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { sendMusicSignal, serviceSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
