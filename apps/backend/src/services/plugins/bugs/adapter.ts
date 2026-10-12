@@ -29,10 +29,10 @@
  * `confidence below threshold` to tell fetch-failure from
  * parse-failure.
  */
-import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -43,6 +43,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { splitArtistNames } from "../_shared/artists.js";
+import { throwIfNoCandidateAnswered } from "../_shared/candidates.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
@@ -71,7 +72,10 @@ async function bugsFetch(url: string, timeoutMs = 8000): Promise<Response> {
 async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> {
   const url = `https://music.bugs.co.kr/track/${trackId}`;
   const response = await bugsFetch(url);
-  if (!response.ok) return null;
+  // A track Bugs! does not have redirects to a page answering 404, which is an
+  // answer. Any other error status is a failure.
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Track, trackId);
 
   const html = await response.text();
   const og = extractOgTags(html);
@@ -106,7 +110,11 @@ async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> 
 async function searchForTrackIds(query: string): Promise<string[]> {
   const searchUrl = `https://music.bugs.co.kr/search/track?q=${encodeURIComponent(query)}`;
   const response = await bugsFetch(searchUrl);
-  if (!response.ok) return [];
+  // A search without results answers 200 with no track links, so an error
+  // status is a failure rather than an answer.
+  if (!response.ok) {
+    throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Track, query, Operation.Search);
+  }
 
   const html = await response.text();
 
@@ -128,7 +136,8 @@ async function searchForTrackIds(query: string): Promise<string[]> {
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const url = `https://music.bugs.co.kr/album/${albumId}`;
   const response = await bugsFetch(url);
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Album, albumId);
 
   const html = await response.text();
   const og = extractOgTags(html);
@@ -161,7 +170,9 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
 async function searchBugsAlbumIds(query: string): Promise<string[]> {
   const searchUrl = `https://music.bugs.co.kr/search/album?q=${encodeURIComponent(query)}`;
   const response = await bugsFetch(searchUrl);
-  if (!response.ok) return [];
+  if (!response.ok) {
+    throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Album, query, Operation.Search);
+  }
 
   const html = await response.text();
   const albumIds: string[] = [];
@@ -206,54 +217,50 @@ export const bugsAdapter: ServiceAdapter = {
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = searchText(query);
 
-    try {
-      const trackIds = await searchForTrackIds(q);
-      if (trackIds.length === 0) {
-        log.debug("Bugs!", "Search returned no track IDs for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Bugs!", `Search returned ${trackIds.length} IDs for: ${q}`);
-
-      // Fetch track pages in parallel
-      const trackResults = await Promise.allSettled(trackIds.map((id) => fetchTrackById(id)));
-
-      let bestMatch: NormalizedTrack | null = null;
-      let bestConfidence = 0;
-
-      for (let i = 0; i < trackResults.length; i++) {
-        const result = trackResults[i];
-        if (result.status !== "fulfilled" || !result.value) continue;
-
-        const track = result.value;
-        const confidence = scoreSearchCandidate(query, track, i);
-
-        log.debug(
-          "Bugs!",
-          `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-        );
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        log.debug("Bugs!", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-
-      return {
-        found: true,
-        track: bestMatch,
-        confidence: bestConfidence,
-        matchMethod: "search",
-      };
-    } catch (error) {
-      log.debug("Bugs!", "Search failed:", error instanceof Error ? error.message : error);
+    const trackIds = await searchForTrackIds(q);
+    if (trackIds.length === 0) {
+      log.debug("Bugs!", "Search returned no track IDs for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Bugs!", `Search returned ${trackIds.length} IDs for: ${q}`);
+
+    // Fetch track pages in parallel
+    const trackResults = await Promise.allSettled(trackIds.map((id) => fetchTrackById(id)));
+    throwIfNoCandidateAnswered(trackResults);
+
+    let bestMatch: NormalizedTrack | null = null;
+    let bestConfidence = 0;
+
+    for (let i = 0; i < trackResults.length; i++) {
+      const result = trackResults[i];
+      if (result.status !== "fulfilled" || !result.value) continue;
+
+      const track = result.value;
+      const confidence = scoreSearchCandidate(query, track, i);
+
+      log.debug(
+        "Bugs!",
+        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+      );
+
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = track;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("Bugs!", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+
+    return {
+      found: true,
+      track: bestMatch,
+      confidence: bestConfidence,
+      matchMethod: "search",
+    };
   },
 
   albumCapabilities: {
@@ -275,37 +282,33 @@ export const bugsAdapter: ServiceAdapter = {
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `${query.artist} ${query.title}`;
-    try {
-      const albumIds = await searchBugsAlbumIds(q);
-      if (albumIds.length === 0) {
-        log.debug("Bugs!", "Album search returned no IDs for:", q);
-        return { found: false, confidence: 0, matchMethod: "search" };
-      }
-
-      log.debug("Bugs!", `Album search returned ${albumIds.length} IDs for: ${q}`);
-
-      const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
-      let bestMatch: NormalizedAlbum | null = null;
-      let bestConfidence = 0;
-
-      for (const result of albumResults) {
-        if (result.status !== "fulfilled" || !result.value) continue;
-        const album = result.value;
-        const confidence = scoreAlbumCandidate(query, album);
-        log.debug("Bugs!", `  "${album.title}" -> confidence=${confidence.toFixed(3)}`);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = album;
-        }
-      }
-
-      if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-        return { found: false, confidence: bestConfidence, matchMethod: "search" };
-      }
-      return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-    } catch (error) {
-      log.debug("Bugs!", "Album search failed:", error instanceof Error ? error.message : error);
+    const albumIds = await searchBugsAlbumIds(q);
+    if (albumIds.length === 0) {
+      log.debug("Bugs!", "Album search returned no IDs for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
     }
+
+    log.debug("Bugs!", `Album search returned ${albumIds.length} IDs for: ${q}`);
+
+    const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
+    throwIfNoCandidateAnswered(albumResults);
+    let bestMatch: NormalizedAlbum | null = null;
+    let bestConfidence = 0;
+
+    for (const result of albumResults) {
+      if (result.status !== "fulfilled" || !result.value) continue;
+      const album = result.value;
+      const confidence = scoreAlbumCandidate(query, album);
+      log.debug("Bugs!", `  "${album.title}" -> confidence=${confidence.toFixed(3)}`);
+      if (confidence > bestConfidence) {
+        bestConfidence = confidence;
+        bestMatch = album;
+      }
+    }
+
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    }
+    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
