@@ -69,8 +69,9 @@ const JIOSAAVN_ALBUM_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/album\/[^/]+\
 const JIOSAAVN_ARTIST_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/artist\/[^/]+\/([A-Za-z0-9_-]+)/;
 
 interface JioSaavnAlbum {
-  // content.getAlbumDetails answers with albumid, name and a comma-separated
-  // primary_artists string; the fields below are the older album shape.
+  // getAlbumById asks without api_version=4, which answers albumid, name, a
+  // comma-separated primary_artists string and the full release_date. id and
+  // more_info belong to the api_version=4 shape, which has only the year.
   id?: string;
   albumid?: string;
   title?: string;
@@ -269,12 +270,12 @@ function mapAlbumToNormalized(album: JioSaavnAlbum & { id: string; title: string
       ? parseInt(album.list_count, 10)
       : undefined;
 
-  const tracks: AlbumTrackEntry[] = (album.songs ?? []).flatMap((song, i) => {
+  const tracks: AlbumTrackEntry[] = (album.songs ?? []).flatMap((song, index) => {
     const title = song.title ?? song.song;
     if (!title) return [];
     const duration = song.more_info?.duration ?? song.duration;
     const durationSec = duration ? parseInt(duration, 10) : undefined;
-    return [{ title, trackNumber: i + 1, durationMs: durationSec ? durationSec * 1000 : undefined }];
+    return [{ title, trackNumber: index + 1, durationMs: durationSec ? durationSec * 1000 : undefined }];
   });
 
   return {
@@ -298,8 +299,9 @@ async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Album, albumId);
 
   const data = await readAnswer<JioSaavnAlbum>(response, `album ${albumId}`);
-  const id = data?.id ?? data?.albumid;
-  const title = data?.title ?? data?.name;
+  if (!data) return null;
+  const id = data.id ?? data.albumid;
+  const title = data.title ?? data.name;
   if (!id || !title) return null;
   return mapAlbumToNormalized({ ...data, id, title });
 }

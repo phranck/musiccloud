@@ -127,7 +127,7 @@ describe("JioSaavn: getAlbum", () => {
     expect(album.artists).toEqual(["Kalyani Mallik", "Anantha Sreeram", "Sirivennela Sitaramasastri"]);
     expect(album.releaseDate).toBe("2014-04-28");
     expect(album.webUrl).toBe(recordedAlbum.perma_url);
-    expect(album.tracks?.map((t) => t.title)).toEqual(recordedAlbum.songs.map((s) => s.song));
+    expect(album.tracks?.map((track) => track.title)).toEqual(recordedAlbum.songs.map((song) => song.song));
     expect(album.tracks?.[0]?.durationMs).toBe(Number(recordedAlbum.songs[0].duration) * 1000);
     expect(album.totalTracks).toBe(2);
   });
@@ -137,13 +137,13 @@ describe("JioSaavn: getAlbum", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(withBlankSong), { status: 200 }));
 
     const album = await jiosaavnAdapter.getAlbum!("56783991");
-    expect(album.tracks?.map((t) => t.title)).toEqual([recordedAlbum.songs[0].song]);
+    expect(album.tracks?.map((track) => track.title)).toEqual([recordedAlbum.songs[0].song]);
   });
 
   it("returns a not-found error for an album the endpoint does not answer with an id or name", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
 
-    await expect(jiosaavnAdapter.getAlbum!("1")).rejects.toThrow();
+    await expect(jiosaavnAdapter.getAlbum!("1")).rejects.toThrow("Album not found");
   });
 });
 
