@@ -7,6 +7,7 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
+import { SaveErrorMessage } from "@/components/ui/SaveErrorMessage";
 import { dashboardCopy } from "@/copy/dashboard";
 import { CustomLimitBadge } from "@/features/developer/components/CustomLimitBadge";
 import {
@@ -277,11 +278,7 @@ export function ClientDetailPage() {
             disabled={updateProject.isPending || !limitsUsable}
             type="button"
           />
-          {updateProject.isError && (
-            <p role="alert" className="mr-auto text-sm text-[var(--ds-danger-text)]">
-              {updateProject.error instanceof Error ? updateProject.error.message : messages.common.saveError}
-            </p>
-          )}
+          {updateProject.isError && <SaveErrorMessage error={updateProject.error} className="mr-auto" />}
         </DashboardSection.Footer>
       </DashboardSection>
     </PageLayout>

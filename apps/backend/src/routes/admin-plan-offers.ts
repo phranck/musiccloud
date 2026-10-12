@@ -13,11 +13,14 @@
 
 import {
   BILLING_PERIODS,
+  CREEM_MODES,
+  canPayWhatYouWant,
   OFFER_CURRENCIES,
   OfferCurrency,
   ROUTE_TEMPLATES,
   TAX_CATEGORIES,
   TAX_MODES,
+  type TierOffer,
 } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { getTierRepository } from "../db/index.js";
@@ -25,6 +28,7 @@ import {
   offerIdSchema,
   type TierOfferCreateData,
   type TierOfferUpdateData,
+  type TierRepository,
   tierIdSchema,
 } from "../db/tiers-repository.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
@@ -116,6 +120,52 @@ function refuseForeignUrls(
   return refuseForeignUrl(reply, "imageUrl", body.imageUrl) ?? refuseForeignUrl(reply, "successUrl", body.successUrl);
 }
 
+/** The codes an offer that breaks one of its rules is refused with. */
+type OfferRuleRefusal = "MC-BILL-0009" | "MC-BILL-0010" | "MC-BILL-0011";
+
+/**
+ * Finds the rule an offer would break, before anything is written.
+ *
+ * The offer is judged as it would stand after the request: the stored offer,
+ * when there is one, with the request's fields on top. A PATCH that sets only
+ * one field can break a rule together with a field it does not name, so the
+ * request alone says too little. The database keeps the same three rules as
+ * the last line against two requests that race, where its error would answer
+ * as a server fault.
+ *
+ * It answers with the code rather than the reply, because a Fastify reply is
+ * thenable and an async function returning one resolves to nothing.
+ *
+ * @param repo - The tier repository.
+ * @param next - The plan, the period and the pay-what-you-want flag the offer would have.
+ * @param stored - The offer being changed, or `undefined` for a new one.
+ * @returns The code to refuse with, or `null` when the offer may be written.
+ */
+async function findBrokenOfferRule(
+  repo: TierRepository,
+  next: Pick<TierOffer, "tierId" | "billingPeriod" | "payWhatYouWant">,
+  stored?: TierOffer,
+): Promise<OfferRuleRefusal | null> {
+  if (next.payWhatYouWant && !canPayWhatYouWant(next.billingPeriod)) return "MC-BILL-0010";
+
+  const siblings = await repo.listOffers(next.tierId);
+  const periodTaken = siblings.some(
+    (offer) => (stored === undefined || offer.id !== stored.id) && offer.billingPeriod === next.billingPeriod,
+  );
+  if (periodTaken) return "MC-BILL-0009";
+
+  if (stored && stored.billingPeriod !== next.billingPeriod) {
+    const mappings = await Promise.all(
+      CREEM_MODES.map((mode) =>
+        repo.findCreemProductMapping({ tierId: stored.tierId, billingPeriod: stored.billingPeriod, mode }),
+      ),
+    );
+    if (mappings.some((mapping) => mapping !== null)) return "MC-BILL-0011";
+  }
+
+  return null;
+}
+
 export async function adminPlanOfferRoutes(app: FastifyInstance) {
   /** Every offer of one plan, in the order it is shown. */
   app.get(
@@ -165,9 +215,12 @@ export async function adminPlanOfferRoutes(app: FastifyInstance) {
       if (!tier) return reply.status(404).send({ error: `Plan not found: ${tierId}` });
 
       const period = body.billingPeriod!;
-      if ((await repo.listOffers(tierId)).some((offer) => offer.billingPeriod === period)) {
-        return replyWithApiError(reply, "MC-BILL-0009");
-      }
+      const refusal = await findBrokenOfferRule(repo, {
+        tierId,
+        billingPeriod: period,
+        payWhatYouWant: body.payWhatYouWant ?? false,
+      });
+      if (refusal) return replyWithApiError(reply, refusal);
 
       // Every field is named rather than spread from the body, so a property
       // the schema has not seen cannot reach a column.
@@ -213,7 +266,22 @@ export async function adminPlanOfferRoutes(app: FastifyInstance) {
       const foreign = refuseForeignUrls(reply, body);
       if (foreign) return foreign;
 
-      return (await getTierRepository()).updateOffer(id, body);
+      const repo = await getTierRepository();
+      const stored = await repo.findOffer(id);
+      if (!stored) return replyWithApiError(reply, "MC-RES-0003");
+
+      const refusal = await findBrokenOfferRule(
+        repo,
+        {
+          tierId: stored.tierId,
+          billingPeriod: body.billingPeriod ?? stored.billingPeriod,
+          payWhatYouWant: body.payWhatYouWant ?? stored.payWhatYouWant,
+        },
+        stored,
+      );
+      if (refusal) return replyWithApiError(reply, refusal);
+
+      return repo.updateOffer(id, body);
     },
   );
 
@@ -234,7 +302,9 @@ export async function adminPlanOfferRoutes(app: FastifyInstance) {
     async (request, reply) => {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
       const { id } = request.params as { id: string };
-      await (await getTierRepository()).deleteOffer(id);
+      const repo = await getTierRepository();
+      if (!(await repo.findOffer(id))) return replyWithApiError(reply, "MC-RES-0003");
+      await repo.deleteOffer(id);
       // The offer's product mappings went with it, and a cached catalogue
       // would go on pricing the period from them.
       resetCreemCatalogCache();

@@ -1,8 +1,9 @@
 /**
  * Route tests for the offers of a plan.
  *
- * The two things worth pinning here are the ones a schema alone cannot hold: a
- * URL that points somewhere other than our own origins is refused, and no
+ * The things worth pinning here are the ones a schema alone cannot hold: a URL
+ * that points somewhere other than our own origins is refused, an offer that
+ * would break a rule the database holds is refused before the write, and no
  * field reaches the repository unless the route named it.
  */
 import cookie from "@fastify/cookie";
@@ -18,9 +19,11 @@ vi.stubEnv("ALLOWED_ORIGINS", "https://musiccloud.io,https://dashboard.musicclou
 const mockTierRepo = {
   listTiers: vi.fn(),
   listOffers: vi.fn(),
+  findOffer: vi.fn(),
   createOffer: vi.fn(),
   updateOffer: vi.fn(),
   deleteOffer: vi.fn(),
+  findCreemProductMapping: vi.fn(),
 };
 
 const mockAdminRepo = { findAdminById: vi.fn() };
@@ -39,6 +42,15 @@ vi.mock("../services/creem-catalog.js", () => ({ resetCreemCatalogCache: vi.fn()
 import { resetCreemCatalogCache } from "../services/creem-catalog.js";
 
 const plan = { id: "tier_club", name: "Club", enabled: true };
+
+/** The stored offer a PATCH acts on: the plan's monthly offer, with no product at Creem. */
+const monthlyOffer = {
+  id: "offer_1",
+  tierId: "tier_club",
+  billingPeriod: "every-month",
+  priceCents: 990,
+  payWhatYouWant: false,
+};
 
 async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
@@ -87,6 +99,8 @@ beforeEach(async () => {
   mockTierRepo.listTiers.mockResolvedValue([plan]);
   mockTierRepo.listOffers.mockResolvedValue([]);
   mockTierRepo.createOffer.mockImplementation(async (data: unknown) => ({ id: "offer_new", ...(data as object) }));
+  mockTierRepo.findOffer.mockResolvedValue(monthlyOffer);
+  mockTierRepo.findCreemProductMapping.mockResolvedValue(null);
 });
 
 describe("POST /api/admin/developer/plans/:tierId/offers", () => {
@@ -135,6 +149,16 @@ describe("POST /api/admin/developer/plans/:tierId/offers", () => {
 
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toBe("MC-BILL-0009");
+  });
+
+  it("lets the customer name the amount on a one-off offer and refuses it on a recurring one", async () => {
+    expect((await post({ billingPeriod: "once", priceCents: 990, payWhatYouWant: true })).statusCode).toBe(201);
+
+    const res = await post({ billingPeriod: "every-month", priceCents: 990, payWhatYouWant: true });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("MC-BILL-0010");
+    expect(mockTierRepo.createOffer).toHaveBeenCalledTimes(1);
   });
 
   it("accepts a return address on one of our own origins", async () => {
@@ -242,6 +266,74 @@ describe("PATCH /api/admin/developer/offers/:id", () => {
     expect(res.statusCode).toBe(400);
     expect(mockTierRepo.updateOffer).not.toHaveBeenCalled();
   });
+
+  it("refuses the customer's own amount on a monthly offer before the database does", async () => {
+    const res = await patch({ payWhatYouWant: true });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("MC-BILL-0010");
+    expect(mockTierRepo.updateOffer).not.toHaveBeenCalled();
+  });
+
+  it("judges a period change together with the flag the offer already carries", async () => {
+    mockTierRepo.findOffer.mockResolvedValue({ ...monthlyOffer, billingPeriod: "once", payWhatYouWant: true });
+    mockTierRepo.updateOffer.mockResolvedValue({ id: "offer_1" });
+
+    const flagLeftOn = await patch({ billingPeriod: "every-month" });
+    expect(flagLeftOn.statusCode).toBe(400);
+    expect(flagLeftOn.json().error).toBe("MC-BILL-0010");
+
+    const flagSwitchedOff = await patch({ billingPeriod: "every-month", payWhatYouWant: false });
+    expect(flagSwitchedOff.statusCode).toBe(200);
+    expect(mockTierRepo.updateOffer).toHaveBeenCalledWith("offer_1", {
+      billingPeriod: "every-month",
+      payWhatYouWant: false,
+    });
+  });
+
+  it("refuses to move an offer onto a period the plan already sells", async () => {
+    mockTierRepo.listOffers.mockResolvedValue([monthlyOffer, { id: "offer_2", billingPeriod: "every-year" }]);
+
+    const res = await patch({ billingPeriod: "every-year" });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe("MC-BILL-0009");
+    expect(mockTierRepo.updateOffer).not.toHaveBeenCalled();
+  });
+
+  it("does not count the offer being changed as a second offer over its own period", async () => {
+    mockTierRepo.listOffers.mockResolvedValue([monthlyOffer]);
+    mockTierRepo.updateOffer.mockResolvedValue({ id: "offer_1" });
+
+    expect((await patch({ billingPeriod: "every-month", priceCents: 1490 })).statusCode).toBe(200);
+  });
+
+  it("refuses a period change while the offer has a product at Creem", async () => {
+    mockTierRepo.findCreemProductMapping.mockImplementation(async (key: { mode: string }) =>
+      key.mode === "live" ? { ...key, creemProductId: "prod_live" } : null,
+    );
+
+    const res = await patch({ billingPeriod: "every-year" });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe("MC-BILL-0011");
+    expect(mockTierRepo.findCreemProductMapping).toHaveBeenCalledWith({
+      tierId: "tier_club",
+      billingPeriod: "every-month",
+      mode: "live",
+    });
+    expect(mockTierRepo.updateOffer).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for an offer that does not exist", async () => {
+    mockTierRepo.findOffer.mockResolvedValue(null);
+
+    const res = await patch({ priceCents: 1490 });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("MC-RES-0003");
+    expect(mockTierRepo.updateOffer).not.toHaveBeenCalled();
+  });
 });
 
 describe("DELETE /api/admin/developer/offers/:id", () => {
@@ -257,6 +349,20 @@ describe("DELETE /api/admin/developer/offers/:id", () => {
     // Its product mappings went with it, so the pricing page may not go on
     // pricing the period from a cached catalogue.
     expect(resetCreemCatalogCache).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers 404 for an offer that does not exist", async () => {
+    mockTierRepo.findOffer.mockResolvedValue(null);
+
+    const res = await app.inject({
+      method: "DELETE",
+      url: ENDPOINTS.admin.developer.planOfferDetail("offer_gone"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("MC-RES-0003");
+    expect(mockTierRepo.deleteOffer).not.toHaveBeenCalled();
   });
 
   it("rejects unauthenticated callers", async () => {

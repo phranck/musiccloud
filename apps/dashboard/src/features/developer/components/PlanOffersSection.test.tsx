@@ -127,6 +127,32 @@ describe("PlanOffersSection", () => {
     await waitFor(() => expect(mocks.deletePlanOffer.mock.calls[0]?.[0]).toBe("offer_1"));
   });
 
+  it("takes the customer's own amount off in the same request that moves a one-off offer to a recurring period", async () => {
+    renderSection([makeOffer({ billingPeriod: "once", payWhatYouWant: true })]);
+
+    await userEvent.click(screen.getByLabelText(dm.offerPeriod));
+    await userEvent.click(screen.getByText(dm.periodMonthly));
+
+    await waitFor(() =>
+      expect(mocks.updatePlanOffer.mock.calls[0]?.slice(0, 2)).toEqual([
+        "offer_1",
+        { billingPeriod: "every-month", payWhatYouWant: false },
+      ]),
+    );
+  });
+
+  it("shows on the row why the server refused a change", async () => {
+    mocks.updatePlanOffer.mockRejectedValue(
+      new Error("This offer has a product at Creem, so its billing period cannot change. (MC-BILL-0011)"),
+    );
+    renderSection([makeOffer({ billingPeriod: "every-month" })]);
+
+    await userEvent.click(screen.getByLabelText(dm.offerPeriod));
+    await userEvent.click(screen.getByText(dm.periodYearly));
+
+    expect((await screen.findByRole("alert")).textContent).toContain("(MC-BILL-0011)");
+  });
+
   it("lets the customer name the amount on a one-off offer only", async () => {
     const { unmount } = renderSection([makeOffer({ billingPeriod: "every-month" })]);
     // The field sits behind the disclosure, with everything else Creem accepts

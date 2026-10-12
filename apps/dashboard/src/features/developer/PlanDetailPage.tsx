@@ -16,6 +16,7 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { LabeledSwitch } from "@/components/ui/LabeledSwitch";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
+import { SaveErrorMessage } from "@/components/ui/SaveErrorMessage";
 import { dashboardCopy } from "@/copy/dashboard";
 import { PlanOffersSection } from "@/features/developer/components/PlanOffersSection";
 import { TierCreemProductsSection } from "@/features/developer/components/TierCreemProductsSection";
@@ -306,11 +307,7 @@ export function PlanDetailPage() {
                 disabled={!savable}
                 type="button"
               />
-              {updateTier.isError && (
-                <p role="alert" className="mr-auto text-sm text-[var(--ds-danger-text)]">
-                  {updateTier.error instanceof Error ? updateTier.error.message : messages.common.saveError}
-                </p>
-              )}
+              {updateTier.isError && <SaveErrorMessage error={updateTier.error} className="mr-auto" />}
             </DashboardSection.Footer>
           </DashboardSection>
         </div>

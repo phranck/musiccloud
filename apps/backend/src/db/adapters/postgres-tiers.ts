@@ -413,6 +413,20 @@ export class PostgresTierRepository implements TierRepository {
   }
 
   /**
+   * Returns one offer by its id.
+   *
+   * @param id - The offer.
+   * @returns The offer, or `null` when there is none with that id.
+   */
+  async findOffer(id: string): Promise<TierOffer | null> {
+    const { rows } = await this.#pool.query<TierOfferRow>(`SELECT ${OFFER_COLUMNS} FROM tier_offers WHERE id = $1`, [
+      id,
+    ]);
+    const row = rows[0];
+    return row ? toOffer(row) : null;
+  }
+
+  /**
    * Adds an offer to a plan.
    *
    * @param data - What is being sold and on what terms.
@@ -481,11 +495,9 @@ export class PostgresTierRepository implements TierRepository {
     }
 
     if (fields.length === 0) {
-      const { rows } = await this.#pool.query<TierOfferRow>(`SELECT ${OFFER_COLUMNS} FROM tier_offers WHERE id = $1`, [
-        id,
-      ]);
-      if (rows.length === 0) throw new Error(`Offer not found: ${id}`);
-      return toOffer(rows[0]!);
+      const offer = await this.findOffer(id);
+      if (!offer) throw new Error(`Offer not found: ${id}`);
+      return offer;
     }
 
     values.push(id);

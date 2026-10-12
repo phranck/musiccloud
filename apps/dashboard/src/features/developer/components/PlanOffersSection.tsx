@@ -7,8 +7,8 @@ import {
 import type { TierOffer } from "@musiccloud/shared";
 import {
   BILLING_PERIODS,
-  BillingPeriod,
   type BillingPeriodValue,
+  canPayWhatYouWant,
   OFFER_CURRENCIES,
   type OfferCurrencyValue,
   TaxCategory,
@@ -21,6 +21,7 @@ import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { InlineConfirm } from "@/components/ui/InlineConfirm";
+import { SaveErrorMessage } from "@/components/ui/SaveErrorMessage";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { dashboardCopy } from "@/copy/dashboard";
 import {
@@ -88,7 +89,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
   const price = priceDraft ?? priceFieldValue(offer.priceCents);
   const priceCents = priceCentsFromField(price);
   const priceChanged = priceCents !== undefined && priceCents !== offer.priceCents;
-  const isOneOff = offer.billingPeriod === BillingPeriod.Once;
+  const customerNamesAmount = canPayWhatYouWant(offer.billingPeriod);
 
   const periodOptions = useMemo(
     () =>
@@ -102,6 +103,16 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
     updateOffer.mutate({ id: offer.id, body });
   }
 
+  // A period that cannot carry the customer's own amount takes the flag off in
+  // the same request, because the server judges the offer as it would stand.
+  function changePeriod(billingPeriod: BillingPeriodValue) {
+    change(
+      offer.payWhatYouWant && !canPayWhatYouWant(billingPeriod)
+        ? { billingPeriod, payWhatYouWant: false }
+        : { billingPeriod },
+    );
+  }
+
   return (
     <div className="border-t border-[var(--ds-border-subtle)] pt-4 first:border-t-0 first:pt-0">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -109,7 +120,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
           <span className={labelClass}>{dm.offerPeriod}</span>
           <Dropdown
             value={offer.billingPeriod}
-            onChange={(billingPeriod) => change({ billingPeriod: billingPeriod as BillingPeriodValue })}
+            onChange={(billingPeriod) => changePeriod(billingPeriod as BillingPeriodValue)}
             options={periodOptions}
             aria-label={dm.offerPeriod}
           />
@@ -217,14 +228,18 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
               <ToggleSwitch
                 checked={offer.payWhatYouWant}
                 onChange={(payWhatYouWant) => change({ payWhatYouWant })}
-                disabled={!isOneOff}
+                disabled={!customerNamesAmount}
                 aria-label={dm.offerPayWhatYouWant}
               />
             </div>
-            {!isOneOff && <p className="mt-1 text-xs text-[var(--ds-text-muted)]">{dm.offerPayWhatYouWantHint}</p>}
+            {!customerNamesAmount && (
+              <p className="mt-1 text-xs text-[var(--ds-text-muted)]">{dm.offerPayWhatYouWantHint}</p>
+            )}
           </div>
         </div>
       )}
+
+      {updateOffer.isError && <SaveErrorMessage error={updateOffer.error} className="mt-3" />}
 
       {confirmingRemove ? (
         <div className="mt-3">

@@ -5,6 +5,7 @@ import { CreditCard as CreditCardIcon } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { InlineConfirm } from "@/components/ui/InlineConfirm";
+import { SaveErrorMessage } from "@/components/ui/SaveErrorMessage";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { dashboardCopy } from "@/copy/dashboard";
 import { useCreemSellingMode, useUpdateCreemSellingMode } from "@/features/developer/hooks/useDeveloperData";
@@ -114,11 +115,7 @@ export function CreemSellingModeSection() {
           />
         )}
 
-        {updateSellingMode.isError && (
-          <p className="text-sm text-[var(--ds-danger-text)]">
-            {updateSellingMode.error instanceof Error ? updateSellingMode.error.message : messages.common.saveError}
-          </p>
-        )}
+        {updateSellingMode.isError && <SaveErrorMessage error={updateSellingMode.error} />}
       </DashboardSection.Body>
     </DashboardSection>
   );
