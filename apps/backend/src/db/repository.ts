@@ -964,6 +964,14 @@ export interface TrackRepository {
    */
   insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void>;
 
+  /**
+   * Deletes the app telemetry events received before a moment.
+   *
+   * @param cutoffMs - Epoch milliseconds. Rows received earlier are removed.
+   * @returns How many rows were removed.
+   */
+  deleteAppTelemetryEventsBefore(cutoffMs: number): Promise<number>;
+
   // Crawler: state + runs (migration 0023). The heartbeat lives in
   // services/crawler/heartbeat.ts and orchestrates these calls; the admin
   // API uses the same surface for list/patch/run-now/release-lock.

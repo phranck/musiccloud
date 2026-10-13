@@ -36,3 +36,18 @@ export async function insertAppTelemetryEvent(pool: Pool, row: AppTelemetryEvent
     ],
   );
 }
+
+/**
+ * Deletes the app telemetry events the server received before a moment.
+ *
+ * Rows are aged by `received_at`, the server's clock, because `event_time`
+ * comes from the device and may be wrong.
+ *
+ * @param pool - The connection pool to delete through.
+ * @param cutoffMs - Epoch milliseconds. Rows received earlier are removed.
+ * @returns How many rows were removed.
+ */
+export async function deleteAppTelemetryEventsBefore(pool: Pool, cutoffMs: number): Promise<number> {
+  const result = await pool.query("DELETE FROM app_telemetry_events WHERE received_at < $1", [new Date(cutoffMs)]);
+  return result.rowCount ?? 0;
+}
