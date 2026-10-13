@@ -85,7 +85,7 @@ struct AboutView: View {
         defer { isExporting = false }
         do {
             let url = try await DiagnosticsExporter.exportLogs()
-            await MainActor.run { presentSharePicker(for: url) }
+            presentSharePicker(for: url)
         } catch {
             exportError = "Log export failed: \(error.localizedDescription)"
         }

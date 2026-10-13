@@ -106,6 +106,10 @@ extension MusicCloudAPI {
     /// - **Invalid JSON**: Throws decoding errors
     ///
     /// - Note: Requests and response status codes are logged via ``AppLogger/api``
+    ///
+    /// Runs on the concurrent pool, so encoding and decoding never occupy
+    /// the main actor that asks for a conversion.
+    @concurrent
     static func resolve(url: String, baseURL: URL? = nil) async throws -> ResolveResponse {
         let base = baseURL ?? Self.baseURL
         let endpoint = base.appendingPathComponent("api/resolve")
@@ -123,15 +127,7 @@ extension MusicCloudAPI {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch {
             AppLogger.api.error("  transport failed: \(error.localizedDescription)")
-            Task.detached {
-                await TelemetryClient.shared.report(
-                    .networkError(
-                        sourceUrl: url,
-                        errorKind: "NETWORK_FAILURE",
-                        message: error.localizedDescription
-                    )
-                )
-            }
+            report(.networkError(sourceUrl: url, errorKind: "NETWORK_FAILURE", message: error.localizedDescription))
             throw error
         }
 
@@ -158,16 +154,7 @@ extension MusicCloudAPI {
             decoded = try JSONDecoder().decode(ResolveResponse.self, from: data)
         } catch {
             AppLogger.api.error("  decode failed: \(error)")
-            Task.detached {
-                await TelemetryClient.shared.report(
-                    .resolveError(
-                        sourceUrl: url,
-                        errorKind: "DECODE_FAILED",
-                        httpStatus: statusCode,
-                        message: error.localizedDescription
-                    )
-                )
-            }
+            report(.resolveError(sourceUrl: url, errorKind: "DECODE_FAILED", httpStatus: statusCode, message: error.localizedDescription))
             throw error
         }
 
@@ -197,16 +184,13 @@ extension MusicCloudAPI {
 
     private static func reportResolveError(url: String, kind: String, status: Int, body: String) {
         let trimmed = body.count > 500 ? String(body.prefix(500)) : body
-        Task.detached {
-            await TelemetryClient.shared.report(
-                .resolveError(
-                    sourceUrl: url,
-                    errorKind: kind,
-                    httpStatus: status,
-                    message: trimmed
-                )
-            )
-        }
+        report(.resolveError(sourceUrl: url, errorKind: kind, httpStatus: status, message: trimmed))
+    }
+
+    /// Hands an event to ``TelemetryClient`` without waiting for it, so a
+    /// failing conversion is reported to the user first.
+    private static func report(_ event: TelemetryEvent) {
+        Task { await TelemetryClient.shared.report(event) }
     }
 
     /// Downloads artwork image data from a URL.
@@ -242,6 +226,10 @@ extension MusicCloudAPI {
     /// is kept, and the body is read up to ``maximumArtworkBytes``. The Share
     /// Extension runs under a tight memory limit and would be killed by an
     /// oversized answer, and whatever is kept here is synced to iCloud.
+    ///
+    /// Runs on the concurrent pool, because the body is read byte by byte to
+    /// enforce the limit, and that loop must not run on the main actor.
+    @concurrent
     static func downloadArtwork(from urlString: String) async -> Data? {
         guard let url = StreamingServices.webURL(urlString) else {
             AppLogger.api.error("Refused artwork address that is not a web URL")

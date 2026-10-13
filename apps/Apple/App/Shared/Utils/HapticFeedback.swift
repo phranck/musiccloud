@@ -9,6 +9,9 @@
 import UIKit
 
 /// Provides pre-initialized haptic feedback generators to avoid instantiation latency.
+///
+/// UIKit feedback generators belong to the main actor, and so does this enum.
+@MainActor
 enum HapticFeedback {
     private static let notificationGenerator: UINotificationFeedbackGenerator = {
         let generator = UINotificationFeedbackGenerator()

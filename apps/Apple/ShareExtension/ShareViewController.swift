@@ -1,7 +1,6 @@
 #if os(iOS)
 import SwiftData
 import UIKit
-import UniformTypeIdentifiers
 
 // MARK: - ShareViewController
 
@@ -44,7 +43,7 @@ private extension ShareViewController {
         statusLabel = UILabel()
         statusLabel.font = .preferredFont(forTextStyle: .subheadline)
         statusLabel.textColor = .secondaryLabel
-        statusLabel.text = "Converting..."
+        statusLabel.text = String(localized: "Converting...")
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0
 
@@ -68,10 +67,11 @@ private extension ShareViewController {
         iconView.image = UIImage(systemName: "checkmark.circle.fill")
         iconView.tintColor = .systemGreen
         iconView.isHidden = false
-        statusLabel.text = "Copied to clipboard!"
+        statusLabel.text = String(localized: "Copied to clipboard!")
         statusLabel.textColor = .label
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(5))
             self?.complete()
         }
     }
@@ -85,7 +85,8 @@ private extension ShareViewController {
         statusLabel.text = message
         statusLabel.textColor = .secondaryLabel
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
             self?.cancel()
         }
     }
@@ -94,53 +95,39 @@ private extension ShareViewController {
 // MARK: - URL Extraction
 
 private extension ShareViewController {
+    /// Takes the first shared item that reads as a URL or as text and converts it.
     func handleSharedItems() {
-        guard let items = extensionContext?.inputItems as? [NSExtensionItem] else {
+        let items = extensionContext?.inputItems as? [NSExtensionItem] ?? []
+        let providers = items.flatMap { $0.attachments ?? [] }
+
+        Task {
+            for provider in providers {
+                if let shared = await sharedText(from: provider) {
+                    processURL(shared.trimmingCharacters(in: .whitespacesAndNewlines))
+                    return
+                }
+            }
             cancel()
-            return
-        }
-
-        for item in items {
-            guard let attachments = item.attachments else { continue }
-            for provider in attachments {
-                if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
-                    loadURL(from: provider)
-                    return
-                }
-                if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-                    loadText(from: provider)
-                    return
-                }
-            }
-        }
-
-        cancel()
-    }
-
-    func loadURL(from provider: NSItemProvider) {
-        provider.loadItem(forTypeIdentifier: UTType.url.identifier) { [weak self] item, _ in
-            guard let self else { return }
-            DispatchQueue.main.async {
-                if let url = item as? URL {
-                    self.processURL(url.absoluteString)
-                } else {
-                    self.cancel()
-                }
-            }
         }
     }
 
-    func loadText(from provider: NSItemProvider) {
-        provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { [weak self] item, _ in
-            guard let self else { return }
-            DispatchQueue.main.async {
-                if let text = item as? String {
-                    self.processURL(text.trimmingCharacters(in: .whitespacesAndNewlines))
-                } else {
-                    self.cancel()
+    /// Reads a provider as a URL, or as plain text when it holds no URL.
+    func sharedText(from provider: NSItemProvider) async -> String? {
+        if provider.canLoadObject(ofClass: URL.self) {
+            return await withCheckedContinuation { continuation in
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    continuation.resume(returning: url?.absoluteString)
                 }
             }
         }
+        if provider.canLoadObject(ofClass: String.self) {
+            return await withCheckedContinuation { continuation in
+                _ = provider.loadObject(ofClass: String.self) { text, _ in
+                    continuation.resume(returning: text)
+                }
+            }
+        }
+        return nil
     }
 }
 
