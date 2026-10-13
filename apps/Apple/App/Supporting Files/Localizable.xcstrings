@@ -3979,6 +3979,58 @@
           }
         }
       }
+    },
+    "Switch with ⌘1 to ⌘4" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přepínejte pomocí ⌘1 až ⌘4"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit ⌘1 bis ⌘4 wechseln"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch with ⌘1 to ⌘4"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambia con ⌘1 a ⌘4"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basculez avec ⌘1 à ⌘4"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passa con ⌘1 a ⌘4"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wissel met ⌘1 t/m ⌘4"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘1 ile ⌘4 arasında geçiş yapın"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

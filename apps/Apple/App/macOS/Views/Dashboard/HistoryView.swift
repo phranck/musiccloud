@@ -45,12 +45,17 @@ struct HistoryView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.smooth, value: allEntries.count)
+            // One animation for every way the filter changes: the segments,
+            // Cmd plus a digit, and a conversion switching to its type.
+            .animation(.smooth, value: filter)
 
             Divider()
             GridSizeBar(gridItemSize: $gridItemSize, gridItemMinSize: HistoryView.gridItemMinSize)
         }
         .searchable(text: $searchText, placement: .toolbar, prompt: String(localized: "Search"))
-        .background(WindowKeyMonitor())
+        .background(WindowKeyMonitor { number in
+            if let selected = MediaFilter(commandNumber: number) { filter = selected }
+        })
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker("", selection: $filter) {
@@ -61,6 +66,7 @@ struct HistoryView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelStyle(.titleAndIcon)
+                .help(String(localized: "Switch with ⌘1 to ⌘4"))
             }
         }
     }
