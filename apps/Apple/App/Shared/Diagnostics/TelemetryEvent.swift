@@ -54,7 +54,7 @@ struct TelemetryEvent: Codable {
             osVersion: Self.osVersion,
             deviceModel: Self.deviceModel,
             locale: Locale.current.identifier,
-            sourceUrl: sourceUrl,
+            sourceUrl: sourceUrl.map(Self.withoutQuery),
             service: service,
             errorKind: errorKind,
             httpStatus: httpStatus,
@@ -80,12 +80,24 @@ struct TelemetryEvent: Codable {
             osVersion: Self.osVersion,
             deviceModel: Self.deviceModel,
             locale: Locale.current.identifier,
-            sourceUrl: sourceUrl,
+            sourceUrl: sourceUrl.map(Self.withoutQuery),
             service: nil,
             errorKind: errorKind,
             httpStatus: nil,
             message: message
         )
+    }
+
+    /// The URL without its query and fragment.
+    ///
+    /// Streaming services append sharing and tracking parameters, such as
+    /// Spotify's `si=`, that identify who shared the link. The path is all
+    /// a failure report needs.
+    static func withoutQuery(_ urlString: String) -> String {
+        guard var components = URLComponents(string: urlString) else { return urlString }
+        components.query = nil
+        components.fragment = nil
+        return components.string ?? urlString
     }
 
     // MARK: Device / bundle context
@@ -110,9 +122,7 @@ struct TelemetryEvent: Codable {
         ProcessInfo.processInfo.operatingSystemVersionString
     }
 
-    /// Hardware identifier like `"iPhone15,2"` / `"Mac14,7"`. Falls back
-    /// to `ProcessInfo.machineHardwareName` via `uname(3)` when the
-    /// higher-level API is unavailable.
+    /// Hardware identifier like `"iPhone15,2"` or `"Mac14,7"`, read with `uname(3)`.
     private static var deviceModel: String {
         var systemInfo = utsname()
         uname(&systemInfo)
