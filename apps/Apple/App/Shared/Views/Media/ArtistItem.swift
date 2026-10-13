@@ -22,7 +22,7 @@ struct ArtistItem: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Image(systemName: "person.circle")
+                    Image(systemName: MediaType.artist.icon)
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                     Text(artist.name)

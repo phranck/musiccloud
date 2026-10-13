@@ -52,13 +52,9 @@ struct MenuBarView: View {
             }
         }
         .padding(PanelMetrics.spacing)
-        .frame(width: 380)
+        .frame(width: PanelMetrics.panelWidth)
         .frame(maxHeight: .infinity, alignment: .top)
-        .onChange(of: monitor.status) {
-            if case .success(_, let mediaType) = monitor.status {
-                selectedFilter = MediaFilter(for: mediaType)
-            }
-        }
+        .followsConversions(of: monitor, filter: $selectedFilter)
     }
 }
 

@@ -135,31 +135,11 @@ struct MediaEntryTests {
         #expect(info.formattedDuration == nil)
     }
 
-    @Test func trackInfoReleaseYear() {
-        let info = TrackInfo(title: "Song", artists: [], releaseDate: "2020-03-20")
-        #expect(info.releaseYear == "2020")
-    }
-
-    @Test func trackInfoReleaseYearNil() {
-        let info = TrackInfo(title: "Song", artists: [])
-        #expect(info.releaseYear == nil)
-    }
-
     // MARK: AlbumInfo
 
     @Test func albumInfoArtistsString() {
         let info = AlbumInfo(title: "Album", artists: ["A", "B"])
         #expect(info.artistsString == "A, B")
-    }
-
-    @Test func albumInfoReleaseYear() {
-        let info = AlbumInfo(title: "Album", artists: [], releaseDate: "2023-01-15")
-        #expect(info.releaseYear == "2023")
-    }
-
-    @Test func albumInfoReleaseYearNil() {
-        let info = AlbumInfo(title: "Album", artists: [])
-        #expect(info.releaseYear == nil)
     }
 
     // MARK: ArtistInfo

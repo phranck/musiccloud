@@ -16,7 +16,7 @@ enum MediaFilter: String, Hashable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Cases without `.all`, used by macOS views that show per-type tabs.
+    /// Cases without `.all`, one per media type.
     static let mediaOnlyCases: [MediaFilter] = [.tracks, .albums, .artists]
 
     /// Returns the filter matching the given media type.
@@ -42,12 +42,7 @@ extension MediaFilter {
     }
 
     var icon: String {
-        switch self {
-        case .all:     "music.note.list"
-        case .tracks:  "music.note"
-        case .albums:  "square.stack"
-        case .artists: "person.circle"
-        }
+        mediaType?.icon ?? "music.note.list"
     }
 
     var mediaType: MediaType? {

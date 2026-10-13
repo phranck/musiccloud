@@ -56,11 +56,8 @@ private struct CopyShareURLButton: View {
 
     var body: some View {
         Button {
-            #if os(macOS)
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(shortUrl, forType: .string)
-            #else
-            UIPasteboard.general.string = shortUrl
+            Pasteboard.copy(shortUrl)
+            #if os(iOS)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             #endif
         } label: {

@@ -38,7 +38,6 @@ import UIKit
 ///
 /// ### Current State
 /// - ``status``
-/// - ``lastShortUrl``
 ///
 /// ### Status Types
 /// - ``Status``
@@ -58,17 +57,14 @@ final class ClipboardMonitor {
     private var lastChangeCount: Int = -1
 
     var status: Status = .idle
-    private(set) var lastShortUrl: String?
 
     /// Creates a new clipboard monitor.
     ///
-    /// Automatically starts monitoring the clipboard and restores the last short URL
-    /// from the history.
+    /// Starts monitoring the clipboard when monitoring is enabled.
     ///
     /// - Parameter historyManager: The history manager to use for storing conversions
     init(historyManager: HistoryManager) {
         self.historyManager = historyManager
-        restoreLastShortUrl()
         if Self.isEnabled {
             startMonitoring()
         }
@@ -159,8 +155,7 @@ extension ClipboardMonitor {
         guard !status.isProcessing else { return }
 
         if let existing = historyManager.entry(forOriginalUrl: url) {
-            lastShortUrl = existing.shortUrl
-            setPasteboardString(existing.shortUrl)
+            Pasteboard.copy(existing.shortUrl)
             lastSeenContent = existing.shortUrl
             status = .success(shortUrl: existing.shortUrl, mediaType: existing.mediaType)
             AppLogger.clipboard.debug("already resolved → \(existing.shortUrl)")
@@ -198,28 +193,20 @@ private extension ClipboardMonitor {
     /// - Parameter url: The streaming service URL to resolve
     func resolve(url: String) async {
         do {
-            let result = try await MusicCloudAPI.resolve(url: url)
-
-            var artworkData: Data?
-            if let artworkUrl = result.contentType.artworkUrl {
-                artworkData = await MusicCloudAPI.downloadArtwork(from: artworkUrl)
-            }
+            let conversion = try await MusicCloudAPI.convert(url: url)
             try Task.checkCancellation()
 
-            let entry = result.toMediaEntry(
-                originalUrl: url,
-                artworkData: artworkData
-            )
+            let entry = conversion.makeEntry(originalUrl: url)
+            let shortUrl = conversion.response.shortUrl
             historyManager.add(entry)
-            lastShortUrl = result.shortUrl
-            setPasteboardString(result.shortUrl)
-            lastSeenContent = result.shortUrl
-            status = .success(shortUrl: result.shortUrl, mediaType: entry.mediaType)
+            Pasteboard.copy(shortUrl)
+            lastSeenContent = shortUrl
+            status = .success(shortUrl: shortUrl, mediaType: entry.mediaType)
             #if os(iOS)
             HapticFeedback.success()
             #endif
             NotificationManager.notifySuccess(entry: entry)
-            AppLogger.clipboard.debug("resolve succeeded → \(result.shortUrl)")
+            AppLogger.clipboard.debug("resolve succeeded → \(shortUrl)")
         } catch where Self.isCancellation(error) {
             status = .idle
             lastSeenContent = nil
@@ -296,7 +283,7 @@ private extension ClipboardMonitor {
         guard !Self.holdsConcealedContent(NSPasteboard.general) else { return }
         #endif
 
-        guard let raw = pasteboardString() else { return }
+        guard let raw = Pasteboard.string else { return }
         let content = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
         guard content != lastSeenContent else { return }
@@ -308,14 +295,6 @@ private extension ClipboardMonitor {
         AppLogger.clipboard.debug("clipboard holds a streaming URL")
 
         convert(url: content)
-    }
-
-    /// Restores the last short URL from the conversion history.
-    ///
-    /// Called during initialization to restore the most recent conversion
-    /// from the history manager, if available.
-    func restoreLastShortUrl() {
-        lastShortUrl = historyManager.mostRecent?.shortUrl
     }
 }
 
@@ -337,35 +316,3 @@ extension ClipboardMonitor {
     }
 }
 #endif
-
-// MARK: - Pasteboard
-
-private extension ClipboardMonitor {
-    /// Reads the current string content from the system clipboard.
-    ///
-    /// - Returns: The clipboard string content, or `nil` if empty or unavailable
-    ///
-    /// - Note: Uses `NSPasteboard` on macOS and `UIPasteboard` on iOS
-    func pasteboardString() -> String? {
-#if os(macOS)
-        NSPasteboard.general.string(forType: .string)
-#else
-        UIPasteboard.general.string
-#endif
-    }
-
-    /// Writes a string to the system clipboard, replacing any existing content.
-    ///
-    /// On macOS, this clears the clipboard before setting the new string.
-    /// On iOS, it directly sets the string value.
-    ///
-    /// - Parameter string: The string to write to the clipboard
-    func setPasteboardString(_ string: String) {
-#if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
-#else
-        UIPasteboard.general.string = string
-#endif
-    }
-}

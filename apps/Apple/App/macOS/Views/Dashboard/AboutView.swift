@@ -31,7 +31,7 @@ struct AboutView: View {
                         .font(.body)
                         .foregroundStyle(.secondary)
                     Link("musiccloud.io",
-                         destination: URL(string: "https://musiccloud.io")!)
+                         destination: MusicCloudAPI.productionURL)
                         .font(.body)
                 }
                 Spacer()

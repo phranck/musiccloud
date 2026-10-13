@@ -23,20 +23,13 @@ import SwiftUI
 /// ## Usage
 ///
 /// ```swift
-/// // Idle state
-/// HeaderRow(isProcessing: false)
-///
-/// // Processing state (logo animates, yellow indicator)
-/// HeaderRow(isProcessing: true)
+/// HeaderRow(status: monitor.status)
 /// ```
 ///
 /// ## Topics
 ///
-/// ### Initialization
-/// - ``init(isProcessing:)``
-///
 /// ### Properties
-/// - ``isProcessing``
+/// - ``status``
 struct HeaderRow: View {
     var status: ClipboardMonitor.Status
 

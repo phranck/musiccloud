@@ -26,58 +26,42 @@ struct ContentView: View {
 private struct IPhoneTabView: View {
     @Environment(ClipboardMonitor.self) private var monitor
 
-    @State private var selectedTab: TabSelection = .all
+    @State private var selectedTab: Tab = .filter(.all)
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            NavigationStack {
-                HistoryView(initialFilter: .all)
+            ForEach(MediaFilter.allCases) { filter in
+                NavigationStack {
+                    HistoryView(initialFilter: filter)
+                }
+                .tabItem { Label(filter.title, systemImage: filter.icon) }
+                .tag(Tab.filter(filter))
             }
-            .tabItem { Label("All", systemImage: "music.note.list") }
-            .tag(TabSelection.all)
-
-            NavigationStack {
-                HistoryView(initialFilter: .tracks)
-            }
-            .tabItem { Label("Tracks", systemImage: "music.note") }
-            .tag(TabSelection.tracks)
-
-            NavigationStack {
-                HistoryView(initialFilter: .albums)
-            }
-            .tabItem { Label("Albums", systemImage: "square.stack") }
-            .tag(TabSelection.albums)
-
-            NavigationStack {
-                HistoryView(initialFilter: .artists)
-            }
-            .tabItem { Label("Artists", systemImage: "person.2") }
-            .tag(TabSelection.artists)
 
             NavigationStack {
                 SettingsView()
                     .navigationTitle("Settings")
             }
             .tabItem { Label("Settings", systemImage: "gear") }
-            .tag(TabSelection.settings)
+            .tag(Tab.settings)
         }
-        .onChange(of: monitor.status) {
-            if case .success(_, let mediaType) = monitor.status {
-                selectedTab = TabSelection(for: mediaType)
-            }
-        }
+        .followsConversions(of: monitor, filter: selectedFilter)
     }
 
-    private enum TabSelection: Hashable {
-        case all, tracks, albums, artists, settings
+    private enum Tab: Hashable {
+        case filter(MediaFilter)
+        case settings
+    }
 
-        init(for mediaType: MediaType) {
-            switch mediaType {
-            case .track:  self = .tracks
-            case .album:  self = .albums
-            case .artist: self = .artists
-            }
-        }
+    /// The selected tab seen as a filter, so a conversion can switch it.
+    private var selectedFilter: Binding<MediaFilter> {
+        Binding(
+            get: {
+                if case .filter(let filter) = selectedTab { return filter }
+                return .all
+            },
+            set: { selectedTab = .filter($0) }
+        )
     }
 }
 
@@ -125,9 +109,7 @@ private struct IPadSplitView: View {
 
 private enum SidebarSelection: Hashable {
     case home
-    case tracks
-    case albums
-    case artists
+    case filter(MediaFilter)
     case settings
 }
 
@@ -144,30 +126,16 @@ private struct IPadSidebar: View {
                     .tag(SidebarSelection.home)
             }
             Section("Library") {
-                HStack {
-                    Label("Tracks", systemImage: "music.note")
-                    Spacer()
-                    Text("\(countFor(.track))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                ForEach(MediaFilter.mediaOnlyCases) { filter in
+                    HStack {
+                        Label(filter.title, systemImage: filter.icon)
+                        Spacer()
+                        Text("\(count(of: filter))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .tag(SidebarSelection.filter(filter))
                 }
-                .tag(SidebarSelection.tracks)
-                HStack {
-                    Label("Albums", systemImage: "square.stack")
-                    Spacer()
-                    Text("\(countFor(.album))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .tag(SidebarSelection.albums)
-                HStack {
-                    Label("Artists", systemImage: "person.2")
-                    Spacer()
-                    Text("\(countFor(.artist))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .tag(SidebarSelection.artists)
             }
             Section {
                 Label("Settings", systemImage: "gear")
@@ -182,8 +150,8 @@ private struct IPadSidebar: View {
         }
     }
 
-    private func countFor(_ mediaType: MediaType) -> Int {
-        allEntries.filter { $0.mediaType == mediaType }.count
+    private func count(of filter: MediaFilter) -> Int {
+        filter.filtered(allEntries, searchText: "").count
     }
 }
 
@@ -196,12 +164,8 @@ private struct IPadDetail: View {
         switch selection {
         case .home:
             HomeView()
-        case .tracks:
-            HistoryView(initialFilter: .tracks)
-        case .albums:
-            HistoryView(initialFilter: .albums)
-        case .artists:
-            HistoryView(initialFilter: .artists)
+        case .filter(let filter):
+            HistoryView(initialFilter: filter)
         case .settings:
             SettingsView()
         case nil:

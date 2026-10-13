@@ -51,15 +51,6 @@ final class HistoryManager {
         }
     }
 
-    /// The most recently added conversion entry.
-    var mostRecent: MediaEntry? {
-        var descriptor = FetchDescriptor<MediaEntry>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-        descriptor.fetchLimit = 1
-        return try? modelContext.fetch(descriptor).first
-    }
-
     /// Finds an existing entry by its original URL.
     ///
     /// Used for duplicate detection in the clipboard monitor.

@@ -27,9 +27,4 @@ extension TrackInfo {
         let total = millis / 1000
         return String(format: "%d:%02d", total / 60, total % 60)
     }
-
-    var releaseYear: String? {
-        guard let date = releaseDate, date.count >= 4 else { return nil }
-        return String(date.prefix(4))
-    }
 }

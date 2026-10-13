@@ -15,8 +15,8 @@ import SwiftUI
 /// ## Usage
 ///
 /// ```swift
-/// // Display the 10 most recent conversions
-/// MediaSection(history: Array(historyManager.entries.prefix(10)))
+/// // Display the 8 most recent conversions
+/// MediaSection(history: Array(entries.prefix(8)))
 /// ```
 ///
 /// ## Layout

@@ -34,7 +34,7 @@ struct ResultCardView: View {
             }
             HStack(spacing: 12) {
                 Button {
-                    UIPasteboard.general.string = entry.shortUrl
+                    Pasteboard.copy(entry.shortUrl)
                     HapticFeedback.success()
                 } label: {
                     Label("Copy Link", systemImage: "doc.on.doc")

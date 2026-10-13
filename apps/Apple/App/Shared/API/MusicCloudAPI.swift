@@ -41,6 +41,10 @@ import OSLog
 /// - ``downloadArtwork(from:)``
 enum MusicCloudAPI {
 
+    /// The production service, which every short link points at.
+    // swiftlint:disable:next force_unwrapping
+    static let productionURL = URL(string: "https://musiccloud.io")!
+
     /// Base URL for the musiccloud.io API and short links.
     ///
     /// Override in DEBUG builds via the `MUSICCLOUD_BASE_URL` environment variable
@@ -54,8 +58,7 @@ enum MusicCloudAPI {
         return URL(string: "http://localhost:3000")!
     }()
     #else
-    // swiftlint:disable:next force_unwrapping
-    static let baseURL = URL(string: "https://musiccloud.io")!
+    static let baseURL = productionURL
     #endif
 }
 
@@ -166,6 +169,26 @@ extension MusicCloudAPI {
             reportResolveError(url: url, kind: "INVALID_RESPONSE", status: statusCode, body: "")
             throw error
         }
+    }
+
+    /// Resolves a URL and downloads its artwork, which is everything a history entry needs.
+    ///
+    /// The app and the Share Extension both convert this way, so an entry
+    /// looks the same whichever of them made it.
+    ///
+    /// - Parameters:
+    ///   - url: The streaming service URL to convert.
+    ///   - baseURL: The backend to ask, ``baseURL`` when `nil`.
+    /// - Returns: The answer and the artwork, which is `nil` when there is none or it failed to load.
+    /// - Throws: Whatever ``resolve(url:baseURL:)`` throws.
+    @concurrent
+    static func convert(url: String, baseURL: URL? = nil) async throws -> Conversion {
+        let response = try await resolve(url: url, baseURL: baseURL)
+        var artworkData: Data?
+        if let artworkUrl = response.contentType.artworkUrl {
+            artworkData = await downloadArtwork(from: artworkUrl)
+        }
+        return Conversion(response: response, artworkData: artworkData)
     }
 
     /// Short machine-readable code for the telemetry payload's

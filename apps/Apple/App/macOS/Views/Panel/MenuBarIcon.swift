@@ -11,7 +11,7 @@ import SwiftUI
 /// A menu bar icon that cycles through rainbow colors while processing.
 ///
 /// Displays the `music.note.list` SF Symbol. When `isProcessing` is true,
-/// the icon color cycles through ``RainbowPalette`` at 30 FPS.
+/// the icon color cycles through ``RainbowPalette`` 12 times a second.
 /// When idle, it renders as a standard template icon.
 struct MenuBarIcon: View {
     /// Whether a URL is currently being resolved

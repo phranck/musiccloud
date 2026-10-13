@@ -10,7 +10,9 @@ import SwiftUI
 // MARK: - Segment
 
 struct Segment<Tag: Hashable>: Identifiable {
-    let id = UUID()
+    /// The tag is the identity, so a segment rebuilt on the next body pass
+    /// is the same segment and keeps its hover and selection state.
+    var id: Tag { tag }
     let title: String
     let systemImage: String?
     let tag: Tag

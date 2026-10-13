@@ -2304,52 +2304,6 @@
         }
       }
     },
-    "Monitoring clipboard for streaming URLs" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zwischenablage wird auf Streaming-URLs überwacht"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schránka se sleduje kvůli URL streamingových služeb"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Supervisando el portapapeles en busca de URL de streaming"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Surveillance du presse-papiers pour les URL de streaming"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Monitoraggio degli appunti per gli URL di streaming"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Klembord wordt bewaakt op streaming-URL's"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pano akış URL'leri için izleniyor"
-          }
-        }
-      }
-    },
     "Monitoring clipboard for streaming URLs…" : {
       "localizations" : {
         "cs" : {
