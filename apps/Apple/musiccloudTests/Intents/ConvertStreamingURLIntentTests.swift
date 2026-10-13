@@ -11,11 +11,6 @@ struct ConvertStreamingURLIntentTests {
         #expect(ConvertStreamingURLIntent.title == "Convert Streaming URL")
     }
 
-    @Test func intentHasDescription() {
-        let desc = ConvertStreamingURLIntent.description
-        #expect(desc != nil)
-    }
-
     // MARK: Error Messages
 
     @Test func invalidURLErrorHasMessage() {
@@ -26,9 +21,8 @@ struct ConvertStreamingURLIntentTests {
 
     @Test func conversionFailedErrorContainsReason() {
         let error = ConvertStreamingURLError.conversionFailed("Network timeout")
-        let resource = error.localizedStringResource
-        // The localized string resource should contain the failure reason
-        #expect(resource != nil)
+        let message = String(localized: error.localizedStringResource)
+        #expect(message.contains("Network timeout"))
     }
 
     // MARK: URL Validation (via StreamingServices, used by the intent)
