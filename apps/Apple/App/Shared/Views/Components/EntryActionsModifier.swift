@@ -124,7 +124,7 @@ private struct ServiceLinksMenu: View {
                     }
                 }
             } label: {
-                Label("Open in", systemImage: "arrow.up.forward.app")
+                Label("Open In", systemImage: "arrow.up.forward.app")
             }
         }
     }

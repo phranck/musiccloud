@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import musiccloud
 #if os(macOS)
@@ -29,7 +30,7 @@ struct ClipboardMonitorTests {
     }
 
     @Test func statusErrorHasMessage() {
-        let status = ClipboardMonitor.Status.error(message: "Network timeout")
+        let status = ClipboardMonitor.Status.error(.unknown("Network timeout"))
         #expect(!status.isProcessing)
         #expect(status.errorMessage == "Network timeout")
     }
@@ -41,8 +42,8 @@ struct ClipboardMonitorTests {
         #expect(ClipboardMonitor.Status.processing(url: "a") == .processing(url: "a"))
         #expect(ClipboardMonitor.Status.processing(url: "a") != .processing(url: "b"))
         #expect(ClipboardMonitor.Status.success(shortUrl: "x", mediaType: .track) == .success(shortUrl: "x", mediaType: .track))
-        #expect(ClipboardMonitor.Status.error(message: "e") == .error(message: "e"))
-        #expect(ClipboardMonitor.Status.idle != .error(message: "e"))
+        #expect(ClipboardMonitor.Status.error(.unknown("e")) == .error(.unknown("e")))
+        #expect(ClipboardMonitor.Status.idle != .error(.unknown("e")))
     }
 
     // MARK: Status Transitions
@@ -66,7 +67,7 @@ struct ClipboardMonitorTests {
 
     @Test func statusTransitionProcessingToError() {
         let processing = ClipboardMonitor.Status.processing(url: "https://open.spotify.com/track/abc")
-        let error = ClipboardMonitor.Status.error(message: "Service unavailable")
+        let error = ClipboardMonitor.Status.error(.unknown("Service unavailable"))
         #expect(processing != error)
         #expect(processing.isProcessing)
         #expect(!error.isProcessing)
@@ -81,9 +82,9 @@ struct ClipboardMonitorTests {
     }
 
     @Test func statusErrorPreservesMessage() {
-        let error = ClipboardMonitor.Status.error(message: "Rate limited")
+        let error = ClipboardMonitor.Status.error(.unknown("Rate limited"))
         #expect(error.errorMessage == "Rate limited")
-        let different = ClipboardMonitor.Status.error(message: "Timeout")
+        let different = ClipboardMonitor.Status.error(.unknown("Timeout"))
         #expect(error != different)
     }
 
@@ -104,4 +105,20 @@ struct ClipboardMonitorTests {
         #expect(!ClipboardMonitor.holdsConcealedContent(pasteboard))
     }
     #endif
+
+    // MARK: Error mapping
+
+    @Test func transportFailureBecomesNetworkError() {
+        #expect(ResolveError(URLError(.notConnectedToInternet)) == .networkError)
+    }
+
+    @Test func resolveErrorPassesThrough() {
+        #expect(ResolveError(ResolveError.rateLimited) == .rateLimited)
+    }
+
+    @Test func statusKeepsTheRateLimitCase() {
+        let status = ClipboardMonitor.Status.error(.rateLimited)
+        #expect(status == .error(.rateLimited))
+        #expect(status.errorMessage == ResolveError.rateLimited.errorDescription)
+    }
 }

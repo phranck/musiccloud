@@ -21,7 +21,7 @@ struct HistoryView: View {
     @Binding var filter: MediaFilter
 
     @State private var searchText = ""
-    @AppStorage("gridItemSize") private var gridItemSize: Double = 168
+    @AppStorage(DefaultsKey.gridItemSize) private var gridItemSize: Double = 168
 
     private static let gridItemMinSize: CGFloat = 150
 

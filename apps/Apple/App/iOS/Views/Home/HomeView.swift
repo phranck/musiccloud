@@ -47,8 +47,8 @@ private struct StatusContent: View {
                 ResultCardView(entry: entry)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-        case .error(let message):
-            ErrorCard(message: message, monitor: monitor)
+        case .error(let error):
+            ErrorCard(error: error, monitor: monitor)
                 .transition(.move(edge: .top).combined(with: .opacity))
         case .idle:
             EmptyView()
@@ -110,12 +110,11 @@ private struct ProcessingCard: View {
 // MARK: - ErrorCard
 
 private struct ErrorCard: View {
-    let message: String
+    let error: ResolveError
     let monitor: ClipboardMonitor
 
-    private var isRateLimit: Bool {
-        message.lowercased().contains("rate") || message.lowercased().contains("429")
-    }
+    private var isRateLimit: Bool { error == .rateLimited }
+    private var message: String { error.errorDescription ?? "" }
 
     var body: some View {
         HStack(spacing: 12) {

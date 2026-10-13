@@ -83,9 +83,9 @@ final class ClipboardMonitor {
     static var isEnabled: Bool {
         get {
             guard !SharedStoreConfiguration.isHostingTests else { return false }
-            return UserDefaults.standard.object(forKey: "clipboardMonitoringEnabled") as? Bool ?? true
+            return UserDefaults.standard.object(forKey: DefaultsKey.clipboardMonitoringEnabled) as? Bool ?? true
         }
-        set { UserDefaults.standard.set(newValue, forKey: "clipboardMonitoringEnabled") }
+        set { UserDefaults.standard.set(newValue, forKey: DefaultsKey.clipboardMonitoringEnabled) }
     }
 
     deinit {
@@ -107,7 +107,7 @@ extension ClipboardMonitor {
     /// - ``idle``
     /// - ``processing(url:)``
     /// - ``success(shortUrl:)``
-    /// - ``error(message:)``
+    /// - ``error(_:)``
     ///
     /// ### Computed Properties
     /// - ``isProcessing``
@@ -127,8 +127,8 @@ extension ClipboardMonitor {
         case success(shortUrl: String, mediaType: MediaType)
 
         /// An error occurred during conversion
-        /// - Parameter message: Human-readable error description
-        case error(message: String)
+        /// - Parameter error: Why the conversion failed
+        case error(ResolveError)
 
         /// Returns `true` if currently processing a URL
         var isProcessing: Bool {
@@ -136,9 +136,9 @@ extension ClipboardMonitor {
             return false
         }
 
-        /// Returns the error message if status is `.error`, otherwise `nil`
+        /// Returns the localized error message if status is `.error`, otherwise `nil`
         var errorMessage: String? {
-            if case .error(let message) = self { return message }
+            if case .error(let error) = self { return error.errorDescription }
             return nil
         }
     }
@@ -204,9 +204,8 @@ extension ClipboardMonitor {
             NotificationManager.notifySuccess(entry: entry)
             AppLogger.clipboard.debug("resolve succeeded → \(result.shortUrl)")
         } catch {
-            let errorMessage = error.localizedDescription
-            status = .error(message: errorMessage)
-            AppLogger.clipboard.error("resolve failed: \(errorMessage)")
+            status = .error(ResolveError(error))
+            AppLogger.clipboard.error("resolve failed: \(error.localizedDescription)")
         }
     }
 }

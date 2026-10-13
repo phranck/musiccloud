@@ -38,7 +38,7 @@ enum ContentType: Codable, Equatable {
         switch self {
         case .track(let info): info.artistsString
         case .album(let info): info.artistsString
-        case .artist(let info): info.genresString ?? "Artist"
+        case .artist(let info): info.genresString ?? String(localized: "Artist")
         }
     }
 
