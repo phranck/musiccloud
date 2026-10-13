@@ -36,6 +36,10 @@ enum DiagnosticsExporter {
     /// after it closes, for example during an AirDrop transfer. So it is not
     /// deleted after sharing. Each export removes the previous ones instead,
     /// which leaves at most one file of logs on the device.
+    ///
+    /// Reading the log store blocks for as long as it takes, so this runs on
+    /// the concurrent pool rather than on the caller's actor.
+    @concurrent
     static func exportLogs() async throws -> URL {
         guard let store = try? OSLogStore(scope: .currentProcessIdentifier) else {
             throw ExportError.unavailable

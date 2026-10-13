@@ -109,14 +109,15 @@ final class ArtworkThumbnailCache: @unchecked Sendable {
     /// Decodes image data into a thumbnail whose longest edge is at most `maxPixelSize`.
     ///
     /// ImageIO decodes straight to the target size, so the full-size bitmap
-    /// never exists in memory. This is `nonisolated` and `async`, so it runs
-    /// on the cooperative pool rather than on the main actor.
+    /// never exists in memory. Decoding blocks, so this runs on the
+    /// concurrent pool rather than on the main actor that asks for it.
     ///
     /// - Parameters:
     ///   - data: Encoded image data, such as JPEG or PNG.
     ///   - maxPixelSize: The longest edge of the result, in pixels.
     /// - Returns: The decoded thumbnail, or `nil` when the data is not an image.
-    nonisolated static func thumbnail(from data: Data, maxPixelSize: Int) async -> CGImage? {
+    @concurrent
+    static func thumbnail(from data: Data, maxPixelSize: Int) async -> CGImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,

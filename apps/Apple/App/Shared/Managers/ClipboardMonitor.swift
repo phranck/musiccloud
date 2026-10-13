@@ -51,9 +51,7 @@ final class ClipboardMonitor {
     private let historyManager: HistoryManager
     private var lastSeenContent: String?
     @ObservationIgnored
-    private var timer: Timer?
-    @ObservationIgnored
-    private var checkTask: Task<Void, Never>?
+    private var pollTask: Task<Void, Never>?
     @ObservationIgnored
     private var resolveTask: Task<Void, Never>?
     @ObservationIgnored
@@ -89,7 +87,8 @@ final class ClipboardMonitor {
     }
 
     deinit {
-        timer?.invalidate()
+        pollTask?.cancel()
+        resolveTask?.cancel()
     }
 }
 
@@ -236,32 +235,30 @@ private extension ClipboardMonitor {
 // MARK: - Monitoring
 
 extension ClipboardMonitor {
-    /// Starts the clipboard monitoring timer.
+    /// How often the clipboard is checked while monitoring.
+    static let pollInterval: Duration = .seconds(1)
+
+    /// Starts checking the clipboard every ``pollInterval``.
     ///
-    /// Creates a timer that fires every 1 second to check the clipboard for changes.
-    /// The timer is added to the main run loop in common mode to ensure it continues
-    /// running during UI interactions.
+    /// The loop runs on the main actor, like everything that reads the
+    /// pasteboard, and holds the monitor only weakly, so it ends with it.
     func startMonitoring() {
-        guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            MainActor.assumeIsolated {
-                self.checkTask?.cancel()
-                self.checkTask = Task { @MainActor in await self.checkClipboard() }
+        guard pollTask == nil else { return }
+        pollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                self.checkClipboard()
+                try? await Task.sleep(for: Self.pollInterval)
             }
         }
-        guard let timer else { return }
-        RunLoop.main.add(timer, forMode: .common)
     }
 
-    /// Stops the clipboard monitoring timer.
+    /// Stops checking the clipboard and cancels a running conversion.
     func stopMonitoring() {
-        checkTask?.cancel()
-        checkTask = nil
+        pollTask?.cancel()
+        pollTask = nil
         resolveTask?.cancel()
         resolveTask = nil
-        timer?.invalidate()
-        timer = nil
     }
 }
 
@@ -270,15 +267,14 @@ extension ClipboardMonitor {
 private extension ClipboardMonitor {
     /// Checks the clipboard for new streaming service URLs.
     ///
-    /// This method is called every second by the monitoring timer. It:
+    /// This method is called every ``pollInterval`` while monitoring. It:
     /// 1. Reads the current clipboard content
     /// 2. Compares it to the last seen content to avoid duplicates
     /// 3. Checks if it's a streaming service URL using ``StreamingServices``
     /// 4. Hands a new streaming URL to ``convert(url:)``
     ///
     /// - Note: This method must be called from the main actor
-    @MainActor
-    func checkClipboard() async {
+    func checkClipboard() {
         // A URL copied while a conversion runs is picked up afterwards: the
         // change count is only consumed once nothing is converting.
         guard !status.isProcessing else { return }
