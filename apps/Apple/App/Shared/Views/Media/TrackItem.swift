@@ -13,12 +13,12 @@ import SwiftUI
 struct TrackItem: View {
     /// The track metadata to display
     var track: TrackInfo
-    /// The short URL to share
-    var shortUrl: String
+    /// The entry the metadata belongs to, for its artwork and short URL
+    var entry: MediaEntry
 
     var body: some View {
         HStack(spacing: 12) {
-            MediaArtwork(url: track.artworkUrl)
+            MediaArtwork(entry: entry)
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title)
                     .font(.system(size: 14))
@@ -35,7 +35,7 @@ struct TrackItem: View {
                     .foregroundStyle(.secondary)
             }
 
-            ShareButton(shortUrl: shortUrl)
+            ShareButton(shortUrl: entry.shortUrl)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
