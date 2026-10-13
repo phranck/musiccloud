@@ -15,7 +15,8 @@ import SwiftUI
 /// Displays an SF Symbol icon above a text label with hover highlighting.
 struct PanelActionItem: View {
     let icon: String
-    let title: String
+    /// A key into the string catalog, so the label follows the system language.
+    let title: LocalizedStringKey
     let action: () -> Void
 
     @State private var isHovered = false

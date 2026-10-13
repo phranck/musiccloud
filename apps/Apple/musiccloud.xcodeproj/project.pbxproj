@@ -11,6 +11,7 @@
 		3740E6ECEB9CA883501A80B5 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C16C63FE6CBA4D6FFEBA8 /* ClipboardMonitor.swift */; };
 		41A30941322C3370DF2766CC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 26E51532D490E1A2DE32DF3C /* Assets.xcassets */; };
 		769A0D50AC6FC83DE76D5000 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */; };
+		DC000000000000000000A001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */; };
 		7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121F8EA83B3E06119BA82118 /* StreamingServices.swift */; };
 		8B76C213DB85A0116DCD1056 /* MusicCloudAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */; };
 		AA00000000000001 /* PanelMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000002 /* PanelMetrics.swift */; };
@@ -108,7 +109,9 @@
 		FF0000000000010C /* ResolveError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10F2F83900100000003 /* ResolveError.swift */; };
 		FF0000000000010D /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */; };
 		EF00000000000101 /* BuildChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001A /* BuildChannel.swift */; };
+		DC0000000000000B1 /* DefaultsKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000000000000F0 /* DefaultsKey.swift */; };
 		EF00000000000102 /* BuildChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001A /* BuildChannel.swift */; };
+		DC0000000000000B2 /* DefaultsKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000000000000F0 /* DefaultsKey.swift */; };
 		EF00000000000201 /* TelemetryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001B /* TelemetryEvent.swift */; };
 		EF00000000000202 /* TelemetryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001B /* TelemetryEvent.swift */; };
 		EF00000000000301 /* TelemetryClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001C /* TelemetryClient.swift */; };
@@ -243,6 +246,7 @@
 		AA00000000000071 /* HapticFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticFeedback.swift; sourceTree = "<group>"; };
 		FF00000000000020 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 		EF0000000000001A /* BuildChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildChannel.swift; sourceTree = "<group>"; };
+		DC0000000000000F0 /* DefaultsKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultsKey.swift; sourceTree = "<group>"; };
 		EF0000000000001B /* TelemetryEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryEvent.swift; sourceTree = "<group>"; };
 		EF0000000000001C /* TelemetryClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryClient.swift; sourceTree = "<group>"; };
 		EF0000000000001D /* InstallID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallID.swift; sourceTree = "<group>"; };
@@ -422,6 +426,7 @@
 			isa = PBXGroup;
 			children = (
 				EF0000000000001A /* BuildChannel.swift */,
+				DC0000000000000F0 /* DefaultsKey.swift */,
 				AA00000000000071 /* HapticFeedback.swift */,
 				AA00000000000002 /* PanelMetrics.swift */,
 				FF00000000000014 /* SharedStoreConfiguration.swift */,
@@ -713,6 +718,7 @@
 			buildConfigurationList = CC00000000000060 /* Build configuration list for PBXNativeTarget "ShareExtension" */;
 			buildPhases = (
 				CC00000000000040 /* Sources */,
+				DC000000000000000000A002 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -778,6 +784,14 @@
 				FD8BCE772F85225D00EC883B /* sound2.mp3 in Resources */,
 				FD8BCE782F85225D00EC883B /* sound4.mp3 in Resources */,
 				FD8BCE792F85225D00EC883B /* sound6.mp3 in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DC000000000000000000A002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DC000000000000000000A001 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -875,6 +889,7 @@
 				AA00000000000070 /* HapticFeedback.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
 				EF00000000000101 /* BuildChannel.swift in Sources */,
+				DC0000000000000B1 /* DefaultsKey.swift in Sources */,
 				EF00000000000201 /* TelemetryEvent.swift in Sources */,
 				EF00000000000301 /* TelemetryClient.swift in Sources */,
 				EF00000000000401 /* InstallID.swift in Sources */,
@@ -915,6 +930,7 @@
 				FF0000000000010C /* ResolveError.swift in Sources */,
 				FF0000000000010D /* AppLogger.swift in Sources */,
 				EF00000000000102 /* BuildChannel.swift in Sources */,
+				DC0000000000000B2 /* DefaultsKey.swift in Sources */,
 				EF00000000000202 /* TelemetryEvent.swift in Sources */,
 				EF00000000000302 /* TelemetryClient.swift in Sources */,
 				EF00000000000402 /* InstallID.swift in Sources */,
@@ -989,12 +1005,14 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
 			};
@@ -1206,6 +1224,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -1213,6 +1232,7 @@
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};

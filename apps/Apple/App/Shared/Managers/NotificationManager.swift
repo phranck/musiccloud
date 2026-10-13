@@ -112,7 +112,7 @@ enum NotificationManager {
             content.body = info.artistsString
         case .artist(let info):
             content.title = info.name
-            content.body = info.genresString ?? "Artist"
+            content.body = info.genresString ?? String(localized: "Artist")
         }
 
         // Attach artwork if available
@@ -141,8 +141,8 @@ enum NotificationManager {
 
 private extension NotificationManager {
     static func playSound() {
-        guard UserDefaults.standard.object(forKey: "playNotificationSound") as? Bool ?? true else { return }
-        let rawValue = UserDefaults.standard.string(forKey: "notificationSound") ?? NotificationSound.default.rawValue
+        guard UserDefaults.standard.object(forKey: DefaultsKey.playNotificationSound) as? Bool ?? true else { return }
+        let rawValue = UserDefaults.standard.string(forKey: DefaultsKey.notificationSound) ?? NotificationSound.default.rawValue
         let sound = NotificationSound(rawValue: rawValue) ?? .default
         sound.play()
     }

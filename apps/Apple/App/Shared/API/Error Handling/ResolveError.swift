@@ -25,7 +25,7 @@ import Foundation
 ///
 /// ### Error Description
 /// - ``errorDescription``
-enum ResolveError: LocalizedError {
+enum ResolveError: LocalizedError, Equatable {
     /// Request was rate-limited by the API (HTTP 429)
     case rateLimited
     /// The provided URL is not a valid streaming service URL
@@ -49,7 +49,7 @@ enum ResolveError: LocalizedError {
 extension ResolveError {
     /// Returns a localized, user-friendly error description.
     ///
-    /// Error messages are localized using the app's `Localizable.strings` file.
+    /// Error messages are localized through the app's `Localizable.xcstrings` catalog.
     var errorDescription: String? {
         switch self {
         case .rateLimited:       String(localized: "error.rate_limited")
@@ -59,6 +59,26 @@ extension ResolveError {
         case .httpError(let code):  "\(String(localized: "error.server")) (\(code))"
         case .invalidResponse:   String(localized: "error.server")
         case .unknown(let msg):  msg
+        }
+    }
+}
+
+// MARK: - Mapping
+
+extension ResolveError {
+    /// Wraps any error a conversion can end in.
+    ///
+    /// The interface decides what to show by the case, for example the rate
+    /// limit card, so a transport failure has to arrive as a case rather than
+    /// as Foundation's description of it.
+    ///
+    /// - Parameter error: The error thrown while resolving.
+    init(_ error: any Error) {
+        switch error {
+        case let resolveError as ResolveError: self = resolveError
+        case is URLError: self = .networkError
+        case is DecodingError: self = .invalidResponse
+        default: self = .unknown(error.localizedDescription)
         }
     }
 }

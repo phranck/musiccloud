@@ -66,9 +66,9 @@ private enum SettingsTab: String, CaseIterable {
 private struct GeneralSettingsView: View {
     @Environment(ClipboardMonitor.self) private var monitor
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
-    @AppStorage("clipboardMonitoringEnabled") private var clipboardMonitoringEnabled = true
-    @AppStorage("playNotificationSound") private var playNotificationSound = true
-    @AppStorage("notificationSound") private var notificationSound = NotificationSound.default.rawValue
+    @AppStorage(DefaultsKey.clipboardMonitoringEnabled) private var clipboardMonitoringEnabled = true
+    @AppStorage(DefaultsKey.playNotificationSound) private var playNotificationSound = true
+    @AppStorage(DefaultsKey.notificationSound) private var notificationSound = NotificationSound.default.rawValue
 
     var body: some View {
         Form {

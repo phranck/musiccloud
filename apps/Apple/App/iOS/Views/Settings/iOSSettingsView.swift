@@ -6,8 +6,8 @@ import SwiftUI
 /// iOS settings screen with notification toggle and about section.
 struct SettingsView: View {
     @Environment(ClipboardMonitor.self) private var monitor
-    @AppStorage("clipboardMonitoringEnabled") private var clipboardMonitoringEnabled = true
-    @AppStorage("notificationsEnabled") private var notificationsEnabled = true
+    @AppStorage(DefaultsKey.clipboardMonitoringEnabled) private var clipboardMonitoringEnabled = true
+    @AppStorage(DefaultsKey.playNotificationSound) private var playNotificationSound = true
 
     @State private var exportedLogURL: URL?
     @State private var isExporting = false
@@ -29,7 +29,7 @@ struct SettingsView: View {
             }
 
             Section("Notifications") {
-                Toggle("Sound on conversion", isOn: $notificationsEnabled)
+                Toggle("Sound on conversion", isOn: $playNotificationSound)
             }
             DangerZoneSection()
 

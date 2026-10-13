@@ -153,7 +153,7 @@ private extension ShareViewController {
     @MainActor
     func processURL(_ urlString: String) {
         guard StreamingServices.isStreamingURL(urlString) else {
-            showError("Not a streaming URL")
+            showError(String(localized: "This URL is not from a supported streaming service"))
             return
         }
 
@@ -179,7 +179,7 @@ private extension ShareViewController {
                 HapticFeedback.success()
                 showSuccess()
             } catch {
-                showError("\(error)")
+                showError(ResolveError(error).errorDescription ?? error.localizedDescription)
             }
         }
     }
