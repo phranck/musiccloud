@@ -19,6 +19,16 @@ enum MediaFilter: String, Hashable, CaseIterable, Identifiable {
     /// Cases without `.all`, one per media type.
     static let mediaOnlyCases: [MediaFilter] = [.tracks, .albums, .artists]
 
+    /// The filter Cmd plus a digit selects, counting from 1 in `allCases` order.
+    ///
+    /// - Parameter number: The digit pressed with Cmd.
+    /// - Returns: The filter, or `nil` when there is none at that position.
+    init?(commandNumber number: Int) {
+        let index = number - 1
+        guard Self.allCases.indices.contains(index) else { return nil }
+        self = Self.allCases[index]
+    }
+
     /// Returns the filter matching the given media type.
     init(for mediaType: MediaType) {
         switch mediaType {
