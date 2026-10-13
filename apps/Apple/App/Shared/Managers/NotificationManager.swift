@@ -17,7 +17,13 @@ enum NotificationSound: String, CaseIterable, Identifiable {
     case sound1, sound2, sound3, sound4, sound5, sound6
     case sound7, sound8, sound9, sound10, sound11
 
-    private static var audioPlayer: AVAudioPlayer?
+    /// The sound that is playing. Held so it is not released halfway
+    /// through, and only touched on the main actor.
+    #if os(macOS)
+    @MainActor private static var currentSound: NSSound?
+    #else
+    @MainActor private static var audioPlayer: AVAudioPlayer?
+    #endif
 
     var id: String { rawValue }
 
@@ -40,6 +46,7 @@ enum NotificationSound: String, CaseIterable, Identifiable {
     static let `default`: NotificationSound = .sound6
 
     /// Plays this sound once.
+    @MainActor
     func play() {
         guard let url = Bundle.main.url(
             forResource: rawValue,
@@ -53,6 +60,7 @@ enum NotificationSound: String, CaseIterable, Identifiable {
             AppLogger.ui.error("Failed to load notification sound: \(rawValue)")
             return
         }
+        Self.currentSound = sound
         sound.play()
         #else
         do {
@@ -127,12 +135,14 @@ enum NotificationManager {
             trigger: nil
         )
 
+        // The completion handler runs on a queue of the notification
+        // center's choosing, so the sound is started on the main actor.
         UNUserNotificationCenter.current().add(request) { error in
             if let error {
                 AppLogger.ui.error("Notification failed: \(error.localizedDescription)")
                 return
             }
-            playSound()
+            Task { @MainActor in playSound() }
         }
     }
 }
@@ -140,6 +150,7 @@ enum NotificationManager {
 // MARK: - Private API
 
 private extension NotificationManager {
+    @MainActor
     static func playSound() {
         guard UserDefaults.standard.object(forKey: DefaultsKey.playNotificationSound) as? Bool ?? true else { return }
         let rawValue = UserDefaults.standard.string(forKey: DefaultsKey.notificationSound) ?? NotificationSound.default.rawValue

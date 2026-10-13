@@ -39,31 +39,11 @@ private struct GridCardArtwork: View {
     var body: some View {
         Color.clear
             .overlay {
-                #if os(iOS)
-                if let data = entry.artworkImageData, let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    AsyncGridArtwork(entry: entry)
+                CachedAsyncImage(entry: entry) {
+                    ArtworkPlaceholder(icon: entry.contentType.placeholderIcon)
                 }
-                #else
-                AsyncGridArtwork(entry: entry)
-                #endif
             }
             .clipped()
-    }
-}
-
-// MARK: - AsyncGridArtwork
-
-private struct AsyncGridArtwork: View {
-    let entry: MediaEntry
-
-    var body: some View {
-        CachedAsyncImage(url: entry.contentType.artworkUrl.flatMap(URL.init(string:))) {
-            ArtworkPlaceholder(icon: entry.contentType.placeholderIcon)
-        }
     }
 }
 

@@ -21,7 +21,7 @@ struct PasteCTAView: View {
                 guard let urlString = strings.first else { return }
                 let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard StreamingServices.isStreamingURL(trimmed) else { return }
-                Task { await monitor.resolve(url: trimmed) }
+                monitor.convert(url: trimmed)
             }
             .buttonBorderShape(.capsule)
         }

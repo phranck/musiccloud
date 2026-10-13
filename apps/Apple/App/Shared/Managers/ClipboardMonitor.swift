@@ -44,7 +44,7 @@ import UIKit
 /// - ``Status``
 ///
 /// ### Methods
-/// - ``resolve(url:)``
+/// - ``convert(url:)``
 @Observable
 @MainActor
 final class ClipboardMonitor {
@@ -147,47 +147,65 @@ extension ClipboardMonitor {
 // MARK: - Public API
 
 extension ClipboardMonitor {
+    /// Converts a streaming URL, unless a conversion is already running.
+    ///
+    /// Every source goes through here: the clipboard, the paste button, a
+    /// dropped link and the `musiccloud://` link. One conversion runs at a
+    /// time, because they all write the same ``status`` and the clipboard. A
+    /// URL that is already in the history is answered from there instead of
+    /// asking the backend again.
+    ///
+    /// - Parameter url: A URL that passed ``StreamingServices/isStreamingURL(_:)``.
+    func convert(url: String) {
+        guard !status.isProcessing else { return }
+
+        if let existing = historyManager.entry(forOriginalUrl: url) {
+            lastShortUrl = existing.shortUrl
+            setPasteboardString(existing.shortUrl)
+            lastSeenContent = existing.shortUrl
+            status = .success(shortUrl: existing.shortUrl, mediaType: existing.mediaType)
+            AppLogger.clipboard.debug("already resolved → \(existing.shortUrl)")
+            return
+        }
+
+        status = .processing(url: url)
+        resolveTask = Task { await resolve(url: url) }
+    }
+}
+
+extension ClipboardMonitor {
+    /// Whether an error only reports that the conversion was cancelled.
+    ///
+    /// `URLSession` reports a cancelled task as `URLError.cancelled` rather
+    /// than as `CancellationError`, so both count.
+    nonisolated static func isCancellation(_ error: any Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
+    }
+}
+
+// MARK: - Resolving
+
+private extension ClipboardMonitor {
     /// Resolves a streaming service URL to a musiccloud.io short link.
     ///
-    /// This method performs the following steps:
-    /// 1. Updates status to `.processing`
-    /// 2. Calls the musiccloud.io API to resolve the URL
-    /// 3. Downloads artwork if available
-    /// 4. Creates and stores a ``MediaEntry`` in the history
-    /// 5. Updates the clipboard with the short URL
-    /// 6. Updates status to `.success` or `.error`
+    /// Asks the backend, downloads the artwork, stores the entry in the
+    /// history, puts the short link on the clipboard and sets ``status`` to
+    /// `.success` or `.error`.
+    ///
+    /// A cancelled conversion is not a failure the user caused, so it returns
+    /// to `.idle` and forgets the clipboard state. The next check then picks
+    /// the same URL up again.
     ///
     /// - Parameter url: The streaming service URL to resolve
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// await monitor.resolve(url: "https://open.spotify.com/track/...")
-    /// // Status changes: idle → processing → success/error
-    /// // Clipboard now contains: "https://musiccloud.io/abc123"
-    /// ```
-    ///
-    /// - Note: This method must be called from the main actor
-    @MainActor
     func resolve(url: String) async {
-        status = .processing(url: url)
-
         do {
             let result = try await MusicCloudAPI.resolve(url: url)
 
-            // Determine content type and artwork URL
-            let contentType = result.contentType
-            let artworkUrlString: String? = switch contentType {
-            case .track(let info): info.artworkUrl
-            case .album(let info): info.artworkUrl
-            case .artist(let info): info.artworkUrl
-            }
-
-            // Download artwork if available
             var artworkData: Data?
-            if let artworkUrl = artworkUrlString {
+            if let artworkUrl = result.contentType.artworkUrl {
                 artworkData = await MusicCloudAPI.downloadArtwork(from: artworkUrl)
             }
+            try Task.checkCancellation()
 
             let entry = result.toMediaEntry(
                 originalUrl: url,
@@ -203,6 +221,11 @@ extension ClipboardMonitor {
             #endif
             NotificationManager.notifySuccess(entry: entry)
             AppLogger.clipboard.debug("resolve succeeded → \(result.shortUrl)")
+        } catch where Self.isCancellation(error) {
+            status = .idle
+            lastSeenContent = nil
+            lastChangeCount = -1
+            AppLogger.clipboard.debug("resolve cancelled")
         } catch {
             status = .error(ResolveError(error))
             AppLogger.clipboard.error("resolve failed: \(error.localizedDescription)")
@@ -251,11 +274,15 @@ private extension ClipboardMonitor {
     /// 1. Reads the current clipboard content
     /// 2. Compares it to the last seen content to avoid duplicates
     /// 3. Checks if it's a streaming service URL using ``StreamingServices``
-    /// 4. Automatically triggers ``resolve(url:)`` if a new streaming URL is detected
+    /// 4. Hands a new streaming URL to ``convert(url:)``
     ///
     /// - Note: This method must be called from the main actor
     @MainActor
     func checkClipboard() async {
+        // A URL copied while a conversion runs is picked up afterwards: the
+        // change count is only consumed once nothing is converting.
+        guard !status.isProcessing else { return }
+
         // The change count is read without touching the content, so the
         // clipboard is only read after it changed. On iOS that also keeps the
         // paste banner from appearing once a second.
@@ -284,20 +311,7 @@ private extension ClipboardMonitor {
         guard StreamingServices.isStreamingURL(content) else { return }
         AppLogger.clipboard.debug("clipboard holds a streaming URL")
 
-        // Skip if a resolve is already in progress
-        guard !status.isProcessing else { return }
-
-        // Check if this URL was already resolved
-        if let existing = historyManager.entry(forOriginalUrl: content) {
-            lastShortUrl = existing.shortUrl
-            setPasteboardString(existing.shortUrl)
-            lastSeenContent = existing.shortUrl
-            status = .success(shortUrl: existing.shortUrl, mediaType: existing.mediaType)
-            AppLogger.clipboard.debug("already resolved → \(existing.shortUrl)")
-            return
-        }
-
-        resolveTask = Task { @MainActor in await resolve(url: content) }
+        convert(url: content)
     }
 
     /// Restores the last short URL from the conversion history.

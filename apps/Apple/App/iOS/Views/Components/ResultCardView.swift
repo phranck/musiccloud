@@ -16,7 +16,7 @@ struct ResultCardView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.green)
             HStack(spacing: 12) {
-                MediaArtwork(url: entry.contentType.artworkUrl)
+                MediaArtwork(entry: entry)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.contentType.title)
                         .font(.body.weight(.medium))

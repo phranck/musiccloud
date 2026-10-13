@@ -19,11 +19,11 @@ struct MediaItem: View {
         Group {
             switch entry.contentType {
             case .track(let info):
-                TrackItem(track: info, shortUrl: entry.shortUrl)
+                TrackItem(track: info, entry: entry)
             case .album(let info):
-                AlbumItem(album: info, shortUrl: entry.shortUrl)
+                AlbumItem(album: info, entry: entry)
             case .artist(let info):
-                ArtistItem(artist: info, shortUrl: entry.shortUrl)
+                ArtistItem(artist: info, entry: entry)
             }
         }
     }

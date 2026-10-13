@@ -115,7 +115,7 @@ private struct IPadSplitView: View {
 
     private func handleDrop(_ urlString: String?) -> Bool {
         guard let urlString, StreamingServices.isStreamingURL(urlString) else { return false }
-        Task { await monitor.resolve(url: urlString) }
+        monitor.convert(url: urlString)
         selection = .home
         return true
     }

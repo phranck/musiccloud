@@ -13,12 +13,12 @@ import SwiftUI
 struct ArtistItem: View {
     /// The artist metadata to display
     var artist: ArtistInfo
-    /// The short URL to share
-    var shortUrl: String
+    /// The entry the metadata belongs to, for its artwork and short URL
+    var entry: MediaEntry
 
     var body: some View {
         HStack(spacing: 12) {
-            MediaArtwork(url: artist.artworkUrl)
+            MediaArtwork(entry: entry)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
@@ -45,7 +45,7 @@ struct ArtistItem: View {
                     .foregroundStyle(.secondary)
             }
 
-            ShareButton(shortUrl: shortUrl)
+            ShareButton(shortUrl: entry.shortUrl)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import musiccloud
 #if os(macOS)
@@ -121,4 +122,27 @@ struct ClipboardMonitorTests {
         #expect(status == .error(.rateLimited))
         #expect(status.errorMessage == ResolveError.rateLimited.errorDescription)
     }
+
+    // MARK: Cancellation
+
+    @Test func cancellationIsRecognizedFromBothSources() {
+        #expect(ClipboardMonitor.isCancellation(CancellationError()))
+        #expect(ClipboardMonitor.isCancellation(URLError(.cancelled)))
+        #expect(!ClipboardMonitor.isCancellation(URLError(.timedOut)))
+        #expect(!ClipboardMonitor.isCancellation(ResolveError.rateLimited))
+    }
+
+    // MARK: Single conversion
+
+    @MainActor
+    @Test func secondConversionWaitsForTheFirst() throws {
+        let container = try SharedStoreConfiguration.makeContainer()
+        let monitor = ClipboardMonitor(historyManager: HistoryManager(modelContext: container.mainContext))
+        monitor.status = .processing(url: "https://open.spotify.com/track/first")
+
+        monitor.convert(url: "https://open.spotify.com/track/second")
+
+        #expect(monitor.status == .processing(url: "https://open.spotify.com/track/first"))
+    }
 }
+

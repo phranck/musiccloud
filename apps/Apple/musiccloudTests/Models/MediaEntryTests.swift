@@ -1,5 +1,8 @@
+import CoreGraphics
 import Foundation
+import ImageIO
 import Testing
+import UniformTypeIdentifiers
 @testable import musiccloud
 
 // MARK: - MediaEntryTests
@@ -206,3 +209,43 @@ struct MediaEntryTests {
         #expect(decoded == link)
     }
 }
+
+// MARK: - ArtworkThumbnailCacheTests
+
+struct ArtworkThumbnailCacheTests {
+
+    /// Encodes a solid square of the given edge length as PNG.
+    private func pngData(edge: Int) throws -> Data {
+        let context = try #require(CGContext(
+            data: nil, width: edge, height: edge, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        context.setFillColor(red: 1, green: 0, blue: 0, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: edge, height: edge))
+        let image = try #require(context.makeImage())
+        let data = NSMutableData()
+        let destination = try #require(CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, nil)
+        #expect(CGImageDestinationFinalize(destination))
+        return data as Data
+    }
+
+    @Test func thumbnailIsDecodedAtTheRequestedSize() async throws {
+        let thumbnail = try #require(await ArtworkThumbnailCache.thumbnail(from: pngData(edge: 1000), maxPixelSize: 128))
+        #expect(thumbnail.width == 128)
+        #expect(thumbnail.height == 128)
+    }
+
+    @Test func dataThatIsNotAnImageGivesNoThumbnail() async {
+        #expect(await ArtworkThumbnailCache.thumbnail(from: Data("not an image".utf8), maxPixelSize: 128) == nil)
+    }
+
+    @Test func storedThumbnailIsReturnedForItsKey() async throws {
+        let cache = ArtworkThumbnailCache()
+        let thumbnail = try #require(await ArtworkThumbnailCache.thumbnail(from: pngData(edge: 64), maxPixelSize: 64))
+        cache.store(thumbnail, forKey: "entry@64")
+        #expect(cache.image(forKey: "entry@64") === thumbnail)
+        #expect(cache.image(forKey: "entry@128") == nil)
+    }
+}
+

@@ -56,11 +56,17 @@ struct MusicCloudApp: App {
                     .modelContainer(modelContainer)
                     .environment(historyManager)
                     .environment(monitor)
+                    // Only leaving for the background stops the monitor. Control
+                    // Center or the app switcher make the scene inactive for a
+                    // moment, and a conversion running then has to finish.
                     .onChange(of: scenePhase) { _, newPhase in
-                        if newPhase == .active, ClipboardMonitor.isEnabled {
+                        switch newPhase {
+                        case .active where ClipboardMonitor.isEnabled:
                             monitor.startMonitoring()
-                        } else {
+                        case .background:
                             monitor.stopMonitoring()
+                        default:
+                            break
                         }
                     }
                     .onOpenURL { url in
@@ -83,7 +89,7 @@ struct MusicCloudApp: App {
 
     private func handleIncomingURL(_ url: URL) {
         guard let streamingURL = StreamingServices.streamingURL(fromDeepLink: url) else { return }
-        Task { await monitor?.resolve(url: streamingURL) }
+        monitor?.convert(url: streamingURL)
     }
 
 #endif

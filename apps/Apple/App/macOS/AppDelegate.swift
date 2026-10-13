@@ -256,6 +256,7 @@ private extension AppDelegate {
         window.titlebarAppearsTransparent = config.titlebarAppearsTransparent
         window.contentViewController = NSHostingController(rootView: rootView)
         window.isReleasedWhenClosed = false
+        window.delegate = self
 
         // Set content size BEFORE autosave name so the restored frame
         // is not overwritten by the hardcoded size.
@@ -276,6 +277,23 @@ private extension AppDelegate {
         }
 
         return window
+    }
+}
+
+// MARK: - Window Lifecycle
+
+extension AppDelegate: NSWindowDelegate {
+    /// Lets a closed window go, together with the views it hosts.
+    ///
+    /// A closed window that stays referenced keeps its whole SwiftUI tree
+    /// alive, including the history query that refreshes on every change and
+    /// the artwork it has decoded. Opening the window again builds a new one,
+    /// and the autosave name puts it back where it was.
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        if window === dashboardWindow { dashboardWindow = nil }
+        if window === settingsWindow { settingsWindow = nil }
+        window.contentViewController = nil
     }
 }
 
