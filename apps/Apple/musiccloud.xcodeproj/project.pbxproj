@@ -683,11 +683,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = DF3CC9B41A42CF171A0D5568 /* Build configuration list for PBXNativeTarget "musiccloud" */;
 			buildPhases = (
-				FD00000000000001 /* Set Build Number */,
 				196EA75CACD0DE5A40732059 /* Sources */,
 				FF00000000000040 /* Frameworks */,
 				12EF42AD220F8CA474750FB1 /* Resources */,
 				CC00000000000080 /* Embed App Extensions */,
+				FD00000000000001 /* Set Build Number */,
 			);
 			buildRules = (
 			);
@@ -723,6 +723,7 @@
 			buildPhases = (
 				CC00000000000040 /* Sources */,
 				DC000000000000000000A002 /* Resources */,
+				DC000000000000000000A003 /* Set Build Number */,
 			);
 			buildRules = (
 			);
@@ -811,6 +812,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
 			);
 			name = "Set Build Number";
 			outputFileListPaths = (
@@ -819,7 +821,28 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "buildNumber=$(git -C \"${SRCROOT}\" rev-list --count HEAD 2>/dev/null || echo 1)\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"${SRCROOT}/App/Supporting Files/Info.plist\"\nif [ -f \"${SRCROOT}/ShareExtension/Info.plist\" ]; then\n  /usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"${SRCROOT}/ShareExtension/Info.plist\"\nfi\n";
+			shellScript = "# Each target writes its own built Info.plist after Xcode processed it, so the\n# source tree stays untouched and the app and its extension carry the same\n# number. Xcode Cloud numbers its builds itself, and other builds use the commit count.\nbuildNumber=\"${CI_BUILD_NUMBER:-$(git -C \"${SRCROOT}\" rev-list --count HEAD 2>/dev/null || echo 1)}\"\nplist=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"$plist\"\n# Only a debug build talks to a development server on the local network.\nif [ \"${CONFIGURATION}\" = \"Debug\" ] && [ \"${PRODUCT_TYPE}\" = \"com.apple.product-type.application\" ]; then\n  /usr/libexec/PlistBuddy -c \"Delete :NSBonjourServices\" \"$plist\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Add :NSBonjourServices array\" -c \"Add :NSBonjourServices:0 string _http._tcp\" \"$plist\"\n  /usr/libexec/PlistBuddy -c \"Delete :NSLocalNetworkUsageDescription\" \"$plist\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Add :NSLocalNetworkUsageDescription string 'musiccloud needs local network access to connect to the development server.'\" \"$plist\"\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+		DC000000000000000000A003 /* Set Build Number */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Set Build Number";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Each target writes its own built Info.plist after Xcode processed it, so the\n# source tree stays untouched and the app and its extension carry the same\n# number. Xcode Cloud numbers its builds itself, and other builds use the commit count.\nbuildNumber=\"${CI_BUILD_NUMBER:-$(git -C \"${SRCROOT}\" rev-list --count HEAD 2>/dev/null || echo 1)}\"\nplist=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"$plist\"\n# Only a debug build talks to a development server on the local network.\nif [ \"${CONFIGURATION}\" = \"Debug\" ] && [ \"${PRODUCT_TYPE}\" = \"com.apple.product-type.application\" ]; then\n  /usr/libexec/PlistBuddy -c \"Delete :NSBonjourServices\" \"$plist\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Add :NSBonjourServices array\" -c \"Add :NSBonjourServices:0 string _http._tcp\" \"$plist\"\n  /usr/libexec/PlistBuddy -c \"Delete :NSLocalNetworkUsageDescription\" \"$plist\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Add :NSLocalNetworkUsageDescription string 'musiccloud needs local network access to connect to the development server.'\" \"$plist\"\nfi\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
