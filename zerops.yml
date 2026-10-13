@@ -89,6 +89,14 @@ zerops:
           timing: "17 3 * * *"
           allContainers: false
           workingDir: /var/www
+        # Daily app telemetry retention. TestFlight builds of the Apple app
+        # report failed conversions into `app_telemetry_events`, and the
+        # notice to testers promises deletion after the period in
+        # services/app-telemetry-retention.ts.
+        - command: "node apps/backend/dist/scripts/app-telemetry-retention.js"
+          timing: "37 3 * * *"
+          allContainers: false
+          workingDir: /var/www
         # Artist lifecycle dates and band memberships from MusicBrainz. A run
         # checks one batch under MusicBrainz's limit of one request per
         # second. The batch size and the recheck ages live in

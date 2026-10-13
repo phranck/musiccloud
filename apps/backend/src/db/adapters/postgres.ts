@@ -284,7 +284,7 @@ import {
   updateDeveloperAccount as developerUpdateAccount,
   updateDeveloperLastLogin as developerUpdateLastLogin,
 } from "./postgres-developer.js";
-import { insertAppTelemetryEvent } from "./postgres-telemetry.js";
+import { deleteAppTelemetryEventsBefore, insertAppTelemetryEvent } from "./postgres-telemetry.js";
 import { PostgresTierRepository } from "./postgres-tiers.js";
 import {
   addLinksToTrack as tracksAddLinksToTrack,
@@ -391,6 +391,10 @@ export class PostgresAdapter
 
   async insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void> {
     await insertAppTelemetryEvent(this.pool, row);
+  }
+
+  async deleteAppTelemetryEventsBefore(cutoffMs: number): Promise<number> {
+    return deleteAppTelemetryEventsBefore(this.pool, cutoffMs);
   }
 
   // ============================================================================
