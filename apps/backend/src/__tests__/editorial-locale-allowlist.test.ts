@@ -14,8 +14,11 @@ async function sourceFiles(root: string): Promise<string[]> {
     entries.map(async (entry): Promise<string[]> => {
       const path = resolve(root, entry.name);
       if (entry.isDirectory()) {
+        // Xcode names a test target after its app, such as `musiccloudTests`,
+        // so every directory ending in `Tests` holds test code.
         if (
-          [".astro", ".build", "__tests__", "Tests", "build", "dist", "migrations", "node_modules"].includes(entry.name)
+          [".astro", ".build", "__tests__", "build", "dist", "migrations", "node_modules"].includes(entry.name) ||
+          entry.name.endsWith("Tests")
         ) {
           return [];
         }
