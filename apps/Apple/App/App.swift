@@ -81,13 +81,8 @@ struct MusicCloudApp: App {
     }
 
     private func handleIncomingURL(_ url: URL) {
-        guard url.scheme == "musiccloud",
-              url.host == "resolve",
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let urlParam = components.queryItems?.first(where: { $0.name == "url" })?.value else {
-            return
-        }
-        Task { await monitor?.resolve(url: urlParam) }
+        guard let streamingURL = StreamingServices.streamingURL(fromDeepLink: url) else { return }
+        Task { await monitor?.resolve(url: streamingURL) }
     }
 
 #endif

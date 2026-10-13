@@ -107,7 +107,8 @@ extension MusicCloudAPI {
     ///
     /// - Note: All requests and responses are logged via ``AppLogger/api``
     static func resolve(url: String, baseURL: URL? = nil) async throws -> ResolveResponse {
-        let endpoint = (baseURL ?? Self.baseURL).appendingPathComponent("api/resolve")
+        let base = baseURL ?? Self.baseURL
+        let endpoint = base.appendingPathComponent("api/resolve")
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.timeoutInterval = 10
@@ -153,10 +154,9 @@ extension MusicCloudAPI {
             throw error
         }
 
+        let decoded: ResolveResponse
         do {
-            let result = try JSONDecoder().decode(ResolveResponse.self, from: data)
-            AppLogger.api.debug("  shortUrl: \(result.shortUrl)")
-            return result
+            decoded = try JSONDecoder().decode(ResolveResponse.self, from: data)
         } catch {
             AppLogger.api.error("  decode failed: \(error)")
             Task.detached {
@@ -171,6 +171,15 @@ extension MusicCloudAPI {
             }
             throw error
         }
+
+        do {
+            let result = try decoded.pointing(at: base)
+            AppLogger.api.debug("  shortUrl: \(result.shortUrl)")
+            return result
+        } catch {
+            reportResolveError(url: url, kind: "INVALID_RESPONSE", status: statusCode, body: "")
+            throw error
+        }
     }
 
     /// Short machine-readable code for the telemetry payload's
@@ -182,6 +191,7 @@ extension MusicCloudAPI {
         case .networkError:  return "NETWORK_ERROR"
         case .serviceDown:   return "SERVICE_DOWN"
         case .httpError:     return "HTTP_ERROR"
+        case .invalidResponse: return "INVALID_RESPONSE"
         case .unknown:       return "UNKNOWN"
         }
     }
@@ -227,9 +237,15 @@ extension MusicCloudAPI {
     /// - Logs all operations via ``AppLogger/api``
     ///
     /// - Note: This method does not throw errors - it returns `nil` on failure
+    ///
+    /// The address comes from the backend, which takes it from a provider's
+    /// answer. So only `http` and `https` are fetched, only an `image/*` answer
+    /// is kept, and the body is read up to ``maximumArtworkBytes``. The Share
+    /// Extension runs under a tight memory limit and would be killed by an
+    /// oversized answer, and whatever is kept here is synced to iCloud.
     static func downloadArtwork(from urlString: String) async -> Data? {
-        guard let url = URL(string: urlString) else {
-            AppLogger.api.error("Invalid artwork URL: \(urlString)")
+        guard let url = StreamingServices.webURL(urlString) else {
+            AppLogger.api.error("Refused artwork address that is not a web URL")
             return nil
         }
 
@@ -237,12 +253,26 @@ extension MusicCloudAPI {
             AppLogger.api.debug("→ Downloading artwork from \(url.absoluteString)")
             var request = URLRequest(url: url)
             request.timeoutInterval = 10
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (bytes, response) = try await URLSession.shared.bytes(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode) else {
-                AppLogger.api.error("Failed to download artwork: invalid response")
+                  (200..<300).contains(httpResponse.statusCode),
+                  httpResponse.mimeType?.lowercased().hasPrefix("image/") == true,
+                  httpResponse.expectedContentLength <= Int64(maximumArtworkBytes) else {
+                AppLogger.api.error("Failed to download artwork: unacceptable response")
                 return nil
+            }
+
+            var data = Data()
+            if httpResponse.expectedContentLength > 0 {
+                data.reserveCapacity(Int(httpResponse.expectedContentLength))
+            }
+            for try await byte in bytes {
+                guard data.count < maximumArtworkBytes else {
+                    AppLogger.api.error("Failed to download artwork: larger than \(maximumArtworkBytes) bytes")
+                    return nil
+                }
+                data.append(byte)
             }
 
             AppLogger.api.debug("← Artwork downloaded successfully (\(data.count) bytes)")
@@ -252,6 +282,10 @@ extension MusicCloudAPI {
             return nil
         }
     }
+
+    /// The largest artwork body kept, in bytes. Provider artwork is at most
+    /// a few hundred kilobytes at the 1000 px the backend asks for.
+    static let maximumArtworkBytes = 5 * 1024 * 1024
 }
 
 // MARK: - Error Mapping

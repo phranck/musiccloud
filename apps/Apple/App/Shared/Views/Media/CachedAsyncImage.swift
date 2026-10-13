@@ -51,18 +51,16 @@ private extension CachedAsyncImage {
             #endif
         }
 
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            guard let platformImage = PlatformImage(data: data) else { return nil }
-            cache.setObject(platformImage, forKey: nsURL)
-            #if os(macOS)
-            return Image(nsImage: platformImage)
-            #else
-            return Image(uiImage: platformImage)
-            #endif
-        } catch {
-            return nil
-        }
+        // The same checked download the history uses, so a server-supplied
+        // address gets the same scheme, type and size limits here.
+        guard let data = await MusicCloudAPI.downloadArtwork(from: url.absoluteString),
+              let platformImage = PlatformImage(data: data) else { return nil }
+        cache.setObject(platformImage, forKey: nsURL)
+        #if os(macOS)
+        return Image(nsImage: platformImage)
+        #else
+        return Image(uiImage: platformImage)
+        #endif
     }
 }
 

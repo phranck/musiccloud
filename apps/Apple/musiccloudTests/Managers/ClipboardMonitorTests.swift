@@ -1,5 +1,8 @@
 import Testing
 @testable import musiccloud
+#if os(macOS)
+import AppKit
+#endif
 
 // MARK: - ClipboardMonitorTests
 
@@ -83,4 +86,22 @@ struct ClipboardMonitorTests {
         let different = ClipboardMonitor.Status.error(message: "Timeout")
         #expect(error != different)
     }
+
+    // MARK: Private Content
+
+    #if os(macOS)
+    @MainActor
+    @Test func passwordManagerContentIsSkipped() {
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("io.musiccloud.tests.\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+
+        pasteboard.declareTypes([.string, NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")], owner: nil)
+        pasteboard.setString("https://open.spotify.com/track/abc", forType: .string)
+        #expect(ClipboardMonitor.holdsConcealedContent(pasteboard))
+
+        pasteboard.clearContents()
+        pasteboard.setString("https://open.spotify.com/track/abc", forType: .string)
+        #expect(!ClipboardMonitor.holdsConcealedContent(pasteboard))
+    }
+    #endif
 }

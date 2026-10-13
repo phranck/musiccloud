@@ -20,6 +20,7 @@ import Foundation
 /// - ``networkError``
 /// - ``serviceDown``
 /// - ``httpError(_:)``
+/// - ``invalidResponse``
 /// - ``unknown(_:)``
 ///
 /// ### Error Description
@@ -36,6 +37,8 @@ enum ResolveError: LocalizedError {
     /// HTTP error with specific status code
     /// - Parameter code: The HTTP status code
     case httpError(Int)
+    /// The backend answered with a short link that does not point at musiccloud
+    case invalidResponse
     /// Unknown error with custom message
     /// - Parameter message: Description of the error
     case unknown(String)
@@ -54,6 +57,7 @@ extension ResolveError {
         case .networkError:      String(localized: "error.network")
         case .serviceDown:       String(localized: "error.service_down")
         case .httpError(let code):  "\(String(localized: "error.server")) (\(code))"
+        case .invalidResponse:   String(localized: "error.server")
         case .unknown(let msg):  msg
         }
     }

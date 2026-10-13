@@ -72,7 +72,7 @@ private struct RecentSection: View {
                         HistoryGridCard(entry: entry)
                             .contentShape(RoundedRectangle(cornerRadius: 12))
                             .onTapGesture {
-                                guard let url = URL(string: entry.shortUrl) else { return }
+                                guard let url = StreamingServices.webURL(entry.shortUrl) else { return }
                                 openURL(url)
                             }
                     }

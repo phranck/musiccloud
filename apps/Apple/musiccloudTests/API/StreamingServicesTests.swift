@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import musiccloud
 
@@ -152,5 +153,45 @@ struct StreamingServicesTests {
 
     @Test func spotifyLookalikeSubdomain() {
         #expect(!StreamingServices.isStreamingURL("https://fake.open.spotify.com.evil.com/track"))
+    }
+
+    // MARK: Web URLs
+
+    @Test(arguments: [
+        "file:///etc/passwd",
+        "tel:+431234567",
+        "x-apple.systempreferences:com.apple.preference.security",
+        "spotify:track:abc",
+        "javascript:alert(1)",
+        "https://",
+        "not a url",
+    ])
+    func webURLRefusesEverythingButWebAddresses(_ address: String) {
+        #expect(StreamingServices.webURL(address) == nil)
+    }
+
+    @Test(arguments: ["https://musiccloud.io/abc", "http://localhost:3000/abc", "HTTPS://Open.Spotify.com/track/x"])
+    func webURLAcceptsWebAddresses(_ address: String) {
+        #expect(StreamingServices.webURL(address) != nil)
+    }
+
+    // MARK: Deep Link
+
+    @Test func deepLinkReturnsStreamingURL() throws {
+        let link = try #require(URL(string: "musiccloud://resolve?url=https%3A%2F%2Fopen.spotify.com%2Ftrack%2Fabc"))
+        #expect(StreamingServices.streamingURL(fromDeepLink: link) == "https://open.spotify.com/track/abc")
+    }
+
+    @Test(arguments: [
+        "musiccloud://resolve?url=hello",
+        "musiccloud://resolve?url=https%3A%2F%2Fexample.com%2Fpage",
+        "musiccloud://resolve?url=file%3A%2F%2F%2Fetc%2Fpasswd",
+        "musiccloud://other?url=https%3A%2F%2Fopen.spotify.com%2Ftrack%2Fabc",
+        "https://resolve?url=https%3A%2F%2Fopen.spotify.com%2Ftrack%2Fabc",
+        "musiccloud://resolve",
+    ])
+    func deepLinkRefusesAnythingElse(_ link: String) throws {
+        let url = try #require(URL(string: link))
+        #expect(StreamingServices.streamingURL(fromDeepLink: url) == nil)
     }
 }
