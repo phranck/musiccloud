@@ -22,11 +22,7 @@ struct DashboardView: View {
             HistoryView(filter: $filter)
         }
         .frame(minWidth: 800, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
-        .onChange(of: monitor.status) {
-            if case .success(_, let mediaType) = monitor.status {
-                filter = MediaFilter(for: mediaType)
-            }
-        }
+        .followsConversions(of: monitor, filter: $filter)
     }
 }
 

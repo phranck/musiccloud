@@ -67,7 +67,6 @@
 		FD97C3842F80948700E8D788 /* ArtistItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD97C3832F80948700E8D788 /* ArtistItem.swift */; };
 		FD97C3862F80949C00E8D788 /* MediaArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD97C3852F80949C00E8D788 /* MediaArtwork.swift */; };
 		AA00000000000060 /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000061 /* CachedAsyncImage.swift */; };
-		FD97C3882F8094B300E8D788 /* View+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD97C3872F8094B300E8D788 /* View+Extensions.swift */; };
 		FDA7B3022F84200100000001 /* SettingsItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA7B3012F84200100000001 /* SettingsItem.swift */; };
 		FDAF979F2F8412A3002A3AC1 /* AnimatedSegmentControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDAF979E2F8412A3002A3AC1 /* AnimatedSegmentControl.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
@@ -77,7 +76,6 @@
 		FDDC3A8F2F81BE7700FB68D9 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC3A8E2F81BE7700FB68D9 /* NotificationManager.swift */; };
 		FDDC7E232F805E82005D779F /* HeaderRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E222F805E82005D779F /* HeaderRow.swift */; };
 		FDDC7E252F805EB6005D779F /* ErrorRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E242F805EB6005D779F /* ErrorRow.swift */; };
-		FDDC7E272F805ECE005D779F /* IdleRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E262F805ECE005D779F /* IdleRow.swift */; };
 		FDDC7E292F805EDC005D779F /* MediaSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E282F805EDC005D779F /* MediaSection.swift */; };
 		FDDC7E2B2F805F03005D779F /* MediaRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E2A2F805F03005D779F /* MediaRow.swift */; };
 		FDDC7E2D2F805F1A005D779F /* QuitItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E2C2F805F1A005D779F /* QuitItem.swift */; };
@@ -92,6 +90,7 @@
 		FF00000000000002 /* Bundle+Version.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000012 /* Bundle+Version.swift */; };
 		FF00000000000003 /* DangerZoneSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000013 /* DangerZoneSection.swift */; };
 		FF00000000000006 /* EntryActionsModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000016 /* EntryActionsModifier.swift */; };
+		DC0000000000003B1 /* ConversionFilterModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000000000003F0 /* ConversionFilterModifier.swift */; };
 		FF00000000000004 /* SharedStoreConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF00000000000014 /* SharedStoreConfiguration.swift */; };
 		AA00000000000070 /* HapticFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000071 /* HapticFeedback.swift */; };
 		AA00000000000072 /* HapticFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000071 /* HapticFeedback.swift */; };
@@ -110,8 +109,10 @@
 		FF0000000000010C /* ResolveError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10F2F83900100000003 /* ResolveError.swift */; };
 		FF0000000000010D /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */; };
 		EF00000000000101 /* BuildChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001A /* BuildChannel.swift */; };
+		DC0000000000002B1 /* Pasteboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000000000002F0 /* Pasteboard.swift */; };
 		DC0000000000000B1 /* DefaultsKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000000000000F0 /* DefaultsKey.swift */; };
 		EF00000000000102 /* BuildChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001A /* BuildChannel.swift */; };
+		DC0000000000002B2 /* Pasteboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000000000002F0 /* Pasteboard.swift */; };
 		DC0000000000000B2 /* DefaultsKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000000000000F0 /* DefaultsKey.swift */; };
 		EF00000000000201 /* TelemetryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001B /* TelemetryEvent.swift */; };
 		EF00000000000202 /* TelemetryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001B /* TelemetryEvent.swift */; };
@@ -219,7 +220,6 @@
 		FD97C3832F80948700E8D788 /* ArtistItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistItem.swift; sourceTree = "<group>"; };
 		FD97C3852F80949C00E8D788 /* MediaArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaArtwork.swift; sourceTree = "<group>"; };
 		AA00000000000061 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
-		FD97C3872F8094B300E8D788 /* View+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+Extensions.swift"; sourceTree = "<group>"; };
 		FDA7B3012F84200100000001 /* SettingsItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsItem.swift; sourceTree = "<group>"; };
 		FDAF979E2F8412A3002A3AC1 /* AnimatedSegmentControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedSegmentControl.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
@@ -229,7 +229,6 @@
 		FDDC3A8E2F81BE7700FB68D9 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		FDDC7E222F805E82005D779F /* HeaderRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderRow.swift; sourceTree = "<group>"; };
 		FDDC7E242F805EB6005D779F /* ErrorRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorRow.swift; sourceTree = "<group>"; };
-		FDDC7E262F805ECE005D779F /* IdleRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleRow.swift; sourceTree = "<group>"; };
 		FDDC7E282F805EDC005D779F /* MediaSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSection.swift; sourceTree = "<group>"; };
 		FDDC7E2A2F805F03005D779F /* MediaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRow.swift; sourceTree = "<group>"; };
 		FDDC7E2C2F805F1A005D779F /* QuitItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuitItem.swift; sourceTree = "<group>"; };
@@ -244,10 +243,12 @@
 		FF00000000000012 /* Bundle+Version.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+Version.swift"; sourceTree = "<group>"; };
 		FF00000000000013 /* DangerZoneSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DangerZoneSection.swift; sourceTree = "<group>"; };
 		FF00000000000016 /* EntryActionsModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryActionsModifier.swift; sourceTree = "<group>"; };
+		DC0000000000003F0 /* ConversionFilterModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversionFilterModifier.swift; sourceTree = "<group>"; };
 		FF00000000000014 /* SharedStoreConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStoreConfiguration.swift; sourceTree = "<group>"; };
 		AA00000000000071 /* HapticFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticFeedback.swift; sourceTree = "<group>"; };
 		FF00000000000020 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 		EF0000000000001A /* BuildChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildChannel.swift; sourceTree = "<group>"; };
+		DC0000000000002F0 /* Pasteboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pasteboard.swift; sourceTree = "<group>"; };
 		DC0000000000000F0 /* DefaultsKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultsKey.swift; sourceTree = "<group>"; };
 		EF0000000000001B /* TelemetryEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryEvent.swift; sourceTree = "<group>"; };
 		EF0000000000001C /* TelemetryClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryClient.swift; sourceTree = "<group>"; };
@@ -372,7 +373,6 @@
 			isa = PBXGroup;
 			children = (
 				FF00000000000012 /* Bundle+Version.swift */,
-				FD97C3872F8094B300E8D788 /* View+Extensions.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -394,6 +394,7 @@
 				FDAF979E2F8412A3002A3AC1 /* AnimatedSegmentControl.swift */,
 				FF00000000000013 /* DangerZoneSection.swift */,
 				FF00000000000016 /* EntryActionsModifier.swift */,
+				DC0000000000003F0 /* ConversionFilterModifier.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -428,6 +429,7 @@
 			isa = PBXGroup;
 			children = (
 				EF0000000000001A /* BuildChannel.swift */,
+				DC0000000000002F0 /* Pasteboard.swift */,
 				DC0000000000000F0 /* DefaultsKey.swift */,
 				AA00000000000071 /* HapticFeedback.swift */,
 				AA00000000000002 /* PanelMetrics.swift */,
@@ -501,7 +503,6 @@
 				FDDC7E242F805EB6005D779F /* ErrorRow.swift */,
 				AA00000000000051 /* PanelActionItem.swift */,
 				FDDC7E222F805E82005D779F /* HeaderRow.swift */,
-				FDDC7E262F805ECE005D779F /* IdleRow.swift */,
 				FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */,
 				3D07C91D3461C5C97C2F4AC0 /* MenuBarView.swift */,
 				FDDC7E2C2F805F1A005D779F /* QuitItem.swift */,
@@ -841,7 +842,6 @@
 				FD05A10C2F83900100000001 /* ContentType.swift in Sources */,
 				FD05A10E2F83900100000002 /* APIError.swift in Sources */,
 				FD05A1102F83900100000003 /* ResolveError.swift in Sources */,
-				FDDC7E272F805ECE005D779F /* IdleRow.swift in Sources */,
 				AA00000000000050 /* PanelActionItem.swift in Sources */,
 				FDDC7E2D2F805F1A005D779F /* QuitItem.swift in Sources */,
 				FDA7B3022F84200100000001 /* SettingsItem.swift in Sources */,
@@ -859,7 +859,6 @@
 				FDAF979F2F8412A3002A3AC1 /* AnimatedSegmentControl.swift in Sources */,
 				FD2748DF34499A932431649A /* PanelSection.swift in Sources */,
 				FDF8735C2F7EEDE600D05057 /* HistoryManager.swift in Sources */,
-				FD97C3882F8094B300E8D788 /* View+Extensions.swift in Sources */,
 				DA05592DC35D842081D71462 /* NSView+Extensions.swift in Sources */,
 				7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */,
 				AA00000000000060 /* CachedAsyncImage.swift in Sources */,
@@ -889,9 +888,11 @@
 				FF00000000000002 /* Bundle+Version.swift in Sources */,
 				FF00000000000003 /* DangerZoneSection.swift in Sources */,
 				FF00000000000006 /* EntryActionsModifier.swift in Sources */,
+				DC0000000000003B1 /* ConversionFilterModifier.swift in Sources */,
 				AA00000000000070 /* HapticFeedback.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
 				EF00000000000101 /* BuildChannel.swift in Sources */,
+				DC0000000000002B1 /* Pasteboard.swift in Sources */,
 				DC0000000000000B1 /* DefaultsKey.swift in Sources */,
 				EF00000000000201 /* TelemetryEvent.swift in Sources */,
 				EF00000000000301 /* TelemetryClient.swift in Sources */,
@@ -934,6 +935,7 @@
 				FF0000000000010C /* ResolveError.swift in Sources */,
 				FF0000000000010D /* AppLogger.swift in Sources */,
 				EF00000000000102 /* BuildChannel.swift in Sources */,
+				DC0000000000002B2 /* Pasteboard.swift in Sources */,
 				DC0000000000000B2 /* DefaultsKey.swift in Sources */,
 				EF00000000000202 /* TelemetryEvent.swift in Sources */,
 				EF00000000000302 /* TelemetryClient.swift in Sources */,

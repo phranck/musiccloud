@@ -58,8 +58,7 @@ private extension MediaRow {
     /// Copies the short URL to clipboard, opens it in the browser, and closes the panel (macOS only).
     func copyToClipboardAndOpen() {
 #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(entry.shortUrl, forType: .string)
+        Pasteboard.copy(entry.shortUrl)
 
         guard let url = StreamingServices.webURL(entry.shortUrl) else {
             AppLogger.ui.error("Invalid short URL: \(entry.shortUrl)")

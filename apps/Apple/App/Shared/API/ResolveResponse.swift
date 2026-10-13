@@ -8,7 +8,7 @@
 import Foundation
 
 /// Response from the musiccloud.io resolve API endpoint.
-struct ResolveResponse: Decodable {
+struct ResolveResponse: Decodable, Sendable {
     var shortUrl: String
     var track: TrackInfo?
     var album: AlbumInfo?
@@ -16,7 +16,7 @@ struct ResolveResponse: Decodable {
     var links: [ServiceLink]
 
     /// The origin the backend writes into every short link, whichever host served the request.
-    private static let productionOrigin = URLComponents(string: "https://musiccloud.io")
+    private static let productionOrigin = URLComponents(url: MusicCloudAPI.productionURL, resolvingAgainstBaseURL: false)
 
     private enum CodingKeys: String, CodingKey {
         case shortUrl, track, album, artist, links
@@ -110,5 +110,24 @@ struct ResolveResponse: Decodable {
             artist: artist,
             serviceLinks: links
         )
+    }
+}
+
+// MARK: - Conversion
+
+/// A finished conversion: the backend's answer and the artwork that goes with it.
+///
+/// It is a value, so it can come back from the network work on the
+/// concurrent pool. The ``MediaEntry`` is made from it on the actor that
+/// stores it, because a SwiftData model belongs to its context.
+struct Conversion: Sendable {
+    let response: ResolveResponse
+    let artworkData: Data?
+
+    /// The history entry for this conversion.
+    ///
+    /// - Parameter originalUrl: The streaming URL the user converted.
+    func makeEntry(originalUrl: String) -> MediaEntry {
+        response.toMediaEntry(originalUrl: originalUrl, artworkData: artworkData)
     }
 }

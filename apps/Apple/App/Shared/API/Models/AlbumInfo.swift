@@ -20,9 +20,4 @@ extension AlbumInfo {
     var artistsString: String {
         artists.joined(separator: ", ")
     }
-
-    var releaseYear: String? {
-        guard let date = releaseDate, date.count >= 4 else { return nil }
-        return String(date.prefix(4))
-    }
 }

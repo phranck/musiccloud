@@ -39,7 +39,7 @@ struct SettingsView: View {
 
             Section("About") {
                 LabeledContent("Version", value: Bundle.main.appVersion)
-                Link(destination: URL(string: "https://musiccloud.io")!) {
+                Link(destination: MusicCloudAPI.productionURL) {
                     HStack {
                         Text("musiccloud.io")
                         Spacer()

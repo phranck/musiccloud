@@ -134,9 +134,6 @@ private extension ShareViewController {
 // MARK: - Resolve + Persist
 
 private extension ShareViewController {
-    /// Extensions can't access local network -- always use production.
-    static let productionBaseURL = URL(string: "https://musiccloud.io")!
-
     @MainActor
     func processURL(_ urlString: String) {
         guard StreamingServices.isStreamingURL(urlString) else {
@@ -146,23 +143,12 @@ private extension ShareViewController {
 
         Task { @MainActor in
             do {
-                let result = try await MusicCloudAPI.resolve(url: urlString, baseURL: Self.productionBaseURL)
+                // The extension has no local network access, so it always
+                // converts against production, also in a debug build.
+                let conversion = try await MusicCloudAPI.convert(url: urlString, baseURL: MusicCloudAPI.productionURL)
+                try saveToSwiftData(conversion.makeEntry(originalUrl: urlString))
 
-                let artworkUrlString: String? = switch result.contentType {
-                case .track(let info): info.artworkUrl
-                case .album(let info): info.artworkUrl
-                case .artist(let info): info.artworkUrl
-                }
-                let artworkData = if let artworkUrl = artworkUrlString {
-                    await MusicCloudAPI.downloadArtwork(from: artworkUrl)
-                } else {
-                    nil as Data?
-                }
-
-                let entry = result.toMediaEntry(originalUrl: urlString, artworkData: artworkData)
-                try saveToSwiftData(entry)
-
-                UIPasteboard.general.string = result.shortUrl
+                Pasteboard.copy(conversion.response.shortUrl)
                 HapticFeedback.success()
                 showSuccess()
             } catch {

@@ -52,9 +52,9 @@ enum ContentType: Codable, Equatable {
 
     var placeholderIcon: String {
         switch self {
-        case .track: "music.note"
-        case .album: "square.stack"
-        case .artist: "person.circle"
+        case .track: MediaType.track.icon
+        case .album: MediaType.album.icon
+        case .artist: MediaType.artist.icon
         }
     }
 }

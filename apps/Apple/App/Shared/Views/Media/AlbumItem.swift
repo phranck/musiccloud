@@ -22,7 +22,7 @@ struct AlbumItem: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Image(systemName: "square.stack")
+                    Image(systemName: MediaType.album.icon)
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                     Text(album.title)

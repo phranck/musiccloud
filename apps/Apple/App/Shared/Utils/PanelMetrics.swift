@@ -7,8 +7,13 @@
 
 import SwiftUI
 
+/// Geometry of the macOS menu bar panel.
 enum PanelMetrics {
     static let spacing: CGFloat = 6
     static let cornerRadius: CGFloat = 21
-    static let panelWidth: CGFloat = 340
+    /// The width of the panel and of its content, which share one value so
+    /// the window and the SwiftUI frame agree.
+    static let panelWidth: CGFloat = 380
+    /// The panel's smallest height, used before the content has measured itself.
+    static let minimumPanelHeight: CGFloat = 280
 }

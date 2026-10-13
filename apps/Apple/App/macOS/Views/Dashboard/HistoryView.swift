@@ -127,14 +127,14 @@ private struct HistoryEmptyState: View {
                     .font(.largeTitle)
                     .fontDesign(.rounded)
                     .fontWeight(.bold)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
                 Text(filter.emptyDescription)
                     .font(.callout)
                     .fontDesign(.rounded)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             } icon: {
                 Image(systemName: filter.icon)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
         }
     }

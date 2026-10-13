@@ -28,7 +28,7 @@ struct LogoText: View {
     /// Creates a new logo text view.
     ///
     /// - Parameters:
-    ///   - fontSize: The font size to use (default: 20)
+    ///   - fontSize: The font size to use (default: 25)
     ///   - isAnimating: Whether to animate the gradient (default: false)
     init(size fontSize: CGFloat = 25, isAnimating: Bool = false) {
         self.fontSize = fontSize

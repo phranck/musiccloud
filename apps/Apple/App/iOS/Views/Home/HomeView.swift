@@ -10,7 +10,6 @@ struct HomeView: View {
     @Environment(\.openURL) private var openURL
     @Query(sort: \MediaEntry.date, order: .reverse, animation: .default)
     private var entries: [MediaEntry]
-    @State private var lastResolvedUrl: String?
 
     var body: some View {
         ScrollView {
