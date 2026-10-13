@@ -79,8 +79,14 @@ final class ClipboardMonitor {
     }
 
     /// Whether clipboard monitoring is enabled (persisted in UserDefaults).
+    ///
+    /// Always `false` in the host app of a test run, so a streaming URL on the
+    /// developer's clipboard is not converted into their history.
     static var isEnabled: Bool {
-        get { UserDefaults.standard.object(forKey: "clipboardMonitoringEnabled") as? Bool ?? true }
+        get {
+            guard !SharedStoreConfiguration.isHostingTests else { return false }
+            return UserDefaults.standard.object(forKey: "clipboardMonitoringEnabled") as? Bool ?? true
+        }
         set { UserDefaults.standard.set(newValue, forKey: "clipboardMonitoringEnabled") }
     }
 

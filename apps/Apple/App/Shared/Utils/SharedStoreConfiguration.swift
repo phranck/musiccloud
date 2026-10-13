@@ -19,8 +19,19 @@ enum MediaEntryMigrationPlan: SchemaMigrationPlan {
 enum SharedStoreConfiguration {
     static let cloudKitContainerIdentifier = "iCloud.io.musiccloud.shared"
 
+    /// Whether this process is the host app of a test run.
+    ///
+    /// The unit tests run inside the app, so launching it must not open the
+    /// user's history in the App Group container or start watching the
+    /// clipboard. Xcode sets `XCTestConfigurationFilePath` for every hosted
+    /// test run, Swift Testing included.
+    static let isHostingTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
     static var modelConfiguration: ModelConfiguration {
-        ModelConfiguration(
+        if isHostingTests {
+            return ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        }
+        return ModelConfiguration(
             "default",
             groupContainer: .identifier("group.io.musiccloud"),
             cloudKitDatabase: .private(cloudKitContainerIdentifier)
