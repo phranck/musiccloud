@@ -105,7 +105,7 @@ extension MusicCloudAPI {
     /// - **Network**: Throws underlying URLSession errors
     /// - **Invalid JSON**: Throws decoding errors
     ///
-    /// - Note: All requests and responses are logged via ``AppLogger/api``
+    /// - Note: Requests and response status codes are logged via ``AppLogger/api``
     static func resolve(url: String, baseURL: URL? = nil) async throws -> ResolveResponse {
         let base = baseURL ?? Self.baseURL
         let endpoint = base.appendingPathComponent("api/resolve")
@@ -116,7 +116,6 @@ extension MusicCloudAPI {
         request.httpBody = try JSONEncoder().encode(["query": url])
 
         AppLogger.api.debug("→ POST \(endpoint.absoluteString)")
-        AppLogger.api.debug("  body: {\"query\": \"\(url)\"}")
 
         let data: Data
         let response: URLResponse
@@ -139,8 +138,8 @@ extension MusicCloudAPI {
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
         let bodyString = String(data: data, encoding: .utf8) ?? "<non-utf8>"
 
-        AppLogger.api.debug("← HTTP \(statusCode)")
-        AppLogger.api.debug("  body: \(bodyString)")
+        // The body names what the user converted, so only its size is logged.
+        AppLogger.api.debug("← HTTP \(statusCode), \(data.count) bytes")
 
         if statusCode == 429 {
             reportResolveError(url: url, kind: "RATE_LIMITED", status: statusCode, body: bodyString)

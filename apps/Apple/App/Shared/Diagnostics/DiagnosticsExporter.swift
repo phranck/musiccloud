@@ -16,8 +16,8 @@ import OSLog
 /// Only the current process's entries are available to ``OSLogStore``
 /// without elevated entitlements, so the tester must reproduce the
 /// issue within the same app launch they hit the export button for the
-/// output to be useful. The window below is bounded for safety — a
-/// full log read can be seconds long on device.
+/// output to be useful. The window below is bounded, because a full log
+/// read can take seconds on a device.
 enum DiagnosticsExporter {
 
     private static let lookBack: TimeInterval = 60 * 60 * 6 // 6 hours
@@ -30,8 +30,12 @@ enum DiagnosticsExporter {
     }
 
     /// Produce a JSONL file of recent log entries for the musiccloud
-    /// subsystem and return its URL. Caller is responsible for moving
-    /// or deleting the file after sharing.
+    /// subsystem and return its URL.
+    ///
+    /// The file is handed to a share sheet, which may still be reading it
+    /// after it closes, for example during an AirDrop transfer. So it is not
+    /// deleted after sharing. Each export removes the previous ones instead,
+    /// which leaves at most one file of logs on the device.
     static func exportLogs() async throws -> URL {
         guard let store = try? OSLogStore(scope: .currentProcessIdentifier) else {
             throw ExportError.unavailable
@@ -72,10 +76,13 @@ enum DiagnosticsExporter {
             buffer.append(0x0A)
         }
 
-        let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("musiccloud-diagnostics-\(UUID().uuidString.prefix(8)).jsonl")
-        try buffer.write(to: tmp, options: .atomic)
-        return tmp
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("musiccloud-diagnostics", isDirectory: true)
+        try? FileManager.default.removeItem(at: directory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let file = directory.appendingPathComponent("musiccloud-diagnostics-\(UUID().uuidString.prefix(8)).jsonl")
+        try buffer.write(to: file, options: [.atomic, .completeFileProtection])
+        return file
     }
 
     private static func levelString(for level: OSLogEntryLog.Level) -> String {
