@@ -61,7 +61,7 @@ private extension MediaRow {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(entry.shortUrl, forType: .string)
 
-        guard let url = URL(string: entry.shortUrl) else {
+        guard let url = StreamingServices.webURL(entry.shortUrl) else {
             AppLogger.ui.error("Invalid short URL: \(entry.shortUrl)")
             return
         }

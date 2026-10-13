@@ -128,13 +128,49 @@ extension StreamingServices {
     static func isStreamingURL(_ urlString: String) -> Bool {
         guard
             urlString.count <= 500,
-            let url = URL(string: urlString),
-            let scheme = url.scheme?.lowercased(),
-            scheme == "https" || scheme == "http",
-            let host = url.host?.lowercased()
+            let host = webURL(urlString)?.host?.lowercased()
         else { return false }
 
         if exactDomains.contains(host) { return true }
         return suffixDomains.contains { host.hasSuffix($0) || host == String($0.dropFirst()) }
+    }
+
+    /// Extracts the streaming URL from `musiccloud://resolve?url=<streaming URL>`.
+    ///
+    /// Any app or web page can open this link without asking the user, so the
+    /// parameter is returned only when it passes ``isStreamingURL(_:)``, the
+    /// same check the clipboard and the paste button apply.
+    ///
+    /// - Parameter url: The URL the app was opened with.
+    /// - Returns: The streaming URL to resolve, or `nil` when the link is anything else.
+    static func streamingURL(fromDeepLink url: URL) -> String? {
+        guard url.scheme == "musiccloud",
+              url.host == "resolve",
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let parameter = components.queryItems?.first(where: { $0.name == "url" })?.value,
+              isStreamingURL(parameter) else {
+            return nil
+        }
+        return parameter
+    }
+
+    /// Parses a string as a web address, and nothing else.
+    ///
+    /// Every URL the app opens, shares or downloads from comes from the
+    /// clipboard, another app or the backend. Passing such a string to
+    /// `NSWorkspace.open` or `openURL` unchecked would let it name a file, a
+    /// phone number or another app's custom scheme. Only `http` and `https`
+    /// with a host pass.
+    ///
+    /// - Parameter string: The address to parse.
+    /// - Returns: The URL, or `nil` when the string is not an `http` or `https` address with a host.
+    static func webURL(_ string: String) -> URL? {
+        guard
+            let url = URL(string: string),
+            let scheme = url.scheme?.lowercased(),
+            scheme == "https" || scheme == "http",
+            url.host?.isEmpty == false
+        else { return nil }
+        return url
     }
 }

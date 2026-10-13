@@ -14,7 +14,7 @@ struct OpenInServiceSheet: View {
         NavigationStack {
             List(links, id: \.service) { link in
                 Button {
-                    if let url = URL(string: link.url) {
+                    if let url = StreamingServices.webURL(link.url) {
                         openURL(url)
                     }
                     dismiss()

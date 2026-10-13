@@ -44,7 +44,7 @@ struct EntryActionsModifier: ViewModifier {
 
 private extension EntryActionsModifier {
     func openSharePage() {
-        guard let url = URL(string: entry.shortUrl) else { return }
+        guard let url = StreamingServices.webURL(entry.shortUrl) else { return }
         openURL(url)
     }
 }
@@ -78,7 +78,7 @@ private struct OpenInBrowserButton: View {
 
     var body: some View {
         Button {
-            guard let url = URL(string: shortUrl) else { return }
+            guard let url = StreamingServices.webURL(shortUrl) else { return }
             openURL(url)
         } label: {
             Label("Open in Browser...", systemImage: "safari")
@@ -113,7 +113,7 @@ private struct ServiceLinksMenu: View {
             Menu {
                 ForEach(entry.serviceLinks, id: \.service) { link in
                     Button {
-                        guard let url = URL(string: link.url) else { return }
+                        guard let url = StreamingServices.webURL(link.url) else { return }
                         openURL(url)
                     } label: {
                         Label {
