@@ -20,7 +20,7 @@ struct ClipboardMonitorTests {
     }
 
     @Test func statusSuccessIsNotProcessing() {
-        let status = ClipboardMonitor.Status.success(shortUrl: "https://musiccloud.io/abc")
+        let status = ClipboardMonitor.Status.success(shortUrl: "https://musiccloud.io/abc", mediaType: .track)
         #expect(!status.isProcessing)
         #expect(status.errorMessage == nil)
     }
@@ -37,7 +37,7 @@ struct ClipboardMonitorTests {
         #expect(ClipboardMonitor.Status.idle == .idle)
         #expect(ClipboardMonitor.Status.processing(url: "a") == .processing(url: "a"))
         #expect(ClipboardMonitor.Status.processing(url: "a") != .processing(url: "b"))
-        #expect(ClipboardMonitor.Status.success(shortUrl: "x") == .success(shortUrl: "x"))
+        #expect(ClipboardMonitor.Status.success(shortUrl: "x", mediaType: .track) == .success(shortUrl: "x", mediaType: .track))
         #expect(ClipboardMonitor.Status.error(message: "e") == .error(message: "e"))
         #expect(ClipboardMonitor.Status.idle != .error(message: "e"))
     }
@@ -54,7 +54,7 @@ struct ClipboardMonitorTests {
 
     @Test func statusTransitionProcessingToSuccess() {
         let processing = ClipboardMonitor.Status.processing(url: "https://open.spotify.com/track/abc")
-        let success = ClipboardMonitor.Status.success(shortUrl: "https://musiccloud.io/abc")
+        let success = ClipboardMonitor.Status.success(shortUrl: "https://musiccloud.io/abc", mediaType: .track)
         #expect(processing != success)
         #expect(processing.isProcessing)
         #expect(!success.isProcessing)
@@ -71,9 +71,10 @@ struct ClipboardMonitorTests {
     }
 
     @Test func statusSuccessPreservesShortUrl() {
-        let success = ClipboardMonitor.Status.success(shortUrl: "https://musiccloud.io/xyz789")
-        #expect(success == .success(shortUrl: "https://musiccloud.io/xyz789"))
-        #expect(success != .success(shortUrl: "https://musiccloud.io/other"))
+        let success = ClipboardMonitor.Status.success(shortUrl: "https://musiccloud.io/xyz789", mediaType: .track)
+        #expect(success == .success(shortUrl: "https://musiccloud.io/xyz789", mediaType: .track))
+        #expect(success != .success(shortUrl: "https://musiccloud.io/other", mediaType: .track))
+        #expect(success != .success(shortUrl: "https://musiccloud.io/xyz789", mediaType: .album))
     }
 
     @Test func statusErrorPreservesMessage() {

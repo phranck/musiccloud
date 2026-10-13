@@ -82,23 +82,21 @@ private extension AppDelegate {
         startObservingStatus()
     }
 
+    /// Mirrors `monitor.status.isProcessing` into the menu bar icon.
+    ///
+    /// `withObservationTracking` fires `onChange` once, before the new value is
+    /// stored, so the icon is updated on the next main actor turn and tracking
+    /// is re-armed from there.
     func startObservingStatus() {
-        func observe() {
-            withObservationTracking {
-                MainActor.assumeIsolated {
-                    _ = self.monitor.status.isProcessing
-                }
-            } onChange: {
-                DispatchQueue.main.async { [weak self] in
-                    guard let self else { return }
-                    MainActor.assumeIsolated {
-                        self.iconHostingView.rootView = MenuBarIcon(isProcessing: self.monitor.status.isProcessing)
-                    }
-                    observe()
-                }
+        withObservationTracking {
+            _ = monitor.status.isProcessing
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.iconHostingView.rootView = MenuBarIcon(isProcessing: self.monitor.status.isProcessing)
+                self.startObservingStatus()
             }
         }
-        observe()
     }
 }
 
