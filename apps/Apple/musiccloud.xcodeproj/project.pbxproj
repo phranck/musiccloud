@@ -11,6 +11,7 @@
 		3740E6ECEB9CA883501A80B5 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C16C63FE6CBA4D6FFEBA8 /* ClipboardMonitor.swift */; };
 		41A30941322C3370DF2766CC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 26E51532D490E1A2DE32DF3C /* Assets.xcassets */; };
 		769A0D50AC6FC83DE76D5000 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */; };
+		DC000000000000000000A005 /* AppShortcuts.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = DC000000000000000000A004 /* AppShortcuts.xcstrings */; };
 		DC000000000000000000A001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */; };
 		7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121F8EA83B3E06119BA82118 /* StreamingServices.swift */; };
 		8B76C213DB85A0116DCD1056 /* MusicCloudAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */; };
@@ -162,6 +163,7 @@
 		2A6D1FBF4C2BE51299104362 /* musiccloud.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = musiccloud.entitlements; sourceTree = "<group>"; };
 		3D07C91D3461C5C97C2F4AC0 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		DC000000000000000000A004 /* AppShortcuts.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = AppShortcuts.xcstrings; sourceTree = "<group>"; };
 		56B89EA2B7FB649CF35C1DC8 /* musiccloud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = musiccloud.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		65D30DA29D8EB6E7A8D6EF3C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA00000000000002 /* PanelMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelMetrics.swift; sourceTree = "<group>"; };
@@ -663,6 +665,7 @@
 				65D30DA29D8EB6E7A8D6EF3C /* Info.plist */,
 				26E51532D490E1A2DE32DF3C /* Assets.xcassets */,
 				4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */,
+				DC000000000000000000A004 /* AppShortcuts.xcstrings */,
 				FD8BCE6E2F85225D00EC883B /* NotificationSounds */,
 			);
 			path = "Supporting Files";
@@ -778,6 +781,7 @@
 				FDDC7E2F2F80622F005D779F /* Nasalization Rg.otf in Resources */,
 				41A30941322C3370DF2766CC /* Assets.xcassets in Resources */,
 				769A0D50AC6FC83DE76D5000 /* Localizable.xcstrings in Resources */,
+				DC000000000000000000A005 /* AppShortcuts.xcstrings in Resources */,
 				FD8BCE6F2F85225D00EC883B /* sound3.mp3 in Resources */,
 				FD8BCE702F85225D00EC883B /* sound9.mp3 in Resources */,
 				FD8BCE712F85225D00EC883B /* sound8.mp3 in Resources */,
