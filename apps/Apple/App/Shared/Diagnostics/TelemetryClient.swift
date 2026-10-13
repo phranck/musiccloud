@@ -63,6 +63,7 @@ actor TelemetryClient {
     /// Reports one event. Returns immediately if diagnostics are disabled;
     /// otherwise queues the event and sends everything that is queued.
     func report(_ event: TelemetryEvent) async {
+        await BuildChannel.resolve()
         guard BuildChannel.diagnosticsEnabled else { return }
         await enqueue(event)
         await flushPending()
@@ -70,6 +71,7 @@ actor TelemetryClient {
 
     /// Sends the queued events. Safe to call at app launch.
     func flushPending() async {
+        await BuildChannel.resolve()
         guard BuildChannel.diagnosticsEnabled else { return }
         await flushQueue()
     }

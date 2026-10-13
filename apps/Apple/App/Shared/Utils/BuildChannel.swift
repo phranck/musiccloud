@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import os
+import StoreKit
 
 // MARK: - BuildChannel
 
@@ -13,27 +15,28 @@ import Foundation
 ///
 /// Used to gate diagnostics features that must never ship to App Store
 /// customers (log export, automatic telemetry POSTs). `DEBUG` builds
-/// report as `.debug`; Release archives are inspected at launch by
-/// looking at the receipt filename Apple places in the bundle:
+/// report as `.debug`. Release builds ask StoreKit for the environment of
+/// their `AppTransaction`:
 ///
-/// - `sandboxReceipt` → Testflight tester or local Release install
-/// - `receipt` → App Store download
-/// - `nil` → unsigned build (e.g. simulator with no receipt)
-enum BuildChannel {
+/// - `sandbox` or `xcode` → Testflight tester or local Release install
+/// - `production` → App Store download
+/// - no verified transaction → treated as the App Store, so diagnostics stay off
+enum BuildChannel: Sendable {
     case debug
     case testflight
     case appStore
 
-    /// Computed once at launch — the receipt file does not change for
-    /// the lifetime of the process.
-    static let current: BuildChannel = {
+    /// The channel, once ``resolve()`` has finished.
+    ///
+    /// Until then a Release build reports `.appStore`, so nothing reaches
+    /// a customer before the channel is known.
+    static var current: BuildChannel {
         #if DEBUG
-        return .debug
+        .debug
         #else
-        let receiptName = Bundle.main.appStoreReceiptURL?.lastPathComponent
-        return receiptName == "sandboxReceipt" ? .testflight : .appStore
+        resolved.withLock { $0 } ?? .appStore
         #endif
-    }()
+    }
 
     /// True for every build except the App Store release. The flag is
     /// the single source of truth for "should we expose diagnostics UI
@@ -41,4 +44,25 @@ enum BuildChannel {
     static var diagnosticsEnabled: Bool {
         current != .appStore
     }
+
+    /// Asks StoreKit once how the app was installed. Later calls return at once.
+    ///
+    /// Called at launch, and by ``TelemetryClient`` before it decides
+    /// whether to send, so an event at launch is not dropped for lack of
+    /// an answer.
+    static func resolve() async {
+        #if !DEBUG
+        guard resolved.withLock({ $0 }) == nil else { return }
+        let channel: BuildChannel
+        if case .verified(let transaction)? = try? await AppTransaction.shared {
+            channel = transaction.environment == .production ? .appStore : .testflight
+        } else {
+            channel = .appStore
+        }
+        resolved.withLock { $0 = channel }
+        #endif
+    }
+
+    /// The answer from StoreKit, `nil` until ``resolve()`` has one.
+    private static let resolved = OSAllocatedUnfairLock<BuildChannel?>(initialState: nil)
 }
