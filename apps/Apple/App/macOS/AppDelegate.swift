@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: NSPanel!
     private var dashboardWindow: NSWindow?
     private var settingsWindow: NSWindow?
+    private var templateEditorWindow: NSWindow?
     private var iconHostingView: NSHostingView<MenuBarIcon>!
     private var eventMonitor: Any?
 
@@ -38,6 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var mainContext: ModelContext!
     private(set) var historyManager: HistoryManager!
     private(set) var monitor: ClipboardMonitor!
+    /// The post templates, edited in Settings and used by the post composer.
+    let templateStore = PostTemplateStore()
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -53,6 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationManager.requestPermission()
         NotificationManager.cleanupAttachmentCache()
         Task { await TelemetryClient.shared.flushPending() }
+        Task { await AppSession.shared.prepare() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -114,7 +118,9 @@ private extension AppDelegate {
         panel.level = .popUpMenu
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        // Like Control Center, the cards float without a window shadow, which
+        // the window server would otherwise cast around every card's outline.
+        panel.hasShadow = false
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .utilityWindow
@@ -138,14 +144,18 @@ private extension AppDelegate {
     func openPanel() {
         guard let buttonFrame = statusItem.button?.window?.frame else { return }
 
+        // The window is larger than the cards by `shadowMargin` on every side,
+        // so it is shifted up by that margin to keep the cards right below
+        // the menu bar. The transparent margin lets clicks through.
+        let margin = PanelMetrics.shadowMargin
         let fittingSize = panel.contentView?.fittingSize ?? .zero
         let contentSize = CGSize(
-            width: max(fittingSize.width, PanelMetrics.panelWidth),
-            height: max(fittingSize.height, PanelMetrics.minimumPanelHeight)
+            width: max(fittingSize.width, PanelMetrics.panelWidth + margin * 2),
+            height: max(fittingSize.height, PanelMetrics.minimumPanelHeight + margin * 2)
         )
         let panelRect = NSRect(
             x: buttonFrame.midX - contentSize.width / 2,
-            y: buttonFrame.minY - contentSize.height,
+            y: buttonFrame.minY - contentSize.height + margin,
             width: contentSize.width,
             height: contentSize.height
         )
@@ -202,16 +212,48 @@ extension AppDelegate {
         let rootView = SettingsView()
             .environment(historyManager)
             .environment(monitor)
+            .environment(templateStore)
             .symbolRenderingMode(.hierarchical)
 
+        // Per the HIG, a settings window has no minimize or zoom button: it
+        // opens quickly again and sizes itself to its content. SwiftUI owns
+        // the toolbar and the title, so the title follows the visible pane
+        // and the sidebar reaches the top of the window.
         settingsWindow = showWindow(
             &settingsWindow,
             rootView: rootView,
             config: WindowConfig(
-                size: CGSize(width: 640, height: 400),
+                size: SettingsView.contentSize,
                 autosaveName: "SettingsWindow",
-                titleVisibility: .hidden,
-                styleMask: [.titled, .closable, .miniaturizable]
+                styleMask: [.titled, .closable, .fullSizeContentView],
+                bridgesToolbarAndTitle: true
+            )
+        )
+    }
+
+    /// Opens the Template Editor window, creating it if needed.
+    ///
+    /// It is resizable, so a long template has room, and SwiftUI owns its
+    /// title and toolbar, so the title names the template being edited.
+    ///
+    /// - Parameter templateID: The template to show, or `nil` to keep the current one.
+    func openTemplateEditor(selecting templateID: PostTemplate.ID? = nil) {
+        if let templateID {
+            templateStore.editorSelectionID = templateID
+        }
+        let rootView = TemplateEditorView()
+            .environment(\.modelContext, mainContext)
+            .environment(templateStore)
+            .symbolRenderingMode(.hierarchical)
+
+        templateEditorWindow = showWindow(
+            &templateEditorWindow,
+            rootView: rootView,
+            config: WindowConfig(
+                size: TemplateEditorView.initialSize,
+                autosaveName: "TemplateEditorWindow",
+                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                bridgesToolbarAndTitle: true
             )
         )
     }
@@ -227,6 +269,8 @@ private extension AppDelegate {
         var titleVisibility: NSWindow.TitleVisibility = .visible
         var titlebarAppearsTransparent: Bool = false
         var styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
+        /// Whether SwiftUI places its toolbar and navigation title in the window.
+        var bridgesToolbarAndTitle: Bool = false
     }
 
     @discardableResult
@@ -254,16 +298,34 @@ private extension AppDelegate {
         if let title = config.title { window.title = title }
         window.titleVisibility = config.titleVisibility
         window.titlebarAppearsTransparent = config.titlebarAppearsTransparent
-        window.contentViewController = NSHostingController(rootView: rootView)
+        let isFixedSize = !config.styleMask.contains(.resizable)
+        let hostingController = NSHostingController(rootView: rootView)
+        if config.bridgesToolbarAndTitle {
+            hostingController.sceneBridgingOptions = [.toolbars, .title]
+        }
+        // A fixed-size window keeps the size given here. By default the
+        // hosting controller sizes the window to its content, which has no
+        // size yet when it is installed, and the window shrinks to zero.
+        // The saved position would then be restored onto an empty frame.
+        if isFixedSize {
+            hostingController.sizingOptions = []
+        }
+        window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
         window.delegate = self
-
-        // Set content size BEFORE autosave name so the restored frame
-        // is not overwritten by the hardcoded size.
-        if !config.styleMask.contains(.resizable) {
+        if isFixedSize {
             window.setContentSize(config.size)
         }
+
+        // A resizable window gets its saved frame back. A fixed-size window
+        // only keeps its saved position, because a frame saved under an
+        // earlier content size would bring that size back.
         window.setFrameAutosaveName(config.autosaveName)
+        if isFixedSize, window.contentRect(forFrameRect: window.frame).size != config.size {
+            let top = window.frame.maxY
+            window.setContentSize(config.size)
+            window.setFrameTopLeftPoint(NSPoint(x: window.frame.minX, y: top))
+        }
 
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
@@ -293,6 +355,7 @@ extension AppDelegate: NSWindowDelegate {
         guard let window = notification.object as? NSWindow else { return }
         if window === dashboardWindow { dashboardWindow = nil }
         if window === settingsWindow { settingsWindow = nil }
+        if window === templateEditorWindow { templateEditorWindow = nil }
         window.contentViewController = nil
     }
 }

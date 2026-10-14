@@ -11,7 +11,8 @@ import OSLog
 ///
 /// ## Endpoints
 ///
-/// - **POST /api/resolve**: Converts a streaming URL to a musiccloud.io short link
+/// - **POST /api/app/resolve** on ``appAccessURL``: Converts with an attested session, without a rate limit
+/// - **POST /api/resolve** on ``baseURL``: Converts without a session, under the site's rate limit
 /// - **GET (artwork URL)**: Downloads artwork images
 ///
 /// ## Usage
@@ -48,18 +49,48 @@ enum MusicCloudAPI {
     /// Base URL for the musiccloud.io API and short links.
     ///
     /// Override in DEBUG builds via the `MUSICCLOUD_BASE_URL` environment variable
-    /// (e.g. set in Xcode scheme). Falls back to `http://localhost:3000`.
+    /// (e.g. set in Xcode scheme). Falls back to the local frontend, whose
+    /// port is the `frontend` service in the repository's `grat.config`.
     #if DEBUG
     static let baseURL: URL = {
         if let envURL = ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"],
            let url = URL(string: envURL) {
             return url
         }
-        return URL(string: "http://localhost:3000")!
+        return URL(string: "http://localhost:3001")!
     }()
     #else
     static let baseURL = productionURL
     #endif
+
+    /// The backend host that serves the app's attested routes in production.
+    // swiftlint:disable:next force_unwrapping
+    static let productionAppAccessURL = URL(string: "https://api.musiccloud.io")!
+
+    /// The backend that serves the app's attested routes under `/api/app/`.
+    ///
+    /// Override in DEBUG builds via the `MUSICCLOUD_API_URL` environment
+    /// variable. Falls back to the local backend, whose port is the
+    /// `backend` service in the repository's `grat.config`.
+    #if DEBUG
+    static let appAccessURL: URL = {
+        if let envURL = ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"],
+           let url = URL(string: envURL) {
+            return url
+        }
+        return URL(string: "http://localhost:4001")!
+    }()
+    #else
+    static let appAccessURL = productionAppAccessURL
+    #endif
+
+    /// The attested backend that belongs to the site a request's links point at.
+    ///
+    /// A caller that converts against production, such as the Share
+    /// Extension in a debug build, also uses the production backend.
+    static func appAccessURL(forSite site: URL) -> URL {
+        site == productionURL ? productionAppAccessURL : appAccessURL
+    }
 }
 
 // MARK: - Resolve
@@ -68,9 +99,8 @@ extension MusicCloudAPI {
 
     /// Resolves a streaming service URL to a musiccloud.io short link.
     ///
-    /// Sends a POST request to the `/api/resolve` endpoint with the streaming URL.
-    /// The API identifies the service, extracts metadata, and returns a universal
-    /// short link along with track/album/artist information.
+    /// The backend identifies the service, extracts metadata, and returns a
+    /// universal short link along with track/album/artist information.
     ///
     /// - Parameter url: The streaming service URL to resolve (Spotify, Apple Music, etc.)
     /// - Returns: A ``ResolveResponse`` containing the short URL and metadata
@@ -112,17 +142,64 @@ extension MusicCloudAPI {
     ///
     /// Runs on the concurrent pool, so encoding and decoding never occupy
     /// the main actor that asks for a conversion.
+    ///
+    /// With a session from ``AppSession``, the request goes to the attested
+    /// route `/api/app/resolve`, which has no rate limit. When the backend
+    /// refuses the token, the session renews once and the request is sent
+    /// again. Without a session, or when the attested backend cannot be
+    /// reached, the request goes to the public route `/api/resolve`.
     @concurrent
     static func resolve(url: String, baseURL: URL? = nil) async throws -> ResolveResponse {
         let base = baseURL ?? Self.baseURL
-        let endpoint = base.appendingPathComponent("api/resolve")
-        var request = URLRequest(url: endpoint)
+        let appAccess = appAccessURL(forSite: base)
+
+        for _ in 1...2 {
+            guard let token = await AppSession.shared.currentToken(for: appAccess) else { break }
+            do {
+                let request = try AppAccessClient.resolveRequest(base: appAccess, query: url, token: token)
+                return try await send(request, sourceUrl: url, linkBase: base)
+            } catch AttestedRouteUnavailable.sessionRejected {
+                // The second pass renews the session and sends the request again.
+                await AppSession.shared.invalidate(for: appAccess)
+            } catch AttestedRouteUnavailable.unreachable {
+                break
+            }
+        }
+
+        var request = URLRequest(url: base.appendingPathComponent("api/resolve"))
         request.httpMethod = "POST"
         request.timeoutInterval = 10
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(["query": url])
+        return try await send(request, sourceUrl: url, linkBase: base)
+    }
 
-        AppLogger.api.debug("→ POST \(endpoint.absoluteString)")
+    /// Whether a 404 body is the backend's answer for a route it does not
+    /// have (`MC-RES-0003`), rather than for a link it could not find.
+    static func isRouteNotFound(_ data: Data) -> Bool {
+        (try? JSONDecoder().decode(APIError.self, from: data))?.error == "MC-RES-0003"
+    }
+
+    /// Why the attested route gave no answer, so ``resolve(url:baseURL:)`` falls back.
+    private enum AttestedRouteUnavailable: Error {
+        /// The backend refused the session token with 401.
+        case sessionRejected
+        /// The attested backend could not be reached, or does not serve the
+        /// attested routes, as a backend deployed before them answers 404.
+        case unreachable
+    }
+
+    /// Sends a resolve request and maps the answer.
+    ///
+    /// - Parameters:
+    ///   - request: The request for the public or the attested route.
+    ///   - sourceUrl: What the user converts, for the error report.
+    ///   - linkBase: The site the short link has to point at.
+    private static func send(_ request: URLRequest, sourceUrl url: String, linkBase base: URL) async throws -> ResolveResponse {
+        let isAttestedRoute = request.value(forHTTPHeaderField: "Authorization") != nil
+        let endpoint = request.url?.absoluteString ?? ""
+
+        AppLogger.api.debug("→ POST \(endpoint)")
 
         let data: Data
         let response: URLResponse
@@ -130,6 +207,7 @@ extension MusicCloudAPI {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch {
             AppLogger.api.error("  transport failed: \(error.localizedDescription)")
+            if isAttestedRoute { throw AttestedRouteUnavailable.unreachable }
             report(.networkError(sourceUrl: url, errorKind: "NETWORK_FAILURE", message: error.localizedDescription))
             throw error
         }
@@ -139,6 +217,13 @@ extension MusicCloudAPI {
 
         // The body names what the user converted, so only its size is logged.
         AppLogger.api.debug("← HTTP \(statusCode), \(data.count) bytes")
+
+        if isAttestedRoute, statusCode == 401 {
+            throw AttestedRouteUnavailable.sessionRejected
+        }
+        if isAttestedRoute, statusCode == 404, Self.isRouteNotFound(data) {
+            throw AttestedRouteUnavailable.unreachable
+        }
 
         if statusCode == 429 {
             reportResolveError(url: url, kind: "RATE_LIMITED", status: statusCode, body: bodyString)

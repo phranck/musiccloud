@@ -14,10 +14,13 @@ struct MusicCloudAPITests {
         #expect(url.host != nil)
     }
 
-    @Test func debugBaseURLIsLocal() {
+    /// The Debug fallback has to reach the local frontend, whose port
+    /// `grat.config` at the repository root decides.
+    @Test func debugBaseURLIsLocalFrontend() throws {
         #if DEBUG
+        guard ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"] == nil else { return }
         #expect(MusicCloudAPI.baseURL.host == "localhost")
-        #expect(MusicCloudAPI.baseURL.port == 3000)
+        #expect(MusicCloudAPI.baseURL.port == (try GratConfig.port(ofService: "frontend")))
         #endif
     }
 

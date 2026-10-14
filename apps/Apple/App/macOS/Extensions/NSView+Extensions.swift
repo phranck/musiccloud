@@ -22,18 +22,38 @@ extension NSView {
 
 // MARK: - WindowKeyMonitor
 
-/// Installs a local key-event monitor for Escape (close window) and Cmd+F (focus search).
+/// Installs a local key-event monitor for Escape (close window, unless
+/// `closesOnEscape` is off), Cmd+F (focus search) and Cmd+1 to Cmd+9 (handed
+/// to `onCommandNumber`).
 ///
 /// The toolbar search field lives outside `contentView`, so we search from the
 /// window's theme frame (`contentView.superview`) which contains both content and toolbar.
+/// The app runs without a menu bar, so these shortcuts cannot live in a menu.
 struct WindowKeyMonitor: NSViewRepresentable {
+    /// Whether Escape closes the window. The menu bar panel closes through
+    /// `AppDelegate`, which fades it out, so it turns this off.
+    var closesOnEscape = true
+    /// Called with 1 to 9 when the user presses Cmd and that digit, and only Cmd.
+    var onCommandNumber: (Int) -> Void = { _ in }
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        context.coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        let coordinator = context.coordinator
+        coordinator.onCommandNumber = onCommandNumber
+        // The monitor lives until the coordinator removes it, so the closure
+        // holds the coordinator weakly instead of keeping it alive itself.
+        coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak coordinator] event in
             guard let window = view.window, window.isKeyWindow else { return event }
 
-            if event.keyCode == 53 { // Escape
+            if closesOnEscape, event.keyCode == 53 { // Escape
                 window.close()
+                return nil
+            }
+
+            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+               let number = event.charactersIgnoringModifiers.flatMap(Int.init),
+               (1...9).contains(number) {
+                coordinator?.onCommandNumber(number)
                 return nil
             }
 
@@ -50,11 +70,15 @@ struct WindowKeyMonitor: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onCommandNumber = onCommandNumber
+    }
+
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     final class Coordinator {
         var monitor: Any?
+        var onCommandNumber: (Int) -> Void = { _ in }
         deinit {
             if let monitor { NSEvent.removeMonitor(monitor) }
         }

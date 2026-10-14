@@ -229,3 +229,20 @@ struct ArtworkThumbnailCacheTests {
     }
 }
 
+
+// MARK: - MediaFilterTests
+
+struct MediaFilterTests {
+
+    @Test func commandNumbersSelectTheFiltersInTabOrder() {
+        #expect(MediaFilter(commandNumber: 1) == .all)
+        #expect(MediaFilter(commandNumber: 2) == .tracks)
+        #expect(MediaFilter(commandNumber: 3) == .albums)
+        #expect(MediaFilter(commandNumber: 4) == .artists)
+    }
+
+    @Test(arguments: [0, 5, 9])
+    func commandNumbersWithoutATabSelectNothing(_ number: Int) {
+        #expect(MediaFilter(commandNumber: number) == nil)
+    }
+}

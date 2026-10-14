@@ -6,131 +6,49 @@
 //  Created by Frank Gregor on 05.04.26.
 //
 
-import ServiceManagement
 import SwiftUI
 
 // MARK: - SettingsView
 
+/// The Settings window: a sidebar with the topics and the selected topic's
+/// settings beside it, the layout of System Settings on macOS 26.
+///
+/// Following the HIG, the window title names the visible pane, the last
+/// pane comes back when the window opens again, and the sidebar stays
+/// visible because it is the window's only navigation.
 struct SettingsView: View {
-    @State private var tab: SettingsTab = .settings
+    /// The size of the window's content. The window does not resize, so
+    /// `AppDelegate.openSettings()` opens it at exactly this size.
+    static let contentSize = CGSize(width: 600, height: 440)
+
+    @AppStorage(DefaultsKey.settingsPane) private var selectedPane: SettingsPane = .general
 
     var body: some View {
-        NavigationStack {
-            Group {
-                switch tab {
-                case .settings: GeneralSettingsView()
-                case .about: AboutView()
-                }
-            }
-            .background(WindowKeyMonitor())
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Picker("", selection: $tab) {
-                        ForEach(SettingsTab.allCases, id: \.self) { item in
-                            Label(item.title, systemImage: item.icon)
-                                .tag(item)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelStyle(.titleAndIcon)
-                }
-            }
+        NavigationSplitView {
+            SettingsSidebar(selection: $selectedPane)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
+                .toolbar(removing: .sidebarToggle)
+        } detail: {
+            SettingsPaneView(pane: selectedPane)
+                .navigationTitle(selectedPane.title)
         }
-        .frame(minWidth: 640, maxWidth: .infinity, minHeight: 400, maxHeight: .infinity)
+        .background(WindowKeyMonitor())
+        .frame(minWidth: Self.contentSize.width, minHeight: Self.contentSize.height)
     }
 }
 
-// MARK: - Settings Tabs
+// MARK: - SettingsPaneView
 
-private enum SettingsTab: String, CaseIterable {
-    case settings
-    case about
-
-    var title: String {
-        switch self {
-        case .settings: String(localized: "Settings")
-        case .about:    String(localized: "About")
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .settings: "gearshape"
-        case .about:    "info.circle"
-        }
-    }
-}
-
-// MARK: - GeneralSettingsView
-
-private struct GeneralSettingsView: View {
-    @Environment(ClipboardMonitor.self) private var monitor
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
-    @AppStorage(DefaultsKey.clipboardMonitoringEnabled) private var clipboardMonitoringEnabled = true
-    @AppStorage(DefaultsKey.playNotificationSound) private var playNotificationSound = true
-    @AppStorage(DefaultsKey.notificationSound) private var notificationSound = NotificationSound.default.rawValue
+private struct SettingsPaneView: View {
+    let pane: SettingsPane
 
     var body: some View {
-        Form {
-            Toggle(String(localized: "Launch at Login"), isOn: $launchAtLogin)
-                .onChange(of: launchAtLogin) {
-                    do {
-                        if launchAtLogin {
-                            try SMAppService.mainApp.register()
-                        } else {
-                            try SMAppService.mainApp.unregister()
-                        }
-                    } catch {
-                        AppLogger.ui.error("Launch at login failed: \(error.localizedDescription)")
-                        launchAtLogin = SMAppService.mainApp.status == .enabled
-                    }
-                }
-
-            Section {
-                Toggle(String(localized: "Clipboard Monitoring"), isOn: $clipboardMonitoringEnabled)
-            } footer: {
-                Text("Automatically detects streaming URLs in your clipboard and converts them.")
-            }
-            .onChange(of: clipboardMonitoringEnabled) {
-                if clipboardMonitoringEnabled {
-                    monitor.startMonitoring()
-                } else {
-                    monitor.stopMonitoring()
-                }
-            }
-
-            Section {
-                Toggle(String(localized: "Play Notification Sound"), isOn: $playNotificationSound)
-                if playNotificationSound {
-                    NotificationSoundPicker(selectedSound: $notificationSound)
-                }
-            }
-
-            DangerZoneSection()
-        }
-        .formStyle(.grouped)
-    }
-}
-
-// MARK: - NotificationSoundPicker
-
-private struct NotificationSoundPicker: View {
-    @Binding var selectedSound: String
-
-    var body: some View {
-        HStack {
-            Picker(String(localized: "Sound"), selection: $selectedSound) {
-                ForEach(NotificationSound.allCases) { sound in
-                    Text(sound.displayName).tag(sound.rawValue)
-                }
-            }
-
-            Button {
-                let sound = NotificationSound(rawValue: selectedSound) ?? .default
-                sound.play()
-            } label: {
-                Image(systemName: "play.fill")
-            }
+        switch pane {
+        case .general:       GeneralPane()
+        case .notifications: NotificationsPane()
+        case .history:       HistoryPane()
+        case .templates:     TemplatesPane()
+        case .about:         AboutView()
         }
     }
 }

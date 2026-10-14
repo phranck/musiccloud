@@ -20,6 +20,7 @@ struct MenuBarView: View {
     @State private var selectedFilter: MediaFilter = .all
 
     var body: some View {
+        // Every card renders its own glass, like the tiles in Control Center.
         VStack(spacing: PanelMetrics.spacing) {
             PanelSection {
                 HeaderRow(status: monitor.status)
@@ -37,24 +38,31 @@ struct MenuBarView: View {
                     FilteredHistory(entries: entries, filter: selectedFilter)
                         .frame(minHeight: 250, alignment: .top)
                 }
+                // One animation for every way the filter changes: the
+                // segments, Cmd plus a digit, and a conversion.
+                .animation(.smooth, value: selectedFilter)
             }
 
             HStack(spacing: PanelMetrics.spacing) {
-                PanelSection(hoverable: true) {
+                PanelSection(interactive: true) {
                     DashboardItem()
                 }
-                PanelSection(hoverable: true) {
+                PanelSection(interactive: true) {
                     SettingsItem()
                 }
-                PanelSection(hoverable: true) {
+                PanelSection(interactive: true) {
                     QuitItem()
                 }
             }
         }
         .padding(PanelMetrics.spacing)
         .frame(width: PanelMetrics.panelWidth)
+        .padding(PanelMetrics.shadowMargin)
         .frame(maxHeight: .infinity, alignment: .top)
         .followsConversions(of: monitor, filter: $selectedFilter)
+        .background(WindowKeyMonitor(closesOnEscape: false) { number in
+            if let filter = MediaFilter(commandNumber: number) { selectedFilter = filter }
+        })
     }
 }
 
@@ -64,15 +72,17 @@ private struct FilterPicker: View {
     @Binding var selection: MediaFilter
 
     var body: some View {
-        AnimatedSegmentControl(
-            selection: $selection,
-            segments: MediaFilter.allCases.map { item in
-                .label(item.title, systemImage: item.icon, tag: item)
-            },
-            tintColor: .accentColor
-        )
-        .controlSize(.regular)
-        .segmentControlWidth(.fullWidth)
+        Picker(String(localized: "Filter"), selection: $selection) {
+            ForEach(MediaFilter.allCases) { item in
+                Label(item.title, systemImage: item.icon)
+                    .tag(item)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelStyle(.titleAndIcon)
+        .labelsHidden()
+        .frame(maxWidth: .infinity)
+        .help(String(localized: "Switch with ⌘1 to ⌘4"))
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
     }

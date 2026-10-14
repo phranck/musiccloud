@@ -111,12 +111,12 @@ private struct ServiceLinksMenu: View {
                 ForEach(entry.serviceLinks, id: \.service) { link in
                     Button {
                         guard let url = StreamingServices.webURL(link.url) else { return }
-                        openURL(url)
+                        openURL(NativeAppLink.preferredURL(for: url))
                     } label: {
                         Label {
                             Text(link.displayName)
                         } icon: {
-                            Image(nsImage: Self.serviceIcon(for: link.service))
+                            Image(nsImage: .menuIcon(named: "ServiceIcons/\(link.service)"))
                         }
                     }
                 }
@@ -124,26 +124,6 @@ private struct ServiceLinksMenu: View {
                 Label("Open In", systemImage: "arrow.up.forward.app")
             }
         }
-    }
-
-    static func serviceIcon(for service: String) -> NSImage {
-        let canvasSize = NSSize(width: 16, height: 16)
-        guard let original = NSImage(named: "ServiceIcons/\(service)") else {
-            return NSImage(systemSymbolName: "music.note", accessibilityDescription: service) ?? NSImage()
-        }
-        let originalSize = original.size
-        let scale = min(canvasSize.width / originalSize.width, canvasSize.height / originalSize.height)
-        let scaledSize = NSSize(width: originalSize.width * scale, height: originalSize.height * scale)
-        let origin = NSPoint(
-            x: (canvasSize.width - scaledSize.width) / 2,
-            y: (canvasSize.height - scaledSize.height) / 2
-        )
-        let resized = NSImage(size: canvasSize, flipped: false) { _ in
-            original.draw(in: NSRect(origin: origin, size: scaledSize))
-            return true
-        }
-        resized.isTemplate = true
-        return resized
     }
 }
 #endif

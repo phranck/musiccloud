@@ -128,6 +128,22 @@ export const ENDPOINTS = {
     tiers: "/api/v1/tiers",
   },
 
+  /**
+   * `/api/app/...`: the native Apple app's own way in, proven by App Attest.
+   * Not part of the public API, so none of these paths is in the OpenAPI
+   * document or the developer documentation.
+   */
+  app: {
+    /** POST: a one-time challenge for an attestation or an assertion. */
+    challenge: "/api/app/challenge",
+    /** POST: attest a new key and receive a session token. Body: `{ keyId, attestation, challenge }`. */
+    attest: "/api/app/attest",
+    /** POST: renew the session with an assertion. Body: `{ keyId, assertion, challenge }`. */
+    session: "/api/app/session",
+    /** POST: resolve like `ENDPOINTS.v1.resolve`, authenticated by the session token. Body: `{ query }`. */
+    resolve: "/api/app/resolve",
+  },
+
   /** `/api/internal/...`: service-to-service endpoints authenticated with the internal API key. */
   internal: {
     developer: {

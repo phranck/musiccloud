@@ -36,12 +36,13 @@ struct MediaRow: View {
 
     var body: some View {
         MediaItem(entry: entry)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isHovered ? Color.accentColor : Color.clear)
-                    .padding(.horizontal, 4)
-            )
-            .foregroundStyle(isHovered ? Color.white : Color.primary)
+            .background {
+                if isHovered {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Self.highlightBackground)
+                        .padding(.horizontal, 4)
+                }
+            }
             .contentShape(Rectangle())
             .onTapGesture {
                 copyToClipboardAndOpen()
@@ -50,6 +51,18 @@ struct MediaRow: View {
                 isHovered = hovering
             }
     }
+}
+
+// MARK: - Highlight
+
+private extension MediaRow {
+    /// The same system fill the panel's footer cards take under the pointer,
+    /// so everything in the panel answers hover the same way.
+    #if os(macOS)
+    static let highlightBackground = Color(nsColor: PanelMetrics.hoverFill)
+    #else
+    static let highlightBackground = Color(uiColor: .systemFill)
+    #endif
 }
 
 // MARK: - Actions
