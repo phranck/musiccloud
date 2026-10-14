@@ -20,4 +20,12 @@ enum PanelMetrics {
     /// shadow of the cards' glass fades out instead of ending at the window
     /// edge, which would draw it as a hard rectangle.
     static let shadowMargin: CGFloat = 32
+
+    #if os(macOS)
+    /// The fill everything in the panel takes under the pointer. The footer
+    /// cards tint their glass with it, and the rows of the history list fill
+    /// their background with it. It is the strongest of the system's neutral
+    /// fills, so the hover reads clearly on glass.
+    static let hoverFill: NSColor = .systemFill
+    #endif
 }

@@ -84,7 +84,7 @@ private struct GlassCardBackground: NSViewRepresentable {
 
     private func configure(_ glass: NSGlassEffectView) {
         glass.cornerRadius = cornerRadius
-        glass.tintColor = isHighlighted ? .quaternarySystemFill : nil
+        glass.tintColor = isHighlighted ? PanelMetrics.hoverFill : nil
         if #available(macOS 27.0, *) {
             glass.effectIsInteractive = interactive
         }
