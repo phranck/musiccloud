@@ -93,6 +93,31 @@ struct AppAccessTests {
         #expect(roundTrip == token)
     }
 
+    /// A backend deployed before the attested routes answers this, and the
+    /// app then converts through the public route.
+    @Test func missingRouteIsRecognized() {
+        let body = #"{"error":"MC-RES-0003","errorId":"558073b1","message":"Route not found. (MC-RES-0003)"}"#
+        #expect(MusicCloudAPI.isRouteNotFound(Data(body.utf8)))
+    }
+
+    /// A link the backend cannot find also answers 404, and that one is shown, not retried.
+    @Test func notFoundLinkIsNotAMissingRoute() {
+        let body = #"{"error":"MC-RES-0001","errorId":"1","message":"Not found"}"#
+        #expect(!MusicCloudAPI.isRouteNotFound(Data(body.utf8)))
+        #expect(!MusicCloudAPI.isRouteNotFound(Data("<html>".utf8)))
+    }
+
+    // MARK: Keychain scope
+
+    /// A Debug and a Release build share the Keychain, so each backend's
+    /// token and key id live under their own account.
+    @Test func keychainAccountsDifferPerBackend() throws {
+        let local = try #require(URL(string: "http://localhost:4001"))
+        let production = MusicCloudAPI.productionAppAccessURL
+        #expect(AppSessionStore.account("session-token", local) == "session-token@localhost:4001")
+        #expect(AppSessionStore.account("session-token", production) == "session-token@api.musiccloud.io")
+    }
+
     // MARK: Hosts
 
     @Test func productionSiteUsesTheProductionBackend() {

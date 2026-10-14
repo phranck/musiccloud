@@ -154,13 +154,13 @@ extension MusicCloudAPI {
         let appAccess = appAccessURL(forSite: base)
 
         for _ in 1...2 {
-            guard let token = await AppSession.shared.currentToken() else { break }
+            guard let token = await AppSession.shared.currentToken(for: appAccess) else { break }
             do {
                 let request = try AppAccessClient.resolveRequest(base: appAccess, query: url, token: token)
                 return try await send(request, sourceUrl: url, linkBase: base)
             } catch AttestedRouteUnavailable.sessionRejected {
                 // The second pass renews the session and sends the request again.
-                await AppSession.shared.invalidate()
+                await AppSession.shared.invalidate(for: appAccess)
             } catch AttestedRouteUnavailable.unreachable {
                 break
             }
@@ -174,11 +174,18 @@ extension MusicCloudAPI {
         return try await send(request, sourceUrl: url, linkBase: base)
     }
 
+    /// Whether a 404 body is the backend's answer for a route it does not
+    /// have (`MC-RES-0003`), rather than for a link it could not find.
+    static func isRouteNotFound(_ data: Data) -> Bool {
+        (try? JSONDecoder().decode(APIError.self, from: data))?.error == "MC-RES-0003"
+    }
+
     /// Why the attested route gave no answer, so ``resolve(url:baseURL:)`` falls back.
     private enum AttestedRouteUnavailable: Error {
         /// The backend refused the session token with 401.
         case sessionRejected
-        /// The attested backend could not be reached.
+        /// The attested backend could not be reached, or does not serve the
+        /// attested routes, as a backend deployed before them answers 404.
         case unreachable
     }
 
@@ -213,6 +220,9 @@ extension MusicCloudAPI {
 
         if isAttestedRoute, statusCode == 401 {
             throw AttestedRouteUnavailable.sessionRejected
+        }
+        if isAttestedRoute, statusCode == 404, Self.isRouteNotFound(data) {
+            throw AttestedRouteUnavailable.unreachable
         }
 
         if statusCode == 429 {
