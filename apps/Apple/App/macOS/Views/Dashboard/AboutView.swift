@@ -13,14 +13,26 @@ import SwiftUI
 /// "Export diagnostics" button: in App Store builds the whole diagnostics
 /// section is suppressed by ``BuildChannel/diagnosticsEnabled``.
 struct AboutView: View {
+    /// The musiccloud account on Mastodon.
+    // swiftlint:disable:next force_unwrapping
+    private static let mastodonURL = URL(string: "https://oldbytes.space/@musiccloud")!
+
     var body: some View {
         Form {
             Section {
-                AppIdentityRow()
                 LabeledContent(String(localized: "Version"), value: Bundle.main.appVersion)
                 LabeledContent(String(localized: "Website")) {
                     Link("musiccloud.io", destination: MusicCloudAPI.productionURL)
                 }
+                LabeledContent {
+                    Link(destination: Self.mastodonURL) {
+                        Text(verbatim: "@musiccloud")
+                    }
+                } label: {
+                    Text(verbatim: "Mastodon")
+                }
+            } header: {
+                AppIdentityHeader()
             }
 
             if BuildChannel.diagnosticsEnabled {
@@ -31,19 +43,22 @@ struct AboutView: View {
     }
 }
 
-// MARK: - AppIdentityRow
+// MARK: - AppIdentityHeader
 
-private struct AppIdentityRow: View {
+/// The app icon with the app name below it, centered above the form.
+private struct AppIdentityHeader: View {
     var body: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 8) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
-                .frame(width: 48, height: 48)
-            Text("musiccloud")
-                .font(.title2)
+                .frame(width: 96, height: 96)
+            Text(verbatim: "musiccloud")
+                .font(.title)
                 .bold()
+                .foregroundStyle(.primary)
         }
-        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 12)
     }
 }
 
@@ -99,6 +114,11 @@ private extension DiagnosticsSection {
               let contentView = window.contentView else { return }
         picker.show(relativeTo: .zero, of: contentView, preferredEdge: .minY)
     }
+}
+
+#Preview {
+    AboutView()
+        .frame(width: 400, height: 440)
 }
 
 #endif
