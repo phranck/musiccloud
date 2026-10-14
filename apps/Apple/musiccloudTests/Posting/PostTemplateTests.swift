@@ -61,8 +61,12 @@ struct PostTemplateRendererTests {
 
 @MainActor
 struct PostTemplateStoreTests {
+    /// A file in a folder whose name has a space, like "Application Support",
+    /// so a path that is percent-encoded by mistake fails here as it does there.
     private func temporaryFile() -> URL {
-        FileManager.default.temporaryDirectory.appending(path: "post-templates-\(UUID().uuidString).json")
+        let folder = FileManager.default.temporaryDirectory.appending(path: "post templates \(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder.appending(path: "post-templates.json")
     }
 
     @Test func templatesSurviveAReload() throws {
@@ -78,12 +82,68 @@ struct PostTemplateStoreTests {
         #expect(reloaded.templates == [edited])
     }
 
+    /// Two copies of the app share the file; neither may overwrite the other's templates.
+    @Test func secondCopyKeepsTheFirstCopysTemplates() throws {
+        let file = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: file) }
+        let first = PostTemplateStore(fileURL: file, systemTemplates: [])
+        let second = PostTemplateStore(fileURL: file, systemTemplates: [])
+        let one = first.add(name: "One")
+        let two = second.add(name: "Two")
+        #expect(PostTemplateStore(fileURL: file, systemTemplates: []).templates.map(\.id) == [one.id, two.id])
+    }
+
     @Test func deletingRemovesOnlyThatTemplate() {
         let store = PostTemplateStore(fileURL: nil)
         let first = store.add(name: "One")
         let second = store.add(name: "Two")
         store.delete(id: first.id)
         #expect(store.templates == [second])
+    }
+
+    /// A system template is never stored or deleted; its copy is the user's own.
+    @Test func systemTemplateIsCopiedNotChanged() {
+        let system = PostTemplate(name: "Now playing", body: "{song_name}")
+        let store = PostTemplateStore(fileURL: nil, systemTemplates: [system])
+        #expect(store.isSystem(system.id))
+
+        store.delete(id: system.id)
+        var edited = system
+        edited.body = "changed"
+        store.update(edited)
+        #expect(store.systemTemplates == [system])
+        #expect(store.templates.isEmpty)
+
+        let copy = store.duplicate(system)
+        #expect(copy.id != system.id)
+        #expect(copy.body == system.body)
+        #expect(copy.name != system.name)
+        #expect(!store.isSystem(copy.id))
+        #expect(store.templates == [copy])
+    }
+
+    /// Templates stored before icons existed, and icons a later version
+    /// added, load without an icon instead of failing the whole file.
+    @Test func templatesWithoutOrWithUnknownIconsLoad() throws {
+        let json = #"""
+        [
+          {"id":"6C1E5C32-6F5B-4D7B-9C4E-1A2B3C4D5E6F","name":"Old","body":"{song_name}"},
+          {"id":"7D2F6D43-7A6C-4E8C-AD5F-2B3C4D5E6F70","name":"Future","body":"x","icon":"threads"},
+          {"id":"8E307E54-8B7D-4F9D-BE60-3C4D5E6F7081","name":"Toot","body":"y","icon":"mastodon"}
+        ]
+        """#
+        let templates = try JSONDecoder().decode([PostTemplate].self, from: Data(json.utf8))
+        #expect(templates.map(\.icon) == [nil, nil, .mastodon])
+    }
+
+    @Test func iconSurvivesAReload() throws {
+        let file = temporaryFile()
+        defer { try? FileManager.default.removeItem(at: file) }
+        let store = PostTemplateStore(fileURL: file, systemTemplates: [])
+        var template = store.add(name: "Skeet")
+        template.icon = .bluesky
+        store.update(template)
+        #expect(PostTemplateStore(fileURL: file, systemTemplates: []).templates.first?.icon == .bluesky)
     }
 
     /// A file that cannot be read is kept for the user rather than replaced by an empty list.

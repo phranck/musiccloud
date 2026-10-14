@@ -47,6 +47,7 @@ private struct SettingsPaneView: View {
         case .general:       GeneralPane()
         case .notifications: NotificationsPane()
         case .history:       HistoryPane()
+        case .templates:     TemplatesPane()
         case .about:         AboutView()
         }
     }

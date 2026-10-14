@@ -17,10 +17,34 @@ struct PostTemplate: Codable, Identifiable, Hashable, Sendable {
     var name: String
     /// The Markdown text with `{variable}` placeholders.
     var body: String
+    /// The icon shown beside the name, or `nil` for none.
+    var icon: PostTemplateIcon?
 
-    init(id: UUID = UUID(), name: String, body: String) {
+    init(id: UUID = UUID(), name: String, body: String, icon: PostTemplateIcon? = nil) {
         self.id = id
         self.name = name
         self.body = body
+        self.icon = icon
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, body, icon
+    }
+
+    /// Reads a stored template. A template stored without an icon, or with
+    /// an icon this version does not know, loads without one rather than
+    /// making the whole file unreadable.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        body = try container.decode(String.self, forKey: .body)
+        icon = try? container.decodeIfPresent(PostTemplateIcon.self, forKey: .icon)
+    }
+}
+
+extension PostTemplate {
+    /// The templates that ship with the app. Each needs a fixed id, so the
+    /// app recognizes it as a system template across launches.
+    static let system: [PostTemplate] = []
 }

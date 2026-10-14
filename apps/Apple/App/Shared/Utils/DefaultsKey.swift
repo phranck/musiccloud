@@ -23,4 +23,7 @@ enum DefaultsKey {
 
     /// The raw value of the pane the macOS Settings window showed last.
     static let settingsPane = "settingsPane"
+
+    /// Whether the Template Editor shows the variable legend. Defaults to `true`.
+    static let templateLegendVisible = "templateLegendVisible"
 }
