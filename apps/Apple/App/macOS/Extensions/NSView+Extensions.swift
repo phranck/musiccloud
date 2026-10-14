@@ -22,13 +22,17 @@ extension NSView {
 
 // MARK: - WindowKeyMonitor
 
-/// Installs a local key-event monitor for Escape (close window), Cmd+F (focus
-/// search) and Cmd+1 to Cmd+9 (handed to `onCommandNumber`).
+/// Installs a local key-event monitor for Escape (close window, unless
+/// `closesOnEscape` is off), Cmd+F (focus search) and Cmd+1 to Cmd+9 (handed
+/// to `onCommandNumber`).
 ///
 /// The toolbar search field lives outside `contentView`, so we search from the
 /// window's theme frame (`contentView.superview`) which contains both content and toolbar.
 /// The app runs without a menu bar, so these shortcuts cannot live in a menu.
 struct WindowKeyMonitor: NSViewRepresentable {
+    /// Whether Escape closes the window. The menu bar panel closes through
+    /// `AppDelegate`, which fades it out, so it turns this off.
+    var closesOnEscape = true
     /// Called with 1 to 9 when the user presses Cmd and that digit, and only Cmd.
     var onCommandNumber: (Int) -> Void = { _ in }
 
@@ -41,7 +45,7 @@ struct WindowKeyMonitor: NSViewRepresentable {
         coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak coordinator] event in
             guard let window = view.window, window.isKeyWindow else { return event }
 
-            if event.keyCode == 53 { // Escape
+            if closesOnEscape, event.keyCode == 53 { // Escape
                 window.close()
                 return nil
             }
