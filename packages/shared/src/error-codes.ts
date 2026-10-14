@@ -173,6 +173,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "An invitation link that has expired, has been followed already, was withdrawn, or matches no invitation. The response carries which of the four as `reason` beside the envelope, so the portal can say what to do next.",
     source: "apps/backend/src/routes/developer-portal-invitations.ts redemption",
   },
+  "MC-REQ-0009": {
+    code: "MC-REQ-0009",
+    httpStatus: 409,
+    userMessage: "This app key is already attested. Renew the session with an assertion.",
+    internalNote:
+      "POST /api/app/attest for a key id that is already stored. Apple asks that a public key belong to one installation only, so the row is never overwritten.",
+    source: "apps/backend/src/routes/app-access.ts",
+  },
   "MC-AUTH-0001": {
     code: "MC-AUTH-0001",
     httpStatus: 401,
@@ -204,6 +212,38 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "While the portal is not public, the developer API serves accounts an invitation admitted, and sign-up and a first GitHub sign-in need a valid invitation pass. The portal's gate shows the same thing to a browser; this is the backend holding it for every other client.",
     source:
       "apps/backend/src/plugins/auth.ts authenticateDeveloper, apps/backend/src/routes/developer-auth.ts signup, apps/backend/src/routes/developer-github.ts exchange",
+  },
+  "MC-AUTH-0005": {
+    code: "MC-AUTH-0005",
+    httpStatus: 401,
+    userMessage: "The app session is missing, expired or no longer valid.",
+    internalNote:
+      "POST /api/app/resolve without a valid Bearer session token, or with one whose key is unknown or revoked. The app renews it through /api/app/challenge and /api/app/session, and attests a new key when that answers MC-AUTH-0008.",
+    source: "apps/backend/src/routes/app-access.ts",
+  },
+  "MC-AUTH-0006": {
+    code: "MC-AUTH-0006",
+    httpStatus: 401,
+    userMessage: "The challenge is unknown, expired or already used.",
+    internalNote:
+      "An attestation or assertion named a challenge that is not stored, older than five minutes, or consumed by an earlier request. The app requests a new one from /api/app/challenge.",
+    source: "apps/backend/src/routes/app-access.ts",
+  },
+  "MC-AUTH-0007": {
+    code: "MC-AUTH-0007",
+    httpStatus: 401,
+    userMessage: "The app could not be verified.",
+    internalNote:
+      "An attestation or assertion failed one of Apple's App Attest steps, or an assertion's counter was not above the stored one. The step is logged as `reason`, never the object itself.",
+    source: "apps/backend/src/services/app-attest/verify.ts",
+  },
+  "MC-AUTH-0008": {
+    code: "MC-AUTH-0008",
+    httpStatus: 401,
+    userMessage: "This app key is not registered. Attest a new key.",
+    internalNote:
+      "An assertion named a key id that was never attested here, or whose row has revoked_at set. The app generates a new key and attests it.",
+    source: "apps/backend/src/routes/app-access.ts",
   },
   "MC-RES-0003": {
     code: "MC-RES-0003",
@@ -239,6 +279,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     userMessage: "A database operation failed.",
     internalNote: "Fallback for an unclassified PostgreSQL SQLSTATE.",
     source: "apps/backend/src/lib/infra/api-errors.ts classifyUnhandledError",
+  },
+  "MC-CFG-0001": {
+    code: "MC-CFG-0001",
+    httpStatus: 503,
+    userMessage: "App access is not configured on this server.",
+    internalNote:
+      "APP_SESSION_SECRET is missing or shorter than 32 bytes, so no app session can be issued or verified. The boot refuses this in production; elsewhere the app routes answer this code.",
+    source: "apps/backend/src/services/app-attest/session-token.ts",
   },
   "MC-SYS-0001": {
     code: "MC-SYS-0001",

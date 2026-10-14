@@ -39,7 +39,7 @@
  */
 import type { ResolveDisambiguationResponse, ResolveErrorResponse, ResolveRequest } from "@musiccloud/shared";
 import { ENDPOINTS, getErrorEntry } from "@musiccloud/shared";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { STRUCTURED_SEARCH_OPENAPI_SECTION, STRUCTURED_SEARCH_POST_OPENAPI_NOTE } from "../docs/resolve-openapi.js";
 import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
@@ -132,16 +132,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
           ],
         },
         response: {
-          200: {
-            description:
-              "A persisted `UnifiedResolveSuccess` selected by `type`, a `ResolveDisambiguation` list with `status` equal to `disambiguation`, or a genre result with `status` equal to `genre-search` or `genre-browse`.",
-            oneOf: [
-              { $ref: "UnifiedResolveSuccess#" },
-              { $ref: "ResolveDisambiguation#" },
-              { $ref: "GenreSearchResponse#" },
-              { $ref: "GenreBrowseResponse#" },
-            ],
-          },
+          200: RESOLVE_SUCCESS_RESPONSE_SCHEMA,
           400: {
             description: "Invalid URL, invalid genre query, invalid structured search query, or malformed body.",
             $ref: "ErrorResponse#",
@@ -179,118 +170,153 @@ export default async function resolveRoutes(app: FastifyInstance) {
         }
       }
 
-      // Schema guarantees the object shape and length caps; we still trim
-      // so downstream code never sees pure-whitespace input treated as valid.
-      const body = request.body as ResolveRequest;
-      const query = body.query?.trim();
-      const selectedCandidate = body.selectedCandidate?.trim();
-
-      if (!query && !selectedCandidate) {
-        return reply
-          .status(400)
-          .send(jsonError("INVALID_URL", "The 'query' or 'selectedCandidate' field is required."));
-      }
-
-      try {
-        const origin = getOrigin(request.headers.origin);
-
-        // Flow 0: genre-based discovery search. Detected by the `genre:`
-        // prefix on the trimmed query. Returns its own discriminated
-        // response variant, does not persist anything (discovery is
-        // non-committal — the follow-up resolve happens when the user
-        // clicks a result).
-        if (query && isGenreBrowseQuery(query)) {
-          try {
-            const browseResponse = await runGenreBrowse();
-            return reply.send(browseResponse);
-          } catch (err) {
-            if (err instanceof NoGenreSearchAdapterError) {
-              return reply.status(503).send(jsonError("SERVICE_DOWN", err.message));
-            }
-            throw err;
-          }
-        }
-
-        if (query && isGenreSearchQuery(query)) {
-          try {
-            const genreResponse = await runGenreSearch(query);
-            return reply.send(genreResponse);
-          } catch (err) {
-            if (err instanceof GenreQueryParseError) {
-              return reply.status(400).send(jsonError("INVALID_URL", err.message));
-            }
-            if (err instanceof NoGenreSearchAdapterError) {
-              return reply.status(503).send(jsonError("SERVICE_DOWN", err.message));
-            }
-            log.error("GenreSearch", err instanceof Error ? err.message : "Unknown error");
-            if (process.env.NODE_ENV !== "production" && err instanceof Error) {
-              log.error("GenreSearch", "Stack:", err.stack);
-            }
-            return reply.status(503).send(jsonError("SERVICE_DOWN"));
-          }
-        }
-
-        // Flow 0.5: structured search (`title:`/`artist:`/`album:`). Routes
-        // through the existing `resolveTextSearchWithDisambiguation` flow with
-        // a parsed `SearchQuery` so adapters can use field operators where
-        // supported (Spotify, Deezer, MusicBrainz). Disambiguation is returned
-        // as the standard discriminated-union response.
-        if (query && isStructuredSearchQuery(query)) {
-          let parsed: ParsedStructuredQuery;
-          try {
-            parsed = parseStructuredSearchQuery(query);
-          } catch (err) {
-            if (err instanceof StructuredSearchQueryParseError) {
-              return reply.status(400).send(jsonError("INVALID_URL", err.message));
-            }
-            throw err;
-          }
-          const textResult = await resolveTextSearchWithDisambiguation(query, parsed.search, parsed.candidateLimit);
-          if (textResult.kind === "resolved" && textResult.result) {
-            return reply.send(await persistTrackAndRespond(textResult.result, origin));
-          }
-          return reply.send(toDisambiguationResponse(textResult.candidates));
-        }
-
-        if (selectedCandidate) {
-          // Flow 1: completing a previous disambiguation. The candidate
-          // string came from the client's earlier disambiguation response,
-          // so no input classification is needed here.
-          const result = await resolveSelectedCandidate(selectedCandidate);
-          return reply.send(await persistTrackAndRespond(result, origin));
-        }
-
-        if (isUrl(query!)) {
-          // Flow 2: the URL is routed by what it points at, as on the GET operation.
-          return reply.send(await resolveUrlAndRespond(query!, origin));
-        }
-
-        // Flow 3: free-text search. Unlike the GET endpoint, we can return
-        // candidates back to an interactive client and wait for Flow 1.
-        const textResult = await resolveTextSearchWithDisambiguation(query!);
-
-        if (textResult.kind === "resolved" && textResult.result) {
-          return reply.send(await persistTrackAndRespond(textResult.result, origin));
-        }
-
-        // Disambiguation branch: do NOT persist anything. Writing a track
-        // here would create a DB row we cannot safely associate with any of
-        // the candidates; the commit happens in the Flow 1 follow-up when
-        // the client tells us which candidate was picked.
-        return reply.send(toDisambiguationResponse(textResult.candidates));
-      } catch (error) {
-        if (error instanceof ResolveError) {
-          // httpStatus is `number` in the error registry; the schema declares
-          // every code the registry can actually emit (400/401/404/408/429/500/503),
-          // so the cast is safe at runtime.
-          const httpStatus = getErrorEntry(error.code).httpStatus as 400 | 401 | 404 | 408 | 429 | 500 | 503;
-          return reply.status(httpStatus).send(jsonError(error.code, error.message || undefined, error.context));
-        }
-
-        throw error;
-      }
+      return respondToResolveRequest(reply, request.body as ResolveRequest, request.headers.origin);
     },
   );
+}
+
+/**
+ * The 200 response of a resolve, shared by `POST /api/v1/resolve` and the
+ * Apple app's `POST /api/app/resolve` so both serialize a result the same way.
+ */
+export const RESOLVE_SUCCESS_RESPONSE_SCHEMA = {
+  description:
+    "A persisted `UnifiedResolveSuccess` selected by `type`, a `ResolveDisambiguation` list with `status` equal to `disambiguation`, or a genre result with `status` equal to `genre-search` or `genre-browse`.",
+  oneOf: [
+    { $ref: "UnifiedResolveSuccess#" },
+    { $ref: "ResolveDisambiguation#" },
+    { $ref: "GenreSearchResponse#" },
+    { $ref: "GenreBrowseResponse#" },
+  ],
+} as const;
+
+/**
+ * Resolves a request body and answers it, after the caller has authenticated
+ * and rate-limited the request in whatever way its route requires.
+ *
+ * This is the whole of `POST /api/v1/resolve` past its rate limit, and the
+ * Apple app's route runs it unchanged, so the two can only differ in who may
+ * call them.
+ *
+ * @param reply - The reply to answer on.
+ * @param body - The body as the route's schema admitted it.
+ * @param headerOrigin - The request's `Origin` header, which picks the short link's origin from `ALLOWED_ORIGINS`.
+ * @returns The sent reply.
+ * @throws Whatever the resolvers throw other than a {@link ResolveError},
+ *   which the global error handler turns into a classified response.
+ */
+export async function respondToResolveRequest(
+  reply: FastifyReply,
+  body: ResolveRequest,
+  headerOrigin: string | undefined,
+): Promise<FastifyReply> {
+  // Schema guarantees the object shape and length caps; we still trim
+  // so downstream code never sees pure-whitespace input treated as valid.
+  const query = body.query?.trim();
+  const selectedCandidate = body.selectedCandidate?.trim();
+
+  if (!query && !selectedCandidate) {
+    return reply.status(400).send(jsonError("INVALID_URL", "The 'query' or 'selectedCandidate' field is required."));
+  }
+
+  try {
+    const origin = getOrigin(headerOrigin);
+
+    // Flow 0: genre-based discovery search. Detected by the `genre:`
+    // prefix on the trimmed query. Returns its own discriminated
+    // response variant, does not persist anything (discovery is
+    // non-committal — the follow-up resolve happens when the user
+    // clicks a result).
+    if (query && isGenreBrowseQuery(query)) {
+      try {
+        const browseResponse = await runGenreBrowse();
+        return reply.send(browseResponse);
+      } catch (err) {
+        if (err instanceof NoGenreSearchAdapterError) {
+          return reply.status(503).send(jsonError("SERVICE_DOWN", err.message));
+        }
+        throw err;
+      }
+    }
+
+    if (query && isGenreSearchQuery(query)) {
+      try {
+        const genreResponse = await runGenreSearch(query);
+        return reply.send(genreResponse);
+      } catch (err) {
+        if (err instanceof GenreQueryParseError) {
+          return reply.status(400).send(jsonError("INVALID_URL", err.message));
+        }
+        if (err instanceof NoGenreSearchAdapterError) {
+          return reply.status(503).send(jsonError("SERVICE_DOWN", err.message));
+        }
+        log.error("GenreSearch", err instanceof Error ? err.message : "Unknown error");
+        if (process.env.NODE_ENV !== "production" && err instanceof Error) {
+          log.error("GenreSearch", "Stack:", err.stack);
+        }
+        return reply.status(503).send(jsonError("SERVICE_DOWN"));
+      }
+    }
+
+    // Flow 0.5: structured search (`title:`/`artist:`/`album:`). Routes
+    // through the existing `resolveTextSearchWithDisambiguation` flow with
+    // a parsed `SearchQuery` so adapters can use field operators where
+    // supported (Spotify, Deezer, MusicBrainz). Disambiguation is returned
+    // as the standard discriminated-union response.
+    if (query && isStructuredSearchQuery(query)) {
+      let parsed: ParsedStructuredQuery;
+      try {
+        parsed = parseStructuredSearchQuery(query);
+      } catch (err) {
+        if (err instanceof StructuredSearchQueryParseError) {
+          return reply.status(400).send(jsonError("INVALID_URL", err.message));
+        }
+        throw err;
+      }
+      const textResult = await resolveTextSearchWithDisambiguation(query, parsed.search, parsed.candidateLimit);
+      if (textResult.kind === "resolved" && textResult.result) {
+        return reply.send(await persistTrackAndRespond(textResult.result, origin));
+      }
+      return reply.send(toDisambiguationResponse(textResult.candidates));
+    }
+
+    if (selectedCandidate) {
+      // Flow 1: completing a previous disambiguation. The candidate
+      // string came from the client's earlier disambiguation response,
+      // so no input classification is needed here.
+      const result = await resolveSelectedCandidate(selectedCandidate);
+      return reply.send(await persistTrackAndRespond(result, origin));
+    }
+
+    if (isUrl(query!)) {
+      // Flow 2: the URL is routed by what it points at, as on the GET operation.
+      return reply.send(await resolveUrlAndRespond(query!, origin));
+    }
+
+    // Flow 3: free-text search. Unlike the GET endpoint, we can return
+    // candidates back to an interactive client and wait for Flow 1.
+    const textResult = await resolveTextSearchWithDisambiguation(query!);
+
+    if (textResult.kind === "resolved" && textResult.result) {
+      return reply.send(await persistTrackAndRespond(textResult.result, origin));
+    }
+
+    // Disambiguation branch: do NOT persist anything. Writing a track
+    // here would create a DB row we cannot safely associate with any of
+    // the candidates; the commit happens in the Flow 1 follow-up when
+    // the client tells us which candidate was picked.
+    return reply.send(toDisambiguationResponse(textResult.candidates));
+  } catch (error) {
+    if (error instanceof ResolveError) {
+      // httpStatus is `number` in the error registry; the schema declares
+      // every code the registry can actually emit (400/401/404/408/429/500/503),
+      // so the cast is safe at runtime.
+      const httpStatus = getErrorEntry(error.code).httpStatus as 400 | 401 | 404 | 408 | 429 | 500 | 503;
+      return reply.status(httpStatus).send(jsonError(error.code, error.message || undefined, error.context));
+    }
+
+    throw error;
+  }
 }
 
 /**

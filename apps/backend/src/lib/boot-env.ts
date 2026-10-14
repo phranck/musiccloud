@@ -1,3 +1,4 @@
+import { APP_SESSION_SECRET_VARIABLE, assertAppSessionSecret } from "../services/app-attest/session-token.js";
 import { getCreemConfig, hasAnyCreemKeyVariable } from "./creem-config.js";
 import { requireEnv } from "./env.js";
 
@@ -46,6 +47,8 @@ const REQUIRED_PRODUCTION_ENV = ["INTERNAL_API_KEY"] as const;
  *   dev-only.
  * @throws Error when a Creem key is set but the config is otherwise
  *   inconsistent (re-thrown from {@link getCreemConfig}).
+ * @throws {AppSessionUnconfiguredError} When production has no
+ *   `APP_SESSION_SECRET`, or any environment has one shorter than 32 bytes.
  */
 export function assertRequiredBootEnv(): void {
   for (const name of REQUIRED_BOOT_ENV) {
@@ -57,6 +60,12 @@ export function assertRequiredBootEnv(): void {
       requireEnv(name);
     }
   }
+
+  // The Apple app's session tokens are signed with APP_SESSION_SECRET. A
+  // production process without it would refuse every app request, and a short
+  // one anywhere would sign tokens that are easier to forge, so both stop the
+  // boot here.
+  assertAppSessionSecret(process.env.NODE_ENV, process.env[APP_SESSION_SECRET_VARIABLE]);
 
   // Creem is optional: a deployment with no key at all is valid in CI and in
   // dev environments that have not wired Creem. But once any key is present
