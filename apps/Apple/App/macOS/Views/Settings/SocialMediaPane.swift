@@ -10,7 +10,7 @@ import SwiftUI
 
 /// The Social Media pane of the Settings window: the connected Mastodon
 /// accounts with avatar and handle, a fixed button below to connect another
-/// one, and Disconnect in each row's context menu.
+/// one, and a Disconnect button at the end of each row.
 struct SocialMediaPane: View {
     @Environment(SocialAccountStore.self) private var store
     @State private var isConnecting = false
@@ -24,12 +24,9 @@ struct SocialMediaPane: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(store.mastodonAccounts) { account in
-                        MastodonAccountRow(account: account)
-                            .contextMenu {
-                                Button(String(localized: "Disconnect…")) {
-                                    accountToDisconnect = account
-                                }
-                            }
+                        MastodonAccountRow(account: account) {
+                            accountToDisconnect = account
+                        }
                     }
                 }
             } header: {
@@ -71,9 +68,12 @@ struct SocialMediaPane: View {
 
 // MARK: - MastodonAccountRow
 
-/// One connected account: the avatar, the display name and the handle.
+/// One connected account: the avatar, the display name and the handle,
+/// with a button at the trailing edge that asks to disconnect it.
 private struct MastodonAccountRow: View {
     let account: MastodonAccount
+    /// Asks to disconnect the account; the pane confirms before it does.
+    let onDisconnect: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -93,9 +93,16 @@ private struct MastodonAccountRow: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+
+            Spacer()
+
+            Button(String(localized: "Disconnect"), systemImage: "trash", action: onDisconnect)
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .font(.title2)
+                .foregroundStyle(.secondary)
+                .help(String(localized: "Disconnect \(account.handle)"))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(.rect)
     }
 }
 

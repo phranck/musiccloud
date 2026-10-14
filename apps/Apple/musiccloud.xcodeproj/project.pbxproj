@@ -127,6 +127,16 @@
 		FDB8004A307FFCC000AC2DA7 /* MarkdownTemplateEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80049307FFCC000AC2DA7 /* MarkdownTemplateEditor.swift */; };
 		FDB8004C307FFD0400AC2DA7 /* VariableLegend.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8004B307FFD0400AC2DA7 /* VariableLegend.swift */; };
 		FDB8004E3080010100AC2DA7 /* TemplateSyntaxColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8004D3080010100AC2DA7 /* TemplateSyntaxColors.swift */; };
+		FDB8005030802E5500AC2DA7 /* KeychainItems.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8004F30802E5500AC2DA7 /* KeychainItems.swift */; };
+		FDB8005130802E5500AC2DA7 /* KeychainItems.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8004F30802E5500AC2DA7 /* KeychainItems.swift */; };
+		FDB8005330802E8800AC2DA7 /* JSONFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8005230802E8800AC2DA7 /* JSONFile.swift */; };
+		FDB8005430802E8800AC2DA7 /* JSONFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8005230802E8800AC2DA7 /* JSONFile.swift */; };
+		FDB8005830802EBE00AC2DA7 /* MastodonAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8005630802EBE00AC2DA7 /* MastodonAPI.swift */; };
+		FDB8005A30802EC900AC2DA7 /* MastodonAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8005930802EC900AC2DA7 /* MastodonAccount.swift */; };
+		FDB8005D30802EDC00AC2DA7 /* SocialAccountStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8005C30802EDC00AC2DA7 /* SocialAccountStore.swift */; };
+		FDB8006030802F0800AC2DA7 /* MastodonConnector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8005F30802F0800AC2DA7 /* MastodonConnector.swift */; };
+		FDB8006330802F4200AC2DA7 /* SocialMediaPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8006230802F4200AC2DA7 /* SocialMediaPane.swift */; };
+		FDB8006630802F7B00AC2DA7 /* MastodonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8006530802F7B00AC2DA7 /* MastodonTests.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -302,6 +312,14 @@
 		FDB80049307FFCC000AC2DA7 /* MarkdownTemplateEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTemplateEditor.swift; sourceTree = "<group>"; };
 		FDB8004B307FFD0400AC2DA7 /* VariableLegend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VariableLegend.swift; sourceTree = "<group>"; };
 		FDB8004D3080010100AC2DA7 /* TemplateSyntaxColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSyntaxColors.swift; sourceTree = "<group>"; };
+		FDB8004F30802E5500AC2DA7 /* KeychainItems.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainItems.swift; sourceTree = "<group>"; };
+		FDB8005230802E8800AC2DA7 /* JSONFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONFile.swift; sourceTree = "<group>"; };
+		FDB8005630802EBE00AC2DA7 /* MastodonAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MastodonAPI.swift; sourceTree = "<group>"; };
+		FDB8005930802EC900AC2DA7 /* MastodonAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MastodonAccount.swift; sourceTree = "<group>"; };
+		FDB8005C30802EDC00AC2DA7 /* SocialAccountStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialAccountStore.swift; sourceTree = "<group>"; };
+		FDB8005F30802F0800AC2DA7 /* MastodonConnector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MastodonConnector.swift; sourceTree = "<group>"; };
+		FDB8006230802F4200AC2DA7 /* SocialMediaPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialMediaPane.swift; sourceTree = "<group>"; };
+		FDB8006530802F7B00AC2DA7 /* MastodonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MastodonTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -384,6 +402,7 @@
 				AA00000000000018 /* Views */,
 				AA0000000000001F /* Utils */,
 				FDB8001F307FDA5900AC2DA7 /* Posting */,
+				FDB8005530802EBE00AC2DA7 /* Social */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -507,6 +526,8 @@
 				AA00000000000071 /* HapticFeedback.swift */,
 				AA00000000000002 /* PanelMetrics.swift */,
 				FF00000000000014 /* SharedStoreConfiguration.swift */,
+				FDB8004F30802E5500AC2DA7 /* KeychainItems.swift */,
+				FDB8005230802E8800AC2DA7 /* JSONFile.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -585,6 +606,7 @@
 				FDB80007307F9E7800AC2DA7 /* NotificationsPane.swift */,
 				FDB80009307F9E7A00AC2DA7 /* HistoryPane.swift */,
 				FDB80036307FE6D400AC2DA7 /* TemplatesPane.swift */,
+				FDB8006230802F4200AC2DA7 /* SocialMediaPane.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -652,6 +674,7 @@
 				BB00000000000023 /* Models */,
 				FDB80015307FBED400AC2DA7 /* Support */,
 				FDB8002C307FDE4800AC2DA7 /* Posting */,
+				FDB8006430802F7B00AC2DA7 /* Social */,
 			);
 			path = musiccloudTests;
 			sourceTree = "<group>";
@@ -793,6 +816,25 @@
 				FDB8004D3080010100AC2DA7 /* TemplateSyntaxColors.swift */,
 			);
 			path = TemplateEditor;
+			sourceTree = "<group>";
+		};
+		FDB8005530802EBE00AC2DA7 /* Social */ = {
+			isa = PBXGroup;
+			children = (
+				FDB8005630802EBE00AC2DA7 /* MastodonAPI.swift */,
+				FDB8005930802EC900AC2DA7 /* MastodonAccount.swift */,
+				FDB8005C30802EDC00AC2DA7 /* SocialAccountStore.swift */,
+				FDB8005F30802F0800AC2DA7 /* MastodonConnector.swift */,
+			);
+			path = Social;
+			sourceTree = "<group>";
+		};
+		FDB8006430802F7B00AC2DA7 /* Social */ = {
+			isa = PBXGroup;
+			children = (
+				FDB8006530802F7B00AC2DA7 /* MastodonTests.swift */,
+			);
+			path = Social;
 			sourceTree = "<group>";
 		};
 		FDDC7E1C2F805B3C005D779F /* Supporting Files */ = {
@@ -1000,6 +1042,7 @@
 				B67BEA72FC7A47A3C1F1DFCF /* App.swift in Sources */,
 				FDB8002A307FDE2B00AC2DA7 /* PostTemplateStore.swift in Sources */,
 				FDB80030307FDED600AC2DA7 /* TemplateEditorView.swift in Sources */,
+				FDB8005030802E5500AC2DA7 /* KeychainItems.swift in Sources */,
 				FDDC7E232F805E82005D779F /* HeaderRow.swift in Sources */,
 				3740E6ECEB9CA883501A80B5 /* ClipboardMonitor.swift in Sources */,
 				FDB8003C307FF01800AC2DA7 /* PostTemplateIconImage.swift in Sources */,
@@ -1010,6 +1053,7 @@
 				FD1437752F81964000A5B46D /* ShareButton.swift in Sources */,
 				FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */,
 				FDB8000A307F9E7A00AC2DA7 /* HistoryPane.swift in Sources */,
+				FDB8006030802F0800AC2DA7 /* MastodonConnector.swift in Sources */,
 				FD05A10C2F83900100000001 /* ContentType.swift in Sources */,
 				FD05A10E2F83900100000002 /* APIError.swift in Sources */,
 				FD05A1102F83900100000003 /* ResolveError.swift in Sources */,
@@ -1036,6 +1080,7 @@
 				FD2748DF34499A932431649A /* PanelSection.swift in Sources */,
 				FDB8004C307FFD0400AC2DA7 /* VariableLegend.swift in Sources */,
 				FDF8735C2F7EEDE600D05057 /* HistoryManager.swift in Sources */,
+				FDB8005830802EBE00AC2DA7 /* MastodonAPI.swift in Sources */,
 				DA05592DC35D842081D71462 /* NSView+Extensions.swift in Sources */,
 				7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */,
 				FDB80008307F9E7800AC2DA7 /* NotificationsPane.swift in Sources */,
@@ -1045,10 +1090,13 @@
 				FDDC7E252F805EB6005D779F /* ErrorRow.swift in Sources */,
 				FD2197D22F80996F00F4AD7D /* DashboardItem.swift in Sources */,
 				FD97C3802F80945D00E8D788 /* TrackItem.swift in Sources */,
+				FDB8005330802E8800AC2DA7 /* JSONFile.swift in Sources */,
 				FD4CFB8E2F8075F2006135A6 /* AppLogger.swift in Sources */,
 				FDDC7E292F805EDC005D779F /* MediaSection.swift in Sources */,
 				FDDC7E312F806452005D779F /* LogoText.swift in Sources */,
 				FD05A1022F82A00100000001 /* MediaEntry.swift in Sources */,
+				FDB8006330802F4200AC2DA7 /* SocialMediaPane.swift in Sources */,
+				FDB8005A30802EC900AC2DA7 /* MastodonAccount.swift in Sources */,
 				FD05A1042F83700100000001 /* ServiceLink.swift in Sources */,
 				FD05A1062F83800100000001 /* MediaFilter.swift in Sources */,
 				FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */,
@@ -1072,6 +1120,7 @@
 				EE00000000000002 /* MusicCloudShortcutsProvider.swift in Sources */,
 				FF00000000000001 /* MediaType.swift in Sources */,
 				FF00000000000002 /* Bundle+Version.swift in Sources */,
+				FDB8005D30802EDC00AC2DA7 /* SocialAccountStore.swift in Sources */,
 				FF00000000000003 /* DangerZoneSection.swift in Sources */,
 				FF00000000000006 /* EntryActionsModifier.swift in Sources */,
 				FDB80021307FDA6100AC2DA7 /* PostTemplate.swift in Sources */,
@@ -1100,6 +1149,7 @@
 				BB00000000000002 /* MusicCloudAPITests.swift in Sources */,
 				DC0000000000001B1 /* TelemetryClientTests.swift in Sources */,
 				BB00000000000003 /* ClipboardMonitorTests.swift in Sources */,
+				FDB8006630802F7B00AC2DA7 /* MastodonTests.swift in Sources */,
 				BB00000000000004 /* MediaEntryTests.swift in Sources */,
 				FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */,
 				FDB8001E307FC94700AC2DA7 /* NativeAppLinkTests.swift in Sources */,
@@ -1116,6 +1166,7 @@
 				FDB8002B307FDE2B00AC2DA7 /* PostTemplateStore.swift in Sources */,
 				CC00000000000012 /* StreamingServices.swift in Sources */,
 				FF00000000000101 /* MediaType.swift in Sources */,
+				FDB8005130802E5500AC2DA7 /* KeychainItems.swift in Sources */,
 				FF00000000000102 /* MusicCloudAPI.swift in Sources */,
 				FF00000000000103 /* ResolveResponse.swift in Sources */,
 				FF00000000000104 /* MediaEntry.swift in Sources */,
@@ -1146,6 +1197,7 @@
 				EF00000000000402 /* InstallID.swift in Sources */,
 				FDB80014307FBCDB00AC2DA7 /* AppSession.swift in Sources */,
 				EF00000000000502 /* DiagnosticsExporter.swift in Sources */,
+				FDB8005430802E8800AC2DA7 /* JSONFile.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

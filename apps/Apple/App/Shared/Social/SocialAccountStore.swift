@@ -24,8 +24,6 @@ final class SocialAccountStore {
     /// `nil` keeps secrets in memory, which is what previews and tests use.
     @ObservationIgnored private let keychain: KeychainItems?
     @ObservationIgnored private var secretsInMemory: [String: Data] = [:]
-    /// Set when the file exists but cannot be read; saving is then refused.
-    @ObservationIgnored private var isUnreadable = false
 
     /// The Keychain items of the app's social media accounts.
     nonisolated static let defaultKeychain = KeychainItems(service: "io.musiccloud.social-accounts", accessGroup: nil)
@@ -37,7 +35,7 @@ final class SocialAccountStore {
     ///   - keychain: Where tokens and client credentials are kept, or `nil` to keep them in memory.
     init(fileURL: URL? = .applicationSupportFile(named: "social-accounts.json"),
          keychain: KeychainItems? = SocialAccountStore.defaultKeychain) {
-        self.file = fileURL.map { JSONFile(url: $0) }
+        self.file = fileURL.map { JSONFile(url: $0, label: "Social accounts") }
         self.keychain = keychain
         load()
     }
@@ -99,23 +97,12 @@ private extension SocialAccountStore {
     }
 
     func load() {
-        guard let file else { return }
-        do {
-            if let stored = try file.read() {
-                mastodonAccounts = stored
-            }
-        } catch {
-            isUnreadable = true
-            AppLogger.ui.error("Social accounts could not be read: \(error.localizedDescription)")
+        if let stored = file?.load() {
+            mastodonAccounts = stored
         }
     }
 
     func save() {
-        guard let file, !isUnreadable else { return }
-        do {
-            try file.write(mastodonAccounts)
-        } catch {
-            AppLogger.ui.error("Social accounts could not be saved: \(error.localizedDescription)")
-        }
+        file?.save(mastodonAccounts)
     }
 }

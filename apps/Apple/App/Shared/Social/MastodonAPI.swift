@@ -158,6 +158,10 @@ private extension MastodonAPI {
 
 /// The OAuth client an instance issued to musiccloud, kept per instance so
 /// connecting a second account does not register the app again.
+///
+/// The coding keys name the snake case fields, so this is decoded with a
+/// plain `JSONDecoder` rather than ``MastodonAPI/decoder``, whose key
+/// conversion would turn `client_id` into `clientId` and miss them.
 struct MastodonAppCredentials: Codable, Equatable, Sendable {
     let clientID: String
     let clientSecret: String
