@@ -6,6 +6,7 @@ export default defineConfig({
     "src/scripts/crawler-heartbeat.ts",
     "src/scripts/api-access-retention.ts",
     "src/scripts/app-telemetry-retention.ts",
+    "src/scripts/app-attest-retention.ts",
     "src/scripts/artist-identity-enrichment.ts",
   ],
   // CommonJS is a runtime contract, not merely a bundler preference. The

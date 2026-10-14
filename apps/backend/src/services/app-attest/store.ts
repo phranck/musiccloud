@@ -183,3 +183,19 @@ export async function advanceAttestedKeyCounter(keyId: string, counter: number, 
   );
   return (result.rowCount ?? 0) > 0;
 }
+
+/**
+ * Deletes the keys not used since `cutoff`: renewed last before it, or,
+ * when never renewed, attested before it. An installation whose key is
+ * gone attests a new one on its next request, so nothing breaks for it.
+ *
+ * @param cutoff - Keys whose last use is older than this are removed.
+ * @returns How many keys were removed.
+ */
+export async function deleteAttestedKeysUnusedSince(cutoff: Date): Promise<number> {
+  const result = await getDatabasePool().query(
+    "DELETE FROM app_attest_keys WHERE COALESCE(last_used_at, created_at) < $1",
+    [cutoff],
+  );
+  return result.rowCount ?? 0;
+}
