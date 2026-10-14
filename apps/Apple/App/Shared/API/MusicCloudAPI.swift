@@ -48,14 +48,15 @@ enum MusicCloudAPI {
     /// Base URL for the musiccloud.io API and short links.
     ///
     /// Override in DEBUG builds via the `MUSICCLOUD_BASE_URL` environment variable
-    /// (e.g. set in Xcode scheme). Falls back to `http://localhost:3000`.
+    /// (e.g. set in Xcode scheme). Falls back to the local frontend, whose
+    /// port is the `frontend` service in the repository's `grat.config`.
     #if DEBUG
     static let baseURL: URL = {
         if let envURL = ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"],
            let url = URL(string: envURL) {
             return url
         }
-        return URL(string: "http://localhost:3000")!
+        return URL(string: "http://localhost:3001")!
     }()
     #else
     static let baseURL = productionURL
