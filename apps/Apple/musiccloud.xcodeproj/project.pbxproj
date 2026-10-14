@@ -102,6 +102,15 @@
 		FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
 		FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
 		FDB8001E307FC94700AC2DA7 /* NativeAppLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001D307FC94700AC2DA7 /* NativeAppLinkTests.swift */; };
+		FDB80021307FDA6100AC2DA7 /* PostTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80020307FDA6100AC2DA7 /* PostTemplate.swift */; };
+		FDB80022307FDA6100AC2DA7 /* PostTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80020307FDA6100AC2DA7 /* PostTemplate.swift */; };
+		FDB80024307FDA6A00AC2DA7 /* PostVariable.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80023307FDA6A00AC2DA7 /* PostVariable.swift */; };
+		FDB80025307FDA6A00AC2DA7 /* PostVariable.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80023307FDA6A00AC2DA7 /* PostVariable.swift */; };
+		FDB80027307FDA7000AC2DA7 /* PostTemplateRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80026307FDA7000AC2DA7 /* PostTemplateRenderer.swift */; };
+		FDB80028307FDA7000AC2DA7 /* PostTemplateRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80026307FDA7000AC2DA7 /* PostTemplateRenderer.swift */; };
+		FDB8002A307FDE2B00AC2DA7 /* PostTemplateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80029307FDE2B00AC2DA7 /* PostTemplateStore.swift */; };
+		FDB8002B307FDE2B00AC2DA7 /* PostTemplateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80029307FDE2B00AC2DA7 /* PostTemplateStore.swift */; };
+		FDB8002E307FDE4800AC2DA7 /* PostTemplateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8002D307FDE4800AC2DA7 /* PostTemplateTests.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -259,6 +268,11 @@
 		FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessTests.swift; sourceTree = "<group>"; };
 		FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLink.swift; sourceTree = "<group>"; };
 		FDB8001D307FC94700AC2DA7 /* NativeAppLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLinkTests.swift; sourceTree = "<group>"; };
+		FDB80020307FDA6100AC2DA7 /* PostTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTemplate.swift; sourceTree = "<group>"; };
+		FDB80023307FDA6A00AC2DA7 /* PostVariable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostVariable.swift; sourceTree = "<group>"; };
+		FDB80026307FDA7000AC2DA7 /* PostTemplateRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTemplateRenderer.swift; sourceTree = "<group>"; };
+		FDB80029307FDE2B00AC2DA7 /* PostTemplateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTemplateStore.swift; sourceTree = "<group>"; };
+		FDB8002D307FDE4800AC2DA7 /* PostTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTemplateTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -340,6 +354,7 @@
 				AA00000000000017 /* Extensions */,
 				AA00000000000018 /* Views */,
 				AA0000000000001F /* Utils */,
+				FDB8001F307FDA5900AC2DA7 /* Posting */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -604,6 +619,7 @@
 				BB00000000000022 /* Managers */,
 				BB00000000000023 /* Models */,
 				FDB80015307FBED400AC2DA7 /* Support */,
+				FDB8002C307FDE4800AC2DA7 /* Posting */,
 			);
 			path = musiccloudTests;
 			sourceTree = "<group>";
@@ -708,6 +724,25 @@
 				FDB80016307FBED400AC2DA7 /* GratConfig.swift */,
 			);
 			path = Support;
+			sourceTree = "<group>";
+		};
+		FDB8001F307FDA5900AC2DA7 /* Posting */ = {
+			isa = PBXGroup;
+			children = (
+				FDB80020307FDA6100AC2DA7 /* PostTemplate.swift */,
+				FDB80023307FDA6A00AC2DA7 /* PostVariable.swift */,
+				FDB80026307FDA7000AC2DA7 /* PostTemplateRenderer.swift */,
+				FDB80029307FDE2B00AC2DA7 /* PostTemplateStore.swift */,
+			);
+			path = Posting;
+			sourceTree = "<group>";
+		};
+		FDB8002C307FDE4800AC2DA7 /* Posting */ = {
+			isa = PBXGroup;
+			children = (
+				FDB8002D307FDE4800AC2DA7 /* PostTemplateTests.swift */,
+			);
+			path = Posting;
 			sourceTree = "<group>";
 		};
 		FDDC7E1C2F805B3C005D779F /* Supporting Files */ = {
@@ -913,6 +948,7 @@
 				FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */,
 				FDD5162B2F817F960043E187 /* ResolveResponse.swift in Sources */,
 				B67BEA72FC7A47A3C1F1DFCF /* App.swift in Sources */,
+				FDB8002A307FDE2B00AC2DA7 /* PostTemplateStore.swift in Sources */,
 				FDDC7E232F805E82005D779F /* HeaderRow.swift in Sources */,
 				3740E6ECEB9CA883501A80B5 /* ClipboardMonitor.swift in Sources */,
 				FD97C3842F80948700E8D788 /* ArtistItem.swift in Sources */,
@@ -923,6 +959,7 @@
 				FD05A10C2F83900100000001 /* ContentType.swift in Sources */,
 				FD05A10E2F83900100000002 /* APIError.swift in Sources */,
 				FD05A1102F83900100000003 /* ResolveError.swift in Sources */,
+				FDB80028307FDA7000AC2DA7 /* PostTemplateRenderer.swift in Sources */,
 				AA00000000000050 /* PanelActionItem.swift in Sources */,
 				FDDC7E2D2F805F1A005D779F /* QuitItem.swift in Sources */,
 				FDA7B3022F84200100000001 /* SettingsItem.swift in Sources */,
@@ -958,6 +995,7 @@
 				FD05A1062F83800100000001 /* MediaFilter.swift in Sources */,
 				FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */,
 				AA00000000000001 /* PanelMetrics.swift in Sources */,
+				FDB80024307FDA6A00AC2DA7 /* PostVariable.swift in Sources */,
 				AA00000000000003 /* ContentView.swift in Sources */,
 				DD00000000000001 /* HomeView.swift in Sources */,
 				DD00000000000002 /* PasteCTAView.swift in Sources */,
@@ -974,6 +1012,7 @@
 				FF00000000000002 /* Bundle+Version.swift in Sources */,
 				FF00000000000003 /* DangerZoneSection.swift in Sources */,
 				FF00000000000006 /* EntryActionsModifier.swift in Sources */,
+				FDB80021307FDA6100AC2DA7 /* PostTemplate.swift in Sources */,
 				DC0000000000003B1 /* ConversionFilterModifier.swift in Sources */,
 				AA00000000000070 /* HapticFeedback.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
@@ -994,6 +1033,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BB00000000000001 /* StreamingServicesTests.swift in Sources */,
+				FDB8002E307FDE4800AC2DA7 /* PostTemplateTests.swift in Sources */,
 				BB00000000000002 /* MusicCloudAPITests.swift in Sources */,
 				DC0000000000001B1 /* TelemetryClientTests.swift in Sources */,
 				BB00000000000003 /* ClipboardMonitorTests.swift in Sources */,
@@ -1010,6 +1050,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CC00000000000011 /* ShareViewController.swift in Sources */,
+				FDB8002B307FDE2B00AC2DA7 /* PostTemplateStore.swift in Sources */,
 				CC00000000000012 /* StreamingServices.swift in Sources */,
 				FF00000000000101 /* MediaType.swift in Sources */,
 				FF00000000000102 /* MusicCloudAPI.swift in Sources */,
@@ -1020,10 +1061,12 @@
 				FF00000000000107 /* ArtistInfo.swift in Sources */,
 				FF00000000000108 /* ServiceLink.swift in Sources */,
 				FDB8000D307FBC9000AC2DA7 /* AppSessionStore.swift in Sources */,
+				FDB80025307FDA6A00AC2DA7 /* PostVariable.swift in Sources */,
 				FF00000000000109 /* ContentType.swift in Sources */,
 				AA00000000000072 /* HapticFeedback.swift in Sources */,
 				FF0000000000010A /* SharedStoreConfiguration.swift in Sources */,
 				FF0000000000010B /* APIError.swift in Sources */,
+				FDB80022307FDA6100AC2DA7 /* PostTemplate.swift in Sources */,
 				FF0000000000010C /* ResolveError.swift in Sources */,
 				FF0000000000010D /* AppLogger.swift in Sources */,
 				EF00000000000102 /* BuildChannel.swift in Sources */,
@@ -1031,6 +1074,7 @@
 				DC0000000000000B2 /* DefaultsKey.swift in Sources */,
 				FDB80010307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */,
 				EF00000000000202 /* TelemetryEvent.swift in Sources */,
+				FDB80027307FDA7000AC2DA7 /* PostTemplateRenderer.swift in Sources */,
 				FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */,
 				EF00000000000302 /* TelemetryClient.swift in Sources */,
 				EF00000000000402 /* InstallID.swift in Sources */,
