@@ -76,6 +76,7 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
 
     /// Keeps the binding and the coloring in step with the text view, and
     /// answers its completion requests.
+    @MainActor
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: MarkdownTemplateEditor
         weak var textView: NSTextView?
