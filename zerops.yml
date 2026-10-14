@@ -98,6 +98,14 @@ zerops:
           timing: "37 3 * * *"
           allContainers: false
           workingDir: /var/www
+        # Daily App Attest key retention. Every installation of the Apple app
+        # keeps one key in `app_attest_keys`; a key unused for the period in
+        # services/app-attest-retention.ts is removed, as the privacy policy
+        # states.
+        - command: "node apps/backend/dist/scripts/app-attest-retention.js"
+          timing: "47 3 * * *"
+          allContainers: false
+          workingDir: /var/www
         # Artist lifecycle dates and band memberships from MusicBrainz. A run
         # checks one batch under MusicBrainz's limit of one request per
         # second. The batch size and the recheck ages live in
