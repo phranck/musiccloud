@@ -43,6 +43,7 @@ import adminPluginsRoutes from "./routes/admin-plugins.js";
 import adminSseRoutes from "./routes/admin-sse.js";
 import { adminTiersRoutes } from "./routes/admin-tiers.js";
 import adminUserRoutes from "./routes/admin-users.js";
+import appAccessRoutes from "./routes/app-access.js";
 import artistIdentityRoutes from "./routes/artist-identity.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import ccArtistInfoRoutes from "./routes/cc-artist-info.js";
@@ -236,7 +237,9 @@ async function buildApp(options: BuildAppOptions = {}) {
   // including one presenting no credentials at all. Routes that need a
   // different ceiling declare it themselves via `config.rateLimit`, which is
   // matched against the resolved route rather than a string prefix. The admin
-  // SSE stream is the one that does, in routes/admin-sse.ts.
+  // SSE stream does, in routes/admin-sse.ts, and so do the Apple app's routes
+  // in routes/app-access.ts, whose resolve route exempts a caller only after
+  // verifying its session token.
   await app.register(rateLimit, {
     max: 300,
     timeWindow: "1 minute",
@@ -649,6 +652,11 @@ async function buildApp(options: BuildAppOptions = {}) {
 
   // Apple-client telemetry ingest (public, no auth, Testflight-only caller)
   await app.register(telemetryAppErrorRoutes);
+
+  // The Apple app's own access under /api/app/ (App Attest). The handshake
+  // routes are public by design; resolve requires the session token, checked
+  // by the route itself. None of them is in the OpenAPI document.
+  await app.register(appAccessRoutes);
 
   // Protected API routes (X-API-Key)
   await app.register(async function protectedRoutes(protectedApp) {
