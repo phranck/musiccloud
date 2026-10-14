@@ -102,6 +102,31 @@
 		FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
 		FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
 		FDB8001E307FC94700AC2DA7 /* NativeAppLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001D307FC94700AC2DA7 /* NativeAppLinkTests.swift */; };
+		FDB80021307FDA6100AC2DA7 /* PostTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80020307FDA6100AC2DA7 /* PostTemplate.swift */; };
+		FDB80022307FDA6100AC2DA7 /* PostTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80020307FDA6100AC2DA7 /* PostTemplate.swift */; };
+		FDB80024307FDA6A00AC2DA7 /* PostVariable.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80023307FDA6A00AC2DA7 /* PostVariable.swift */; };
+		FDB80025307FDA6A00AC2DA7 /* PostVariable.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80023307FDA6A00AC2DA7 /* PostVariable.swift */; };
+		FDB80027307FDA7000AC2DA7 /* PostTemplateRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80026307FDA7000AC2DA7 /* PostTemplateRenderer.swift */; };
+		FDB80028307FDA7000AC2DA7 /* PostTemplateRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80026307FDA7000AC2DA7 /* PostTemplateRenderer.swift */; };
+		FDB8002A307FDE2B00AC2DA7 /* PostTemplateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80029307FDE2B00AC2DA7 /* PostTemplateStore.swift */; };
+		FDB8002B307FDE2B00AC2DA7 /* PostTemplateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80029307FDE2B00AC2DA7 /* PostTemplateStore.swift */; };
+		FDB8002E307FDE4800AC2DA7 /* PostTemplateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8002D307FDE4800AC2DA7 /* PostTemplateTests.swift */; };
+		FDB80030307FDED600AC2DA7 /* TemplateEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8002F307FDED600AC2DA7 /* TemplateEditorView.swift */; };
+		FDB80033307FE38200AC2DA7 /* TemplateDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80032307FE38200AC2DA7 /* TemplateDetailView.swift */; };
+		FDB80037307FE6D400AC2DA7 /* TemplatesPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80036307FE6D400AC2DA7 /* TemplatesPane.swift */; };
+		FDB80039307FF00900AC2DA7 /* PostTemplateIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80038307FF00900AC2DA7 /* PostTemplateIcon.swift */; };
+		FDB8003A307FF00900AC2DA7 /* PostTemplateIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80038307FF00900AC2DA7 /* PostTemplateIcon.swift */; };
+		FDB8003C307FF01800AC2DA7 /* PostTemplateIconImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8003B307FF01800AC2DA7 /* PostTemplateIconImage.swift */; };
+		FDB8003E307FF05400AC2DA7 /* NSImage+MenuIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8003D307FF05400AC2DA7 /* NSImage+MenuIcon.swift */; };
+		FDB80040307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8003F307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift */; };
+		FDB80041307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8003F307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift */; };
+		FDB80043307FFC0D00AC2DA7 /* TemplateCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80042307FFC0D00AC2DA7 /* TemplateCompletion.swift */; };
+		FDB80044307FFC0D00AC2DA7 /* TemplateCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80042307FFC0D00AC2DA7 /* TemplateCompletion.swift */; };
+		FDB80046307FFC1700AC2DA7 /* TemplateEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80045307FFC1700AC2DA7 /* TemplateEditingTests.swift */; };
+		FDB80048307FFC3900AC2DA7 /* LineNumberRulerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80047307FFC3900AC2DA7 /* LineNumberRulerView.swift */; };
+		FDB8004A307FFCC000AC2DA7 /* MarkdownTemplateEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80049307FFCC000AC2DA7 /* MarkdownTemplateEditor.swift */; };
+		FDB8004C307FFD0400AC2DA7 /* VariableLegend.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8004B307FFD0400AC2DA7 /* VariableLegend.swift */; };
+		FDB8004E3080010100AC2DA7 /* TemplateSyntaxColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8004D3080010100AC2DA7 /* TemplateSyntaxColors.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -259,6 +284,24 @@
 		FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessTests.swift; sourceTree = "<group>"; };
 		FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLink.swift; sourceTree = "<group>"; };
 		FDB8001D307FC94700AC2DA7 /* NativeAppLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLinkTests.swift; sourceTree = "<group>"; };
+		FDB80020307FDA6100AC2DA7 /* PostTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTemplate.swift; sourceTree = "<group>"; };
+		FDB80023307FDA6A00AC2DA7 /* PostVariable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostVariable.swift; sourceTree = "<group>"; };
+		FDB80026307FDA7000AC2DA7 /* PostTemplateRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTemplateRenderer.swift; sourceTree = "<group>"; };
+		FDB80029307FDE2B00AC2DA7 /* PostTemplateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTemplateStore.swift; sourceTree = "<group>"; };
+		FDB8002D307FDE4800AC2DA7 /* PostTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTemplateTests.swift; sourceTree = "<group>"; };
+		FDB8002F307FDED600AC2DA7 /* TemplateEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateEditorView.swift; sourceTree = "<group>"; };
+		FDB80032307FE38200AC2DA7 /* TemplateDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateDetailView.swift; sourceTree = "<group>"; };
+		FDB80036307FE6D400AC2DA7 /* TemplatesPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplatesPane.swift; sourceTree = "<group>"; };
+		FDB80038307FF00900AC2DA7 /* PostTemplateIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTemplateIcon.swift; sourceTree = "<group>"; };
+		FDB8003B307FF01800AC2DA7 /* PostTemplateIconImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTemplateIconImage.swift; sourceTree = "<group>"; };
+		FDB8003D307FF05400AC2DA7 /* NSImage+MenuIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSImage+MenuIcon.swift"; sourceTree = "<group>"; };
+		FDB8003F307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSyntaxHighlighter.swift; sourceTree = "<group>"; };
+		FDB80042307FFC0D00AC2DA7 /* TemplateCompletion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateCompletion.swift; sourceTree = "<group>"; };
+		FDB80045307FFC1700AC2DA7 /* TemplateEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateEditingTests.swift; sourceTree = "<group>"; };
+		FDB80047307FFC3900AC2DA7 /* LineNumberRulerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineNumberRulerView.swift; sourceTree = "<group>"; };
+		FDB80049307FFCC000AC2DA7 /* MarkdownTemplateEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTemplateEditor.swift; sourceTree = "<group>"; };
+		FDB8004B307FFD0400AC2DA7 /* VariableLegend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VariableLegend.swift; sourceTree = "<group>"; };
+		FDB8004D3080010100AC2DA7 /* TemplateSyntaxColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSyntaxColors.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -340,6 +383,7 @@
 				AA00000000000017 /* Extensions */,
 				AA00000000000018 /* Views */,
 				AA0000000000001F /* Utils */,
+				FDB8001F307FDA5900AC2DA7 /* Posting */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -481,6 +525,7 @@
 			isa = PBXGroup;
 			children = (
 				1FFBDF887282094D7C460AE5 /* NSView+Extensions.swift */,
+				FDB8003D307FF05400AC2DA7 /* NSImage+MenuIcon.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -492,6 +537,7 @@
 				AA00000000000024 /* Dashboard */,
 				AA00000000000025 /* Panel */,
 				AA00000000000026 /* Settings */,
+				FDB80031307FE33B00AC2DA7 /* TemplateEditor */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -538,6 +584,7 @@
 				FDB80005307F9E7400AC2DA7 /* GeneralPane.swift */,
 				FDB80007307F9E7800AC2DA7 /* NotificationsPane.swift */,
 				FDB80009307F9E7A00AC2DA7 /* HistoryPane.swift */,
+				FDB80036307FE6D400AC2DA7 /* TemplatesPane.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -604,6 +651,7 @@
 				BB00000000000022 /* Managers */,
 				BB00000000000023 /* Models */,
 				FDB80015307FBED400AC2DA7 /* Support */,
+				FDB8002C307FDE4800AC2DA7 /* Posting */,
 			);
 			path = musiccloudTests;
 			sourceTree = "<group>";
@@ -708,6 +756,43 @@
 				FDB80016307FBED400AC2DA7 /* GratConfig.swift */,
 			);
 			path = Support;
+			sourceTree = "<group>";
+		};
+		FDB8001F307FDA5900AC2DA7 /* Posting */ = {
+			isa = PBXGroup;
+			children = (
+				FDB80020307FDA6100AC2DA7 /* PostTemplate.swift */,
+				FDB80023307FDA6A00AC2DA7 /* PostVariable.swift */,
+				FDB80026307FDA7000AC2DA7 /* PostTemplateRenderer.swift */,
+				FDB80029307FDE2B00AC2DA7 /* PostTemplateStore.swift */,
+				FDB80038307FF00900AC2DA7 /* PostTemplateIcon.swift */,
+				FDB8003F307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift */,
+				FDB80042307FFC0D00AC2DA7 /* TemplateCompletion.swift */,
+			);
+			path = Posting;
+			sourceTree = "<group>";
+		};
+		FDB8002C307FDE4800AC2DA7 /* Posting */ = {
+			isa = PBXGroup;
+			children = (
+				FDB8002D307FDE4800AC2DA7 /* PostTemplateTests.swift */,
+				FDB80045307FFC1700AC2DA7 /* TemplateEditingTests.swift */,
+			);
+			path = Posting;
+			sourceTree = "<group>";
+		};
+		FDB80031307FE33B00AC2DA7 /* TemplateEditor */ = {
+			isa = PBXGroup;
+			children = (
+				FDB8002F307FDED600AC2DA7 /* TemplateEditorView.swift */,
+				FDB80032307FE38200AC2DA7 /* TemplateDetailView.swift */,
+				FDB8003B307FF01800AC2DA7 /* PostTemplateIconImage.swift */,
+				FDB80047307FFC3900AC2DA7 /* LineNumberRulerView.swift */,
+				FDB80049307FFCC000AC2DA7 /* MarkdownTemplateEditor.swift */,
+				FDB8004B307FFD0400AC2DA7 /* VariableLegend.swift */,
+				FDB8004D3080010100AC2DA7 /* TemplateSyntaxColors.swift */,
+			);
+			path = TemplateEditor;
 			sourceTree = "<group>";
 		};
 		FDDC7E1C2F805B3C005D779F /* Supporting Files */ = {
@@ -913,16 +998,22 @@
 				FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */,
 				FDD5162B2F817F960043E187 /* ResolveResponse.swift in Sources */,
 				B67BEA72FC7A47A3C1F1DFCF /* App.swift in Sources */,
+				FDB8002A307FDE2B00AC2DA7 /* PostTemplateStore.swift in Sources */,
+				FDB80030307FDED600AC2DA7 /* TemplateEditorView.swift in Sources */,
 				FDDC7E232F805E82005D779F /* HeaderRow.swift in Sources */,
 				3740E6ECEB9CA883501A80B5 /* ClipboardMonitor.swift in Sources */,
+				FDB8003C307FF01800AC2DA7 /* PostTemplateIconImage.swift in Sources */,
 				FD97C3842F80948700E8D788 /* ArtistItem.swift in Sources */,
 				170DCCFF835C9EB8AE1CD81F /* MenuBarView.swift in Sources */,
+				FDB80043307FFC0D00AC2DA7 /* TemplateCompletion.swift in Sources */,
+				FDB80048307FFC3900AC2DA7 /* LineNumberRulerView.swift in Sources */,
 				FD1437752F81964000A5B46D /* ShareButton.swift in Sources */,
 				FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */,
 				FDB8000A307F9E7A00AC2DA7 /* HistoryPane.swift in Sources */,
 				FD05A10C2F83900100000001 /* ContentType.swift in Sources */,
 				FD05A10E2F83900100000002 /* APIError.swift in Sources */,
 				FD05A1102F83900100000003 /* ResolveError.swift in Sources */,
+				FDB80028307FDA7000AC2DA7 /* PostTemplateRenderer.swift in Sources */,
 				AA00000000000050 /* PanelActionItem.swift in Sources */,
 				FDDC7E2D2F805F1A005D779F /* QuitItem.swift in Sources */,
 				FDA7B3022F84200100000001 /* SettingsItem.swift in Sources */,
@@ -937,9 +1028,13 @@
 				FDF0E9592F81C6D8004DEFCE /* DashboardView.swift in Sources */,
 				FDB8000E307FBC9000AC2DA7 /* AppSessionStore.swift in Sources */,
 				FDF0E95A2F81C6D8004DEFCE /* HistoryView.swift in Sources */,
+				FDB8003A307FF00900AC2DA7 /* PostTemplateIcon.swift in Sources */,
 				FDDC7E2B2F805F03005D779F /* MediaRow.swift in Sources */,
+				FDB8003E307FF05400AC2DA7 /* NSImage+MenuIcon.swift in Sources */,
 				FDB80004307F9E6F00AC2DA7 /* SettingsSidebar.swift in Sources */,
+				FDB80037307FE6D400AC2DA7 /* TemplatesPane.swift in Sources */,
 				FD2748DF34499A932431649A /* PanelSection.swift in Sources */,
+				FDB8004C307FFD0400AC2DA7 /* VariableLegend.swift in Sources */,
 				FDF8735C2F7EEDE600D05057 /* HistoryManager.swift in Sources */,
 				DA05592DC35D842081D71462 /* NSView+Extensions.swift in Sources */,
 				7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */,
@@ -958,15 +1053,20 @@
 				FD05A1062F83800100000001 /* MediaFilter.swift in Sources */,
 				FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */,
 				AA00000000000001 /* PanelMetrics.swift in Sources */,
+				FDB80033307FE38200AC2DA7 /* TemplateDetailView.swift in Sources */,
+				FDB80024307FDA6A00AC2DA7 /* PostVariable.swift in Sources */,
 				AA00000000000003 /* ContentView.swift in Sources */,
 				DD00000000000001 /* HomeView.swift in Sources */,
+				FDB80041307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift in Sources */,
 				DD00000000000002 /* PasteCTAView.swift in Sources */,
 				DD00000000000003 /* iOSHistoryView.swift in Sources */,
 				DD00000000000004 /* iOSSettingsView.swift in Sources */,
 				DD00000000000005 /* ResultCardView.swift in Sources */,
+				FDB8004A307FFCC000AC2DA7 /* MarkdownTemplateEditor.swift in Sources */,
 				DD00000000000006 /* OpenInServiceSheet.swift in Sources */,
 				FDB80002307F9E6B00AC2DA7 /* SettingsPane.swift in Sources */,
 				FDB80013307FBCDB00AC2DA7 /* AppSession.swift in Sources */,
+				FDB8004E3080010100AC2DA7 /* TemplateSyntaxColors.swift in Sources */,
 				DD00000000000007 /* HistoryGridCard.swift in Sources */,
 				EE00000000000001 /* ConvertStreamingURLIntent.swift in Sources */,
 				EE00000000000002 /* MusicCloudShortcutsProvider.swift in Sources */,
@@ -974,6 +1074,7 @@
 				FF00000000000002 /* Bundle+Version.swift in Sources */,
 				FF00000000000003 /* DangerZoneSection.swift in Sources */,
 				FF00000000000006 /* EntryActionsModifier.swift in Sources */,
+				FDB80021307FDA6100AC2DA7 /* PostTemplate.swift in Sources */,
 				DC0000000000003B1 /* ConversionFilterModifier.swift in Sources */,
 				AA00000000000070 /* HapticFeedback.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
@@ -994,6 +1095,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				BB00000000000001 /* StreamingServicesTests.swift in Sources */,
+				FDB80046307FFC1700AC2DA7 /* TemplateEditingTests.swift in Sources */,
+				FDB8002E307FDE4800AC2DA7 /* PostTemplateTests.swift in Sources */,
 				BB00000000000002 /* MusicCloudAPITests.swift in Sources */,
 				DC0000000000001B1 /* TelemetryClientTests.swift in Sources */,
 				BB00000000000003 /* ClipboardMonitorTests.swift in Sources */,
@@ -1010,6 +1113,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CC00000000000011 /* ShareViewController.swift in Sources */,
+				FDB8002B307FDE2B00AC2DA7 /* PostTemplateStore.swift in Sources */,
 				CC00000000000012 /* StreamingServices.swift in Sources */,
 				FF00000000000101 /* MediaType.swift in Sources */,
 				FF00000000000102 /* MusicCloudAPI.swift in Sources */,
@@ -1020,10 +1124,14 @@
 				FF00000000000107 /* ArtistInfo.swift in Sources */,
 				FF00000000000108 /* ServiceLink.swift in Sources */,
 				FDB8000D307FBC9000AC2DA7 /* AppSessionStore.swift in Sources */,
+				FDB80025307FDA6A00AC2DA7 /* PostVariable.swift in Sources */,
 				FF00000000000109 /* ContentType.swift in Sources */,
 				AA00000000000072 /* HapticFeedback.swift in Sources */,
 				FF0000000000010A /* SharedStoreConfiguration.swift in Sources */,
+				FDB80040307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift in Sources */,
+				FDB80044307FFC0D00AC2DA7 /* TemplateCompletion.swift in Sources */,
 				FF0000000000010B /* APIError.swift in Sources */,
+				FDB80022307FDA6100AC2DA7 /* PostTemplate.swift in Sources */,
 				FF0000000000010C /* ResolveError.swift in Sources */,
 				FF0000000000010D /* AppLogger.swift in Sources */,
 				EF00000000000102 /* BuildChannel.swift in Sources */,
@@ -1031,8 +1139,10 @@
 				DC0000000000000B2 /* DefaultsKey.swift in Sources */,
 				FDB80010307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */,
 				EF00000000000202 /* TelemetryEvent.swift in Sources */,
+				FDB80027307FDA7000AC2DA7 /* PostTemplateRenderer.swift in Sources */,
 				FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */,
 				EF00000000000302 /* TelemetryClient.swift in Sources */,
+				FDB80039307FF00900AC2DA7 /* PostTemplateIcon.swift in Sources */,
 				EF00000000000402 /* InstallID.swift in Sources */,
 				FDB80014307FBCDB00AC2DA7 /* AppSession.swift in Sources */,
 				EF00000000000502 /* DiagnosticsExporter.swift in Sources */,

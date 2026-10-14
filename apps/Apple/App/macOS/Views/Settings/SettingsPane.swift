@@ -16,6 +16,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case general
     case notifications
     case history
+    case templates
     case about
 
     var id: String { rawValue }
@@ -36,6 +37,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .general:       String(localized: "General")
         case .notifications: String(localized: "Notifications")
         case .history:       String(localized: "History")
+        case .templates:     String(localized: "Templates")
         case .about:         String(localized: "About")
         }
     }
@@ -46,6 +48,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .general:       "gearshape"
         case .notifications: "bell.badge"
         case .history:       "clock.arrow.circlepath"
+        case .templates:     "text.bubble"
         case .about:         "info.circle"
         }
     }

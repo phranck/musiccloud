@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: NSPanel!
     private var dashboardWindow: NSWindow?
     private var settingsWindow: NSWindow?
+    private var templateEditorWindow: NSWindow?
     private var iconHostingView: NSHostingView<MenuBarIcon>!
     private var eventMonitor: Any?
 
@@ -38,6 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var mainContext: ModelContext!
     private(set) var historyManager: HistoryManager!
     private(set) var monitor: ClipboardMonitor!
+    /// The post templates, edited in Settings and used by the post composer.
+    let templateStore = PostTemplateStore()
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -209,6 +212,7 @@ extension AppDelegate {
         let rootView = SettingsView()
             .environment(historyManager)
             .environment(monitor)
+            .environment(templateStore)
             .symbolRenderingMode(.hierarchical)
 
         // Per the HIG, a settings window has no minimize or zoom button: it
@@ -222,6 +226,33 @@ extension AppDelegate {
                 size: SettingsView.contentSize,
                 autosaveName: "SettingsWindow",
                 styleMask: [.titled, .closable, .fullSizeContentView],
+                bridgesToolbarAndTitle: true
+            )
+        )
+    }
+
+    /// Opens the Template Editor window, creating it if needed.
+    ///
+    /// It is resizable, so a long template has room, and SwiftUI owns its
+    /// title and toolbar, so the title names the template being edited.
+    ///
+    /// - Parameter templateID: The template to show, or `nil` to keep the current one.
+    func openTemplateEditor(selecting templateID: PostTemplate.ID? = nil) {
+        if let templateID {
+            templateStore.editorSelectionID = templateID
+        }
+        let rootView = TemplateEditorView()
+            .environment(\.modelContext, mainContext)
+            .environment(templateStore)
+            .symbolRenderingMode(.hierarchical)
+
+        templateEditorWindow = showWindow(
+            &templateEditorWindow,
+            rootView: rootView,
+            config: WindowConfig(
+                size: TemplateEditorView.initialSize,
+                autosaveName: "TemplateEditorWindow",
+                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                 bridgesToolbarAndTitle: true
             )
         )
@@ -324,6 +355,7 @@ extension AppDelegate: NSWindowDelegate {
         guard let window = notification.object as? NSWindow else { return }
         if window === dashboardWindow { dashboardWindow = nil }
         if window === settingsWindow { settingsWindow = nil }
+        if window === templateEditorWindow { templateEditorWindow = nil }
         window.contentViewController = nil
     }
 }
