@@ -20,23 +20,8 @@ struct MusicCloudAPITests {
         #if DEBUG
         guard ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"] == nil else { return }
         #expect(MusicCloudAPI.baseURL.host == "localhost")
-        #expect(MusicCloudAPI.baseURL.port == (try Self.gratFrontendPort()))
+        #expect(MusicCloudAPI.baseURL.port == (try GratConfig.port(ofService: "frontend")))
         #endif
-    }
-
-    /// Reads the `port` of the `frontend` service from `grat.config`.
-    private static func gratFrontendPort() throws -> Int {
-        let repositoryRoot = URL(filePath: #filePath)
-            .deletingLastPathComponent() // API
-            .deletingLastPathComponent() // musiccloudTests
-            .deletingLastPathComponent() // Apple
-            .deletingLastPathComponent() // apps
-            .deletingLastPathComponent()
-        let config = try String(contentsOf: repositoryRoot.appending(path: "grat.config"), encoding: .utf8)
-        let services = config.components(separatedBy: "[[services]]")
-        let frontend = try #require(services.first { $0.contains("name = 'frontend'") })
-        let portLine = try #require(frontend.split(separator: "\n").first { $0.hasPrefix("port = ") })
-        return try #require(Int(portLine.dropFirst("port = ".count)))
     }
 
     // MARK: Resolve endpoint construction

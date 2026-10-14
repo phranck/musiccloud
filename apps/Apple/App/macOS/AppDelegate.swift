@@ -53,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationManager.requestPermission()
         NotificationManager.cleanupAttachmentCache()
         Task { await TelemetryClient.shared.flushPending() }
+        Task { await AppSession.shared.prepare() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

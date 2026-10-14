@@ -76,6 +76,7 @@ struct MusicCloudApp: App {
                         UIApplication.shared.registerForRemoteNotifications()
                         NotificationManager.requestPermission()
                         await TelemetryClient.shared.flushPending()
+                        await AppSession.shared.prepare()
                     }
             } else {
                 ContentUnavailableView(

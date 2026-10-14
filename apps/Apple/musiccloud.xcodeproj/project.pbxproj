@@ -91,6 +91,14 @@
 		FDB80006307F9E7400AC2DA7 /* GeneralPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80005307F9E7400AC2DA7 /* GeneralPane.swift */; };
 		FDB80008307F9E7800AC2DA7 /* NotificationsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80007307F9E7800AC2DA7 /* NotificationsPane.swift */; };
 		FDB8000A307F9E7A00AC2DA7 /* HistoryPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80009307F9E7A00AC2DA7 /* HistoryPane.swift */; };
+		FDB8000D307FBC9000AC2DA7 /* AppSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8000C307FBC9000AC2DA7 /* AppSessionStore.swift */; };
+		FDB8000E307FBC9000AC2DA7 /* AppSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8000C307FBC9000AC2DA7 /* AppSessionStore.swift */; };
+		FDB80010307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8000F307FBCBC00AC2DA7 /* AppAccessClient.swift */; };
+		FDB80011307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8000F307FBCBC00AC2DA7 /* AppAccessClient.swift */; };
+		FDB80013307FBCDB00AC2DA7 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80012307FBCDB00AC2DA7 /* AppSession.swift */; };
+		FDB80014307FBCDB00AC2DA7 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80012307FBCDB00AC2DA7 /* AppSession.swift */; };
+		FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80016307FBED400AC2DA7 /* GratConfig.swift */; };
+		FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -241,6 +249,11 @@
 		FDB80005307F9E7400AC2DA7 /* GeneralPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralPane.swift; sourceTree = "<group>"; };
 		FDB80007307F9E7800AC2DA7 /* NotificationsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsPane.swift; sourceTree = "<group>"; };
 		FDB80009307F9E7A00AC2DA7 /* HistoryPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryPane.swift; sourceTree = "<group>"; };
+		FDB8000C307FBC9000AC2DA7 /* AppSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionStore.swift; sourceTree = "<group>"; };
+		FDB8000F307FBCBC00AC2DA7 /* AppAccessClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessClient.swift; sourceTree = "<group>"; };
+		FDB80012307FBCDB00AC2DA7 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
+		FDB80016307FBED400AC2DA7 /* GratConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GratConfig.swift; sourceTree = "<group>"; };
+		FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -334,6 +347,7 @@
 				121F8EA83B3E06119BA82118 /* StreamingServices.swift */,
 				AA00000000000012 /* Error Handling */,
 				AA00000000000013 /* Models */,
+				FDB8000B307FBC9000AC2DA7 /* AppAccess */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -583,6 +597,7 @@
 				BB00000000000024 /* Intents */,
 				BB00000000000022 /* Managers */,
 				BB00000000000023 /* Models */,
+				FDB80015307FBED400AC2DA7 /* Support */,
 			);
 			path = musiccloudTests;
 			sourceTree = "<group>";
@@ -593,6 +608,7 @@
 				BB00000000000011 /* StreamingServicesTests.swift */,
 				BB00000000000012 /* MusicCloudAPITests.swift */,
 				DC0000000000001F0 /* TelemetryClientTests.swift */,
+				FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -667,6 +683,24 @@
 				FD8BCE6D2F85225D00EC883B /* sound11.mp3 */,
 			);
 			path = NotificationSounds;
+			sourceTree = "<group>";
+		};
+		FDB8000B307FBC9000AC2DA7 /* AppAccess */ = {
+			isa = PBXGroup;
+			children = (
+				FDB8000C307FBC9000AC2DA7 /* AppSessionStore.swift */,
+				FDB8000F307FBCBC00AC2DA7 /* AppAccessClient.swift */,
+				FDB80012307FBCDB00AC2DA7 /* AppSession.swift */,
+			);
+			path = AppAccess;
+			sourceTree = "<group>";
+		};
+		FDB80015307FBED400AC2DA7 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				FDB80016307FBED400AC2DA7 /* GratConfig.swift */,
+			);
+			path = Support;
 			sourceTree = "<group>";
 		};
 		FDDC7E1C2F805B3C005D779F /* Supporting Files */ = {
@@ -894,6 +928,7 @@
 				FDF0E9572F81C6D8004DEFCE /* AboutView.swift in Sources */,
 				FDF0E9582F81C6D8004DEFCE /* SettingsView.swift in Sources */,
 				FDF0E9592F81C6D8004DEFCE /* DashboardView.swift in Sources */,
+				FDB8000E307FBC9000AC2DA7 /* AppSessionStore.swift in Sources */,
 				FDF0E95A2F81C6D8004DEFCE /* HistoryView.swift in Sources */,
 				FDDC7E2B2F805F03005D779F /* MediaRow.swift in Sources */,
 				FDB80004307F9E6F00AC2DA7 /* SettingsSidebar.swift in Sources */,
@@ -923,6 +958,7 @@
 				DD00000000000005 /* ResultCardView.swift in Sources */,
 				DD00000000000006 /* OpenInServiceSheet.swift in Sources */,
 				FDB80002307F9E6B00AC2DA7 /* SettingsPane.swift in Sources */,
+				FDB80013307FBCDB00AC2DA7 /* AppSession.swift in Sources */,
 				DD00000000000007 /* HistoryGridCard.swift in Sources */,
 				EE00000000000001 /* ConvertStreamingURLIntent.swift in Sources */,
 				EE00000000000002 /* MusicCloudShortcutsProvider.swift in Sources */,
@@ -937,6 +973,7 @@
 				DC0000000000002B1 /* Pasteboard.swift in Sources */,
 				DC0000000000000B1 /* DefaultsKey.swift in Sources */,
 				EF00000000000201 /* TelemetryEvent.swift in Sources */,
+				FDB80011307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */,
 				FDB80006307F9E7400AC2DA7 /* GeneralPane.swift in Sources */,
 				EF00000000000301 /* TelemetryClient.swift in Sources */,
 				EF00000000000401 /* InstallID.swift in Sources */,
@@ -953,6 +990,8 @@
 				DC0000000000001B1 /* TelemetryClientTests.swift in Sources */,
 				BB00000000000003 /* ClipboardMonitorTests.swift in Sources */,
 				BB00000000000004 /* MediaEntryTests.swift in Sources */,
+				FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */,
+				FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */,
 				BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -971,6 +1010,7 @@
 				FF00000000000106 /* AlbumInfo.swift in Sources */,
 				FF00000000000107 /* ArtistInfo.swift in Sources */,
 				FF00000000000108 /* ServiceLink.swift in Sources */,
+				FDB8000D307FBC9000AC2DA7 /* AppSessionStore.swift in Sources */,
 				FF00000000000109 /* ContentType.swift in Sources */,
 				AA00000000000072 /* HapticFeedback.swift in Sources */,
 				FF0000000000010A /* SharedStoreConfiguration.swift in Sources */,
@@ -980,9 +1020,11 @@
 				EF00000000000102 /* BuildChannel.swift in Sources */,
 				DC0000000000002B2 /* Pasteboard.swift in Sources */,
 				DC0000000000000B2 /* DefaultsKey.swift in Sources */,
+				FDB80010307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */,
 				EF00000000000202 /* TelemetryEvent.swift in Sources */,
 				EF00000000000302 /* TelemetryClient.swift in Sources */,
 				EF00000000000402 /* InstallID.swift in Sources */,
+				FDB80014307FBCDB00AC2DA7 /* AppSession.swift in Sources */,
 				EF00000000000502 /* DiagnosticsExporter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
