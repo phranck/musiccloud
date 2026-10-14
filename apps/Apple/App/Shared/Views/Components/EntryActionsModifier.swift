@@ -111,7 +111,7 @@ private struct ServiceLinksMenu: View {
                 ForEach(entry.serviceLinks, id: \.service) { link in
                     Button {
                         guard let url = StreamingServices.webURL(link.url) else { return }
-                        openURL(url)
+                        openURL(NativeAppLink.preferredURL(for: url))
                     } label: {
                         Label {
                             Text(link.displayName)
