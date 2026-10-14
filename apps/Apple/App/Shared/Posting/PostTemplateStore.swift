@@ -30,9 +30,7 @@ final class PostTemplateStore {
     /// window, such as Settings, can open the editor at a given template.
     var editorSelectionID: PostTemplate.ID?
 
-    @ObservationIgnored private let fileURL: URL?
-    /// Set when the file exists but cannot be read; saving is then refused.
-    @ObservationIgnored private var isUnreadable = false
+    @ObservationIgnored private let file: JSONFile<[PostTemplate]>?
 
     /// Creates a store reading and writing `fileURL`, or keeping templates in memory when it is `nil`.
     ///
@@ -40,7 +38,7 @@ final class PostTemplateStore {
     ///   - fileURL: Where the user's templates are kept.
     ///   - systemTemplates: The read-only templates listed before the user's.
     init(fileURL: URL? = PostTemplateStore.defaultFileURL(), systemTemplates: [PostTemplate] = PostTemplate.system) {
-        self.fileURL = fileURL
+        self.file = fileURL.map { JSONFile(url: $0, label: "Post templates") }
         self.systemTemplates = systemTemplates
         load()
     }
@@ -91,37 +89,20 @@ final class PostTemplateStore {
         save()
     }
 
-    /// `Application Support/musiccloud/post-templates.json`, its folder created on demand.
+    /// `Application Support/musiccloud/post-templates.json`.
     nonisolated static func defaultFileURL() -> URL? {
-        let fileManager = FileManager.default
-        guard let base = try? fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask,
-                                              appropriateFor: nil, create: true) else { return nil }
-        let directory = base.appending(path: "musiccloud", directoryHint: .isDirectory)
-        try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appending(path: "post-templates.json")
+        .applicationSupportFile(named: "post-templates.json")
     }
 }
 
 private extension PostTemplateStore {
     func load() {
-        // A file system path, not a URL path: "Application Support" must keep its space.
-        guard let fileURL, FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false)) else { return }
-        do {
-            templates = try JSONDecoder().decode([PostTemplate].self, from: Data(contentsOf: fileURL))
-        } catch {
-            isUnreadable = true
-            AppLogger.ui.error("Post templates could not be read: \(error.localizedDescription)")
+        if let stored = file?.load() {
+            templates = stored
         }
     }
 
     func save() {
-        guard let fileURL, !isUnreadable else { return }
-        do {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(templates).write(to: fileURL, options: .atomic)
-        } catch {
-            AppLogger.ui.error("Post templates could not be saved: \(error.localizedDescription)")
-        }
+        file?.save(templates)
     }
 }
