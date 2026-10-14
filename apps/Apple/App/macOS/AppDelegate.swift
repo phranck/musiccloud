@@ -210,14 +210,18 @@ extension AppDelegate {
             .environment(monitor)
             .symbolRenderingMode(.hierarchical)
 
+        // Per the HIG, a settings window has no minimize or zoom button: it
+        // opens quickly again and sizes itself to its content. SwiftUI owns
+        // the toolbar and the title, so the title follows the visible pane
+        // and the sidebar reaches the top of the window.
         settingsWindow = showWindow(
             &settingsWindow,
             rootView: rootView,
             config: WindowConfig(
-                size: CGSize(width: 640, height: 400),
+                size: SettingsView.contentSize,
                 autosaveName: "SettingsWindow",
-                titleVisibility: .hidden,
-                styleMask: [.titled, .closable, .miniaturizable]
+                styleMask: [.titled, .closable, .fullSizeContentView],
+                bridgesToolbarAndTitle: true
             )
         )
     }
@@ -233,6 +237,8 @@ private extension AppDelegate {
         var titleVisibility: NSWindow.TitleVisibility = .visible
         var titlebarAppearsTransparent: Bool = false
         var styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
+        /// Whether SwiftUI places its toolbar and navigation title in the window.
+        var bridgesToolbarAndTitle: Bool = false
     }
 
     @discardableResult
@@ -260,16 +266,23 @@ private extension AppDelegate {
         if let title = config.title { window.title = title }
         window.titleVisibility = config.titleVisibility
         window.titlebarAppearsTransparent = config.titlebarAppearsTransparent
-        window.contentViewController = NSHostingController(rootView: rootView)
+        let hostingController = NSHostingController(rootView: rootView)
+        if config.bridgesToolbarAndTitle {
+            hostingController.sceneBridgingOptions = [.toolbars, .title]
+        }
+        window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
         window.delegate = self
 
-        // Set content size BEFORE autosave name so the restored frame
-        // is not overwritten by the hardcoded size.
-        if !config.styleMask.contains(.resizable) {
-            window.setContentSize(config.size)
-        }
+        // A resizable window gets its saved frame back. A fixed-size window
+        // only keeps its saved position, because a frame saved under an
+        // earlier content size would bring that size back.
         window.setFrameAutosaveName(config.autosaveName)
+        if !config.styleMask.contains(.resizable) {
+            let top = window.frame.maxY
+            window.setContentSize(config.size)
+            window.setFrameTopLeftPoint(NSPoint(x: window.frame.minX, y: top))
+        }
 
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()

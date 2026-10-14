@@ -9,77 +9,79 @@
 import AppKit
 import SwiftUI
 
-/// About pane. Also hosts the Testflight-only "Export diagnostics"
-/// button: in App Store builds the whole diagnostics section is
-/// suppressed by ``BuildChannel/diagnosticsEnabled``.
+/// About pane of the Settings window. Also hosts the Testflight-only
+/// "Export diagnostics" button: in App Store builds the whole diagnostics
+/// section is suppressed by ``BuildChannel/diagnosticsEnabled``.
 struct AboutView: View {
+    var body: some View {
+        Form {
+            Section {
+                AppIdentityRow()
+                LabeledContent(String(localized: "Version"), value: Bundle.main.appVersion)
+                LabeledContent(String(localized: "Website")) {
+                    Link("musiccloud.io", destination: MusicCloudAPI.productionURL)
+                }
+            }
 
+            if BuildChannel.diagnosticsEnabled {
+                DiagnosticsSection()
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+// MARK: - AppIdentityRow
+
+private struct AppIdentityRow: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 48, height: 48)
+            Text("musiccloud")
+                .font(.title2)
+                .bold()
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - DiagnosticsSection
+
+private struct DiagnosticsSection: View {
     @State private var isExporting = false
     @State private var exportError: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            HStack(alignment: .top, spacing: 16) {
-                Image(systemName: "info.circle")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("musiccloud")
-                        .font(.title)
-                        .bold()
-                    Text("Version \(Bundle.main.appVersion)")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                    Link("musiccloud.io",
-                         destination: MusicCloudAPI.productionURL)
-                        .font(.body)
+        Section {
+            HStack {
+                Button {
+                    Task { await exportLogs() }
+                } label: {
+                    Label("Export Diagnostics", systemImage: "square.and.arrow.up")
                 }
-                Spacer()
-            }
+                .disabled(isExporting)
 
-            if BuildChannel.diagnosticsEnabled {
-                diagnosticsSection
-            }
-
-            Spacer()
-        }
-        .padding(24)
-    }
-
-    private var diagnosticsSection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Writes the last 6 hours of app logs to a file you can send to support. Only available in Testflight builds.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-
-                HStack {
-                    Button {
-                        Task { await exportLogs() }
-                    } label: {
-                        Label("Export Diagnostics", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(isExporting)
-
-                    if isExporting {
-                        ProgressView().controlSize(.small)
-                    }
-                }
-
-                if let exportError {
-                    Text(exportError)
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                if isExporting {
+                    ProgressView().controlSize(.small)
                 }
             }
-            .padding(4)
-        } label: {
+
+            if let exportError {
+                Text(exportError)
+                    .foregroundStyle(.red)
+            }
+        } header: {
             Text("Diagnostics")
-                .font(.headline)
+        } footer: {
+            Text("Writes the last 6 hours of app logs to a file you can send to support. Only available in Testflight builds.")
         }
     }
+}
 
-    private func exportLogs() async {
+private extension DiagnosticsSection {
+    func exportLogs() async {
         isExporting = true
         exportError = nil
         defer { isExporting = false }
@@ -91,8 +93,7 @@ struct AboutView: View {
         }
     }
 
-    @MainActor
-    private func presentSharePicker(for url: URL) {
+    func presentSharePicker(for url: URL) {
         let picker = NSSharingServicePicker(items: [url])
         guard let window = NSApp.keyWindow,
               let contentView = window.contentView else { return }

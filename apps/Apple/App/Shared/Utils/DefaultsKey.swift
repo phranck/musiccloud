@@ -20,4 +20,7 @@ enum DefaultsKey {
 
     /// The edge length of a card in the macOS history grid, in points.
     static let gridItemSize = "gridItemSize"
+
+    /// The raw value of the pane the macOS Settings window showed last.
+    static let settingsPane = "settingsPane"
 }

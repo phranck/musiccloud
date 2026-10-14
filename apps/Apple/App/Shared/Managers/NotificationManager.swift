@@ -27,19 +27,23 @@ enum NotificationSound: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// The name shown in Settings. Each name describes how the sound goes,
+    /// such as a rising arpeggio or a single click. The raw values stay
+    /// `sound1` to `sound11`, because they are the stored preference and
+    /// the file names.
     var displayName: String {
         switch self {
-        case .sound1:  "Sound 1"
-        case .sound2:  "Sound 2"
-        case .sound3:  "Sound 3"
-        case .sound4:  "Sound 4"
-        case .sound5:  "Sound 5"
-        case .sound6:  "Sound 6"
-        case .sound7:  "Sound 7"
-        case .sound8:  "Sound 8"
-        case .sound9:  "Sound 9"
-        case .sound10: "Sound 10"
-        case .sound11: "Sound 11"
+        case .sound1:  String(localized: "Bell", comment: "Notification sound: a single high, softly struck tone")
+        case .sound2:  String(localized: "Dip", comment: "Notification sound: two quick notes stepping down")
+        case .sound3:  String(localized: "Ascend", comment: "Notification sound: three notes rising to the octave")
+        case .sound4:  String(localized: "Lift", comment: "Notification sound: two soft notes rising a fifth")
+        case .sound5:  String(localized: "Glide", comment: "Notification sound: a warm tone sliding upward")
+        case .sound6:  String(localized: "Sparkle", comment: "Notification sound: a bright jump up an octave")
+        case .sound7:  String(localized: "Blip", comment: "Notification sound: a very short, bright step down")
+        case .sound8:  String(localized: "Tap", comment: "Notification sound: a single short click")
+        case .sound9:  String(localized: "Fanfare", comment: "Notification sound: a rising major chord, the longest sound")
+        case .sound10: String(localized: "Ping", comment: "Notification sound: a short leap up an octave")
+        case .sound11: String(localized: "Mellow", comment: "Notification sound: a single warm, round tone")
         }
     }
 
