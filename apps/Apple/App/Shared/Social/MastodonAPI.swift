@@ -3,7 +3,6 @@
 //  musiccloud
 //
 
-import CryptoKit
 import Foundation
 
 // MARK: - MastodonAPI
@@ -82,7 +81,7 @@ enum MastodonAPI {
 
     /// Exchanges the authorization `code` for an access token.
     static func tokenRequest(instance: URL, app: MastodonAppCredentials, code: String, codeVerifier: String) -> URLRequest {
-        formRequest(instance.appending(path: "oauth/token"), [
+        OAuthSupport.formRequest(instance.appending(path: "oauth/token"), [
             ("grant_type", "authorization_code"),
             ("code", code),
             ("client_id", app.clientID),
@@ -94,7 +93,7 @@ enum MastodonAPI {
 
     /// Makes `token` invalid on `instance`, which is what disconnecting an account does there.
     static func revokeRequest(instance: URL, app: MastodonAppCredentials, token: String) -> URLRequest {
-        formRequest(instance.appending(path: "oauth/revoke"), [
+        OAuthSupport.formRequest(instance.appending(path: "oauth/revoke"), [
             ("client_id", app.clientID),
             ("client_secret", app.clientSecret),
             ("token", token),
@@ -113,44 +112,11 @@ enum MastodonAPI {
         URLRequest(url: instance.appending(path: "api/v2/instance"))
     }
 
-    /// A random PKCE code verifier, 43 characters of the URL-safe alphabet.
-    static func makeCodeVerifier() -> String {
-        base64URL(Data((0..<32).map { _ in UInt8.random(in: .min ... .max) }))
-    }
-
-    /// The S256 code challenge for `verifier`.
-    static func codeChallenge(for verifier: String) -> String {
-        base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))
-    }
-
     /// The decoder for every Mastodon answer, whose keys are in snake case.
     static var decoder: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return decoder
-    }
-}
-
-private extension MastodonAPI {
-    /// The characters a form value keeps as they are; everything else,
-    /// including `+` and `&`, is percent-encoded.
-    static let formValueCharacters = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
-
-    static func formRequest(_ url: URL, _ fields: [(String, String)]) -> URLRequest {
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Data(fields.map { name, value in
-            "\(name)=\(value.addingPercentEncoding(withAllowedCharacters: formValueCharacters) ?? "")"
-        }.joined(separator: "&").utf8)
-        return request
-    }
-
-    static func base64URL(_ data: Data) -> String {
-        data.base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
     }
 }
 
