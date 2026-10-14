@@ -193,9 +193,9 @@ down to its meaningful inner slots.
 - Push the feature branch, create the pull request, and monitor its CI to a
   successful conclusion before reporting completion. Follow the repository
   push/CI recovery workflow if a check fails.
-- The user reviews, merges, and deletes the feature branch. Never merge the
-  pull request, delete its branch, or close its issue directly unless the user
-  explicitly instructs that action.
+- Merging is the agent's job: once the CI is green, merge the pull request,
+  watch the deploy, check production, delete the branch, and close the issue.
+  Pushing still waits for the user's word.
 
 ## See also
 
