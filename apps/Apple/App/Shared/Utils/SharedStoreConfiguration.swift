@@ -19,6 +19,10 @@ enum MediaEntryMigrationPlan: SchemaMigrationPlan {
 enum SharedStoreConfiguration {
     static let cloudKitContainerIdentifier = "iCloud.io.musiccloud.shared"
 
+    /// The app group the app and the Share Extension share, as listed in
+    /// both entitlement files.
+    static let appGroupIdentifier = "group.io.musiccloud"
+
     /// Whether this process is the host app of a test run.
     ///
     /// The unit tests run inside the app, so launching it must not open the
@@ -33,7 +37,7 @@ enum SharedStoreConfiguration {
         }
         return ModelConfiguration(
             "default",
-            groupContainer: .identifier("group.io.musiccloud"),
+            groupContainer: .identifier(appGroupIdentifier),
             cloudKitDatabase: .private(cloudKitContainerIdentifier)
         )
     }
