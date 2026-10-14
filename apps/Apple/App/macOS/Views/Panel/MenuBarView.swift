@@ -74,15 +74,16 @@ private struct FilterPicker: View {
     @Binding var selection: MediaFilter
 
     var body: some View {
-        AnimatedSegmentControl(
-            selection: $selection,
-            segments: MediaFilter.allCases.map { item in
-                .label(item.title, systemImage: item.icon, tag: item)
-            },
-            tintColor: .accentColor
-        )
-        .controlSize(.regular)
-        .segmentControlWidth(.fullWidth)
+        Picker(String(localized: "Filter"), selection: $selection) {
+            ForEach(MediaFilter.allCases) { item in
+                Label(item.title, systemImage: item.icon)
+                    .tag(item)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelStyle(.titleAndIcon)
+        .labelsHidden()
+        .frame(maxWidth: .infinity)
         .help(String(localized: "Switch with ⌘1 to ⌘4"))
         .padding(.horizontal, 12)
         .padding(.vertical, 10)

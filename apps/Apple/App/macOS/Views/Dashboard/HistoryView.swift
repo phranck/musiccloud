@@ -58,7 +58,7 @@ struct HistoryView: View {
         })
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Picker("", selection: $filter) {
+                Picker(String(localized: "Filter"), selection: $filter) {
                     ForEach(MediaFilter.allCases, id: \.self) { item in
                         Label(item.title, systemImage: item.icon)
                             .tag(item)
@@ -66,6 +66,7 @@ struct HistoryView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelStyle(.titleAndIcon)
+                .labelsHidden()
                 .help(String(localized: "Switch with ⌘1 to ⌘4"))
             }
         }
