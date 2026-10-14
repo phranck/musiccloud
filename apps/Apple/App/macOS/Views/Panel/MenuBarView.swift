@@ -37,6 +37,9 @@ struct MenuBarView: View {
                     FilteredHistory(entries: entries, filter: selectedFilter)
                         .frame(minHeight: 250, alignment: .top)
                 }
+                // One animation for every way the filter changes: the
+                // segments, Cmd plus a digit, and a conversion.
+                .animation(.smooth, value: selectedFilter)
             }
 
             HStack(spacing: PanelMetrics.spacing) {
@@ -55,6 +58,9 @@ struct MenuBarView: View {
         .frame(width: PanelMetrics.panelWidth)
         .frame(maxHeight: .infinity, alignment: .top)
         .followsConversions(of: monitor, filter: $selectedFilter)
+        .background(WindowKeyMonitor(closesOnEscape: false) { number in
+            if let filter = MediaFilter(commandNumber: number) { selectedFilter = filter }
+        })
     }
 }
 
@@ -73,6 +79,7 @@ private struct FilterPicker: View {
         )
         .controlSize(.regular)
         .segmentControlWidth(.fullWidth)
+        .help(String(localized: "Switch with ⌘1 to ⌘4"))
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
     }
