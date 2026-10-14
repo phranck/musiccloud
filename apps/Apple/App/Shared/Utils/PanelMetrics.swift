@@ -16,4 +16,8 @@ enum PanelMetrics {
     static let panelWidth: CGFloat = 380
     /// The panel's smallest height, used before the content has measured itself.
     static let minimumPanelHeight: CGFloat = 280
+    /// Transparent space around the cards inside the panel window, so the
+    /// shadow of the cards' glass fades out instead of ending at the window
+    /// edge, which would draw it as a hard rectangle.
+    static let shadowMargin: CGFloat = 32
 }
