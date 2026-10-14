@@ -99,6 +99,9 @@
 		FDB80014307FBCDB00AC2DA7 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80012307FBCDB00AC2DA7 /* AppSession.swift */; };
 		FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80016307FBED400AC2DA7 /* GratConfig.swift */; };
 		FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */; };
+		FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
+		FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
+		FDB8001E307FC94700AC2DA7 /* NativeAppLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001D307FC94700AC2DA7 /* NativeAppLinkTests.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -254,6 +257,8 @@
 		FDB80012307FBCDB00AC2DA7 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
 		FDB80016307FBED400AC2DA7 /* GratConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GratConfig.swift; sourceTree = "<group>"; };
 		FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessTests.swift; sourceTree = "<group>"; };
+		FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLink.swift; sourceTree = "<group>"; };
+		FDB8001D307FC94700AC2DA7 /* NativeAppLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLinkTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -348,6 +353,7 @@
 				AA00000000000012 /* Error Handling */,
 				AA00000000000013 /* Models */,
 				FDB8000B307FBC9000AC2DA7 /* AppAccess */,
+				FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -609,6 +615,7 @@
 				BB00000000000012 /* MusicCloudAPITests.swift */,
 				DC0000000000001F0 /* TelemetryClientTests.swift */,
 				FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */,
+				FDB8001D307FC94700AC2DA7 /* NativeAppLinkTests.swift */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -949,6 +956,7 @@
 				FD05A1022F82A00100000001 /* MediaEntry.swift in Sources */,
 				FD05A1042F83700100000001 /* ServiceLink.swift in Sources */,
 				FD05A1062F83800100000001 /* MediaFilter.swift in Sources */,
+				FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */,
 				AA00000000000001 /* PanelMetrics.swift in Sources */,
 				AA00000000000003 /* ContentView.swift in Sources */,
 				DD00000000000001 /* HomeView.swift in Sources */,
@@ -991,6 +999,7 @@
 				BB00000000000003 /* ClipboardMonitorTests.swift in Sources */,
 				BB00000000000004 /* MediaEntryTests.swift in Sources */,
 				FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */,
+				FDB8001E307FC94700AC2DA7 /* NativeAppLinkTests.swift in Sources */,
 				FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */,
 				BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */,
 			);
@@ -1022,6 +1031,7 @@
 				DC0000000000000B2 /* DefaultsKey.swift in Sources */,
 				FDB80010307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */,
 				EF00000000000202 /* TelemetryEvent.swift in Sources */,
+				FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */,
 				EF00000000000302 /* TelemetryClient.swift in Sources */,
 				EF00000000000402 /* InstallID.swift in Sources */,
 				FDB80014307FBCDB00AC2DA7 /* AppSession.swift in Sources */,
