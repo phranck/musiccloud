@@ -38,16 +38,36 @@ enum AppSessionStore {
     private static let accessGroup: String? = nil
     #endif
 
-    /// The id of the App Attest key this installation attested, if any.
-    static var keyId: String? {
-        get { read(keyIdAccount).flatMap { String(data: $0, encoding: .utf8) } }
-        set { write(newValue.map { Data($0.utf8) }, account: keyIdAccount) }
+    /// The id of the App Attest key this installation attested with `backend`, if any.
+    static func keyId(for backend: URL) -> String? {
+        read(account(keyIdAccount, backend)).flatMap { String(data: $0, encoding: .utf8) }
     }
 
-    /// The session the backend issued last, if any.
-    static var token: AppSessionToken? {
-        get { read(tokenAccount).flatMap { try? JSONDecoder.appSession.decode(AppSessionToken.self, from: $0) } }
-        set { write(newValue.flatMap { try? JSONEncoder.appSession.encode($0) }, account: tokenAccount) }
+    /// Stores or, with `nil`, forgets the key id for `backend`.
+    static func setKeyId(_ keyId: String?, for backend: URL) {
+        write(keyId.map { Data($0.utf8) }, account: account(keyIdAccount, backend))
+    }
+
+    /// The session `backend` issued last, if any.
+    static func token(for backend: URL) -> AppSessionToken? {
+        read(account(tokenAccount, backend)).flatMap { try? JSONDecoder.appSession.decode(AppSessionToken.self, from: $0) }
+    }
+
+    /// Stores or, with `nil`, forgets the session for `backend`.
+    static func setToken(_ token: AppSessionToken?, for backend: URL) {
+        write(token.flatMap { try? JSONEncoder.appSession.encode($0) }, account: account(tokenAccount, backend))
+    }
+
+    /// The Keychain account for an item that belongs to one backend.
+    ///
+    /// A Debug and a Release build share the bundle identifier and therefore
+    /// the Keychain, while each backend knows only its own keys and accepts
+    /// only its own tokens. Scoping by host and port keeps a token from the
+    /// local backend away from production.
+    static func account(_ item: String, _ backend: URL) -> String {
+        let host = backend.host() ?? "unknown"
+        let port = backend.port.map { ":\($0)" } ?? ""
+        return "\(item)@\(host)\(port)"
     }
 }
 
