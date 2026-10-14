@@ -20,6 +20,16 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// Whether the pane sits at the bottom of the sidebar, apart from the
+    /// settings, because it shows information rather than settings.
+    var isPinnedToBottom: Bool { self == .about }
+
+    /// The panes listed from the top of the sidebar.
+    static var topPanes: [SettingsPane] { allCases.filter { !$0.isPinnedToBottom } }
+
+    /// The panes at the bottom edge of the sidebar.
+    static var bottomPanes: [SettingsPane] { allCases.filter(\.isPinnedToBottom) }
+
     /// The name shown in the sidebar and as the window title.
     var title: String {
         switch self {
