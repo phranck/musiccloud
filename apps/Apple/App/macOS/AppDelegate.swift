@@ -267,19 +267,30 @@ private extension AppDelegate {
         if let title = config.title { window.title = title }
         window.titleVisibility = config.titleVisibility
         window.titlebarAppearsTransparent = config.titlebarAppearsTransparent
+        let isFixedSize = !config.styleMask.contains(.resizable)
         let hostingController = NSHostingController(rootView: rootView)
         if config.bridgesToolbarAndTitle {
             hostingController.sceneBridgingOptions = [.toolbars, .title]
         }
+        // A fixed-size window keeps the size given here. By default the
+        // hosting controller sizes the window to its content, which has no
+        // size yet when it is installed, and the window shrinks to zero.
+        // The saved position would then be restored onto an empty frame.
+        if isFixedSize {
+            hostingController.sizingOptions = []
+        }
         window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
         window.delegate = self
+        if isFixedSize {
+            window.setContentSize(config.size)
+        }
 
         // A resizable window gets its saved frame back. A fixed-size window
         // only keeps its saved position, because a frame saved under an
         // earlier content size would bring that size back.
         window.setFrameAutosaveName(config.autosaveName)
-        if !config.styleMask.contains(.resizable) {
+        if isFixedSize, window.contentRect(forFrameRect: window.frame).size != config.size {
             let top = window.frame.maxY
             window.setContentSize(config.size)
             window.setFrameTopLeftPoint(NSPoint(x: window.frame.minX, y: top))
