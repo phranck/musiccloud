@@ -26,3 +26,10 @@ vi.mock("node:dns/promises", () => {
 
 // Mock fetch for API tests
 global.fetch = vi.fn();
+
+// Outbound hops call undici's own fetch (see `fetch.ts`). Route them to the
+// mock above at call time, so a test that mocks `fetch` still reaches no
+// network. `fetch-decoding.test.ts` puts the real fetch back for itself.
+const { undiciTransport } = await import("./src/lib/infra/fetch.js");
+undiciTransport.fetch = ((...args: Parameters<typeof fetch>) =>
+  globalThis.fetch(...args)) as unknown as typeof undiciTransport.fetch;
