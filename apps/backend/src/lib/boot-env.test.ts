@@ -12,6 +12,9 @@ vi.mock("./creem-config.js", async (importOriginal) => ({
   getCreemConfig: vi.fn(),
 }));
 
+/** A session secret of exactly the 32 bytes the boot requires. */
+const USABLE_APP_SESSION_SECRET = "s".repeat(32);
+
 describe("assertRequiredBootEnv (MC-110)", () => {
   beforeEach(() => {
     // Stub the JAMENDO_CLIENT_ID so the existing required-vars loop passes.
@@ -58,9 +61,39 @@ describe("assertRequiredBootEnv (MC-110)", () => {
     expect(() => assertRequiredBootEnv()).toThrow(/INTERNAL_API_KEY/);
   });
 
-  it("boots a production process once INTERNAL_API_KEY is set", async () => {
+  it("boots a production process once INTERNAL_API_KEY and APP_SESSION_SECRET are set", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("INTERNAL_API_KEY", "configured-key");
+    vi.stubEnv("APP_SESSION_SECRET", USABLE_APP_SESSION_SECRET);
+
+    const { assertRequiredBootEnv } = await import("./boot-env.js");
+
+    expect(() => assertRequiredBootEnv()).not.toThrow();
+  });
+
+  it("refuses to boot a production process without APP_SESSION_SECRET", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("INTERNAL_API_KEY", "configured-key");
+    vi.stubEnv("APP_SESSION_SECRET", "");
+
+    const { assertRequiredBootEnv } = await import("./boot-env.js");
+
+    expect(() => assertRequiredBootEnv()).toThrow(/APP_SESSION_SECRET/);
+  });
+
+  it.each(["production", "development"])("refuses an APP_SESSION_SECRET under 32 bytes in %s", async (nodeEnv) => {
+    vi.stubEnv("NODE_ENV", nodeEnv);
+    vi.stubEnv("INTERNAL_API_KEY", "configured-key");
+    vi.stubEnv("APP_SESSION_SECRET", "x".repeat(31));
+
+    const { assertRequiredBootEnv } = await import("./boot-env.js");
+
+    expect(() => assertRequiredBootEnv()).toThrow(/APP_SESSION_SECRET/);
+  });
+
+  it("does not require APP_SESSION_SECRET outside production", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("APP_SESSION_SECRET", "");
 
     const { assertRequiredBootEnv } = await import("./boot-env.js");
 
