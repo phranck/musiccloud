@@ -43,7 +43,6 @@ struct MediaRow: View {
                         .padding(.horizontal, 4)
                 }
             }
-            .foregroundStyle(isHovered ? Self.highlightForeground : Color.primary)
             .contentShape(Rectangle())
             .onTapGesture {
                 copyToClipboardAndOpen()
@@ -57,14 +56,12 @@ struct MediaRow: View {
 // MARK: - Highlight
 
 private extension MediaRow {
-    /// The system's colors for highlighted content, like a menu item under
-    /// the pointer, so the row follows the user's accent color.
+    /// The same system fill the panel's footer cards take under the pointer,
+    /// so everything in the panel answers hover the same way.
     #if os(macOS)
-    static let highlightBackground = Color(nsColor: .selectedContentBackgroundColor)
-    static let highlightForeground = Color(nsColor: .alternateSelectedControlTextColor)
+    static let highlightBackground = Color(nsColor: PanelMetrics.hoverFill)
     #else
-    static let highlightBackground = Color(uiColor: .tintColor)
-    static let highlightForeground = Color(uiColor: .systemBackground)
+    static let highlightBackground = Color(uiColor: .systemFill)
     #endif
 }
 

@@ -114,7 +114,9 @@ private extension AppDelegate {
         panel.level = .popUpMenu
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        // Like Control Center, the cards float without a window shadow, which
+        // the window server would otherwise cast around every card's outline.
+        panel.hasShadow = false
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .utilityWindow
@@ -138,14 +140,18 @@ private extension AppDelegate {
     func openPanel() {
         guard let buttonFrame = statusItem.button?.window?.frame else { return }
 
+        // The window is larger than the cards by `shadowMargin` on every side,
+        // so it is shifted up by that margin to keep the cards right below
+        // the menu bar. The transparent margin lets clicks through.
+        let margin = PanelMetrics.shadowMargin
         let fittingSize = panel.contentView?.fittingSize ?? .zero
         let contentSize = CGSize(
-            width: max(fittingSize.width, PanelMetrics.panelWidth),
-            height: max(fittingSize.height, PanelMetrics.minimumPanelHeight)
+            width: max(fittingSize.width, PanelMetrics.panelWidth + margin * 2),
+            height: max(fittingSize.height, PanelMetrics.minimumPanelHeight + margin * 2)
         )
         let panelRect = NSRect(
             x: buttonFrame.midX - contentSize.width / 2,
-            y: buttonFrame.minY - contentSize.height,
+            y: buttonFrame.minY - contentSize.height + margin,
             width: contentSize.width,
             height: contentSize.height
         )

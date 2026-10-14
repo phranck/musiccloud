@@ -10,11 +10,11 @@ import SwiftUI
 
 /// A Liquid Glass card for the menu bar panel.
 ///
-/// The glass is the system's own, so it follows the appearance, the
-/// accessibility settings and the desktop behind the panel. An interactive
-/// card also gets the system's hover and press response, which is why cards
-/// that act as buttons set `interactive`. Place the panel's cards in one
-/// `GlassEffectContainer`, so the system renders them together.
+/// Each card is its own AppKit glass view, like the tiles in Control Center,
+/// so it refracts the desktop behind the transparent panel. SwiftUI's glass
+/// needs a `GlassEffectContainer` in this window, and that container draws a
+/// shared surface behind all cards. An interactive card reacts to hover and
+/// press where the system supports it, which is macOS 27 and later.
 ///
 /// ## Usage
 ///
@@ -31,6 +31,8 @@ struct PanelSection<Content: View>: View {
     let padding: CGFloat
     let interactive: Bool
     @ViewBuilder let content: Content
+
+    @State private var isHovered = false
 
     /// Creates a card.
     ///
@@ -50,10 +52,42 @@ struct PanelSection<Content: View>: View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(
-                .regular.interactive(interactive),
-                in: .rect(cornerRadius: PanelMetrics.cornerRadius)
-            )
+            .background(GlassCardBackground(
+                cornerRadius: PanelMetrics.cornerRadius,
+                interactive: interactive,
+                isHighlighted: interactive && isHovered
+            ))
+            .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - GlassCardBackground
+
+/// An `NSGlassEffectView` behind a card's SwiftUI content.
+///
+/// A highlighted card tints its glass with the system fill color, which is
+/// how a card that acts as a button answers the pointer.
+private struct GlassCardBackground: NSViewRepresentable {
+    let cornerRadius: CGFloat
+    let interactive: Bool
+    let isHighlighted: Bool
+
+    func makeNSView(context: Context) -> NSGlassEffectView {
+        let glass = NSGlassEffectView()
+        configure(glass)
+        return glass
+    }
+
+    func updateNSView(_ glass: NSGlassEffectView, context: Context) {
+        configure(glass)
+    }
+
+    private func configure(_ glass: NSGlassEffectView) {
+        glass.cornerRadius = cornerRadius
+        glass.tintColor = isHighlighted ? PanelMetrics.hoverFill : nil
+        if #available(macOS 27.0, *) {
+            glass.effectIsInteractive = interactive
+        }
     }
 }
 
