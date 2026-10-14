@@ -20,37 +20,41 @@ struct MenuBarView: View {
     @State private var selectedFilter: MediaFilter = .all
 
     var body: some View {
-        VStack(spacing: PanelMetrics.spacing) {
-            PanelSection {
-                HeaderRow(status: monitor.status)
-            }
+        // One container, so the system renders the cards' glass together.
+        // A spacing of zero keeps the cards apart at rest.
+        GlassEffectContainer(spacing: 0) {
+            VStack(spacing: PanelMetrics.spacing) {
+                PanelSection {
+                    HeaderRow(status: monitor.status)
+                }
 
-            if let error = monitor.status.errorMessage {
-                PanelSection(padding: 12) {
-                    ErrorRow(message: error)
+                if let error = monitor.status.errorMessage {
+                    PanelSection(padding: 12) {
+                        ErrorRow(message: error)
+                    }
                 }
-            }
 
-            PanelSection {
-                VStack(spacing: 0) {
-                    FilterPicker(selection: $selectedFilter)
-                    FilteredHistory(entries: entries, filter: selectedFilter)
-                        .frame(minHeight: 250, alignment: .top)
+                PanelSection {
+                    VStack(spacing: 0) {
+                        FilterPicker(selection: $selectedFilter)
+                        FilteredHistory(entries: entries, filter: selectedFilter)
+                            .frame(minHeight: 250, alignment: .top)
+                    }
+                    // One animation for every way the filter changes: the
+                    // segments, Cmd plus a digit, and a conversion.
+                    .animation(.smooth, value: selectedFilter)
                 }
-                // One animation for every way the filter changes: the
-                // segments, Cmd plus a digit, and a conversion.
-                .animation(.smooth, value: selectedFilter)
-            }
 
-            HStack(spacing: PanelMetrics.spacing) {
-                PanelSection(hoverable: true) {
-                    DashboardItem()
-                }
-                PanelSection(hoverable: true) {
-                    SettingsItem()
-                }
-                PanelSection(hoverable: true) {
-                    QuitItem()
+                HStack(spacing: PanelMetrics.spacing) {
+                    PanelSection(interactive: true) {
+                        DashboardItem()
+                    }
+                    PanelSection(interactive: true) {
+                        SettingsItem()
+                    }
+                    PanelSection(interactive: true) {
+                        QuitItem()
+                    }
                 }
             }
         }

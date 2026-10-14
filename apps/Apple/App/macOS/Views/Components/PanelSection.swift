@@ -8,10 +8,13 @@
 
 import SwiftUI
 
-/// A reusable floating card with material background for use in menu bar panels.
+/// A Liquid Glass card for the menu bar panel.
 ///
-/// Provides a consistent visual style for grouped content sections,
-/// using `.thickMaterial` with rounded corners to create a floating card appearance.
+/// The glass is the system's own, so it follows the appearance, the
+/// accessibility settings and the desktop behind the panel. An interactive
+/// card also gets the system's hover and press response, which is why cards
+/// that act as buttons set `interactive`. Place the panel's cards in one
+/// `GlassEffectContainer`, so the system renders them together.
 ///
 /// ## Usage
 ///
@@ -26,14 +29,18 @@ import SwiftUI
 /// ```
 struct PanelSection<Content: View>: View {
     let padding: CGFloat
-    let hoverable: Bool
+    let interactive: Bool
     @ViewBuilder let content: Content
 
-    @State private var isHovered = false
-
-    init(padding: CGFloat = 0, hoverable: Bool = false, @ViewBuilder content: () -> Content) {
+    /// Creates a card.
+    ///
+    /// - Parameters:
+    ///   - padding: The space between the card's edge and its content.
+    ///   - interactive: Whether the card reacts to hover and press like a button.
+    ///   - content: The card's content.
+    init(padding: CGFloat = 0, interactive: Bool = false, @ViewBuilder content: () -> Content) {
         self.padding = padding
-        self.hoverable = hoverable
+        self.interactive = interactive
         self.content = content()
     }
 
@@ -43,25 +50,10 @@ struct PanelSection<Content: View>: View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius)
-                    .fill(.thinMaterial)
-                    .shadow(color: .white.opacity(isHovered ? 0.08 : 0), radius: 4, y: -1)
+            .glassEffect(
+                .regular.interactive(interactive),
+                in: .rect(cornerRadius: PanelMetrics.cornerRadius)
             )
-            .overlay {
-                if isHovered {
-                    RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius)
-                        .fill(.white.opacity(0.04))
-                        .allowsHitTesting(false)
-                }
-            }
-            .scaleEffect(isHovered ? 1.04 : 1.0)
-            .onHover { hovered in
-                guard hoverable else { return }
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isHovered = hovered
-                }
-            }
     }
 }
 
