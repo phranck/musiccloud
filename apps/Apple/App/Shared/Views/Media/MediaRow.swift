@@ -36,12 +36,14 @@ struct MediaRow: View {
 
     var body: some View {
         MediaItem(entry: entry)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isHovered ? Color.accentColor : Color.clear)
-                    .padding(.horizontal, 4)
-            )
-            .foregroundStyle(isHovered ? Color.white : Color.primary)
+            .background {
+                if isHovered {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Self.highlightBackground)
+                        .padding(.horizontal, 4)
+                }
+            }
+            .foregroundStyle(isHovered ? Self.highlightForeground : Color.primary)
             .contentShape(Rectangle())
             .onTapGesture {
                 copyToClipboardAndOpen()
@@ -50,6 +52,20 @@ struct MediaRow: View {
                 isHovered = hovering
             }
     }
+}
+
+// MARK: - Highlight
+
+private extension MediaRow {
+    /// The system's colors for highlighted content, like a menu item under
+    /// the pointer, so the row follows the user's accent color.
+    #if os(macOS)
+    static let highlightBackground = Color(nsColor: .selectedContentBackgroundColor)
+    static let highlightForeground = Color(nsColor: .alternateSelectedControlTextColor)
+    #else
+    static let highlightBackground = Color(uiColor: .tintColor)
+    static let highlightForeground = Color(uiColor: .systemBackground)
+    #endif
 }
 
 // MARK: - Actions

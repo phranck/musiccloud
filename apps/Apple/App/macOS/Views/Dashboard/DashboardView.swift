@@ -12,7 +12,7 @@ import SwiftUI
 /// The main dashboard view with toolbar-based filter navigation.
 ///
 /// Provides access to history (tracks, albums, artists) via a centered
-/// `AnimatedSegmentControl` in the toolbar.
+/// segmented picker in the toolbar.
 struct DashboardView: View {
     @Environment(ClipboardMonitor.self) private var monitor
     @State private var filter: MediaFilter = .all
