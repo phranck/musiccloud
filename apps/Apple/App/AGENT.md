@@ -10,6 +10,7 @@
   - Functions or methods
   - Properties or variables
   - Comments or documentation
+- **Exception:** code that is provably dead may be removed without asking. Dead means nothing in the app, the extension or the tests references it, apart from its own tests. Name what was removed when reporting the change.
 
 ### General Guidelines
 - When making changes, preserve existing functionality unless explicitly asked to remove it
