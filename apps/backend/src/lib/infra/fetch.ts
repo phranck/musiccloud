@@ -1,7 +1,7 @@
 import type { LookupAddress } from "node:dns";
 import dns from "node:dns/promises";
 import net from "node:net";
-import { Agent, type RequestInit as UndiciRequestInit } from "undici";
+import { Agent, type Dispatcher, type RequestInit as UndiciRequestInit, fetch as undiciFetch } from "undici";
 
 /**
  * Timeout-enforcing fetch wrapper with an SSRF guard.
@@ -249,12 +249,36 @@ async function requestThroughGuardedDispatcher(
   init: RequestInit,
   _addresses: readonly LookupAddress[],
 ): Promise<Response> {
+  return requestThroughDispatcher(target, init, sharedDispatcher);
+}
+
+/**
+ * The fetch every outbound hop uses. It is an object so tests can replace
+ * `fetch`, which a module namespace does not allow.
+ */
+export const undiciTransport = { fetch: undiciFetch };
+
+/**
+ * Sends one request hop through `dispatcher` with undici's own `fetch`.
+ *
+ * The dispatcher and the fetch must come from the same undici. Node's
+ * built-in `fetch` bundles its own undici, and on Node 26 a dispatcher from
+ * the npm package of another major version drops `content-encoding` and
+ * hands back the compressed body undecoded.
+ *
+ * @param target - The validated URL of this hop.
+ * @param init - The request options, without redirect following.
+ * @param dispatcher - The undici dispatcher that opens the connection.
+ * @returns The response, with its body decoded.
+ */
+export async function requestThroughDispatcher(
+  target: URL,
+  init: RequestInit,
+  dispatcher: Dispatcher,
+): Promise<Response> {
   try {
-    const requestInit: RequestInit & UndiciRequestInit = {
-      ...(init as RequestInit & UndiciRequestInit),
-      dispatcher: sharedDispatcher,
-    };
-    return await globalThis.fetch(transportTarget(target), requestInit);
+    const requestInit = { ...(init as UndiciRequestInit), dispatcher };
+    return (await undiciTransport.fetch(transportTarget(target), requestInit)) as unknown as Response;
   } catch {
     init.signal?.throwIfAborted();
     throw new Error("Outbound request failed");
