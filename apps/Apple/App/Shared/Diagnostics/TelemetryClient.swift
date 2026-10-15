@@ -132,7 +132,7 @@ actor TelemetryClient {
     }
 
     private func post(_ event: TelemetryEvent) async -> PostOutcome {
-        let endpoint = MusicCloudAPI.baseURL.appendingPathComponent(endpointPath)
+        let endpoint = MusicCloudAPI.baseURL.appending(path: endpointPath)
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.timeoutInterval = 10
@@ -203,9 +203,9 @@ actor TelemetryClient {
                                               in: .userDomainMask,
                                               appropriateFor: nil,
                                               create: true) else { return nil }
-        let directory = base.appendingPathComponent("musiccloud", isDirectory: true)
+        let directory = base.appending(path: "musiccloud", directoryHint: .isDirectory)
         try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("telemetry-queue.jsonl")
+        return directory.appending(path: "telemetry-queue.jsonl")
     }
 }
 

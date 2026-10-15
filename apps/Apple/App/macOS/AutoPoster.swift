@@ -56,9 +56,9 @@ final class AutoPoster {
         for (account, message) in failed {
             lines.append(String(localized: "Posting to \(account.handle) failed: \(message)"))
         }
-        NotificationManager.notify(title: String(localized: "Automatic post: \(context.title)"),
-                                   body: lines.joined(separator: "\n"),
-                                   identifier: "auto-post-\(entry.id.uuidString)")
+        await NotificationManager.notify(title: String(localized: "Automatic post: \(context.title)"),
+                                         body: lines.joined(separator: "\n"),
+                                         identifier: "auto-post-\(entry.id.uuidString)")
     }
 }
 

@@ -82,12 +82,16 @@ enum NotificationSound: String, CaseIterable, Identifiable {
 /// Handles local notifications for successful URL conversions.
 enum NotificationManager {
     /// Requests notification permission on first use.
-    static func requestPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
-            if let error {
-                AppLogger.ui.error("Notification permission error: \(error.localizedDescription)")
-            }
+    ///
+    /// Returns once the user has answered the system's dialog, or at once
+    /// when they answered it before.
+    static func requestPermission() async {
+        do {
+            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
             AppLogger.ui.debug("Notification permission granted: \(granted)")
+        } catch {
+            AppLogger.ui.error("Notification permission error: \(error.localizedDescription)")
+            AppLogger.ui.debug("Notification permission granted: false")
         }
     }
 
@@ -109,6 +113,8 @@ enum NotificationManager {
     /// Sends a notification for a successful URL conversion.
     ///
     /// Shows title, artist/subtitle, and artwork matching the history row display.
+    /// Returns at once, so the caller goes on while the notification center
+    /// takes the request. The sound plays once the center has accepted it.
     ///
     /// - Parameter entry: The successfully converted media info
     static func notifySuccess(entry: MediaEntry) {
@@ -139,14 +145,14 @@ enum NotificationManager {
             trigger: nil
         )
 
-        // The completion handler runs on a queue of the notification
-        // center's choosing, so the sound is started on the main actor.
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
+        // The sound is played on the main actor, so the task runs there.
+        Task { @MainActor in
+            do {
+                try await UNUserNotificationCenter.current().add(request)
+                playSound()
+            } catch {
                 AppLogger.ui.error("Notification failed: \(error.localizedDescription)")
-                return
             }
-            Task { @MainActor in playSound() }
         }
     }
 }
@@ -154,16 +160,18 @@ enum NotificationManager {
 extension NotificationManager {
     /// Sends a notification with only a title and a body, silent, as automatic posting reports.
     ///
+    /// Returns once the notification center has accepted or refused the request.
+    ///
     /// - Parameter identifier: A notification with the same identifier replaces this one.
-    static func notify(title: String, body: String, identifier: String) {
+    static func notify(title: String, body: String, identifier: String) async {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .none
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil)) { error in
-            if let error {
-                AppLogger.ui.error("Notification failed: \(error.localizedDescription)")
-            }
+        do {
+            try await UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil))
+        } catch {
+            AppLogger.ui.error("Notification failed: \(error.localizedDescription)")
         }
     }
 }
@@ -182,7 +190,7 @@ private extension NotificationManager {
     /// Creates a notification attachment from image data.
     static func createAttachment(from data: Data, id: String) -> UNNotificationAttachment? {
         let tempDir = FileManager.default.temporaryDirectory
-        let fileURL = tempDir.appendingPathComponent("\(id).jpg")
+        let fileURL = tempDir.appending(path: "\(id).jpg")
 
         do {
             try data.write(to: fileURL, options: .atomic)

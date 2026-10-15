@@ -24,6 +24,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var composerWindow: NSWindow?
     private var iconHostingView: NSHostingView<MenuBarIcon>!
     private var eventMonitor: Any?
+    /// Follows the monitor's status for the menu bar icon, see ``startObservingStatus()``.
+    private var statusObservation: Task<Void, Never>?
 
     static private(set) var shared: AppDelegate!
 
@@ -54,6 +56,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var autoPoster: AutoPoster = AutoPoster(settings: autoPostSettings, accountStore: socialAccountStore,
                                                               templateStore: templateStore)
 
+    deinit {
+        statusObservation?.cancel()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -69,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPanel()
         setupEventMonitor()
         NSApplication.shared.registerForRemoteNotifications()
-        NotificationManager.requestPermission()
+        Task { await NotificationManager.requestPermission() }
         NotificationManager.cleanupAttachmentCache()
         Task { await TelemetryClient.shared.flushPending() }
         Task { await AppSession.shared.prepare() }
@@ -104,17 +110,16 @@ private extension AppDelegate {
 
     /// Mirrors `monitor.status.isProcessing` into the menu bar icon.
     ///
-    /// `withObservationTracking` fires `onChange` once, before the new value is
-    /// stored, so the icon is updated on the next main actor turn and tracking
-    /// is re-armed from there.
+    /// One task follows the value for as long as the delegate lives.
+    /// `Observations` yields the current value first and then every change,
+    /// on the main actor, because its closure is formed there.
     func startObservingStatus() {
-        withObservationTracking {
-            _ = monitor.status.isProcessing
-        } onChange: { [weak self] in
-            Task { @MainActor in
-                guard let self else { return }
-                self.iconHostingView.rootView = MenuBarIcon(isProcessing: self.monitor.status.isProcessing)
-                self.startObservingStatus()
+        let isProcessingValues = Observations { [weak self] in
+            self?.monitor.status.isProcessing ?? false
+        }
+        statusObservation = Task { [weak self] in
+            for await isProcessing in isProcessingValues {
+                self?.iconHostingView.rootView = MenuBarIcon(isProcessing: isProcessing)
             }
         }
     }
@@ -179,24 +184,20 @@ private extension AppDelegate {
         panel.contentView?.layoutSubtreeIfNeeded()
         panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.23
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        // A window's alpha only animates through its animator proxy, also
+        // under a SwiftUI animation.
+        NSAnimationContext.animate(.easeOut(duration: 0.23)) {
             panel.animator().alphaValue = 1
         }
     }
 
     func closePanel() {
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.23
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+        NSAnimationContext.animate(.easeIn(duration: 0.23)) {
             panel.animator().alphaValue = 0
-        }, completionHandler: {
-            MainActor.assumeIsolated { [weak self] in
-                self?.panel.orderOut(nil)
-                self?.panel.alphaValue = 1
-            }
-        })
+        } completion: { [weak self] in
+            self?.panel.orderOut(nil)
+            self?.panel.alphaValue = 1
+        }
     }
 }
 
@@ -332,10 +333,7 @@ private extension AppDelegate {
         if let window = stored {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate()
-            DispatchQueue.main.async {
-                window.makeKeyAndOrderFront(nil)
-                NSApp.activate()
-            }
+            reassertKey(window)
             return window
         }
 
@@ -379,16 +377,22 @@ private extension AppDelegate {
 
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
+        reassertKey(window)
 
-        // LSUIElement apps can lose focus between panel close and window open.
-        // Re-assert key window status on the next run-loop tick to guarantee
-        // the window is key across the entire desktop.
-        DispatchQueue.main.async {
+        return window
+    }
+
+    /// Makes `window` key and activates the app once more, on a later turn
+    /// of the main actor.
+    ///
+    /// LSUIElement apps can lose focus between panel close and window open.
+    /// Asserting key status again after the current event has been handled
+    /// keeps the window key across the entire desktop.
+    func reassertKey(_ window: NSWindow) {
+        Task { @MainActor in
             window.makeKeyAndOrderFront(nil)
             NSApp.activate()
         }
-
-        return window
     }
 }
 

@@ -25,8 +25,15 @@ final class WebSignIn: NSObject {
     ///   - url: The service's authorization page.
     ///   - callbackScheme: The scheme of the redirect URI that ends the sign-in.
     /// - Throws: `CancellationError` when the user closes the sheet, or the system's error.
+    ///   On iOS without a window scene that is `ASWebAuthenticationSessionError.presentationContextInvalid`,
+    ///   the error the system reports for a sheet that has nowhere to appear.
     func signIn(at url: URL, callbackScheme: String) async throws -> URL {
-        try await withCheckedThrowingContinuation { continuation in
+        #if os(iOS)
+        guard Self.presentationScene != nil else {
+            throw ASWebAuthenticationSessionError(.presentationContextInvalid)
+        }
+        #endif
+        return try await withCheckedThrowingContinuation { continuation in
             let completion: ASWebAuthenticationSession.CompletionHandler = { [weak self] callback, error in
                 Task { @MainActor in self?.session = nil }
                 if let callback {
@@ -37,17 +44,21 @@ final class WebSignIn: NSObject {
                     continuation.resume(throwing: error ?? URLError(.badServerResponse))
                 }
             }
-            let session: ASWebAuthenticationSession
-            if #available(iOS 17.4, macOS 14.4, *) {
-                session = ASWebAuthenticationSession(url: url, callback: .customScheme(callbackScheme), completionHandler: completion)
-            } else {
-                session = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackScheme, completionHandler: completion)
-            }
+            let session = ASWebAuthenticationSession(url: url, callback: .customScheme(callbackScheme), completionHandler: completion)
             session.presentationContextProvider = self
             self.session = session
             session.start()
         }
     }
+
+    #if os(iOS)
+    /// The scene the sheet appears in: the one in the foreground and active,
+    /// or else any window scene the app has.
+    private static var presentationScene: UIWindowScene? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        return scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+    }
+    #endif
 }
 
 // MARK: - ASWebAuthenticationPresentationContextProviding
@@ -58,9 +69,12 @@ extension WebSignIn: ASWebAuthenticationPresentationContextProviding {
             #if os(macOS)
             NSApp.keyWindow ?? ASPresentationAnchor()
             #else
-            UIApplication.shared.connectedScenes
-                .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-                .first ?? ASPresentationAnchor()
+            // signIn(at:callbackScheme:) throws before it starts a session
+            // when the app has no window scene, so one is here.
+            guard let scene = Self.presentationScene else {
+                preconditionFailure("A sign-in session started without a window scene")
+            }
+            return scene.keyWindow ?? UIWindow(windowScene: scene)
             #endif
         }
     }

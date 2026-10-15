@@ -166,7 +166,7 @@ extension MusicCloudAPI {
             }
         }
 
-        var request = URLRequest(url: base.appendingPathComponent("api/resolve"))
+        var request = URLRequest(url: base.appending(path: "api/resolve"))
         request.httpMethod = "POST"
         request.timeoutInterval = 10
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
