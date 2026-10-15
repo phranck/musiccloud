@@ -59,6 +59,38 @@ enum PostFormatter {
     }
 }
 
+extension PostFormatter {
+    /// Where `text` passes Mastodon's `limit`, counting every URL as `urlLength`.
+    ///
+    /// - Returns: The index of the first character past the limit, or `nil` when the text fits.
+    static func mastodonOverflowStart(in text: String, limit: Int, urlLength: Int = mastodonCharactersPerURL) -> String.Index? {
+        let urls = MarkdownSyntax.bareURL.matches(in: text, range: NSRange(text.startIndex..., in: text))
+            .compactMap { Range($0.range, in: text) }
+        var count = 0
+        var index = text.startIndex
+        while index < text.endIndex {
+            if let url = urls.first(where: { $0.lowerBound == index }) {
+                // A URL counts as a whole; when it does not fit, the overflow starts with it.
+                if count + urlLength > limit { return index }
+                count += urlLength
+                index = url.upperBound
+                continue
+            }
+            let next = text.unicodeScalars.index(after: index)
+            count += 1
+            if count > limit { return index }
+            index = next
+        }
+        return nil
+    }
+
+    /// Where `text` passes Bluesky's `limit` of graphemes, or `nil` when it fits.
+    static func graphemeOverflowStart(in text: String, limit: Int) -> String.Index? {
+        guard text.count > limit else { return nil }
+        return text.index(text.startIndex, offsetBy: limit)
+    }
+}
+
 private extension PostFormatter {
     /// The text of headings, bold, italic and code spans without their markers.
     static func removingEmphasis(from markdown: String) -> String {
