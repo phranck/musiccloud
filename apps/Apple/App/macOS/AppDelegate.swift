@@ -262,6 +262,7 @@ extension AppDelegate {
         let rootView = TemplateEditorView()
             .environment(\.modelContext, mainContext)
             .environment(templateStore)
+            .environment(socialAccountStore)
             .symbolRenderingMode(.hierarchical)
 
         templateEditorWindow = showWindow(
