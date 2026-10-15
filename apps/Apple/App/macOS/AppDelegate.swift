@@ -49,6 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var mastodonConnector: MastodonConnector = MastodonConnector(store: socialAccountStore)
     /// Signs Bluesky accounts in and out and keeps their sessions renewed.
     private(set) lazy var blueskyConnector: BlueskyConnector = BlueskyConnector(store: socialAccountStore)
+    /// Whether and where new conversions are posted automatically, set in Settings.
+    let autoPostSettings = AutoPostSettings()
+    private(set) lazy var autoPoster: AutoPoster = AutoPoster(settings: autoPostSettings, accountStore: socialAccountStore,
+                                                              templateStore: templateStore)
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -57,6 +61,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainContext = modelContainer.mainContext
         historyManager = HistoryManager(modelContext: mainContext)
         monitor = ClipboardMonitor(historyManager: historyManager)
+        monitor.onNewEntry = { [weak self] entry in
+            guard let self else { return }
+            Task { await self.autoPoster.post(entry) }
+        }
         setupStatusItem()
         setupPanel()
         setupEventMonitor()
@@ -222,6 +230,7 @@ extension AppDelegate {
             .environment(monitor)
             .environment(templateStore)
             .environment(socialAccountStore)
+            .environment(autoPostSettings)
             .symbolRenderingMode(.hierarchical)
 
         // Per the HIG, a settings window has no minimize or zoom button: it

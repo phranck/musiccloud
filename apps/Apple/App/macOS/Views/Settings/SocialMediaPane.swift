@@ -13,11 +13,17 @@ import SwiftUI
 /// of each row, and a fixed menu below to connect another account.
 struct SocialMediaPane: View {
     @Environment(SocialAccountStore.self) private var store
+    @Environment(AutoPostSettings.self) private var autoPostSettings
     @State private var serviceToConnect: SocialService?
     @State private var accountToDisconnect: SocialAccount?
 
     var body: some View {
         Form {
+            Section {
+                Toggle(String(localized: "Post new conversions automatically"), isOn: Bindable(autoPostSettings).isEnabled)
+            } footer: {
+                Text("Each account below says whether it takes part and with which template. A link that is already in the history is not posted again.")
+            }
             accountSection(.mastodon, accounts: store.mastodonAccounts.map(SocialAccount.mastodon))
             accountSection(.bluesky, accounts: store.blueskyAccounts.map(SocialAccount.bluesky))
         }
@@ -149,24 +155,59 @@ private enum SocialService: String, CaseIterable, Identifiable {
 
 // MARK: - ConnectedAccountRow
 
-/// One connected account with a button at the trailing edge that asks to disconnect it.
+/// One connected account with a button at the trailing edge that asks to
+/// disconnect it. While automatic posting is on, the row also says whether
+/// this account takes part and with which template.
 private struct ConnectedAccountRow: View {
     let account: SocialAccount
     /// Asks to disconnect the account; the pane confirms before it does.
     let onDisconnect: () -> Void
 
+    @Environment(AutoPostSettings.self) private var autoPost
+    @Environment(PostTemplateStore.self) private var templates
+
     var body: some View {
-        HStack(spacing: 10) {
-            SocialAccountLabel(account: account)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                SocialAccountLabel(account: account)
 
-            Spacer()
+                Spacer()
 
-            Button(String(localized: "Disconnect"), systemImage: "trash", action: onDisconnect)
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .font(.title2)
-                .foregroundStyle(.secondary)
-                .help(String(localized: "Disconnect \(account.handle)"))
+                Button(String(localized: "Disconnect"), systemImage: "trash", action: onDisconnect)
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.borderless)
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+                    .help(String(localized: "Disconnect \(account.handle)"))
+            }
+
+            if autoPost.isEnabled {
+                HStack {
+                    Toggle(String(localized: "Post automatically"), isOn: rule(\.isEnabled))
+                    Spacer()
+                    Picker(String(localized: "Template"), selection: rule(\.templateID)) {
+                        Text("None").tag(PostTemplate.ID?.none)
+                        ForEach(templates.systemTemplates + templates.templates) { template in
+                            Text(template.name).tag(Optional(template.id))
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .disabled(!autoPost.rule(for: account.id).isEnabled)
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+
+    /// A binding to one field of this account's automatic posting rule.
+    private func rule<Value>(_ field: WritableKeyPath<AutoPostSettings.AccountRule, Value>) -> Binding<Value> {
+        Binding {
+            autoPost.rule(for: account.id)[keyPath: field]
+        } set: { value in
+            var rule = autoPost.rule(for: account.id)
+            rule[keyPath: field] = value
+            autoPost.setRule(rule, for: account.id)
         }
     }
 }
@@ -242,6 +283,8 @@ private struct ConnectAccountSheet: View {
                               displayName: "musiccloud", avatarURL: nil, characterLimit: 5000), token: "preview")
     return SocialMediaPane()
         .environment(store)
+        .environment(AutoPostSettings(defaults: UserDefaults(suiteName: "SocialMediaPanePreview") ?? .standard))
+        .environment(PostTemplateStore(fileURL: nil))
         .frame(width: 520, height: 440)
 }
 

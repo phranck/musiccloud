@@ -58,6 +58,12 @@ final class ClipboardMonitor {
 
     var status: Status = .idle
 
+    /// Called with every entry a conversion adds to the history, after it is
+    /// stored. An entry answered from the history is not new and is not passed.
+    /// The macOS app posts it automatically to the accounts chosen for that.
+    @ObservationIgnored
+    var onNewEntry: (@MainActor (MediaEntry) -> Void)?
+
     /// Creates a new clipboard monitor.
     ///
     /// Starts monitoring the clipboard when monitoring is enabled.
@@ -206,6 +212,7 @@ private extension ClipboardMonitor {
             HapticFeedback.success()
             #endif
             NotificationManager.notifySuccess(entry: entry)
+            onNewEntry?(entry)
             AppLogger.clipboard.debug("resolve succeeded → \(shortUrl)")
         } catch where Self.isCancellation(error) {
             status = .idle

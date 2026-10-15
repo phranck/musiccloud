@@ -151,6 +151,23 @@ enum NotificationManager {
     }
 }
 
+extension NotificationManager {
+    /// Sends a notification with only a title and a body, silent, as automatic posting reports.
+    ///
+    /// - Parameter identifier: A notification with the same identifier replaces this one.
+    static func notify(title: String, body: String, identifier: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .none
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil)) { error in
+            if let error {
+                AppLogger.ui.error("Notification failed: \(error.localizedDescription)")
+            }
+        }
+    }
+}
+
 // MARK: - Private API
 
 private extension NotificationManager {

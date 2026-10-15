@@ -55,10 +55,8 @@ final class PostComposerModel {
         fillDrafts()
     }
 
-    /// What the entry is called: its song, else its album, else its artist.
-    var title: String {
-        [PostVariable.songName, .albumName, .artist].lazy.compactMap { $0.value(in: self.context) }.first ?? ""
-    }
+    /// What the entry is called; see ``PostContext/title``.
+    var title: String { context.title }
 
     /// The chosen accounts in the order they are listed.
     var selectedAccounts: [SocialAccount] {
