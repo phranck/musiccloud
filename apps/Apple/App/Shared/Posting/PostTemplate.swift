@@ -45,6 +45,33 @@ struct PostTemplate: Codable, Identifiable, Hashable, Sendable {
 
 extension PostTemplate {
     /// The templates that ship with the app. Each needs a fixed id, so the
-    /// app recognizes it as a system template across launches.
-    static let system: [PostTemplate] = []
+    /// app recognizes it as a system template across launches, and so an
+    /// automatic posting rule that names one keeps finding it.
+    static let system: [PostTemplate] = [
+        PostTemplate(id: UUID(uuidString: "FDAD39C2-4220-4D95-9A60-704C77766E32")!,
+                     name: "Mastodon",
+                     body: nowPlayingBody(hashtags: "#Music #MusicCloud #NowPlaying #NowListening"),
+                     icon: .mastodon),
+        PostTemplate(id: UUID(uuidString: "1BCEECEB-A43A-4549-99CA-0609C92BE4A8")!,
+                     name: "Bluesky",
+                     body: nowPlayingBody(hashtags: "#Music #MusicCloud #NowPlaying"),
+                     icon: .bluesky),
+    ]
+
+    /// The "Now playing" post both system templates share. They differ in
+    /// their hashtags only, because Bluesky's 300 graphemes leave less room.
+    private static func nowPlayingBody(hashtags: String) -> String {
+        """
+        Now playing:
+
+        🎤  {artist} with
+        🎵  **{song_name}**
+        💿  Released on "*{album_name}*" in {release_year}
+
+        \(hashtags) {artist_hashtag}
+
+        Try it out:
+        {share_url}
+        """
+    }
 }

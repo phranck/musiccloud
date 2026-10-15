@@ -57,6 +57,27 @@ struct PostTemplateRendererTests {
     }
 }
 
+// MARK: - SystemTemplateTests
+
+struct SystemTemplateTests {
+    /// A misspelled variable would render as nothing in every post made with it.
+    @Test func systemTemplatesUseOnlyKnownVariables() throws {
+        let known = Set(PostVariable.allCases.map(\.token))
+        for template in PostTemplate.system {
+            let placeholders = template.body.matches(of: /\{[a-z_]+\}/).map { String($0.output) }
+            #expect(!placeholders.isEmpty)
+            #expect(placeholders.allSatisfy(known.contains), "\(template.name)")
+        }
+    }
+
+    /// Automatic posting rules name a template by id, so the ids are fixed and distinct.
+    @Test func systemTemplateIDsAreDistinct() {
+        let ids = PostTemplate.system.map(\.id)
+        #expect(ids.count == 2)
+        #expect(Set(ids).count == ids.count)
+    }
+}
+
 // MARK: - PostTemplateStoreTests
 
 @MainActor
