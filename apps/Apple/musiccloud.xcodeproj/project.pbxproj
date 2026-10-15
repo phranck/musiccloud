@@ -159,6 +159,7 @@
 		FDB8008F3080F0A700AC2DA7 /* AutoPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8008D3080F0A700AC2DA7 /* AutoPost.swift */; };
 		FDB800913080F0D100AC2DA7 /* AutoPoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800903080F0D100AC2DA7 /* AutoPoster.swift */; };
 		FDB800933080F19900AC2DA7 /* AutoPostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800923080F19900AC2DA7 /* AutoPostTests.swift */; };
+		FDB800953080FCDF00AC2DA7 /* ArtistHashtagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800943080FCDF00AC2DA7 /* ArtistHashtagTests.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -360,6 +361,7 @@
 		FDB8008D3080F0A700AC2DA7 /* AutoPost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPost.swift; sourceTree = "<group>"; };
 		FDB800903080F0D100AC2DA7 /* AutoPoster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPoster.swift; sourceTree = "<group>"; };
 		FDB800923080F19900AC2DA7 /* AutoPostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPostTests.swift; sourceTree = "<group>"; };
+		FDB800943080FCDF00AC2DA7 /* ArtistHashtagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistHashtagTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -849,6 +851,7 @@
 				FDB80045307FFC1700AC2DA7 /* TemplateEditingTests.swift */,
 				FDB8008B3080EB0D00AC2DA7 /* PostFormatterTests.swift */,
 				FDB800923080F19900AC2DA7 /* AutoPostTests.swift */,
+				FDB800943080FCDF00AC2DA7 /* ArtistHashtagTests.swift */,
 			);
 			path = Posting;
 			sourceTree = "<group>";
@@ -1237,6 +1240,7 @@
 				FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */,
 				FDB8001E307FC94700AC2DA7 /* NativeAppLinkTests.swift in Sources */,
 				FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */,
+				FDB800953080FCDF00AC2DA7 /* ArtistHashtagTests.swift in Sources */,
 				BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */,
 				FDB8007A308042C200AC2DA7 /* BlueskyTests.swift in Sources */,
 			);
