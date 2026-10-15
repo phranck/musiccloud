@@ -104,7 +104,8 @@ private extension DiagnosticsSection {
             let url = try await DiagnosticsExporter.exportLogs()
             presentSharePicker(for: url)
         } catch {
-            exportError = "Log export failed: \(error.localizedDescription)"
+            exportError = String(localized: "Log export failed: \(error.localizedDescription)",
+                                 comment: "Shown below Export Diagnostics; the argument is the system's error message")
         }
     }
 

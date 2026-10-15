@@ -98,7 +98,8 @@ struct SettingsView: View {
         do {
             exportedLogURL = try await DiagnosticsExporter.exportLogs()
         } catch {
-            exportError = "Log export failed: \(error.localizedDescription)"
+            exportError = String(localized: "Log export failed: \(error.localizedDescription)",
+                                 comment: "Shown below Export Diagnostics; the argument is the system's error message")
         }
     }
 }

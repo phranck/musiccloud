@@ -61,12 +61,13 @@ private extension HeaderRow {
         }
     }
 
+    /// What the status circle means, read by VoiceOver in the user's language.
     var indicatorLabel: String {
         switch status {
-        case .idle:       "Monitoring active"
-        case .processing: "Processing"
-        case .success:    "Success"
-        case .error:      "Error"
+        case .idle:       String(localized: "Monitoring active", comment: "Accessibility label of the status circle: the clipboard is watched")
+        case .processing: String(localized: "Processing", comment: "Accessibility label of the status circle: a link is being converted")
+        case .success:    String(localized: "Success", comment: "Accessibility label of the status circle: the last conversion succeeded")
+        case .error:      String(localized: "Error", comment: "Accessibility label of the status circle: the last conversion failed")
         }
     }
 }
