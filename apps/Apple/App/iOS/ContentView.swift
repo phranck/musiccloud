@@ -169,7 +169,10 @@ private struct IPadDetail: View {
         case .filter(let filter):
             HistoryView(initialFilter: filter)
         case .settings:
-            SettingsView()
+            // Settings pushes the Social Media screen, which needs a stack of its own in the detail column.
+            NavigationStack {
+                SettingsView()
+            }
         case nil:
             HomeView()
         }

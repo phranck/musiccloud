@@ -80,13 +80,8 @@ struct TemplateEditorView: View {
 }
 
 private extension TemplateEditorView {
-    /// System templates first, then the user's, as the sidebar lists them.
-    var allTemplates: [PostTemplate] {
-        store.systemTemplates + store.templates
-    }
-
     var selectedTemplate: PostTemplate? {
-        allTemplates.first { $0.id == selectedID } ?? allTemplates.first
+        store.allTemplates.first { $0.id == selectedID } ?? store.allTemplates.first
     }
 
     /// The list shows the first template as selected until another is chosen.
@@ -105,7 +100,7 @@ private extension TemplateEditorView {
     func deleteSelected() {
         guard let id = selectedTemplate?.id, !store.isSystem(id) else { return }
         store.delete(id: id)
-        selectedID = allTemplates.first?.id
+        selectedID = store.allTemplates.first?.id
     }
 }
 

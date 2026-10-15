@@ -43,6 +43,11 @@ final class PostTemplateStore {
         load()
     }
 
+    /// Every template a post can be written with: the system templates first, then the user's.
+    var allTemplates: [PostTemplate] {
+        systemTemplates + templates
+    }
+
     /// Whether the template with `id` ships with the app and cannot be changed.
     func isSystem(_ id: PostTemplate.ID) -> Bool {
         systemTemplates.contains { $0.id == id }

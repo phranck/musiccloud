@@ -18,20 +18,29 @@ struct MediaArtwork: View {
 
     var body: some View {
         CachedAsyncImage(entry: entry) {
-            PlaceholderImage()
+            ArtworkPlaceholder()
         }
         .frame(width: size, height: size)
         .clipShape(.rect(cornerRadius: 12))
     }
 }
 
-private struct PlaceholderImage: View {
+/// What stands in for artwork while it loads or when there is none.
+///
+/// Every artwork view uses it, so a missing cover looks the same in a list
+/// row, in the history grid and in the Share Extension.
+struct ArtworkPlaceholder: View {
+    /// The SF Symbol in the middle, such as the entry type's placeholder icon.
+    var icon: String = "music.note"
+    /// The symbol's size, which grows with the space the placeholder fills.
+    var symbolFont: Font = .caption
+
     var body: some View {
         Rectangle()
             .fill(.quaternary)
             .overlay {
-                Image(systemName: "music.note")
-                    .font(.caption)
+                Image(systemName: icon)
+                    .font(symbolFont)
                     .foregroundStyle(.tertiary)
             }
     }

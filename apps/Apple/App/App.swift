@@ -31,6 +31,8 @@ struct MusicCloudApp: App {
     private let storeError: String?
 
     init() {
+        // The account sign-in looks for its window here; see WebSignIn.windowScenes.
+        WebSignIn.windowScenes = { UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene } }
         do {
             let container = try SharedStoreConfiguration.makeContainer()
             modelContainer = container
@@ -56,6 +58,8 @@ struct MusicCloudApp: App {
                     .modelContainer(modelContainer)
                     .environment(historyManager)
                     .environment(monitor)
+                    // The accounts Settings connects; their connectors live beside them in SocialConnections.
+                    .environment(SocialConnections.shared.store)
                     // Only leaving for the background stops the monitor. Control
                     // Center or the app switcher make the scene inactive for a
                     // moment, and a conversion running then has to finish.

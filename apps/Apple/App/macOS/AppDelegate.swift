@@ -44,13 +44,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var monitor: ClipboardMonitor!
     /// The post templates, edited in Settings and used by the post composer.
     let templateStore = PostTemplateStore()
-    /// The connected social media accounts, managed in Settings.
-    let socialAccountStore = SocialAccountStore()
-    /// Signs Mastodon accounts in and out. It outlives the Settings window,
-    /// so a browser sheet still open when the window closes can finish.
-    private(set) lazy var mastodonConnector: MastodonConnector = MastodonConnector(store: socialAccountStore)
-    /// Signs Bluesky accounts in and out and keeps their sessions renewed.
-    private(set) lazy var blueskyConnector: BlueskyConnector = BlueskyConnector(store: socialAccountStore)
+    /// The connected social media accounts, managed in Settings. Their
+    /// connectors live in ``SocialConnections/shared`` beside them.
+    let socialAccountStore = SocialConnections.shared.store
     /// Whether and where new conversions are posted automatically, set in Settings.
     let autoPostSettings = AutoPostSettings()
     private(set) lazy var autoPoster: AutoPoster = AutoPoster(settings: autoPostSettings, accountStore: socialAccountStore,
@@ -286,7 +282,7 @@ extension AppDelegate {
         composerWindow?.close()
         let model = PostComposerModel(
             context: PostContext(entry: entry),
-            templates: templateStore.systemTemplates + templateStore.templates,
+            templates: templateStore.allTemplates,
             accounts: SocialAccount.all(in: socialAccountStore)
         )
         let rootView = PostComposerView(model: model)
