@@ -25,6 +25,8 @@ enum TemplateSyntaxColors {
     static let link = NSColor(srgbRed: 0x26 / 255, green: 0x8B / 255, blue: 0xD2 / 255, alpha: 1)
     /// Solarized orange, `#CB4B16`.
     static let code = NSColor(srgbRed: 0xCB / 255, green: 0x4B / 255, blue: 0x16 / 255, alpha: 1)
+    /// Solarized green, `#859900`.
+    static let quote = NSColor(srgbRed: 0x85 / 255, green: 0x99 / 255, blue: 0x00 / 255, alpha: 1)
 }
 
 #endif
