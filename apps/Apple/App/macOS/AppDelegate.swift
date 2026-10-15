@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var dashboardWindow: NSWindow?
     private var settingsWindow: NSWindow?
     private var templateEditorWindow: NSWindow?
+    private var composerWindow: NSWindow?
     private var iconHostingView: NSHostingView<MenuBarIcon>!
     private var eventMonitor: Any?
 
@@ -265,6 +266,37 @@ extension AppDelegate {
             )
         )
     }
+
+    /// Opens the composer for `entry`, replacing one that is open for another entry.
+    ///
+    /// The composer starts from the templates and the connected accounts as
+    /// they are now, so it is built anew rather than brought back.
+    func openComposer(for entry: MediaEntry) {
+        composerWindow?.close()
+        let model = PostComposerModel(
+            context: PostContext(entry: entry),
+            templates: templateStore.systemTemplates + templateStore.templates,
+            accounts: SocialAccount.all(in: socialAccountStore)
+        )
+        let rootView = PostComposerView(model: model)
+            .symbolRenderingMode(.hierarchical)
+
+        composerWindow = showWindow(
+            &composerWindow,
+            rootView: rootView,
+            config: WindowConfig(
+                size: PostComposerView.initialSize,
+                autosaveName: "PostComposerWindow",
+                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                bridgesToolbarAndTitle: true
+            )
+        )
+    }
+
+    /// Closes the composer, after posting or when the user cancels.
+    func closeComposer() {
+        composerWindow?.close()
+    }
 }
 
 // MARK: - Window Helpers
@@ -364,6 +396,7 @@ extension AppDelegate: NSWindowDelegate {
         if window === dashboardWindow { dashboardWindow = nil }
         if window === settingsWindow { settingsWindow = nil }
         if window === templateEditorWindow { templateEditorWindow = nil }
+        if window === composerWindow { composerWindow = nil }
         window.contentViewController = nil
     }
 }

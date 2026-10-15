@@ -26,6 +26,28 @@ enum MastodonAPI {
     static let website = "https://musiccloud.io"
     /// The limit Mastodon itself ships with, used when an instance does not report its own.
     static let defaultCharacterLimit = 500
+    /// The content type a server lists in `supported_mime_types` when it renders Markdown.
+    static let markdownContentType = "text/markdown"
+
+    /// Posts `text` as a public status.
+    ///
+    /// - Parameters:
+    ///   - markdown: Whether `text` is Markdown for a server that renders it.
+    ///     Upstream Mastodon has no `content_type` parameter, so it is only sent where the server asked for it.
+    ///   - idempotencyKey: Makes a retried request create the status only once.
+    static func postStatusRequest(instance: URL, token: String, text: String, markdown: Bool, idempotencyKey: String) -> URLRequest {
+        var request = URLRequest(url: instance.appending(path: "api/v1/statuses"))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(idempotencyKey, forHTTPHeaderField: "Idempotency-Key")
+        var body = ["status": text]
+        if markdown {
+            body["content_type"] = markdownContentType
+        }
+        request.httpBody = try? JSONEncoder().encode(body)
+        return request
+    }
 
     /// The instance a user means, from what they typed into the field.
     ///
@@ -156,8 +178,18 @@ struct MastodonInstanceDescription: Decodable {
     struct Configuration: Decodable {
         struct Statuses: Decodable {
             let maxCharacters: Int?
+            /// Listed by servers that accept other formats than plain text, such as glitch-soc.
+            let supportedMimeTypes: [String]?
         }
         let statuses: Statuses?
     }
     let configuration: Configuration?
+
+    /// The instance's limit, or Mastodon's default when it does not say.
+    var characterLimit: Int { configuration?.statuses?.maxCharacters ?? MastodonAPI.defaultCharacterLimit }
+
+    /// Whether the instance renders Markdown in posts.
+    var supportsMarkdown: Bool {
+        configuration?.statuses?.supportedMimeTypes?.contains(MastodonAPI.markdownContentType) ?? false
+    }
 }

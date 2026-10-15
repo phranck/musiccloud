@@ -130,6 +130,13 @@ final class BlueskyConnector {
         return try await refresh.value
     }
 
+    /// Posts `markdown` from `account` as plain text, with its links and hashtags as facets.
+    func post(_ markdown: String, from account: BlueskyAccount) async throws {
+        let request = BlueskyAPI.createPostRequest(pds: account.pds, did: account.did,
+                                                   post: PostFormatter.bluesky(fromMarkdown: markdown), createdAt: .now)
+        _ = try await sendAuthorized(request, for: account)
+    }
+
     /// Sends `request` to the account's PDS with its access token and a proof naming that token.
     func sendAuthorized(_ request: URLRequest, for account: BlueskyAccount) async throws -> (Data, HTTPURLResponse) {
         let current = try await validSession(for: account)

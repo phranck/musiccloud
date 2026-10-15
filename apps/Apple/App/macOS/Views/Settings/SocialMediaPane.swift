@@ -14,12 +14,12 @@ import SwiftUI
 struct SocialMediaPane: View {
     @Environment(SocialAccountStore.self) private var store
     @State private var serviceToConnect: SocialService?
-    @State private var accountToDisconnect: ConnectedAccount?
+    @State private var accountToDisconnect: SocialAccount?
 
     var body: some View {
         Form {
-            accountSection(.mastodon, accounts: store.mastodonAccounts.map(ConnectedAccount.mastodon))
-            accountSection(.bluesky, accounts: store.blueskyAccounts.map(ConnectedAccount.bluesky))
+            accountSection(.mastodon, accounts: store.mastodonAccounts.map(SocialAccount.mastodon))
+            accountSection(.bluesky, accounts: store.blueskyAccounts.map(SocialAccount.bluesky))
         }
         .formStyle(.grouped)
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -52,7 +52,7 @@ struct SocialMediaPane: View {
         }
     }
 
-    private func accountSection(_ service: SocialService, accounts: [ConnectedAccount]) -> some View {
+    private func accountSection(_ service: SocialService, accounts: [SocialAccount]) -> some View {
         Section {
             if accounts.isEmpty {
                 Text("No accounts connected.")
@@ -147,78 +147,17 @@ private enum SocialService: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - ConnectedAccount
-
-/// A connected account of either service, as one row shows it.
-private enum ConnectedAccount: Identifiable {
-    case mastodon(MastodonAccount)
-    case bluesky(BlueskyAccount)
-
-    var id: String {
-        switch self {
-        case .mastodon(let account): "mastodon:\(account.id)"
-        case .bluesky(let account):  "bluesky:\(account.id)"
-        }
-    }
-
-    var name: String {
-        switch self {
-        case .mastodon(let account): account.name
-        case .bluesky(let account):  account.name
-        }
-    }
-
-    var handle: String {
-        switch self {
-        case .mastodon(let account): account.handle
-        case .bluesky(let account):  account.displayHandle
-        }
-    }
-
-    var avatarURL: URL? {
-        switch self {
-        case .mastodon(let account): account.avatarURL
-        case .bluesky(let account):  account.avatarURL
-        }
-    }
-
-    @MainActor
-    func disconnect() async {
-        guard let delegate = AppDelegate.shared else { return }
-        switch self {
-        case .mastodon(let account): await delegate.mastodonConnector.disconnect(account)
-        case .bluesky(let account):  await delegate.blueskyConnector.disconnect(account)
-        }
-    }
-}
-
 // MARK: - ConnectedAccountRow
 
-/// One connected account: the avatar, the display name and the handle,
-/// with a button at the trailing edge that asks to disconnect it.
+/// One connected account with a button at the trailing edge that asks to disconnect it.
 private struct ConnectedAccountRow: View {
-    let account: ConnectedAccount
+    let account: SocialAccount
     /// Asks to disconnect the account; the pane confirms before it does.
     let onDisconnect: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
-            AsyncImage(url: account.avatarURL) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Image(systemName: "person.crop.circle.fill")
-                    .resizable()
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 32, height: 32)
-            .clipShape(.circle)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(account.name)
-                Text(account.handle)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            SocialAccountLabel(account: account)
 
             Spacer()
 
