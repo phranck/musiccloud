@@ -49,7 +49,11 @@ struct PostComposerView: View {
     private var composer: some View {
         Form {
             Section {
+                // Each account starts from its own default; one template
+                // chosen here fills every text from it instead.
                 Picker(String(localized: "Template"), selection: $model.templateID) {
+                    Text("Default of Each Account").tag(PostTemplate.ID?.none)
+                    Divider()
                     ForEach(model.templates) { template in
                         Text(template.name).tag(Optional(template.id))
                     }

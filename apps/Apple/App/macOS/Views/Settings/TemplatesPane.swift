@@ -12,6 +12,9 @@ import SwiftUI
 /// with the app and the user's own, with a fixed button below that opens
 /// the Template Editor window, where there is room to write them. A double
 /// click on a template opens the editor at that template.
+///
+/// Each row ends in a ``DefaultTemplateSeal`` that shows whether the
+/// template is an account's default and, as a menu, makes it one.
 struct TemplatesPane: View {
     @Environment(PostTemplateStore.self) private var store
 
@@ -20,8 +23,7 @@ struct TemplatesPane: View {
             if !store.systemTemplates.isEmpty {
                 Section {
                     ForEach(store.systemTemplates) { template in
-                        PostTemplateLabel(template: template, isSystem: true)
-                            .opensInTemplateEditor(template)
+                        row(template, isSystem: true)
                     }
                 } header: {
                     Text("System Templates")
@@ -36,8 +38,7 @@ struct TemplatesPane: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(store.templates) { template in
-                        PostTemplateLabel(template: template, isSystem: false)
-                            .opensInTemplateEditor(template)
+                        row(template, isSystem: false)
                     }
                 }
             } header: {
@@ -54,6 +55,15 @@ struct TemplatesPane: View {
             }
             .padding(20)
         }
+    }
+
+    private func row(_ template: PostTemplate, isSystem: Bool) -> some View {
+        HStack {
+            PostTemplateLabel(template: template, isSystem: isSystem)
+            Spacer()
+            DefaultTemplateSeal(template: template, isMenu: true)
+        }
+        .opensInTemplateEditor(template)
     }
 }
 
@@ -90,8 +100,13 @@ private extension View {
     var bluesky = store.templates[1]
     bluesky.icon = .bluesky
     store.update(bluesky)
+    let accounts = SocialAccountStore(directory: nil, keychain: nil)
+    accounts.add(MastodonAccount(instance: URL(string: "https://oldbytes.space")!, accountID: "1", username: "musiccloud",
+                                 displayName: "musiccloud", avatarURL: nil, characterLimit: 5000), token: "preview")
     return TemplatesPane()
         .environment(store)
+        .environment(accounts)
+        .environment(DefaultTemplates(defaults: UserDefaults(suiteName: "TemplatesPanePreview") ?? .standard))
         .frame(width: 400, height: 440)
 }
 

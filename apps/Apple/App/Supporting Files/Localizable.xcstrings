@@ -2558,6 +2558,145 @@
         }
       }
     },
+    "Default for %@" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Výchozí pro %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Standard für %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Predeterminada para %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Modèle par défaut pour %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Predefinito per %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Standaard voor %@"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "%@ için saptanmış"
+          }
+        }
+      }
+    },
+    "Default of Each Account" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Výchozí podle účtu"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Standard je Konto"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Predeterminada de cada cuenta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Modèle par défaut de chaque compte"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Predefinito di ogni account"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Standaard van elk account"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Hesaba Göre Saptanmış"
+          }
+        }
+      }
+    },
+    "Default Template" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Výchozí šablona"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Standard-Template"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Plantilla predeterminada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Modèle par défaut"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Modello predefinito"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Standaardsjabloon"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Saptanmış Şablon"
+          }
+        }
+      }
+    },
     "Delete All" : {
       "localizations" : {
         "cs" : {
@@ -3267,6 +3406,7 @@
       }
     },
     "Each account below says whether it takes part and with which template. A link that is already in the history is not posted again." : {
+      "extractionState" : "stale",
       "localizations" : {
         "cs" : {
           "stringUnit" : {
@@ -3308,6 +3448,52 @@
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "Aşağıdaki her hesap, paylaşıma katılıp katılmadığını ve hangi şablonu kullandığını belirtir. Geçmişte zaten bulunan bir bağlantı yeniden paylaşılmaz."
+          }
+        }
+      }
+    },
+    "Each account below says whether it takes part. It posts with its default template. A link that is already in the history is not posted again." : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Každý účet níže uvádí, zda se zapojuje. Publikuje svou výchozí šablonou. Odkaz, který je již v historii, se znovu nepublikuje."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Jedes Konto unten zeigt an, ob es teilnimmt. Es postet mit seinem Standard-Template. Ein Link, der bereits im Verlauf vorhanden ist, wird nicht erneut gepostet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Cada cuenta de abajo indica si participa. Publica con su plantilla predeterminada. Un enlace que ya está en el historial no se vuelve a publicar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chaque compte ci-dessous indique s’il participe. Il publie avec son modèle par défaut. Un lien déjà présent dans l’historique n’est pas publié à nouveau."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Ogni account qui sotto indica se partecipa. Pubblica con il suo modello predefinito. Un link già presente nella cronologia non viene pubblicato di nuovo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Elk account hieronder laat zien of het meedoet. Het post met zijn standaardsjabloon. Een link die al in de geschiedenis staat, wordt niet opnieuw gepost."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Aşağıdaki her hesap, paylaşıma katılıp katılmadığını belirtir. Saptanmış şablonuyla paylaşır. Geçmişte zaten bulunan bir bağlantı yeniden paylaşılmaz."
           }
         }
       }
@@ -9375,6 +9561,52 @@
     },
     "URL" : {
       "shouldTranslate" : false
+    },
+    "Use as Default for" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Použít jako výchozí pro"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Als Standard verwenden für"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Usar como predeterminada para"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Utiliser par défaut pour"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Usa come predefinito per"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Gebruik als standaard voor"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Saptanmış Olarak Kullan"
+          }
+        }
+      }
     },
     "Use as New Template" : {
       "comment" : "A button that copies a template into a new one.",

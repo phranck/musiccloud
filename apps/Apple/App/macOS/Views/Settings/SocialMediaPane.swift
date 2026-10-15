@@ -20,7 +20,7 @@ struct SocialMediaPane: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                SettingsCard(tint: nil, footer: String(localized: "Each account below says whether it takes part and with which template. A link that is already in the history is not posted again.")) {
+                SettingsCard(tint: nil, footer: String(localized: "Each account below says whether it takes part. It posts with its default template. A link that is already in the history is not posted again.")) {
                     // Label left and switch at the trailing edge, as in a Form row.
                     HStack {
                         Text("Post new conversions automatically")
@@ -145,14 +145,14 @@ extension SettingsCard where Header == EmptyView {
 
 /// One connected account with a button at the trailing edge that asks to
 /// disconnect it. While automatic posting is on, the row also says whether
-/// this account takes part and with which template.
+/// this account takes part; it posts with its default template, which the
+/// Templates pane sets.
 private struct ConnectedAccountRow: View {
     let account: SocialAccount
     /// Asks to disconnect the account; the pane confirms before it does.
     let onDisconnect: () -> Void
 
     @Environment(AutoPostSettings.self) private var autoPost
-    @Environment(PostTemplateStore.self) private var templates
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -173,15 +173,6 @@ private struct ConnectedAccountRow: View {
                 HStack {
                     Toggle(String(localized: "Post automatically"), isOn: autoPost.binding(\.isEnabled, for: account.id))
                     Spacer()
-                    Picker(String(localized: "Template"), selection: autoPost.binding(\.templateID, for: account.id)) {
-                        Text("None").tag(PostTemplate.ID?.none)
-                        ForEach(templates.allTemplates) { template in
-                            Text(template.name).tag(Optional(template.id))
-                        }
-                    }
-                    .labelsHidden()
-                    .fixedSize()
-                    .disabled(!autoPost.rule(for: account.id).isEnabled)
                 }
                 .controlSize(.small)
             }
@@ -264,7 +255,6 @@ private struct ConnectAccountSheet: View {
     return SocialMediaPane()
         .environment(store)
         .environment(AutoPostSettings(defaults: UserDefaults(suiteName: "SocialMediaPanePreview") ?? .standard))
-        .environment(PostTemplateStore(fileURL: nil))
         .frame(width: 520, height: 440)
 }
 

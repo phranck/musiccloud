@@ -11,11 +11,11 @@ import Observation
 /// The state of a post: which template, which accounts, the text for each
 /// account, and how posting went.
 ///
-/// Every account gets its own text, filled from the template, because the
-/// services count differently and a post often has to be shortened for one
-/// of them. Choosing another template fills every text again. The text is
-/// Markdown; each account converts it when it posts, and counts it as it
-/// will be sent.
+/// Every account gets its own text, because the services count differently
+/// and a post often has to be shortened for one of them. Each text starts
+/// from the account's default template; choosing one template fills every
+/// text from it instead. The text is Markdown; each account converts it
+/// when it posts, and counts it as it will be sent.
 ///
 /// The Mac's composer and the iOS Share Extension both post through it, so
 /// both count, check and send a post alike.
@@ -39,42 +39,45 @@ final class PostComposerModel {
     var drafts: [SocialAccount.ID: String] = [:]
     private(set) var states: [SocialAccount.ID: PostState] = [:]
 
-    /// The template the texts come from. Choosing one fills every text again.
+    /// The template every text comes from, or `nil` for each account's own
+    /// default. Choosing one fills every text again.
     var templateID: PostTemplate.ID? {
         didSet { fillDrafts() }
     }
 
+    /// The default template the user chose per account; see ``PostTemplate/defaultTemplate(for:chosenID:among:)``.
+    private let defaultTemplateIDs: [SocialAccount.ID: PostTemplate.ID]
+
+    /// Creates a post in which every account starts from its default template and is chosen.
+    ///
     /// - Parameters:
     ///   - context: The history entry's values for the template's variables.
-    ///   - templates: The templates to choose from, the first one chosen.
+    ///   - templates: The templates to choose from.
     ///   - accounts: The connected accounts, all of them chosen.
-    init(context: PostContext, templates: [PostTemplate], accounts: [SocialAccount]) {
+    ///   - defaultTemplateIDs: The default template the user chose per account; an account without one starts from its system template.
+    init(context: PostContext, templates: [PostTemplate], accounts: [SocialAccount],
+         defaultTemplateIDs: [SocialAccount.ID: PostTemplate.ID] = [:]) {
         self.context = context
         self.templates = templates
         self.accounts = accounts
+        self.defaultTemplateIDs = defaultTemplateIDs
         selectedAccountIDs = Set(accounts.map(\.id))
-        templateID = templates.first?.id
+        templateID = nil
         fillDrafts()
     }
 
-    /// Creates a post in which every account starts from its own template and none is chosen yet.
+    /// Creates a post in which every account starts from its default template and none is chosen yet.
     ///
-    /// The Share Extension offers no template choice: each account posts
-    /// with the template of its service, and the user picks the accounts.
+    /// The Share Extension offers no template choice and has no templates
+    /// of the user's own, so each account posts with the system template of
+    /// its service, and the user picks the accounts.
     ///
     /// - Parameters:
     ///   - context: The history entry's values for the template's variables.
     ///   - accounts: The connected accounts, none of them chosen.
-    ///   - template: The template each account's text is filled from; `nil` leaves it empty.
-    init(context: PostContext, accounts: [SocialAccount], template: (SocialAccount) -> PostTemplate?) {
-        self.context = context
-        templates = []
-        self.accounts = accounts
+    convenience init(context: PostContext, accounts: [SocialAccount]) {
+        self.init(context: context, templates: [], accounts: accounts)
         selectedAccountIDs = []
-        templateID = nil
-        for account in accounts {
-            drafts[account.id] = PostTemplateRenderer.render(template(account)?.body ?? "", with: context)
-        }
     }
 
     /// What the entry is called; see ``PostContext/title``.
@@ -143,11 +146,13 @@ final class PostComposerModel {
 }
 
 private extension PostComposerModel {
+    /// Fills every account's text from the chosen template, or from the
+    /// account's default while none is chosen.
     func fillDrafts() {
-        let body = templates.first { $0.id == templateID }?.body ?? ""
-        let rendered = PostTemplateRenderer.render(body, with: context)
+        let chosen = templates.first { $0.id == templateID }
         for account in accounts {
-            drafts[account.id] = rendered
+            let template = chosen ?? PostTemplate.defaultTemplate(for: account, chosenID: defaultTemplateIDs[account.id], among: templates)
+            drafts[account.id] = PostTemplateRenderer.render(template?.body ?? "", with: context)
         }
         states = [:]
     }

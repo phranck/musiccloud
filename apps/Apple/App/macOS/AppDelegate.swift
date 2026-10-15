@@ -49,8 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let socialAccountStore = SocialConnections.shared.store
     /// Whether and where new conversions are posted automatically, set in Settings.
     let autoPostSettings = AutoPostSettings()
-    private(set) lazy var autoPoster: AutoPoster = AutoPoster(settings: autoPostSettings, accountStore: socialAccountStore,
-                                                              templateStore: templateStore)
+    /// The template each account posts with, set in Settings and in the Template Editor.
+    let defaultTemplates = DefaultTemplates()
+    private(set) lazy var autoPoster: AutoPoster = AutoPoster(settings: autoPostSettings, defaultTemplates: defaultTemplates,
+                                                              accountStore: socialAccountStore, templateStore: templateStore)
 
     deinit {
         statusObservation?.cancel()
@@ -228,6 +230,7 @@ extension AppDelegate {
             .environment(templateStore)
             .environment(socialAccountStore)
             .environment(autoPostSettings)
+            .environment(defaultTemplates)
             .symbolRenderingMode(.hierarchical)
 
         // Per the HIG, a settings window has no minimize or zoom button: it
@@ -260,6 +263,7 @@ extension AppDelegate {
             .environment(\.modelContext, mainContext)
             .environment(templateStore)
             .environment(socialAccountStore)
+            .environment(defaultTemplates)
             .symbolRenderingMode(.hierarchical)
 
         templateEditorWindow = showWindow(
@@ -276,14 +280,16 @@ extension AppDelegate {
 
     /// Opens the composer for `entry`, replacing one that is open for another entry.
     ///
-    /// The composer starts from the templates and the connected accounts as
-    /// they are now, so it is built anew rather than brought back.
+    /// The composer starts from the templates, the connected accounts and
+    /// their default templates as they are now, so it is built anew rather
+    /// than brought back.
     func openComposer(for entry: MediaEntry) {
         composerWindow?.close()
         let model = PostComposerModel(
             context: PostContext(entry: entry),
             templates: templateStore.allTemplates,
-            accounts: SocialAccount.all(in: socialAccountStore)
+            accounts: SocialAccount.all(in: socialAccountStore),
+            defaultTemplateIDs: defaultTemplates.templateIDs
         )
         let rootView = PostComposerView(model: model)
             .symbolRenderingMode(.hierarchical)

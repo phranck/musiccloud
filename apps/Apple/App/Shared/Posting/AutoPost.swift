@@ -8,10 +8,85 @@ import Foundation
 import Observation
 import SwiftUI
 
+// MARK: - DefaultTemplates
+
+/// The template each connected account posts with by default, where the user
+/// chose one of their own.
+///
+/// An account without an entry posts with the system template of its
+/// service; ``PostTemplate/defaultTemplate(for:chosenID:among:)`` decides
+/// that, and ``template(for:among:)`` is the way the app asks it. The
+/// composer, automatic posting, the Settings rows and the Template Editor
+/// read the same entries, so a default set in one place shows in all of them.
+/// The entries are kept as JSON under ``DefaultsKey/defaultTemplates``.
+@MainActor
+@Observable
+final class DefaultTemplates {
+    /// The chosen template per account. An account missing here, or naming
+    /// a deleted template, falls back to its service's system template.
+    private(set) var templateIDs: [SocialAccount.ID: PostTemplate.ID]
+
+    @ObservationIgnored private let defaults: UserDefaults
+
+    /// Reads the stored defaults, or on the first launch with this version
+    /// takes over the templates the automatic posting rules named before,
+    /// so nobody loses a template they chose there.
+    ///
+    /// - Parameter defaults: Where the defaults are kept; tests pass their own suite.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        if let data = defaults.data(forKey: DefaultsKey.defaultTemplates) {
+            templateIDs = (try? JSONDecoder().decode([SocialAccount.ID: PostTemplate.ID].self, from: data)) ?? [:]
+        } else {
+            templateIDs = Self.legacyAutoPostTemplateIDs(in: defaults)
+            save()
+        }
+    }
+
+    /// The template `account` posts with by default, out of `templates`.
+    func template(for account: SocialAccount, among templates: [PostTemplate]) -> PostTemplate? {
+        PostTemplate.defaultTemplate(for: account, chosenID: templateIDs[account.id], among: templates)
+    }
+
+    /// The accounts out of `accounts` whose default is `template`, which
+    /// the Template Editor marks with a badge.
+    func accounts(using template: PostTemplate, of accounts: [SocialAccount], among templates: [PostTemplate]) -> [SocialAccount] {
+        accounts.filter { self.template(for: $0, among: templates)?.id == template.id }
+    }
+
+    /// Makes `id` the default of the account with `accountID`; `nil` returns it to its system template.
+    func setTemplateID(_ id: PostTemplate.ID?, for accountID: SocialAccount.ID) {
+        templateIDs[accountID] = id
+        save()
+    }
+
+    private func save() {
+        defaults.set(try? JSONEncoder().encode(templateIDs), forKey: DefaultsKey.defaultTemplates)
+    }
+
+    /// The shape automatic posting stored before the default template moved
+    /// here: each rule named its own template.
+    private struct LegacyAutoPost: Decodable {
+        struct Rule: Decodable {
+            var templateID: PostTemplate.ID?
+        }
+
+        var rules: [SocialAccount.ID: Rule]
+    }
+
+    /// The templates the old automatic posting rules in `defaults` chose, per account.
+    private static func legacyAutoPostTemplateIDs(in defaults: UserDefaults) -> [SocialAccount.ID: PostTemplate.ID] {
+        guard let data = defaults.data(forKey: DefaultsKey.autoPost),
+              let legacy = try? JSONDecoder().decode(LegacyAutoPost.self, from: data) else { return [:] }
+        return legacy.rules.compactMapValues(\.templateID)
+    }
+}
+
 // MARK: - AutoPostSettings
 
 /// Whether new conversions are posted automatically, and for each connected
-/// account whether it takes part and which template it posts with.
+/// account whether it takes part. An account that takes part posts with its
+/// default template from ``DefaultTemplates``.
 ///
 /// The settings are per account, because several accounts of one service
 /// can be connected. They are kept as JSON under ``DefaultsKey/autoPost``.
@@ -19,10 +94,12 @@ import SwiftUI
 @Observable
 final class AutoPostSettings {
     /// One account's part in automatic posting.
+    ///
+    /// Rules stored by an earlier version also name a template. Decoding
+    /// skips that field, and ``DefaultTemplates`` takes it over as the
+    /// account's default.
     struct AccountRule: Codable, Equatable, Sendable {
         var isEnabled = false
-        /// The template it posts with; `nil` or a deleted template means it does not post.
-        var templateID: PostTemplate.ID?
     }
 
     /// The master switch. Off, nothing is posted automatically, whatever the accounts say.
@@ -91,7 +168,7 @@ extension AutoPostSettings {
 struct AutoPostPlan: Equatable {
     /// Why an account that takes part does not post this entry.
     enum Skip: Equatable {
-        /// Its template is gone.
+        /// The account has no default template, which only a service without a system template can lack.
         case missingTemplate
         /// The text is longer than the account allows.
         case tooLong(length: Int, limit: Int)
@@ -107,20 +184,20 @@ struct AutoPostPlan: Equatable {
             && lhs.skipped.map(\.account) == rhs.skipped.map(\.account) && lhs.skipped.map(\.reason) == rhs.skipped.map(\.reason)
     }
 
-    /// The plan for an entry with `context`.
+    /// The plan for an entry with `context`, each account writing with its
+    /// default template from `defaultTemplates`.
     ///
     /// Nothing is planned while the master switch is off. An account that is
     /// switched off is neither posted to nor reported as skipped, because the
     /// user did not ask for it.
     @MainActor
     static func make(context: PostContext, accounts: [SocialAccount], templates: [PostTemplate],
-                     settings: AutoPostSettings) -> AutoPostPlan {
+                     settings: AutoPostSettings, defaultTemplates: DefaultTemplates) -> AutoPostPlan {
         var plan = AutoPostPlan()
         guard settings.isEnabled else { return plan }
         for account in accounts {
-            let rule = settings.rule(for: account.id)
-            guard rule.isEnabled else { continue }
-            guard let template = templates.first(where: { $0.id == rule.templateID }) else {
+            guard settings.rule(for: account.id).isEnabled else { continue }
+            guard let template = defaultTemplates.template(for: account, among: templates) else {
                 plan.skipped.append((account, .missingTemplate))
                 continue
             }

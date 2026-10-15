@@ -13,10 +13,11 @@ import SwiftUI
 ///
 /// With several accounts none is checked at first, so nothing is posted
 /// without a tap. A single account needs no choice and is checked from the
-/// start, unless its text does not fit. Each account posts with the system
-/// template of its service, written and sent through ``PostComposerModel`` as
-/// the Mac's composer does, and reports its result in its own row. Without
-/// connected accounts the screen offers no posting at all.
+/// start, unless its text does not fit. Each account posts with its default
+/// template, which on iOS is the system template of its service, written and
+/// sent through ``PostComposerModel`` as the Mac's composer does, and reports
+/// its result in its own row. Without connected accounts the screen offers no
+/// posting at all.
 struct ShareResultView: View {
     let entry: MediaEntry
     /// Closes the extension.
@@ -31,8 +32,7 @@ struct ShareResultView: View {
     init(entry: MediaEntry, accounts: [SocialAccount], onDone: @escaping () -> Void) {
         self.entry = entry
         self.onDone = onDone
-        let model = PostComposerModel(context: PostContext(entry: entry), accounts: accounts,
-                                      template: PostTemplate.systemTemplate(for:))
+        let model = PostComposerModel(context: PostContext(entry: entry), accounts: accounts)
         if let only = accounts.first, accounts.count == 1, !model.isOutOfBounds(only) {
             model.selectedAccountIDs = [only.id]
         }
