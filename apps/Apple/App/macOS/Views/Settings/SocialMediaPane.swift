@@ -29,8 +29,8 @@ struct SocialMediaPane: View {
                             .labelsHidden()
                     }
                 }
-                accountSection(.mastodon, accounts: store.mastodonAccounts.map(SocialAccount.mastodon))
-                accountSection(.bluesky, accounts: store.blueskyAccounts.map(SocialAccount.bluesky))
+                accountSection(.mastodon)
+                accountSection(.bluesky)
             }
             .padding(20)
             // Outside a Form a toggle is a checkbox; the other panes show switches.
@@ -55,8 +55,9 @@ struct SocialMediaPane: View {
 
     /// One service as a card tinted in its brand color: its name and an Add
     /// Account button in the header, then the connected accounts.
-    private func accountSection(_ service: SocialService, accounts: [SocialAccount]) -> some View {
-        SettingsCard(tint: service.brandColor, footer: service.footer) {
+    private func accountSection(_ service: SocialService) -> some View {
+        let accounts = service.accounts(in: store)
+        return SettingsCard(tint: service.brandColor, footer: service.footer) {
             if accounts.isEmpty {
                 Text("No accounts connected.")
                     .foregroundStyle(.secondary)
@@ -140,93 +141,6 @@ extension SettingsCard where Header == EmptyView {
     }
 }
 
-private extension SocialService {
-    /// The service's brand color, the one its logo is drawn in; see ``PostTemplateIcon/brandColor``.
-    var brandColor: Color {
-        icon.brandColor ?? .secondary
-    }
-}
-
-// MARK: - SocialService
-
-/// The services an account can be connected for, with the wording each needs.
-private enum SocialService: String, CaseIterable, Identifiable {
-    case mastodon
-    case bluesky
-
-    var id: String { rawValue }
-
-    /// The service's name, which is a brand and stays untranslated.
-    var name: String {
-        switch self {
-        case .mastodon: "Mastodon"
-        case .bluesky:  "Bluesky"
-        }
-    }
-
-    var icon: PostTemplateIcon {
-        switch self {
-        case .mastodon: .mastodon
-        case .bluesky:  .bluesky
-        }
-    }
-
-    var sheetTitle: String {
-        switch self {
-        case .mastodon: String(localized: "Connect Mastodon Account")
-        case .bluesky:  String(localized: "Connect Bluesky Account")
-        }
-    }
-
-    var sheetExplanation: String {
-        switch self {
-        case .mastodon: String(localized: "Enter the server your account is on. You sign in on its own page.")
-        case .bluesky:  String(localized: "Enter your Bluesky name. A handle on a domain of your own, such as musiccloud.io, works as well.")
-        }
-    }
-
-    var fieldLabel: String {
-        switch self {
-        case .mastodon: String(localized: "Server")
-        case .bluesky:  String(localized: "Handle")
-        }
-    }
-
-    /// An example input, which is an address and stays untranslated.
-    var placeholder: String {
-        switch self {
-        case .mastodon: "mastodon.social"
-        case .bluesky:  "name"
-        }
-    }
-
-    /// The end of the handle shown beside the field while the input has no
-    /// domain of its own, which ``BlueskyAPI/handle(from:)`` then adds.
-    func fixedSuffix(for input: String) -> String? {
-        switch self {
-        case .mastodon: nil
-        case .bluesky:  input.contains(".") ? nil : "." + BlueskyAPI.defaultHandleDomain
-        }
-    }
-
-    var footer: String {
-        switch self {
-        case .mastodon: String(localized: "musiccloud can post to these accounts. Your password stays with your server.")
-        case .bluesky:  String(localized: "musiccloud can post to these accounts. Your password stays with Bluesky.")
-        }
-    }
-
-    /// Signs in the account `input` names on this service.
-    @MainActor
-    func connect(_ input: String) async throws {
-        guard let delegate = AppDelegate.shared else { return }
-        switch self {
-        case .mastodon: try await delegate.mastodonConnector.connect(instanceInput: input)
-        case .bluesky:  try await delegate.blueskyConnector.connect(handleInput: input)
-        }
-    }
-}
-
 // MARK: - ConnectedAccountRow
 
 /// One connected account with a button at the trailing edge that asks to
@@ -257,11 +171,11 @@ private struct ConnectedAccountRow: View {
 
             if autoPost.isEnabled {
                 HStack {
-                    Toggle(String(localized: "Post automatically"), isOn: rule(\.isEnabled))
+                    Toggle(String(localized: "Post automatically"), isOn: autoPost.binding(\.isEnabled, for: account.id))
                     Spacer()
-                    Picker(String(localized: "Template"), selection: rule(\.templateID)) {
+                    Picker(String(localized: "Template"), selection: autoPost.binding(\.templateID, for: account.id)) {
                         Text("None").tag(PostTemplate.ID?.none)
-                        ForEach(templates.systemTemplates + templates.templates) { template in
+                        ForEach(templates.allTemplates) { template in
                             Text(template.name).tag(Optional(template.id))
                         }
                     }
@@ -273,17 +187,6 @@ private struct ConnectedAccountRow: View {
             }
         }
     }
-
-    /// A binding to one field of this account's automatic posting rule.
-    private func rule<Value>(_ field: WritableKeyPath<AutoPostSettings.AccountRule, Value>) -> Binding<Value> {
-        Binding {
-            autoPost.rule(for: account.id)[keyPath: field]
-        } set: { value in
-            var rule = autoPost.rule(for: account.id)
-            rule[keyPath: field] = value
-            autoPost.setRule(rule, for: account.id)
-        }
-    }
 }
 
 // MARK: - ConnectAccountSheet
@@ -292,45 +195,44 @@ private struct ConnectedAccountRow: View {
 /// stays open while the browser sheet is up and closes once the account
 /// is connected; a failure is shown below the field.
 private struct ConnectAccountSheet: View {
-    let service: SocialService
     @Environment(\.dismiss) private var dismiss
-    @State private var input = ""
-    @State private var isWorking = false
-    @State private var errorMessage: String?
+    @State private var model: ConnectAccountModel
+
+    init(service: SocialService) {
+        _model = State(initialValue: ConnectAccountModel(service: service))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(service.sheetTitle)
+            Text(model.service.sheetTitle)
                 .font(.headline)
-            Text(service.sheetExplanation)
+            Text(model.service.sheetExplanation)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 6) {
                 // A Bluesky handle is written with an `@`, so the field shows it rather than asking for it.
-                if service == .bluesky {
+                if model.service == .bluesky {
                     Text(verbatim: "@")
                         .foregroundStyle(.secondary)
                 }
-                TextField(service.fieldLabel, text: $input, prompt: Text(verbatim: service.placeholder))
+                TextField(model.service.fieldLabel, text: $model.input, prompt: Text(verbatim: model.service.placeholder))
                     .textFieldStyle(.roundedBorder)
-                    .disabled(isWorking)
+                    .disabled(model.isWorking)
                     .onSubmit(connect)
-                    // A message belongs to the input it was about.
-                    .onChange(of: input) { errorMessage = nil }
-                if let suffix = service.fixedSuffix(for: input) {
+                if let suffix = model.fixedSuffix {
                     Text(verbatim: suffix)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            if let errorMessage {
+            if let errorMessage = model.errorMessage {
                 Text(errorMessage)
                     .font(.callout)
                     .foregroundStyle(.red)
             }
 
             HStack {
-                if isWorking {
+                if model.isWorking {
                     ProgressView()
                         .controlSize(.small)
                 }
@@ -339,7 +241,7 @@ private struct ConnectAccountSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Button(String(localized: "Connect"), action: connect)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(isWorking || input.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(!model.canConnect)
             }
         }
         .padding(20)
@@ -347,18 +249,9 @@ private struct ConnectAccountSheet: View {
     }
 
     private func connect() {
-        guard !isWorking else { return }
-        isWorking = true
-        errorMessage = nil
         Task {
-            defer { isWorking = false }
-            do {
-                try await service.connect(input)
+            if await model.connect() {
                 dismiss()
-            } catch is CancellationError {
-                // The user closed the browser sheet; the field stays as it was.
-            } catch {
-                errorMessage = error.localizedDescription
             }
         }
     }

@@ -31,7 +31,7 @@ final class AutoPoster {
     func post(_ entry: MediaEntry) async {
         let context = PostContext(entry: entry)
         let plan = AutoPostPlan.make(context: context, accounts: SocialAccount.all(in: accountStore),
-                                     templates: templateStore.systemTemplates + templateStore.templates, settings: settings)
+                                     templates: templateStore.allTemplates, settings: settings)
         guard !plan.posts.isEmpty || !plan.skipped.isEmpty else { return }
 
         var posted: [SocialAccount] = []

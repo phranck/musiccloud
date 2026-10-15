@@ -1,15 +1,20 @@
 #if os(iOS)
 import SwiftData
+import SwiftUI
 import UIKit
 
 // MARK: - ShareViewController
 
 /// Receives URLs from the iOS Share Sheet, resolves them to musiccloud.io short links,
 /// saves to SwiftData (CloudKit synced), and copies the result to the clipboard.
+///
+/// After a conversion it stays open with ``ShareResultView``, which offers to
+/// post the link to the connected accounts; Done closes it.
 final class ShareViewController: UIViewController {
     private var spinner: UIActivityIndicatorView!
     private var statusLabel: UILabel!
     private var iconView: UIImageView!
+    private var statusStack: UIStackView!
     /// Kept alive so CloudKit has time to sync after saving.
     private var syncContainer: ModelContainer?
 
@@ -31,6 +36,7 @@ private extension ShareViewController {
         stack.alignment = .center
         stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
+        statusStack = stack
 
         iconView = UIImageView()
         iconView.contentMode = .scaleAspectFit
@@ -61,19 +67,19 @@ private extension ShareViewController {
         ])
     }
 
-    func showSuccess() {
-        spinner.stopAnimating()
-        spinner.isHidden = true
-        iconView.image = UIImage(systemName: "checkmark.circle.fill")
-        iconView.tintColor = .systemGreen
-        iconView.isHidden = false
-        statusLabel.text = String(localized: "Copied to clipboard!")
-        statusLabel.textColor = .label
-
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(5))
+    /// Replaces the progress with the result screen, which stays until the user closes it.
+    func showResult(for entry: MediaEntry) {
+        statusStack.isHidden = true
+        let accounts = SocialAccount.all(in: SocialConnections.shared.store)
+        let result = ShareResultView(entry: entry, accounts: accounts) { [weak self] in
             self?.complete()
         }
+        let host = UIHostingController(rootView: result)
+        addChild(host)
+        host.view.frame = view.bounds
+        host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(host.view)
+        host.didMove(toParent: self)
     }
 
     func showError(_ message: String) {
@@ -146,11 +152,12 @@ private extension ShareViewController {
                 // The extension has no local network access, so it always
                 // converts against production, also in a debug build.
                 let conversion = try await MusicCloudAPI.convert(url: urlString, baseURL: MusicCloudAPI.productionURL)
-                try saveToSwiftData(conversion.makeEntry(originalUrl: urlString))
+                let entry = conversion.makeEntry(originalUrl: urlString)
+                try saveToSwiftData(entry)
 
                 Pasteboard.copy(conversion.response.shortUrl)
                 HapticFeedback.success()
-                showSuccess()
+                showResult(for: entry)
             } catch {
                 showError(ResolveError(error).errorDescription ?? error.localizedDescription)
             }

@@ -29,15 +29,47 @@ final class SocialAccountStore {
     @ObservationIgnored private let keychain: KeychainItems?
     @ObservationIgnored private var secretsInMemory: [String: Data] = [:]
 
+    #if os(iOS)
     /// The Keychain items of the app's social media accounts.
+    ///
+    /// On iOS they belong to the app group, so the Share Extension reads the
+    /// same tokens and sessions. An app group is a valid access group there
+    /// without a Keychain Sharing entitlement.
+    nonisolated static let defaultKeychain = KeychainItems(service: "io.musiccloud.social-accounts",
+                                                           accessGroup: SharedStoreConfiguration.appGroupIdentifier)
+    #else
+    /// The Keychain items of the app's social media accounts.
+    ///
+    /// On the Mac they stay in the app's own access group, where the
+    /// accounts connected so far are kept.
     nonisolated static let defaultKeychain = KeychainItems(service: "io.musiccloud.social-accounts", accessGroup: nil)
+    #endif
+
+    /// The folder of the account files.
+    ///
+    /// On iOS it is `Library/Application Support/musiccloud` in the app group
+    /// container, created on demand, so the Share Extension reads the same
+    /// accounts. On the Mac it is `Application Support/musiccloud`, where the
+    /// accounts connected so far are kept. `nil` when the folder cannot be found.
+    nonisolated static func defaultDirectory() -> URL? {
+        #if os(iOS)
+        let fileManager = FileManager.default
+        guard let container = fileManager.containerURL(
+            forSecurityApplicationGroupIdentifier: SharedStoreConfiguration.appGroupIdentifier) else { return nil }
+        let directory = container.appending(path: "Library/Application Support/musiccloud", directoryHint: .isDirectory)
+        try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+        #else
+        return .applicationSupportFolder()
+        #endif
+    }
 
     /// Creates a store reading and writing its files in `directory`, or keeping accounts in memory when it is `nil`.
     ///
     /// - Parameters:
     ///   - directory: The folder of `social-accounts.json` (Mastodon) and `bluesky-accounts.json`.
     ///   - keychain: Where tokens and sessions are kept, or `nil` to keep them in memory.
-    init(directory: URL? = .applicationSupportFolder(),
+    init(directory: URL? = SocialAccountStore.defaultDirectory(),
          keychain: KeychainItems? = SocialAccountStore.defaultKeychain) {
         mastodonFile = directory.map { JSONFile(url: $0.appending(path: "social-accounts.json"), label: "Mastodon accounts") }
         blueskyFile = directory.map { JSONFile(url: $0.appending(path: "bluesky-accounts.json"), label: "Bluesky accounts") }

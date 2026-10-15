@@ -29,26 +29,10 @@ private struct GridCardArtwork: View {
         Color.clear
             .overlay {
                 CachedAsyncImage(entry: entry) {
-                    ArtworkPlaceholder(icon: entry.contentType.placeholderIcon)
+                    ArtworkPlaceholder(icon: entry.contentType.placeholderIcon, symbolFont: .system(size: 40))
                 }
             }
             .clipped()
-    }
-}
-
-// MARK: - ArtworkPlaceholder
-
-private struct ArtworkPlaceholder: View {
-    let icon: String
-
-    var body: some View {
-        Rectangle()
-            .fill(.quaternary)
-            .overlay {
-                Image(systemName: icon)
-                    .font(.system(size: 40))
-                    .foregroundStyle(.tertiary)
-            }
     }
 }
 

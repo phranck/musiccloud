@@ -1,4 +1,3 @@
-#if os(macOS)
 //
 //  PostComposerModel.swift
 //  musiccloud
@@ -9,14 +8,17 @@ import Observation
 
 // MARK: - PostComposerModel
 
-/// The state of the post composer: which template, which accounts, the text
-/// for each account, and how posting went.
+/// The state of a post: which template, which accounts, the text for each
+/// account, and how posting went.
 ///
 /// Every account gets its own text, filled from the template, because the
 /// services count differently and a post often has to be shortened for one
 /// of them. Choosing another template fills every text again. The text is
 /// Markdown; each account converts it when it posts, and counts it as it
 /// will be sent.
+///
+/// The Mac's composer and the iOS Share Extension both post through it, so
+/// both count, check and send a post alike.
 @MainActor
 @Observable
 final class PostComposerModel {
@@ -53,6 +55,26 @@ final class PostComposerModel {
         selectedAccountIDs = Set(accounts.map(\.id))
         templateID = templates.first?.id
         fillDrafts()
+    }
+
+    /// Creates a post in which every account starts from its own template and none is chosen yet.
+    ///
+    /// The Share Extension offers no template choice: each account posts
+    /// with the template of its service, and the user picks the accounts.
+    ///
+    /// - Parameters:
+    ///   - context: The history entry's values for the template's variables.
+    ///   - accounts: The connected accounts, none of them chosen.
+    ///   - template: The template each account's text is filled from; `nil` leaves it empty.
+    init(context: PostContext, accounts: [SocialAccount], template: (SocialAccount) -> PostTemplate?) {
+        self.context = context
+        templates = []
+        self.accounts = accounts
+        selectedAccountIDs = []
+        templateID = nil
+        for account in accounts {
+            drafts[account.id] = PostTemplateRenderer.render(template(account)?.body ?? "", with: context)
+        }
     }
 
     /// What the entry is called; see ``PostContext/title``.
@@ -130,5 +152,3 @@ private extension PostComposerModel {
         states = [:]
     }
 }
-
-#endif

@@ -19,6 +19,16 @@ final class WebSignIn: NSObject {
     /// Kept alive while the sheet is open; the system releases it otherwise.
     private var session: ASWebAuthenticationSession?
 
+    #if os(iOS)
+    /// The window scenes the sheet can appear in.
+    ///
+    /// The iOS app sets it at launch from `UIApplication.shared`. The Share
+    /// Extension compiles this file as well, for the connectors it posts
+    /// with, and may not use `UIApplication.shared`; it never signs in, so
+    /// it keeps the empty default.
+    static var windowScenes: () -> [UIWindowScene] = { [] }
+    #endif
+
     /// Opens `url` and returns the URL the service redirected to.
     ///
     /// - Parameters:
@@ -55,7 +65,7 @@ final class WebSignIn: NSObject {
     /// The scene the sheet appears in: the one in the foreground and active,
     /// or else any window scene the app has.
     private static var presentationScene: UIWindowScene? {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scenes = windowScenes()
         return scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
     }
     #endif

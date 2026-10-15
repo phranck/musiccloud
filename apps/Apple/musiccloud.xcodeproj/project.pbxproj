@@ -155,8 +155,6 @@
 		FDB800873080EA1C00AC2DA7 /* PostComposerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800853080EA1C00AC2DA7 /* PostComposerModel.swift */; };
 		FDB8008A3080EA2E00AC2DA7 /* PostComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800893080EA2E00AC2DA7 /* PostComposerView.swift */; };
 		FDB8008C3080EB0D00AC2DA7 /* PostFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8008B3080EB0D00AC2DA7 /* PostFormatterTests.swift */; };
-		FDB8008E3080F0A700AC2DA7 /* AutoPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8008D3080F0A700AC2DA7 /* AutoPost.swift */; };
-		FDB8008F3080F0A700AC2DA7 /* AutoPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8008D3080F0A700AC2DA7 /* AutoPost.swift */; };
 		FDB800913080F0D100AC2DA7 /* AutoPoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800903080F0D100AC2DA7 /* AutoPoster.swift */; };
 		FDB800933080F19900AC2DA7 /* AutoPostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800923080F19900AC2DA7 /* AutoPostTests.swift */; };
 		FDB800953080FCDF00AC2DA7 /* ArtistHashtagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800943080FCDF00AC2DA7 /* ArtistHashtagTests.swift */; };
@@ -166,6 +164,35 @@
 		FDB8009C3081068000AC2DA7 /* TemplatePostLimitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8009B3081068000AC2DA7 /* TemplatePostLimitTests.swift */; };
 		FDB8009E3081265400AC2DA7 /* OpenGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8009D3081265400AC2DA7 /* OpenGraph.swift */; };
 		FDB800A03081276400AC2DA7 /* LinkCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8009F3081276400AC2DA7 /* LinkCardTests.swift */; };
+		FDB800A230814E1000AC2DA7 /* SocialService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800A130814E1000AC2DA7 /* SocialService.swift */; };
+		FDB800A430814E1D00AC2DA7 /* SocialConnections.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800A330814E1D00AC2DA7 /* SocialConnections.swift */; };
+		FDB800A630814E2700AC2DA7 /* ConnectAccountModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800A530814E2700AC2DA7 /* ConnectAccountModel.swift */; };
+		FDB800A830814E7C00AC2DA7 /* SocialMediaSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800A730814E7C00AC2DA7 /* SocialMediaSettingsView.swift */; };
+		FDB800AA30814E9B00AC2DA7 /* ConnectAccountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800A930814E9B00AC2DA7 /* ConnectAccountTests.swift */; };
+		FDB800AF3081516C00AC2DA7 /* AutoPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800AE3081516C00AC2DA7 /* AutoPost.swift */; };
+		FDB800B13081575F00AC2DA7 /* ShareResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800B03081575F00AC2DA7 /* ShareResultView.swift */; };
+		FDB800B230815AED00AC2DA7 /* WebSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800693080398400AC2DA7 /* WebSignIn.swift */; };
+		FDB800B330815AED00AC2DA7 /* OpenGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8009D3081265400AC2DA7 /* OpenGraph.swift */; };
+		FDB800B430815AED00AC2DA7 /* MastodonAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8005630802EBE00AC2DA7 /* MastodonAPI.swift */; };
+		FDB800B530815AED00AC2DA7 /* BlueskyConnector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8007330803A9200AC2DA7 /* BlueskyConnector.swift */; };
+		FDB800B630815AED00AC2DA7 /* SocialConnections.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800A330814E1D00AC2DA7 /* SocialConnections.swift */; };
+		FDB800B730815AED00AC2DA7 /* SocialService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800A130814E1000AC2DA7 /* SocialService.swift */; };
+		FDB800B830815AED00AC2DA7 /* SocialServiceError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8006B3080399000AC2DA7 /* SocialServiceError.swift */; };
+		FDB800B930815AED00AC2DA7 /* MastodonConnector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8005F30802F0800AC2DA7 /* MastodonConnector.swift */; };
+		FDB800BA30815AED00AC2DA7 /* OAuthSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800673080395B00AC2DA7 /* OAuthSupport.swift */; };
+		FDB800BB30815AED00AC2DA7 /* DPoPKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8006D30803A2000AC2DA7 /* DPoPKey.swift */; };
+		FDB800BC30815AED00AC2DA7 /* SocialAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800813080E9A300AC2DA7 /* SocialAccount.swift */; };
+		FDB800BD30815AED00AC2DA7 /* SocialAccountStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8005C30802EDC00AC2DA7 /* SocialAccountStore.swift */; };
+		FDB800BE30815AED00AC2DA7 /* BlueskyAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8006F30803A4400AC2DA7 /* BlueskyAPI.swift */; };
+		FDB800BF30815AED00AC2DA7 /* ConnectAccountModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800A530814E2700AC2DA7 /* ConnectAccountModel.swift */; };
+		FDB800C030815AED00AC2DA7 /* MastodonAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8005930802EC900AC2DA7 /* MastodonAccount.swift */; };
+		FDB800C130815AED00AC2DA7 /* BlueskyAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8007130803A4900AC2DA7 /* BlueskyAccount.swift */; };
+		FDB800C230815B0B00AC2DA7 /* MediaArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD97C3852F80949C00E8D788 /* MediaArtwork.swift */; };
+		FDB800C330815B1D00AC2DA7 /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000061 /* CachedAsyncImage.swift */; };
+		FDB800C430815B2F00AC2DA7 /* SocialAccountLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800833080E9D500AC2DA7 /* SocialAccountLabel.swift */; };
+		FDB800C53081609600AC2DA7 /* RainbowPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */; };
+		FDB800C63081609600AC2DA7 /* LogoText.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E302F806452005D779F /* LogoText.swift */; };
+		FDB800C7308160A900AC2DA7 /* Nasalization Rg.otf in Resources */ = {isa = PBXBuildFile; fileRef = FDDC7E2E2F80622F005D779F /* Nasalization Rg.otf */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -364,7 +391,6 @@
 		FDB800853080EA1C00AC2DA7 /* PostComposerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostComposerModel.swift; sourceTree = "<group>"; };
 		FDB800893080EA2E00AC2DA7 /* PostComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostComposerView.swift; sourceTree = "<group>"; };
 		FDB8008B3080EB0D00AC2DA7 /* PostFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostFormatterTests.swift; sourceTree = "<group>"; };
-		FDB8008D3080F0A700AC2DA7 /* AutoPost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPost.swift; sourceTree = "<group>"; };
 		FDB800903080F0D100AC2DA7 /* AutoPoster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPoster.swift; sourceTree = "<group>"; };
 		FDB800923080F19900AC2DA7 /* AutoPostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPostTests.swift; sourceTree = "<group>"; };
 		FDB800943080FCDF00AC2DA7 /* ArtistHashtagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistHashtagTests.swift; sourceTree = "<group>"; };
@@ -373,6 +399,13 @@
 		FDB8009B3081068000AC2DA7 /* TemplatePostLimitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplatePostLimitTests.swift; sourceTree = "<group>"; };
 		FDB8009D3081265400AC2DA7 /* OpenGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenGraph.swift; sourceTree = "<group>"; };
 		FDB8009F3081276400AC2DA7 /* LinkCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkCardTests.swift; sourceTree = "<group>"; };
+		FDB800A130814E1000AC2DA7 /* SocialService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialService.swift; sourceTree = "<group>"; };
+		FDB800A330814E1D00AC2DA7 /* SocialConnections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialConnections.swift; sourceTree = "<group>"; };
+		FDB800A530814E2700AC2DA7 /* ConnectAccountModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectAccountModel.swift; sourceTree = "<group>"; };
+		FDB800A730814E7C00AC2DA7 /* SocialMediaSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialMediaSettingsView.swift; sourceTree = "<group>"; };
+		FDB800A930814E9B00AC2DA7 /* ConnectAccountTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectAccountTests.swift; sourceTree = "<group>"; };
+		FDB800AE3081516C00AC2DA7 /* AutoPost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPost.swift; sourceTree = "<group>"; };
+		FDB800B03081575F00AC2DA7 /* ShareResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareResultView.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -540,6 +573,7 @@
 				FF00000000000013 /* DangerZoneSection.swift */,
 				FF00000000000016 /* EntryActionsModifier.swift */,
 				DC0000000000003F0 /* ConversionFilterModifier.swift */,
+				FDB800833080E9D500AC2DA7 /* SocialAccountLabel.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -622,7 +656,6 @@
 			isa = PBXGroup;
 			children = (
 				FD70F1B3AEE2E43BDEE0DC9D /* PanelSection.swift */,
-				FDB800833080E9D500AC2DA7 /* SocialAccountLabel.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -708,6 +741,7 @@
 			isa = PBXGroup;
 			children = (
 				DD00000000000014 /* iOSSettingsView.swift */,
+				FDB800A730814E7C00AC2DA7 /* SocialMediaSettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -777,6 +811,7 @@
 				CC00000000000001 /* ShareViewController.swift */,
 				CC00000000000002 /* Info.plist */,
 				CC00000000000003 /* ShareExtension.entitlements */,
+				FDB800B03081575F00AC2DA7 /* ShareResultView.swift */,
 			);
 			path = ShareExtension;
 			sourceTree = "<group>";
@@ -850,8 +885,8 @@
 				FDB8007B3080E90700AC2DA7 /* MarkdownSyntax.swift */,
 				FDB8007E3080E92D00AC2DA7 /* PostFormatter.swift */,
 				FDB800853080EA1C00AC2DA7 /* PostComposerModel.swift */,
-				FDB8008D3080F0A700AC2DA7 /* AutoPost.swift */,
 				FDB800963080FE5E00AC2DA7 /* MarkdownShortcut.swift */,
+				FDB800AE3081516C00AC2DA7 /* AutoPost.swift */,
 			);
 			path = Posting;
 			sourceTree = "<group>";
@@ -900,6 +935,9 @@
 				FDB8007330803A9200AC2DA7 /* BlueskyConnector.swift */,
 				FDB800813080E9A300AC2DA7 /* SocialAccount.swift */,
 				FDB8009D3081265400AC2DA7 /* OpenGraph.swift */,
+				FDB800A130814E1000AC2DA7 /* SocialService.swift */,
+				FDB800A330814E1D00AC2DA7 /* SocialConnections.swift */,
+				FDB800A530814E2700AC2DA7 /* ConnectAccountModel.swift */,
 			);
 			path = Social;
 			sourceTree = "<group>";
@@ -910,6 +948,7 @@
 				FDB8006530802F7B00AC2DA7 /* MastodonTests.swift */,
 				FDB80079308042C200AC2DA7 /* BlueskyTests.swift */,
 				FDB8009F3081276400AC2DA7 /* LinkCardTests.swift */,
+				FDB800A930814E9B00AC2DA7 /* ConnectAccountTests.swift */,
 			);
 			path = Social;
 			sourceTree = "<group>";
@@ -1065,6 +1104,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FDB800C7308160A900AC2DA7 /* Nasalization Rg.otf in Resources */,
 				DC000000000000000000A001 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1123,6 +1163,7 @@
 			files = (
 				FD0C899C2F81B50F00AE61FB /* AppDelegate.swift in Sources */,
 				FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */,
+				FDB800A230814E1000AC2DA7 /* SocialService.swift in Sources */,
 				FDD5162B2F817F960043E187 /* ResolveResponse.swift in Sources */,
 				B67BEA72FC7A47A3C1F1DFCF /* App.swift in Sources */,
 				FDB8006E30803A2000AC2DA7 /* DPoPKey.swift in Sources */,
@@ -1150,7 +1191,6 @@
 				FDDC7E2D2F805F1A005D779F /* QuitItem.swift in Sources */,
 				FDA7B3022F84200100000001 /* SettingsItem.swift in Sources */,
 				FDB800983080FE5E00AC2DA7 /* MarkdownShortcut.swift in Sources */,
-				FDB8008F3080F0A700AC2DA7 /* AutoPost.swift in Sources */,
 				FD97C37E2F80943A00E8D788 /* MediaItem.swift in Sources */,
 				FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */,
 				FD0C899A2F81B1FD00AE61FB /* RainbowPalette.swift in Sources */,
@@ -1180,6 +1220,7 @@
 				FDB80008307F9E7800AC2DA7 /* NotificationsPane.swift in Sources */,
 				AA00000000000060 /* CachedAsyncImage.swift in Sources */,
 				FD97C3862F80949C00E8D788 /* MediaArtwork.swift in Sources */,
+				FDB800A830814E7C00AC2DA7 /* SocialMediaSettingsView.swift in Sources */,
 				FD97C3822F80947100E8D788 /* AlbumItem.swift in Sources */,
 				FDB800843080E9D500AC2DA7 /* SocialAccountLabel.swift in Sources */,
 				FDDC7E252F805EB6005D779F /* ErrorRow.swift in Sources */,
@@ -1197,6 +1238,7 @@
 				FD05A1042F83700100000001 /* ServiceLink.swift in Sources */,
 				FD05A1062F83800100000001 /* MediaFilter.swift in Sources */,
 				FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */,
+				FDB800AF3081516C00AC2DA7 /* AutoPost.swift in Sources */,
 				AA00000000000001 /* PanelMetrics.swift in Sources */,
 				FDB80033307FE38200AC2DA7 /* TemplateDetailView.swift in Sources */,
 				FDB8006A3080398400AC2DA7 /* WebSignIn.swift in Sources */,
@@ -1228,6 +1270,7 @@
 				DC0000000000003B1 /* ConversionFilterModifier.swift in Sources */,
 				AA00000000000070 /* HapticFeedback.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
+				FDB800A630814E2700AC2DA7 /* ConnectAccountModel.swift in Sources */,
 				EF00000000000101 /* BuildChannel.swift in Sources */,
 				DC0000000000002B1 /* Pasteboard.swift in Sources */,
 				DC0000000000000B1 /* DefaultsKey.swift in Sources */,
@@ -1235,6 +1278,7 @@
 				FDB80011307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */,
 				FDB80006307F9E7400AC2DA7 /* GeneralPane.swift in Sources */,
 				EF00000000000301 /* TelemetryClient.swift in Sources */,
+				FDB800A430814E1D00AC2DA7 /* SocialConnections.swift in Sources */,
 				EF00000000000401 /* InstallID.swift in Sources */,
 				EF00000000000501 /* DiagnosticsExporter.swift in Sources */,
 				FDB800683080395B00AC2DA7 /* OAuthSupport.swift in Sources */,
@@ -1255,6 +1299,7 @@
 				DC0000000000001B1 /* TelemetryClientTests.swift in Sources */,
 				BB00000000000003 /* ClipboardMonitorTests.swift in Sources */,
 				FDB8006630802F7B00AC2DA7 /* MastodonTests.swift in Sources */,
+				FDB800AA30814E9B00AC2DA7 /* ConnectAccountTests.swift in Sources */,
 				FDB8009C3081068000AC2DA7 /* TemplatePostLimitTests.swift in Sources */,
 				BB00000000000004 /* MediaEntryTests.swift in Sources */,
 				FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */,
@@ -1294,9 +1339,26 @@
 				FDB800873080EA1C00AC2DA7 /* PostComposerModel.swift in Sources */,
 				FDB80044307FFC0D00AC2DA7 /* TemplateCompletion.swift in Sources */,
 				FF0000000000010B /* APIError.swift in Sources */,
+				FDB800B230815AED00AC2DA7 /* WebSignIn.swift in Sources */,
+				FDB800B330815AED00AC2DA7 /* OpenGraph.swift in Sources */,
+				FDB800B430815AED00AC2DA7 /* MastodonAPI.swift in Sources */,
+				FDB800C330815B1D00AC2DA7 /* CachedAsyncImage.swift in Sources */,
+				FDB800B530815AED00AC2DA7 /* BlueskyConnector.swift in Sources */,
+				FDB800B630815AED00AC2DA7 /* SocialConnections.swift in Sources */,
+				FDB800B730815AED00AC2DA7 /* SocialService.swift in Sources */,
+				FDB800B830815AED00AC2DA7 /* SocialServiceError.swift in Sources */,
+				FDB800B930815AED00AC2DA7 /* MastodonConnector.swift in Sources */,
+				FDB800BA30815AED00AC2DA7 /* OAuthSupport.swift in Sources */,
+				FDB800BB30815AED00AC2DA7 /* DPoPKey.swift in Sources */,
+				FDB800BC30815AED00AC2DA7 /* SocialAccount.swift in Sources */,
+				FDB800BD30815AED00AC2DA7 /* SocialAccountStore.swift in Sources */,
+				FDB800BE30815AED00AC2DA7 /* BlueskyAPI.swift in Sources */,
+				FDB800BF30815AED00AC2DA7 /* ConnectAccountModel.swift in Sources */,
+				FDB800C030815AED00AC2DA7 /* MastodonAccount.swift in Sources */,
+				FDB800C130815AED00AC2DA7 /* BlueskyAccount.swift in Sources */,
 				FDB8007C3080E90700AC2DA7 /* MarkdownSyntax.swift in Sources */,
 				FDB80022307FDA6100AC2DA7 /* PostTemplate.swift in Sources */,
-				FDB8008E3080F0A700AC2DA7 /* AutoPost.swift in Sources */,
+				FDB800C230815B0B00AC2DA7 /* MediaArtwork.swift in Sources */,
 				FF0000000000010C /* ResolveError.swift in Sources */,
 				FF0000000000010D /* AppLogger.swift in Sources */,
 				EF00000000000102 /* BuildChannel.swift in Sources */,
@@ -1306,10 +1368,14 @@
 				EF00000000000202 /* TelemetryEvent.swift in Sources */,
 				FDB80027307FDA7000AC2DA7 /* PostTemplateRenderer.swift in Sources */,
 				FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */,
+				FDB800C53081609600AC2DA7 /* RainbowPalette.swift in Sources */,
+				FDB800C63081609600AC2DA7 /* LogoText.swift in Sources */,
 				EF00000000000302 /* TelemetryClient.swift in Sources */,
 				FDB80039307FF00900AC2DA7 /* PostTemplateIcon.swift in Sources */,
 				EF00000000000402 /* InstallID.swift in Sources */,
+				FDB800C430815B2F00AC2DA7 /* SocialAccountLabel.swift in Sources */,
 				FDB80014307FBCDB00AC2DA7 /* AppSession.swift in Sources */,
+				FDB800B13081575F00AC2DA7 /* ShareResultView.swift in Sources */,
 				EF00000000000502 /* DiagnosticsExporter.swift in Sources */,
 				FDB8005430802E8800AC2DA7 /* JSONFile.swift in Sources */,
 			);

@@ -58,6 +58,12 @@ extension PostTemplate {
                      icon: .bluesky),
     ]
 
+    /// The system template written for the service of `account`, matched by
+    /// the service's logo, which the Share Extension posts with.
+    static func systemTemplate(for account: SocialAccount) -> PostTemplate? {
+        system.first { $0.icon == account.icon }
+    }
+
     /// The "Now playing" post both system templates share. They differ in
     /// their hashtags only, because Bluesky's 300 graphemes leave less room.
     private static func nowPlayingBody(hashtags: String) -> String {

@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - SettingsView
 
-/// iOS settings screen with notification toggle and about section.
+/// iOS settings screen with notification toggle, the Social Media accounts and about section.
 struct SettingsView: View {
     @Environment(ClipboardMonitor.self) private var monitor
     @AppStorage(DefaultsKey.clipboardMonitoringEnabled) private var clipboardMonitoringEnabled = true
@@ -31,7 +31,14 @@ struct SettingsView: View {
             Section("Notifications") {
                 Toggle("Sound on conversion", isOn: $playNotificationSound)
             }
-            DangerZoneSection()
+
+            Section {
+                NavigationLink {
+                    SocialMediaSettingsView()
+                } label: {
+                    Label(String(localized: "Social Media"), systemImage: "person.2")
+                }
+            }
 
             if BuildChannel.diagnosticsEnabled {
                 diagnosticsSection
@@ -49,6 +56,9 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            // Last, so the destructive actions sit below everything else.
+            DangerZoneSection()
         }
         .navigationTitle("Settings")
     }

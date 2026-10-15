@@ -6,6 +6,7 @@
 
 import Foundation
 import Observation
+import SwiftUI
 
 // MARK: - AutoPostSettings
 
@@ -64,6 +65,22 @@ final class AutoPostSettings {
 
     private func save() {
         defaults.set(try? JSONEncoder().encode(Stored(isEnabled: isEnabled, rules: rules)), forKey: DefaultsKey.autoPost)
+    }
+}
+
+extension AutoPostSettings {
+    /// A binding to one field of the rule of the account with `id`.
+    ///
+    /// The Settings rows edit a rule one field at a time, and every change
+    /// goes through ``setRule(_:for:)``, so it is stored.
+    func binding<Value>(_ field: WritableKeyPath<AccountRule, Value>, for id: SocialAccount.ID) -> Binding<Value> {
+        Binding {
+            self.rule(for: id)[keyPath: field]
+        } set: { value in
+            var rule = self.rule(for: id)
+            rule[keyPath: field] = value
+            self.setRule(rule, for: id)
+        }
     }
 }
 
