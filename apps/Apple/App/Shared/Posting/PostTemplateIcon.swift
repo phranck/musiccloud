@@ -3,16 +3,16 @@
 //  musiccloud
 //
 
-import Foundation
+import SwiftUI
 
 // MARK: - PostTemplateIcon
 
 /// The icon a post template can show in lists and in the composer.
 ///
 /// The Mastodon and Bluesky logos are the networks' own marks, taken
-/// unmodified from their brand kits and drawn as template images in the
-/// text color. The other icons are SF Symbols for templates that are not
-/// tied to one network.
+/// unmodified from their brand kits and drawn in their brand color. The
+/// other icons are SF Symbols for templates that are not tied to one
+/// network, drawn in the text color.
 enum PostTemplateIcon: String, Codable, CaseIterable, Identifiable, Sendable {
     case mastodon
     case bluesky
@@ -52,6 +52,18 @@ enum PostTemplateIcon: String, Codable, CaseIterable, Identifiable, Sendable {
         case .megaphone: .symbol("megaphone")
         case .star:      .symbol("star")
         case .heart:     .symbol("heart")
+        }
+    }
+
+    /// A network's brand color, or `nil` for an icon that belongs to none.
+    ///
+    /// Mastodon's `#6364FF` is from joinmastodon.org/branding, Bluesky's
+    /// `#1185FE` is the blue bsky.app uses, since Bluesky's press page names none.
+    var brandColor: Color? {
+        switch self {
+        case .mastodon: Color(red: 0x63 / 255, green: 0x64 / 255, blue: 0xFF / 255)
+        case .bluesky:  Color(red: 0x11 / 255, green: 0x85 / 255, blue: 0xFE / 255)
+        default:        nil
         }
     }
 }

@@ -11,8 +11,8 @@ import SwiftUI
 /// Draws a ``PostTemplateIcon`` at the size of the surrounding text.
 ///
 /// Logos and SF Symbols share one frame, so a list of templates lines up
-/// whichever icon each has. The logos are template images and take the text
-/// color, which keeps them monochrome beside the symbols.
+/// whichever icon each has. The logos are template images drawn in their
+/// network's brand color, as in the original; the symbols take the text color.
 struct PostTemplateIconImage: View {
     let icon: PostTemplateIcon
 
@@ -23,6 +23,7 @@ struct PostTemplateIconImage: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 16, height: 16)
+                .foregroundStyle(icon.brandColor ?? .primary)
         case .symbol(let name):
             Image(systemName: name)
                 .frame(width: 16, height: 16)

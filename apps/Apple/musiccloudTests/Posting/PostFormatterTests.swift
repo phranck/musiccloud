@@ -96,7 +96,9 @@ struct PostRequestTests {
         #expect(record["$type"] as? String == "app.bsky.feed.post")
         #expect(record["text"] as? String == "hi")
         #expect(record["facets"] == nil)
-        #expect((record["createdAt"] as? String)?.hasPrefix("1970-01-01T00:00:00") == true)
+        // The lexicon's datetime is RFC 3339 and needs a time zone; without one the PDS answers 400.
+        let createdAt = try #require(record["createdAt"] as? String)
+        #expect(createdAt == "1970-01-01T00:00:00.000Z")
     }
 }
 

@@ -18,30 +18,25 @@ struct SocialMediaPane: View {
     @State private var accountToDisconnect: SocialAccount?
 
     var body: some View {
-        Form {
-            Section {
-                Toggle(String(localized: "Post new conversions automatically"), isOn: Bindable(autoPostSettings).isEnabled)
-            } footer: {
-                Text("Each account below says whether it takes part and with which template. A link that is already in the history is not posted again.")
-            }
-            accountSection(.mastodon, accounts: store.mastodonAccounts.map(SocialAccount.mastodon))
-            accountSection(.bluesky, accounts: store.blueskyAccounts.map(SocialAccount.bluesky))
-        }
-        .formStyle(.grouped)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            HStack {
-                Spacer()
-                Menu(String(localized: "Connect Account")) {
-                    ForEach(SocialService.allCases) { service in
-                        Button(service.name + "…") {
-                            serviceToConnect = service
-                        }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                SettingsCard(tint: nil, footer: String(localized: "Each account below says whether it takes part and with which template. A link that is already in the history is not posted again.")) {
+                    // Label left and switch at the trailing edge, as in a Form row.
+                    HStack {
+                        Text("Post new conversions automatically")
+                        Spacer()
+                        Toggle(String(localized: "Post new conversions automatically"), isOn: Bindable(autoPostSettings).isEnabled)
+                            .labelsHidden()
                     }
                 }
-                .fixedSize()
+                accountSection(.mastodon, accounts: store.mastodonAccounts.map(SocialAccount.mastodon))
+                accountSection(.bluesky, accounts: store.blueskyAccounts.map(SocialAccount.bluesky))
             }
             .padding(20)
+            // Outside a Form a toggle is a checkbox; the other panes show switches.
+            .toggleStyle(.switch)
         }
+        .background(Color(nsColor: .windowBackgroundColor))
         .sheet(item: $serviceToConnect) { service in
             ConnectAccountSheet(service: service)
         }
@@ -58,13 +53,18 @@ struct SocialMediaPane: View {
         }
     }
 
+    /// One service as a card tinted in its brand color: its name and an Add
+    /// Account button in the header, then the connected accounts.
     private func accountSection(_ service: SocialService, accounts: [SocialAccount]) -> some View {
-        Section {
+        SettingsCard(tint: service.brandColor, footer: service.footer) {
             if accounts.isEmpty {
                 Text("No accounts connected.")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(accounts) { account in
+                ForEach(Array(accounts.enumerated()), id: \.element.id) { index, account in
+                    if index > 0 {
+                        Divider()
+                    }
                     ConnectedAccountRow(account: account) {
                         accountToDisconnect = account
                     }
@@ -73,12 +73,77 @@ struct SocialMediaPane: View {
         } header: {
             Label {
                 Text(verbatim: service.name)
+                    .font(.headline)
             } icon: {
                 PostTemplateIconImage(icon: service.icon)
             }
-        } footer: {
-            Text(service.footer)
+            Spacer()
+            Button(String(localized: "Add Account…")) {
+                serviceToConnect = service
+            }
         }
+    }
+}
+
+// MARK: - SettingsCard
+
+/// A rounded card with an optional header row and a footer note below it.
+///
+/// With a `tint`, the header's background and the border take that color,
+/// faintly, so a service's card reads as that service without shouting.
+private struct SettingsCard<Content: View, Header: View>: View {
+    let tint: Color?
+    let footer: String
+    @ViewBuilder let content: () -> Content
+    @ViewBuilder let header: () -> Header
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private let shape = RoundedRectangle(cornerRadius: 10)
+
+    /// How strongly the tint shows. A brand color on a dark card has less
+    /// contrast than on a light one, so dark mode takes more of it.
+    private var strength: (header: Double, divider: Double, border: Double) {
+        colorScheme == .dark ? (0.22, 0.55, 0.7) : (0.14, 0.4, 0.55)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 0) {
+                if Header.self != EmptyView.self {
+                    HStack(content: header)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background((tint ?? .secondary).opacity(strength.header))
+                    Divider()
+                        .overlay((tint ?? .secondary).opacity(strength.divider))
+                }
+                VStack(alignment: .leading, spacing: 10, content: content)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(tint.map { $0.opacity(strength.border) } ?? Color(nsColor: .separatorColor)))
+
+            Text(footer)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+        }
+    }
+}
+
+extension SettingsCard where Header == EmptyView {
+    init(tint: Color?, footer: String, @ViewBuilder content: @escaping () -> Content) {
+        self.init(tint: tint, footer: footer, content: content, header: { EmptyView() })
+    }
+}
+
+private extension SocialService {
+    /// The service's brand color, the one its logo is drawn in; see ``PostTemplateIcon/brandColor``.
+    var brandColor: Color {
+        icon.brandColor ?? .secondary
     }
 }
 
@@ -245,6 +310,8 @@ private struct ConnectAccountSheet: View {
                     .textFieldStyle(.roundedBorder)
                     .disabled(isWorking)
                     .onSubmit(connect)
+                    // A message belongs to the input it was about.
+                    .onChange(of: input) { errorMessage = nil }
                 if let suffix = service.fixedSuffix(for: input) {
                     Text(verbatim: suffix)
                         .foregroundStyle(.secondary)
