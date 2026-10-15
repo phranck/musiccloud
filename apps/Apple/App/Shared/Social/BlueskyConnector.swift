@@ -227,7 +227,12 @@ private extension BlueskyConnector {
                 return (body, http)
             }
             lastStatus = http.statusCode
-            guard Self.asksForNonce(http, body: body), nonces[origin] != previous else { break }
+            guard Self.asksForNonce(http, body: body), nonces[origin] != previous else {
+                // XRPC and OAuth errors say in the body what was wrong, such as `InvalidRequest`.
+                let reason = String(data: body.prefix(500), encoding: .utf8) ?? ""
+                AppLogger.api.error("Bluesky refused \(url.path, privacy: .public) with \(http.statusCode): \(reason, privacy: .public)")
+                break
+            }
         }
         throw SocialServiceError.refused(status: lastStatus)
     }

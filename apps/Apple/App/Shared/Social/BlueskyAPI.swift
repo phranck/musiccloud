@@ -174,7 +174,7 @@ enum BlueskyAPI {
         request.httpBody = try? JSONEncoder().encode(BlueskyCreateRecord(
             repo: did,
             record: BlueskyPostRecord(text: post.text, facets: post.facets.isEmpty ? nil : post.facets,
-                                      createdAt: createdAt.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: true)))))
+                                      createdAt: createdAt.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))))
         return request
     }
 
