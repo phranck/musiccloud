@@ -52,14 +52,19 @@ final class JSONFile<Value: Codable> {
 }
 
 extension URL {
-    /// `Application Support/musiccloud/<name>`, its folder created on demand,
-    /// or `nil` when Application Support cannot be found.
-    static func applicationSupportFile(named name: String) -> URL? {
+    /// `Application Support/musiccloud`, created on demand, or `nil` when
+    /// Application Support cannot be found.
+    static func applicationSupportFolder() -> URL? {
         let fileManager = FileManager.default
         guard let base = try? fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask,
                                               appropriateFor: nil, create: true) else { return nil }
         let directory = base.appending(path: "musiccloud", directoryHint: .isDirectory)
         try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appending(path: name)
+        return directory
+    }
+
+    /// `Application Support/musiccloud/<name>`; see ``applicationSupportFolder()``.
+    static func applicationSupportFile(named name: String) -> URL? {
+        applicationSupportFolder()?.appending(path: name)
     }
 }

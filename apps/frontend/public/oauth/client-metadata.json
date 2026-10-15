@@ -1,0 +1,13 @@
+{
+  "client_id": "https://musiccloud.io/oauth/client-metadata.json",
+  "application_type": "native",
+  "client_name": "musiccloud",
+  "client_uri": "https://musiccloud.io",
+  "logo_uri": "https://musiccloud.io/favicon.png",
+  "dpop_bound_access_tokens": true,
+  "grant_types": ["authorization_code", "refresh_token"],
+  "redirect_uris": ["io.musiccloud:/oauth/bluesky"],
+  "response_types": ["code"],
+  "scope": "atproto transition:generic",
+  "token_endpoint_auth_method": "none"
+}

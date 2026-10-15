@@ -46,6 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Signs Mastodon accounts in and out. It outlives the Settings window,
     /// so a browser sheet still open when the window closes can finish.
     private(set) lazy var mastodonConnector: MastodonConnector = MastodonConnector(store: socialAccountStore)
+    /// Signs Bluesky accounts in and out and keeps their sessions renewed.
+    private(set) lazy var blueskyConnector: BlueskyConnector = BlueskyConnector(store: socialAccountStore)
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 

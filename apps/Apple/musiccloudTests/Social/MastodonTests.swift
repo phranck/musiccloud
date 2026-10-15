@@ -81,12 +81,12 @@ struct MastodonRequestTests {
     }
 
     @Test func challengeIsTheBase64URLOfTheVerifiersHash() {
-        let verifier = MastodonAPI.makeCodeVerifier()
+        let verifier = OAuthSupport.makeCodeVerifier()
         #expect(verifier.count == 43)
         #expect(verifier.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" })
         let expected = Data(SHA256.hash(data: Data(verifier.utf8))).base64EncodedString()
             .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
-        #expect(MastodonAPI.codeChallenge(for: verifier) == expected)
+        #expect(OAuthSupport.codeChallenge(for: verifier) == expected)
     }
 }
 
@@ -119,25 +119,51 @@ struct SocialAccountStoreTests {
                         displayName: "", avatarURL: nil, characterLimit: 500)
     }
 
-    /// A folder whose name contains a space, like "Application Support".
-    private func temporaryFile() throws -> URL {
-        let folder = FileManager.default.temporaryDirectory.appending(path: "social accounts \(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        return folder.appending(path: "social-accounts.json")
+    private func bluesky(_ did: String) -> BlueskyAccount {
+        BlueskyAccount(did: did, handle: "name.bsky.social", displayName: "", avatarURL: nil,
+                       pds: URL(string: "https://pds.example")!)
     }
 
-    @Test func accountsSurviveARestartWithoutTheirTokens() throws {
-        let file = try temporaryFile()
-        let store = SocialAccountStore(fileURL: file, keychain: nil)
-        store.add(account("1"), token: "secret-token")
+    private func session(_ token: String) -> BlueskySession {
+        BlueskySession(accessToken: token, refreshToken: "refresh-\(token)", expiresAt: nil, dpopKey: DPoPKey().rawRepresentation,
+                       issuer: "https://bsky.social", tokenEndpoint: URL(string: "https://bsky.social/oauth/token")!,
+                       revocationEndpoint: nil)
+    }
 
-        #expect(SocialAccountStore(fileURL: file, keychain: nil).mastodonAccounts == [account("1")])
-        let stored = try String(contentsOf: file, encoding: .utf8)
-        #expect(!stored.contains("secret-token"))
+    /// A folder whose name contains a space, like "Application Support".
+    private func temporaryFolder() throws -> URL {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "social accounts \(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
+    @Test func accountsSurviveARestartWithoutTheirSecrets() throws {
+        let folder = try temporaryFolder()
+        let store = SocialAccountStore(directory: folder, keychain: nil)
+        store.add(account("1"), token: "secret-token")
+        store.add(bluesky("did:plc:abc"), session: session("secret-access"))
+
+        let reloaded = SocialAccountStore(directory: folder, keychain: nil)
+        #expect(reloaded.mastodonAccounts == [account("1")])
+        #expect(reloaded.blueskyAccounts == [bluesky("did:plc:abc")])
+        for name in ["social-accounts.json", "bluesky-accounts.json"] {
+            let stored = try String(contentsOf: folder.appending(path: name), encoding: .utf8)
+            #expect(!stored.contains("secret"))
+        }
+    }
+
+    @Test func blueskySessionIsReplacedAndRemoved() {
+        let store = SocialAccountStore(directory: nil, keychain: nil)
+        store.add(bluesky("did:plc:abc"), session: session("one"))
+        store.setSession(session("two"), for: bluesky("did:plc:abc"))
+        #expect(store.session(for: bluesky("did:plc:abc"))?.accessToken == "two")
+        store.remove(bluesky("did:plc:abc"))
+        #expect(store.blueskyAccounts.isEmpty)
+        #expect(store.session(for: bluesky("did:plc:abc")) == nil)
     }
 
     @Test func sameIdOnTwoInstancesAreTwoAccounts() {
-        let store = SocialAccountStore(fileURL: nil, keychain: nil)
+        let store = SocialAccountStore(directory: nil, keychain: nil)
         store.add(account("1"), token: "a")
         store.add(account("1", host: "mastodon.social"), token: "b")
         store.add(account("1"), token: "c")
@@ -146,7 +172,7 @@ struct SocialAccountStoreTests {
     }
 
     @Test func removingForgetsTheToken() {
-        let store = SocialAccountStore(fileURL: nil, keychain: nil)
+        let store = SocialAccountStore(directory: nil, keychain: nil)
         store.add(account("1"), token: "a")
         store.remove(account("1"))
         #expect(store.mastodonAccounts.isEmpty)
