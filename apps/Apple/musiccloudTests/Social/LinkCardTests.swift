@@ -57,6 +57,13 @@ struct LinkCardTests {
         #expect(String(data: data, encoding: .utf8)?.contains("thumb") == false)
     }
 
+    /// musiccloud's share pages give their Open Graph tags only to agents that
+    /// `isBot` in apps/frontend/src/lib/isBot.ts matches, which `linkpreview` does.
+    @Test func previewFetchSaysItIsALinkPreviewFetcher() throws {
+        let agent = try #require(BlueskyAPI.linkPreviewRequest(url: page).value(forHTTPHeaderField: "User-Agent"))
+        #expect(agent.lowercased().contains("linkpreview"))
+    }
+
     @Test func uploadSendsTheImageWithItsType() {
         let request = BlueskyAPI.uploadBlobRequest(pds: URL(string: "https://pds.example")!, data: Data([1, 2, 3]), mimeType: "image/png")
         #expect(request.url?.path == "/xrpc/com.atproto.repo.uploadBlob")

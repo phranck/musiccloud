@@ -157,7 +157,7 @@ final class BlueskyConnector {
         guard let uri = post.facets.lazy.compactMap({ facet -> String? in
             if case .link(let uri) = facet.feature { return uri } else { return nil }
         }).first, let page = URL(string: uri),
-              let answer = try? await session.checkedData(for: URLRequest(url: page)),
+              let answer = try? await session.checkedData(for: BlueskyAPI.linkPreviewRequest(url: page)),
               let html = String(data: answer.0, encoding: .utf8) ?? String(data: answer.0, encoding: .isoLatin1)
         else { return nil }
 

@@ -185,6 +185,21 @@ enum BlueskyAPI {
         return request
     }
 
+    /// Fetches a linked page to read its preview tags.
+    ///
+    /// It says it is a link preview fetcher, which it is. musiccloud's share
+    /// pages, like many sites, put their Open Graph tags straight into the
+    /// HTML only for user agents they recognize as one (`isBot` in
+    /// `apps/frontend/src/lib/isBot.ts`); a plain URLSession agent gets a
+    /// page whose tags arrive later and finds none.
+    static func linkPreviewRequest(url: URL) -> URLRequest {
+        var request = URLRequest(url: url)
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1"
+        request.setValue("musiccloud-linkpreview/\(version) (+https://musiccloud.io)", forHTTPHeaderField: "User-Agent")
+        request.setValue("text/html", forHTTPHeaderField: "Accept")
+        return request
+    }
+
     /// Uploads `data`, such as a link card's image, as a blob the post can refer to.
     static func uploadBlobRequest(pds: URL, data: Data, mimeType: String) -> URLRequest {
         var request = URLRequest(url: pds.appending(path: "xrpc/com.atproto.repo.uploadBlob"))
