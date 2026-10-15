@@ -57,17 +57,14 @@ enum TemplateSyntaxHighlighter {
 }
 
 private extension TemplateSyntaxHighlighter {
-    // The patterns are fixed and valid, so building them cannot fail.
-    // swiftlint:disable force_try
-    static let placeholder = try! NSRegularExpression(pattern: #"\{([a-z0-9_]+)\}"#)
+    static let placeholder = MarkdownSyntax.placeholder
 
     static let patterns: [(Kind, NSRegularExpression)] = [
-        (.heading, try! NSRegularExpression(pattern: #"^#{1,6}[ \t].*$"#, options: .anchorsMatchLines)),
-        (.bold, try! NSRegularExpression(pattern: #"(\*\*|__)(?=\S)[^\n]+?(?<=\S)\1"#)),
-        (.italic, try! NSRegularExpression(pattern: #"(?<![*_\w])([*_])(?=\S)[^*_\n]+?(?<=\S)\1(?![*_\w])"#)),
-        (.code, try! NSRegularExpression(pattern: #"`[^`\n]+`"#)),
-        (.link, try! NSRegularExpression(pattern: #"\[[^\]\n]+\]\([^)\s]+\)"#)),
-        (.hashtag, try! NSRegularExpression(pattern: #"(?<![\w#&/])#[\p{L}\p{N}_]+"#)),
+        (.heading, MarkdownSyntax.heading),
+        (.bold, MarkdownSyntax.bold),
+        (.italic, MarkdownSyntax.italic),
+        (.code, MarkdownSyntax.code),
+        (.link, MarkdownSyntax.link),
+        (.hashtag, MarkdownSyntax.hashtag),
     ]
-    // swiftlint:enable force_try
 }

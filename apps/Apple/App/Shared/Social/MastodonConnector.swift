@@ -50,16 +50,42 @@ final class MastodonConnector {
         let profile = try await session.decoded(MastodonCredentialAccount.self,
                                                 for: MastodonAPI.verifyCredentialsRequest(instance: instance, token: token),
                                                 decoder: MastodonAPI.decoder)
+        let server = await serverInfo(of: instance)
         let account = MastodonAccount(
             instance: instance,
             accountID: profile.id,
             username: profile.username,
             displayName: profile.displayName,
             avatarURL: profile.avatar,
-            characterLimit: await characterLimit(of: instance)
+            characterLimit: server.characterLimit,
+            supportsMarkdown: server.supportsMarkdown
         )
         store.add(account, token: token)
         return account
+    }
+
+    /// The account with its instance's current character limit and Markdown support.
+    ///
+    /// An instance can change both, so the composer asks before it counts.
+    /// When the instance does not answer, the stored values stay.
+    func refreshServerInfo(of account: MastodonAccount) async -> MastodonAccount {
+        guard let description = try? await instanceDescription(of: account.instance) else { return account }
+        var refreshed = account
+        refreshed.characterLimit = description.characterLimit
+        refreshed.supportsMarkdown = description.supportsMarkdown
+        if refreshed != account {
+            store.update(refreshed)
+        }
+        return refreshed
+    }
+
+    /// Posts `markdown` from `account`: as Markdown where the instance renders it, as plain text everywhere else.
+    func post(_ markdown: String, from account: MastodonAccount) async throws {
+        guard let token = store.token(for: account) else { throw SocialServiceError.signedOut }
+        let text = account.supportsMarkdown ? markdown : PostFormatter.mastodonPlainText(fromMarkdown: markdown)
+        _ = try await session.checkedData(for: MastodonAPI.postStatusRequest(
+            instance: account.instance, token: token, text: text,
+            markdown: account.supportsMarkdown, idempotencyKey: UUID().uuidString))
     }
 
     /// Revokes the account's token on its instance and removes the account.
@@ -94,11 +120,15 @@ private extension MastodonConnector {
         return credentials
     }
 
-    /// The instance's character limit, or Mastodon's default when it does not say.
-    func characterLimit(of instance: URL) async -> Int {
-        let description = try? await session.decoded(MastodonInstanceDescription.self,
-                                                     for: MastodonAPI.instanceRequest(instance: instance),
-                                                     decoder: MastodonAPI.decoder)
-        return description?.configuration?.statuses?.maxCharacters ?? MastodonAPI.defaultCharacterLimit
+    /// The instance's limit and Markdown support, or upstream Mastodon's defaults when it does not answer.
+    func serverInfo(of instance: URL) async -> (characterLimit: Int, supportsMarkdown: Bool) {
+        let description = try? await instanceDescription(of: instance)
+        return (description?.characterLimit ?? MastodonAPI.defaultCharacterLimit, description?.supportsMarkdown ?? false)
+    }
+
+    func instanceDescription(of instance: URL) async throws -> MastodonInstanceDescription {
+        try await session.decoded(MastodonInstanceDescription.self,
+                                  for: MastodonAPI.instanceRequest(instance: instance),
+                                  decoder: MastodonAPI.decoder)
     }
 }

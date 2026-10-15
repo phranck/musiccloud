@@ -131,6 +131,20 @@ enum BlueskyAPI {
         ])
     }
 
+    // MARK: Posting
+
+    /// Writes `post` as an `app.bsky.feed.post` record into the account's repository on its PDS.
+    static func createPostRequest(pds: URL, did: String, post: BlueskyPostText, createdAt: Date) -> URLRequest {
+        var request = URLRequest(url: pds.appending(path: "xrpc/com.atproto.repo.createRecord"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONEncoder().encode(BlueskyCreateRecord(
+            repo: did,
+            record: BlueskyPostRecord(text: post.text, facets: post.facets.isEmpty ? nil : post.facets,
+                                      createdAt: createdAt.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: true)))))
+        return request
+    }
+
     /// The decoder for OAuth answers, whose keys are in snake case. XRPC
     /// answers use camel case, which the conversion leaves as it is.
     static var decoder: JSONDecoder {
@@ -194,6 +208,27 @@ struct BlueskyTokenResponse: Decodable {
     let expiresIn: Int?
     let scope: String?
     let sub: String
+}
+
+/// The input of `com.atproto.repo.createRecord` for a post.
+struct BlueskyCreateRecord: Encodable {
+    let repo: String
+    let collection = "app.bsky.feed.post"
+    let record: BlueskyPostRecord
+}
+
+/// An `app.bsky.feed.post` record: its text, facets and creation time.
+struct BlueskyPostRecord: Encodable {
+    let type = "app.bsky.feed.post"
+    let text: String
+    let facets: [BlueskyFacet]?
+    /// ISO 8601, which the lexicon requires as a datetime string.
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case type = "$type"
+        case text, facets, createdAt
+    }
 }
 
 /// `app.bsky.actor.getProfile`, the part shown in Settings.

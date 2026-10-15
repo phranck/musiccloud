@@ -33,6 +33,7 @@ struct EntryActionsModifier: ViewModifier {
                 OpenInBrowserButton(shortUrl: entry.shortUrl)
                 #if os(macOS)
                 ServiceLinksMenu(entry: entry)
+                PostEntryButton(entry: entry)
                 #endif
                 Divider()
                 DeleteEntryButton(onDelete: onDelete)
@@ -96,6 +97,27 @@ private struct DeleteEntryButton: View {
         }
     }
 }
+
+// MARK: - PostEntryButton
+
+#if os(macOS)
+/// Opens the composer for the entry. It is only offered once an account is
+/// connected, because without one there is nowhere to post to.
+private struct PostEntryButton: View {
+    let entry: MediaEntry
+
+    var body: some View {
+        if let delegate = AppDelegate.shared,
+           !delegate.socialAccountStore.mastodonAccounts.isEmpty || !delegate.socialAccountStore.blueskyAccounts.isEmpty {
+            Button {
+                delegate.openComposer(for: entry)
+            } label: {
+                Label("Post…", systemImage: "paperplane")
+            }
+        }
+    }
+}
+#endif
 
 // MARK: - ServiceLinksMenu
 

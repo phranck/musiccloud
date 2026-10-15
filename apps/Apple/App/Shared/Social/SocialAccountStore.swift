@@ -53,6 +53,11 @@ final class SocialAccountStore {
         change { $0.mastodonAccounts.upsert(account) }
     }
 
+    /// Replaces the stored copy of `account`, keeping its token, as when its instance changed its limit.
+    func update(_ account: MastodonAccount) {
+        change { $0.mastodonAccounts.upsert(account) }
+    }
+
     /// Removes `account` and forgets its token.
     func remove(_ account: MastodonAccount) {
         setSecret(nil, for: mastodonTokenKey(account.id))
