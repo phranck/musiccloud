@@ -40,6 +40,43 @@ struct AboutView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background {
+            AboutBackground()
+                .ignoresSafeArea()
+        }
+    }
+}
+
+// MARK: - AboutBackground
+
+/// The website's sky behind the About pane.
+///
+/// At night it fills the whole pane. By day it is a band behind the app icon
+/// and the wordmark that fades into the window background above the form:
+/// the day sky's saturated blue would otherwise tint the whole window, the
+/// sidebar's glass included, and dark text on it is hard to read.
+private struct AboutBackground: View {
+    /// Where the day band starts to fade and where it is gone, as fractions
+    /// of the pane's height, so the fade ends above the form's first section.
+    private static let dayFadeStart = 0.28
+    private static let dayFadeEnd = 0.50
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        if colorScheme == .dark {
+            NightSkyBackground()
+        } else {
+            NightSkyBackground()
+                .mask {
+                    LinearGradient(stops: [
+                        .init(color: .black, location: Self.dayFadeStart),
+                        .init(color: .clear, location: Self.dayFadeEnd),
+                    ], startPoint: .top, endPoint: .bottom)
+                }
+                .background(Color(nsColor: .windowBackgroundColor))
+        }
     }
 }
 
@@ -52,11 +89,41 @@ private struct AppIdentityHeader: View {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 96, height: 96)
-            LogoText(size: 28)
+                // Lifts the icon off the sky, which is busiest behind it.
+                .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
+            OutlinedWordmark()
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text(verbatim: "musiccloud"))
         }
         .frame(maxWidth: .infinity)
-        .padding(.bottom, 12)
+        .padding(.bottom, 36)
+    }
+}
+
+// MARK: - OutlinedWordmark
+
+/// The rainbow wordmark with a black outline one pixel wide, so its light
+/// colors keep their edge on the bright day sky.
+///
+/// SwiftUI has no stroke for text, so black copies of the wordmark sit one
+/// pixel off in eight directions behind it.
+private struct OutlinedWordmark: View {
+    private static let fontSize: CGFloat = 28
+    private static let outlineDirections = 8
+
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        let pixel = 1 / displayScale
+        ZStack {
+            ForEach(0..<Self.outlineDirections, id: \.self) { direction in
+                let angle = Double(direction) * 2 * .pi / Double(Self.outlineDirections)
+                LogoText(size: Self.fontSize)
+                    .colorMultiply(.black)
+                    .offset(x: cos(angle) * pixel, y: sin(angle) * pixel)
+            }
+            LogoText(size: Self.fontSize)
+        }
     }
 }
 
