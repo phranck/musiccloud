@@ -327,8 +327,7 @@ private extension AppDelegate {
         config: WindowConfig
     ) -> NSWindow {
         if let window = stored {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            bringToFront(window)
             reassertKey(window)
             return window
         }
@@ -371,23 +370,35 @@ private extension AppDelegate {
             window.setFrameTopLeftPoint(NSPoint(x: window.frame.minX, y: top))
         }
 
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        bringToFront(window)
         reassertKey(window)
 
         return window
     }
 
-    /// Makes `window` key and activates the app once more, on a later turn
-    /// of the main actor.
+    /// Activates the app and brings `window` in front of every other app's
+    /// windows as the key window.
+    ///
+    /// The menu bar panel does not activate the app, so the app the user was
+    /// in is still active when a panel item opens a window. `NSApp.activate()`
+    /// only asks to become active, and AppKit refuses while that app does not
+    /// yield, which leaves the window behind its windows. Opening a window is
+    /// the user's explicit request, so the activation here does not wait for
+    /// the other app, and the window is ordered front even before it lands.
+    func bringToFront(_ window: NSWindow) {
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+    }
+
+    /// Brings `window` to the front once more, on a later turn of the main actor.
     ///
     /// LSUIElement apps can lose focus between panel close and window open.
     /// Asserting key status again after the current event has been handled
     /// keeps the window key across the entire desktop.
     func reassertKey(_ window: NSWindow) {
         Task { @MainActor in
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            bringToFront(window)
         }
     }
 }

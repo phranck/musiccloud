@@ -17,7 +17,6 @@ struct DashboardItem: View {
             }
             NSApp.keyWindow?.close()
             delegate.openDashboard()
-            NSApp.activate()
         }
     }
 }
