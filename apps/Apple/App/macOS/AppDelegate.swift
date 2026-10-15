@@ -49,8 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let socialAccountStore = SocialConnections.shared.store
     /// Whether and where new conversions are posted automatically, set in Settings.
     let autoPostSettings = AutoPostSettings()
-    private(set) lazy var autoPoster: AutoPoster = AutoPoster(settings: autoPostSettings, accountStore: socialAccountStore,
-                                                              templateStore: templateStore)
+    /// The template each account posts with, set in Settings and in the Template Editor.
+    let defaultTemplates = DefaultTemplates()
+    private(set) lazy var autoPoster: AutoPoster = AutoPoster(settings: autoPostSettings, defaultTemplates: defaultTemplates,
+                                                              accountStore: socialAccountStore, templateStore: templateStore)
 
     deinit {
         statusObservation?.cancel()
@@ -228,6 +230,7 @@ extension AppDelegate {
             .environment(templateStore)
             .environment(socialAccountStore)
             .environment(autoPostSettings)
+            .environment(defaultTemplates)
             .symbolRenderingMode(.hierarchical)
 
         // Per the HIG, a settings window has no minimize or zoom button: it
@@ -260,6 +263,7 @@ extension AppDelegate {
             .environment(\.modelContext, mainContext)
             .environment(templateStore)
             .environment(socialAccountStore)
+            .environment(defaultTemplates)
             .symbolRenderingMode(.hierarchical)
 
         templateEditorWindow = showWindow(
@@ -276,14 +280,16 @@ extension AppDelegate {
 
     /// Opens the composer for `entry`, replacing one that is open for another entry.
     ///
-    /// The composer starts from the templates and the connected accounts as
-    /// they are now, so it is built anew rather than brought back.
+    /// The composer starts from the templates, the connected accounts and
+    /// their default templates as they are now, so it is built anew rather
+    /// than brought back.
     func openComposer(for entry: MediaEntry) {
         composerWindow?.close()
         let model = PostComposerModel(
             context: PostContext(entry: entry),
             templates: templateStore.allTemplates,
-            accounts: SocialAccount.all(in: socialAccountStore)
+            accounts: SocialAccount.all(in: socialAccountStore),
+            defaultTemplateIDs: defaultTemplates.templateIDs
         )
         let rootView = PostComposerView(model: model)
             .symbolRenderingMode(.hierarchical)
@@ -327,8 +333,7 @@ private extension AppDelegate {
         config: WindowConfig
     ) -> NSWindow {
         if let window = stored {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            bringToFront(window)
             reassertKey(window)
             return window
         }
@@ -371,23 +376,35 @@ private extension AppDelegate {
             window.setFrameTopLeftPoint(NSPoint(x: window.frame.minX, y: top))
         }
 
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        bringToFront(window)
         reassertKey(window)
 
         return window
     }
 
-    /// Makes `window` key and activates the app once more, on a later turn
-    /// of the main actor.
+    /// Activates the app and brings `window` in front of every other app's
+    /// windows as the key window.
+    ///
+    /// The menu bar panel does not activate the app, so the app the user was
+    /// in is still active when a panel item opens a window. `NSApp.activate()`
+    /// only asks to become active, and AppKit refuses while that app does not
+    /// yield, which leaves the window behind its windows. Opening a window is
+    /// the user's explicit request, so the activation here does not wait for
+    /// the other app, and the window is ordered front even before it lands.
+    func bringToFront(_ window: NSWindow) {
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+    }
+
+    /// Brings `window` to the front once more, on a later turn of the main actor.
     ///
     /// LSUIElement apps can lose focus between panel close and window open.
     /// Asserting key status again after the current event has been handled
     /// keeps the window key across the entire desktop.
     func reassertKey(_ window: NSWindow) {
         Task { @MainActor in
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            bringToFront(window)
         }
     }
 }

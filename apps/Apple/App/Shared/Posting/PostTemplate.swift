@@ -64,6 +64,25 @@ extension PostTemplate {
         system.first { $0.icon == account.icon }
     }
 
+    /// The template `account` posts with unless the user picks another one
+    /// for a single post.
+    ///
+    /// The composer, the Share Extension and automatic posting all ask this,
+    /// so every path starts from the same text. The chosen template wins
+    /// while it is still among `templates`. Without a choice, or once the
+    /// chosen template is deleted, the account falls back to the system
+    /// template of its service, so it never ends up without a default.
+    ///
+    /// - Parameters:
+    ///   - account: The account a post goes to.
+    ///   - chosenID: The template the user made this account's default, or `nil` for none.
+    ///   - templates: The templates that exist now; iOS has no templates of the user's own and passes none.
+    /// - Returns: The default template, or `nil` only for a service without a system template.
+    static func defaultTemplate(for account: SocialAccount, chosenID: PostTemplate.ID? = nil,
+                                among templates: [PostTemplate] = []) -> PostTemplate? {
+        templates.first { $0.id == chosenID } ?? systemTemplate(for: account)
+    }
+
     /// The "Now playing" post both system templates share. They differ in
     /// their hashtags only, because Bluesky's 300 graphemes leave less room.
     private static func nowPlayingBody(hashtags: String) -> String {

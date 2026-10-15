@@ -45,17 +45,15 @@ struct AboutView: View {
 
 // MARK: - AppIdentityHeader
 
-/// The app icon with the app name below it, centered above the form.
+/// The app icon with the rainbow wordmark below it, centered above the form.
 private struct AppIdentityHeader: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 96, height: 96)
-            Text(verbatim: "musiccloud")
-                .font(.title)
-                .bold()
-                .foregroundStyle(.primary)
+            LogoText(size: 28)
+                .accessibilityLabel(Text(verbatim: "musiccloud"))
         }
         .frame(maxWidth: .infinity)
         .padding(.bottom, 12)
