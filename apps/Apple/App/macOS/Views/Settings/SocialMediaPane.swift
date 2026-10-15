@@ -21,7 +21,13 @@ struct SocialMediaPane: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 SettingsCard(tint: nil, footer: String(localized: "Each account below says whether it takes part and with which template. A link that is already in the history is not posted again.")) {
-                    Toggle(String(localized: "Post new conversions automatically"), isOn: Bindable(autoPostSettings).isEnabled)
+                    // Label left and switch at the trailing edge, as in a Form row.
+                    HStack {
+                        Text("Post new conversions automatically")
+                        Spacer()
+                        Toggle(String(localized: "Post new conversions automatically"), isOn: Bindable(autoPostSettings).isEnabled)
+                            .labelsHidden()
+                    }
                 }
                 accountSection(.mastodon, accounts: store.mastodonAccounts.map(SocialAccount.mastodon))
                 accountSection(.bluesky, accounts: store.blueskyAccounts.map(SocialAccount.bluesky))
@@ -91,7 +97,15 @@ private struct SettingsCard<Content: View, Header: View>: View {
     @ViewBuilder let content: () -> Content
     @ViewBuilder let header: () -> Header
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private let shape = RoundedRectangle(cornerRadius: 10)
+
+    /// How strongly the tint shows. A brand color on a dark card has less
+    /// contrast than on a light one, so dark mode takes more of it.
+    private var strength: (header: Double, divider: Double, border: Double) {
+        colorScheme == .dark ? (0.22, 0.55, 0.7) : (0.14, 0.4, 0.55)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -100,9 +114,9 @@ private struct SettingsCard<Content: View, Header: View>: View {
                     HStack(content: header)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background((tint ?? .secondary).opacity(0.08))
+                        .background((tint ?? .secondary).opacity(strength.header))
                     Divider()
-                        .overlay((tint ?? .secondary).opacity(0.25))
+                        .overlay((tint ?? .secondary).opacity(strength.divider))
                 }
                 VStack(alignment: .leading, spacing: 10, content: content)
                     .padding(12)
@@ -110,7 +124,7 @@ private struct SettingsCard<Content: View, Header: View>: View {
             }
             .background(Color(nsColor: .controlBackgroundColor))
             .clipShape(shape)
-            .overlay(shape.strokeBorder(tint.map { $0.opacity(0.35) } ?? Color(nsColor: .separatorColor)))
+            .overlay(shape.strokeBorder(tint.map { $0.opacity(strength.border) } ?? Color(nsColor: .separatorColor)))
 
             Text(footer)
                 .font(.callout)
@@ -127,13 +141,9 @@ extension SettingsCard where Header == EmptyView {
 }
 
 private extension SocialService {
-    /// The service's brand color: Mastodon's `#6364FF` from joinmastodon.org/branding,
-    /// Bluesky's `#1185FE` from bsky.app.
+    /// The service's brand color, the one its logo is drawn in; see ``PostTemplateIcon/brandColor``.
     var brandColor: Color {
-        switch self {
-        case .mastodon: Color(red: 0x63 / 255, green: 0x64 / 255, blue: 0xFF / 255)
-        case .bluesky:  Color(red: 0x11 / 255, green: 0x85 / 255, blue: 0xFE / 255)
-        }
+        icon.brandColor ?? .secondary
     }
 }
 
