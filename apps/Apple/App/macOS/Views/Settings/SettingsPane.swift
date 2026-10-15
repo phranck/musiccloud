@@ -16,6 +16,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case general
     case notifications
     case history
+    case socialMedia
     case templates
     case about
 
@@ -37,6 +38,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .general:       String(localized: "General")
         case .notifications: String(localized: "Notifications")
         case .history:       String(localized: "History")
+        case .socialMedia:   String(localized: "Social Media")
         case .templates:     String(localized: "Templates")
         case .about:         String(localized: "About")
         }
@@ -48,6 +50,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .general:       "gearshape"
         case .notifications: "bell.badge"
         case .history:       "clock.arrow.circlepath"
+        case .socialMedia:   "person.2"
         case .templates:     "text.bubble"
         case .about:         "info.circle"
         }

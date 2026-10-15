@@ -41,6 +41,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var monitor: ClipboardMonitor!
     /// The post templates, edited in Settings and used by the post composer.
     let templateStore = PostTemplateStore()
+    /// The connected social media accounts, managed in Settings.
+    let socialAccountStore = SocialAccountStore()
+    /// Signs Mastodon accounts in and out. It outlives the Settings window,
+    /// so a browser sheet still open when the window closes can finish.
+    private(set) lazy var mastodonConnector: MastodonConnector = MastodonConnector(store: socialAccountStore)
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -213,6 +218,7 @@ extension AppDelegate {
             .environment(historyManager)
             .environment(monitor)
             .environment(templateStore)
+            .environment(socialAccountStore)
             .symbolRenderingMode(.hierarchical)
 
         // Per the HIG, a settings window has no minimize or zoom button: it
