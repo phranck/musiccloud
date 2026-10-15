@@ -10,7 +10,7 @@ import SwiftUI
 /// A reusable rainbow color palette with C64-style palette shifting animation support.
 ///
 /// Provides a base palette of 8 colors, an expanded smooth gradient of 32 colors,
-/// and methods to compute shifted palettes for animation frames.
+/// and a method to compute shifted palettes for animation frames.
 ///
 /// ## Usage
 ///
@@ -20,9 +20,6 @@ import SwiftUI
 ///
 /// // Shifted colors for a specific animation frame
 /// let shifted = RainbowPalette.shiftedColors(for: date)
-///
-/// // Single cycling color for a specific animation frame
-/// let color = RainbowPalette.cyclingColor(for: date)
 /// ```
 enum RainbowPalette {
 
@@ -68,7 +65,9 @@ enum RainbowPalette {
 
     /// Returns the palette shifted for the given point in time (30 FPS, 2s cycle).
     ///
-    /// Used for gradient animations where the entire color array rotates.
+    /// Used for gradient animations where the entire color array rotates:
+    /// the wordmark lets it run from left to right, the menu bar icon from
+    /// bottom to top.
     ///
     /// - Parameter date: The current timeline date
     /// - Returns: A shifted copy of ``colors``
@@ -77,18 +76,5 @@ enum RainbowPalette {
         let currentFrame = Int(date.timeIntervalSinceReferenceDate * 30) % totalFrames
         let rotationSteps = colors.count - ((currentFrame * colors.count) / totalFrames)
         return Array(colors.dropFirst(rotationSteps) + colors.prefix(rotationSteps))
-    }
-
-    /// Returns a single color cycling through the palette (30 FPS, 2s cycle).
-    ///
-    /// Used for icon or small element animations where a gradient doesn't fit.
-    ///
-    /// - Parameter date: The current timeline date
-    /// - Returns: The current color in the cycle
-    static func cyclingColor(for date: Date) -> Color {
-        let totalFrames = 60
-        let currentFrame = Int(date.timeIntervalSinceReferenceDate * 30) % totalFrames
-        let index = (currentFrame * colors.count) / totalFrames
-        return colors[index]
     }
 }
