@@ -134,6 +134,8 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
                 return [.font: fonts.convert(base, toHaveTrait: .italicFontMask)]
             case .code:
                 return [.foregroundColor: TemplateSyntaxColors.code]
+            case .quote:
+                return [.foregroundColor: TemplateSyntaxColors.quote]
             case .link:
                 return [.foregroundColor: TemplateSyntaxColors.link]
             case .hashtag:
@@ -152,19 +154,22 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
 /// next keystroke, so the list is opened again after every character typed
 /// or deleted inside an unfinished placeholder, filtered by what is there.
 final class TemplateTextView: NSTextView {
-    /// ⌘B, ⌘I, ⌘E and ⌘K format the selection; see ``MarkdownShortcut``.
+    /// ⌘B, ⌘I, ⌘E, ⌘K and ⌘' format the selection; see ``MarkdownShortcut``.
     ///
     /// The menu bar app has no Format menu that would send these, so the
-    /// text view answers them itself. The change goes through `insertText`,
-    /// so ⌘Z undoes it and the coloring follows through `textDidChange`.
+    /// text view answers them itself. Shift is allowed for a key that is no
+    /// letter, because `'` needs it on layouts such as German, while ⌘⇧B
+    /// stays free. ⌘K takes a URL from the clipboard. The change goes through
+    /// `insertText`, so ⌘Z undoes it and the coloring follows.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard isEditable, window?.firstResponder === self,
-              event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
               let key = event.charactersIgnoringModifiers,
+              modifiers == .command || (modifiers == [.command, .shift] && !key.contains(where: \.isLetter)),
               let shortcut = MarkdownShortcut(commandKey: key)
         else { return super.performKeyEquivalent(with: event) }
 
-        let edit = shortcut.edit(in: string, selection: selectedRange())
+        let edit = shortcut.edit(in: string, selection: selectedRange(), clipboard: Pasteboard.string)
         insertText(edit.replacement, replacementRange: edit.range)
         setSelectedRange(edit.selection)
         return true

@@ -12,14 +12,17 @@ import Foundation
 ///
 /// Bold, italic and code wrap the selection in their marker, or remove the
 /// marker when the selection is wrapped already, whether the markers are
-/// selected or stand just outside. A link turns the selection into
-/// `[text](url)` and selects `url`, which is the part still to be typed.
-/// Ranges are `NSRange` over UTF-16, which is what `NSTextView` takes.
+/// selected or stand just outside. A quote puts `> ` before every line the
+/// selection touches, or takes it away when all of them have it. A link
+/// turns the selection into `[text](url)`: with a URL on the clipboard that
+/// URL is filled in, otherwise `url` is selected, which is the part still to
+/// be typed. Ranges are `NSRange` over UTF-16, which is what `NSTextView` takes.
 enum MarkdownShortcut: Sendable, CaseIterable {
     case bold
     case italic
     case code
     case link
+    case quote
 
     /// One replacement and the selection afterwards.
     struct Edit: Equatable, Sendable {
@@ -37,25 +40,24 @@ enum MarkdownShortcut: Sendable, CaseIterable {
         case "i": self = .italic
         case "e": self = .code
         case "k": self = .link
+        case "'": self = .quote
         default: return nil
         }
     }
 
     /// The change this shortcut makes to `text` with `selection`.
-    func edit(in text: String, selection: NSRange) -> Edit {
+    ///
+    /// - Parameter clipboard: What the clipboard holds; a link takes it as
+    ///   its URL when it is an `http` or `https` URL.
+    func edit(in text: String, selection: NSRange, clipboard: String? = nil) -> Edit {
         let source = text as NSString
         let selected = source.substring(with: selection)
         switch self {
         case .bold:   return Self.toggle("**", in: source, selection: selection, selected: selected)
         case .italic: return Self.toggle("*", in: source, selection: selection, selected: selected)
         case .code:   return Self.toggle("`", in: source, selection: selection, selected: selected)
-        case .link:
-            let placeholder = "url"
-            let replacement = "[\(selected)](\(placeholder))"
-            let selectionAfter = selected.isEmpty
-                ? NSRange(location: selection.location + 1, length: 0)
-                : NSRange(location: selection.location + (selected as NSString).length + 3, length: (placeholder as NSString).length)
-            return Edit(range: selection, replacement: replacement, selection: selectionAfter)
+        case .quote:  return Self.toggleQuote(in: source, selection: selection)
+        case .link:   return Self.link(selected, selection: selection, url: clipboard.flatMap(Self.webURL))
         }
     }
 }
@@ -92,5 +94,48 @@ private extension MarkdownShortcut {
         guard marker == "*" else { return false }
         let neighbours = [location - 1, location + 1].filter { $0 >= 0 && $0 < source.length }
         return neighbours.contains { source.substring(with: NSRange(location: $0, length: 1)) == "*" }
+    }
+
+    /// Quotes the lines the selection touches, or unquotes them when all are quoted.
+    static func toggleQuote(in source: NSString, selection: NSRange) -> Edit {
+        let lineRange = source.lineRange(for: selection)
+        var block = source.substring(with: lineRange)
+        let endsWithNewline = block.hasSuffix("\n")
+        if endsWithNewline {
+            block.removeLast()
+        }
+        let lines = block.components(separatedBy: "\n")
+        let isQuoted = lines.allSatisfy { $0.hasPrefix(">") }
+        let changed = lines.map { line -> String in
+            guard isQuoted else { return "> " + line }
+            return line.hasPrefix("> ") ? String(line.dropFirst(2)) : String(line.dropFirst())
+        }.joined(separator: "\n")
+        return Edit(range: lineRange, replacement: changed + (endsWithNewline ? "\n" : ""),
+                    selection: NSRange(location: lineRange.location, length: (changed as NSString).length))
+    }
+
+    /// `[selected](url)`, with the URL filled in when there is one.
+    static func link(_ selected: String, selection: NSRange, url: String?) -> Edit {
+        let target = url ?? "url"
+        let replacement = "[\(selected)](\(target))"
+        let after: NSRange = if selected.isEmpty {
+            // The text is what is still missing.
+            NSRange(location: selection.location + 1, length: 0)
+        } else if url != nil {
+            // Nothing is missing, so the cursor goes behind the link.
+            NSRange(location: selection.location + (replacement as NSString).length, length: 0)
+        } else {
+            NSRange(location: selection.location + (selected as NSString).length + 3, length: (target as NSString).length)
+        }
+        return Edit(range: selection, replacement: replacement, selection: after)
+    }
+
+    /// `text` when it is one `http` or `https` URL with a host, without surrounding whitespace.
+    static func webURL(_ text: String) -> String? {
+        let candidate = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.contains(where: \.isWhitespace), let url = URL(string: candidate),
+              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https", url.host() != nil
+        else { return nil }
+        return candidate
     }
 }

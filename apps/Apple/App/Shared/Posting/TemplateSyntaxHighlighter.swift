@@ -20,6 +20,7 @@ enum TemplateSyntaxHighlighter {
         /// A `{name}` placeholder that is no variable, so it renders as nothing.
         case unknownVariable
         case heading
+        case quote
         case bold
         case italic
         case code
@@ -61,6 +62,7 @@ private extension TemplateSyntaxHighlighter {
 
     static let patterns: [(Kind, NSRegularExpression)] = [
         (.heading, MarkdownSyntax.heading),
+        (.quote, MarkdownSyntax.quote),
         (.bold, MarkdownSyntax.bold),
         (.italic, MarkdownSyntax.italic),
         (.code, MarkdownSyntax.code),

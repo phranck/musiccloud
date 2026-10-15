@@ -66,6 +66,41 @@ struct MarkdownShortcutTests {
         #expect(MarkdownShortcut(commandKey: "I") == .italic)
         #expect(MarkdownShortcut(commandKey: "e") == .code)
         #expect(MarkdownShortcut(commandKey: "k") == .link)
+        #expect(MarkdownShortcut(commandKey: "'") == .quote)
         #expect(MarkdownShortcut(commandKey: "x") == nil)
+    }
+
+    @Test func linkTakesAURLFromTheClipboardAndPutsTheCursorBehindIt() {
+        let edit = MarkdownShortcut.link.edit(in: "Listen", selection: NSRange(location: 0, length: 6),
+                                              clipboard: "  https://musiccloud.io/x\n")
+        #expect(edit.replacement == "[Listen](https://musiccloud.io/x)")
+        #expect(edit.selection == NSRange(location: 33, length: 0))
+    }
+
+    @Test(arguments: ["no url here", "ftp://example.com", "https://", "https://a.example and more"])
+    func clipboardWithoutAWebURLLeavesThePlaceholder(clipboard: String) {
+        let edit = MarkdownShortcut.link.edit(in: "Listen", selection: NSRange(location: 0, length: 6), clipboard: clipboard)
+        #expect(edit.replacement == "[Listen](url)")
+    }
+
+    /// Every line the selection touches is quoted, even where it only starts or ends in one.
+    @Test func quoteMarksEveryTouchedLine() {
+        let text = "one\ntwo\nthree"
+        let (result, selected) = apply(MarkdownShortcut.quote.edit(in: text, selection: NSRange(location: 2, length: 3)), to: text)
+        #expect(result == "> one\n> two\nthree")
+        #expect(selected == "> one\n> two")
+    }
+
+    @Test func quoteAgainRemovesIt() {
+        let text = "> one\n>two"
+        let (result, _) = apply(MarkdownShortcut.quote.edit(in: text, selection: NSRange(location: 0, length: 0)), to: text)
+        #expect(result == "one\n>two")
+        let (both, _) = apply(MarkdownShortcut.quote.edit(in: text, selection: NSRange(location: 0, length: 10)), to: text)
+        #expect(both == "one\ntwo")
+    }
+
+    @Test func quoteIsHighlighted() {
+        let kinds = TemplateSyntaxHighlighter.highlights(in: "> quoted\nplain") { _ in true }.map(\.kind)
+        #expect(kinds == [.quote])
     }
 }
