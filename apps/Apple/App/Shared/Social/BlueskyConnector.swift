@@ -48,9 +48,12 @@ final class BlueskyConnector {
             // The code points of what a handle cannot contain show the cause of
             // a rejection the user cannot see, such as an invisible character.
             let unexpected = handleInput.lowercased().unicodeScalars
-                .filter { !BlueskyAPI.handleCharacters.contains($0) && $0 != "@" }
+                .filter { !BlueskyAPI.isHandleCharacter($0) && $0 != "@" }
                 .map { String(format: "U+%04X", $0.value) }
             AppLogger.api.notice("Bluesky handle rejected, unexpected characters: \(unexpected.joined(separator: " "), privacy: .public)")
+            if !unexpected.isEmpty {
+                throw SocialServiceError.invalidInput(String(localized: "The handle contains characters that are not allowed: \(unexpected.joined(separator: " "))"))
+            }
             throw SocialServiceError.invalidInput(String(localized: "Enter your Bluesky handle, such as name.bsky.social."))
         }
         let did = try await resolveDID(of: handle)

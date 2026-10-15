@@ -32,8 +32,17 @@ enum BlueskyAPI {
     /// The domain of a handle given as a bare name, such as `phranck`.
     static let defaultHandleDomain = "bsky.social"
 
-    /// The characters a handle consists of, after it is lowercased.
-    static let handleCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789.-")
+    /// Whether `scalar` can stand in a lowercased handle: an ASCII letter, a digit, `.` or `-`.
+    ///
+    /// Compared by value rather than through a `CharacterSet`: in the optimized
+    /// build a `CharacterSet` lookup here rejected every handle, while the
+    /// unoptimized build accepted them.
+    static func isHandleCharacter(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.value {
+        case 0x61...0x7A, 0x30...0x39, 0x2E, 0x2D: true
+        default: false
+        }
+    }
 
     /// The handle a user means, without `@` and in lowercase, or `nil` when it cannot be one.
     ///
@@ -42,10 +51,14 @@ enum BlueskyAPI {
     /// control characters are dropped first. A profile link such as
     /// `https://bsky.app/profile/name.bsky.social` names the handle as well.
     static func handle(from input: String) -> String? {
-        let visible = String(String.UnicodeScalarView(input.unicodeScalars.filter {
-            $0.properties.generalCategory != .format && $0.properties.generalCategory != .control
-        }))
-        var text = visible.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var visible = String.UnicodeScalarView()
+        for scalar in input.unicodeScalars {
+            let category = scalar.properties.generalCategory
+            if category != .format && category != .control {
+                visible.append(scalar)
+            }
+        }
+        var text = String(visible).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if let profile = text.range(of: "/profile/") {
             text = String(text[profile.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         }
@@ -57,7 +70,7 @@ enum BlueskyAPI {
             text += "." + defaultHandleDomain
         }
         guard text.contains("."), !text.hasPrefix("."), !text.hasSuffix("."),
-              text.unicodeScalars.allSatisfy(handleCharacters.contains) else { return nil }
+              text.unicodeScalars.allSatisfy(isHandleCharacter) else { return nil }
         return text
     }
 

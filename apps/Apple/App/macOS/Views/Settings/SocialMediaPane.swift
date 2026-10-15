@@ -310,6 +310,8 @@ private struct ConnectAccountSheet: View {
                     .textFieldStyle(.roundedBorder)
                     .disabled(isWorking)
                     .onSubmit(connect)
+                    // A message belongs to the input it was about.
+                    .onChange(of: input) { errorMessage = nil }
                 if let suffix = service.fixedSuffix(for: input) {
                     Text(verbatim: suffix)
                         .foregroundStyle(.secondary)
