@@ -156,18 +156,27 @@ struct MediaEntryTests {
 
     @Test func artistInfoFormattedFollowersMillions() {
         let info = ArtistInfo(name: "Artist", followerCount: 1_500_000)
-        #expect(info.formattedFollowers == "1.5M")
+        #expect(info.formattedFollowers(locale: Self.english) == "1.5M")
     }
 
     @Test func artistInfoFormattedFollowersThousands() {
         let info = ArtistInfo(name: "Artist", followerCount: 42_300)
-        #expect(info.formattedFollowers == "42.3K")
+        #expect(info.formattedFollowers(locale: Self.english) == "42.3K")
     }
 
     @Test func artistInfoFormattedFollowersSmall() {
         let info = ArtistInfo(name: "Artist", followerCount: 99)
-        #expect(info.formattedFollowers == "99")
+        #expect(info.formattedFollowers(locale: Self.english) == "99")
     }
+
+    @Test func artistInfoFormattedFollowersRoundsToAMillion() {
+        let info = ArtistInfo(name: "Artist", followerCount: 999_999)
+        #expect(info.formattedFollowers(locale: Self.english) == "1M")
+    }
+
+    /// The test machine's locale decides separators and abbreviations, so
+    /// the expectations name the locale they hold for.
+    private static let english = Locale(identifier: "en_US")
 
     @Test func artistInfoFormattedFollowersNil() {
         let info = ArtistInfo(name: "Artist")
