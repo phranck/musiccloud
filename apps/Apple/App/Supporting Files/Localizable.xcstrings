@@ -3125,7 +3125,54 @@
         }
       }
     },
+    "Enter your Bluesky name. A handle on a domain of your own, such as musiccloud.io, works as well." : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Zadejte své jméno Bluesky. Přezdívka na vlastní doméně, například musiccloud.io, také funguje."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Gib deinen Bluesky-Namen ein. Ein Handle auf einer eigenen Domain, zum Beispiel musiccloud.io, funktioniert ebenfalls."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Introduce tu nombre de Bluesky. Un identificador en un dominio propio, por ejemplo musiccloud.io, también funciona."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Saisissez votre nom Bluesky. Un identifiant sur votre propre domaine, par exemple musiccloud.io, fonctionne aussi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Inserisci il tuo nome Bluesky. Funziona anche un handle su un dominio personale, ad esempio musiccloud.io."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Voer je Bluesky-naam in. Een handle op een eigen domein, bijvoorbeeld musiccloud.io, werkt ook."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Bluesky adınızı girin. Kendi alan adınızdaki bir kullanıcı adı da işe yarar, örneğin musiccloud.io."
+          }
+        }
+      }
+    },
     "Enter your handle. You sign in on your server's own page." : {
+      "extractionState" : "stale",
       "localizations" : {
         "cs" : {
           "stringUnit" : {

@@ -29,15 +29,35 @@ enum BlueskyAPI {
     /// Bluesky's public API, which answers handle and profile lookups without a session.
     static let publicAPI = URL(string: "https://public.api.bsky.app")!
 
+    /// The domain of a handle given as a bare name, such as `phranck`.
+    static let defaultHandleDomain = "bsky.social"
+
+    /// The characters a handle consists of, after it is lowercased.
+    static let handleCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789.-")
+
     /// The handle a user means, without `@` and in lowercase, or `nil` when it cannot be one.
+    ///
+    /// Text copied from a web page carries invisible format characters, such
+    /// as the direction marks around a handle on bsky.app, so format and
+    /// control characters are dropped first. A profile link such as
+    /// `https://bsky.app/profile/name.bsky.social` names the handle as well.
     static func handle(from input: String) -> String? {
-        var text = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let visible = String(String.UnicodeScalarView(input.unicodeScalars.filter {
+            $0.properties.generalCategory != .format && $0.properties.generalCategory != .control
+        }))
+        var text = visible.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let profile = text.range(of: "/profile/") {
+            text = String(text[profile.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
         if text.hasPrefix("@") {
             text.removeFirst()
         }
-        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789.-")
+        // A bare name is a handle on Bluesky's own domain, as the field shows beside it.
+        if !text.isEmpty, !text.contains(".") {
+            text += "." + defaultHandleDomain
+        }
         guard text.contains("."), !text.hasPrefix("."), !text.hasSuffix("."),
-              text.unicodeScalars.allSatisfy(allowed.contains) else { return nil }
+              text.unicodeScalars.allSatisfy(handleCharacters.contains) else { return nil }
         return text
     }
 
