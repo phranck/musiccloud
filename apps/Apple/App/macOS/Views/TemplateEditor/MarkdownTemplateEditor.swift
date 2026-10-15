@@ -152,6 +152,24 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
 /// next keystroke, so the list is opened again after every character typed
 /// or deleted inside an unfinished placeholder, filtered by what is there.
 final class TemplateTextView: NSTextView {
+    /// ⌘B, ⌘I, ⌘E and ⌘K format the selection; see ``MarkdownShortcut``.
+    ///
+    /// The menu bar app has no Format menu that would send these, so the
+    /// text view answers them itself. The change goes through `insertText`,
+    /// so ⌘Z undoes it and the coloring follows through `textDidChange`.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard isEditable, window?.firstResponder === self,
+              event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+              let key = event.charactersIgnoringModifiers,
+              let shortcut = MarkdownShortcut(commandKey: key)
+        else { return super.performKeyEquivalent(with: event) }
+
+        let edit = shortcut.edit(in: string, selection: selectedRange())
+        insertText(edit.replacement, replacementRange: edit.range)
+        setSelectedRange(edit.selection)
+        return true
+    }
+
     override var rangeForUserCompletion: NSRange {
         TemplateCompletion.partialRange(in: string, cursor: selectedRange().location) ?? super.rangeForUserCompletion
     }
