@@ -11,7 +11,27 @@ struct BlueskyDiscoveryTests {
         #expect(BlueskyAPI.handle(from: input) == "name.bsky.social")
     }
 
-    @Test(arguments: ["", "name", "@", ".bsky.social", "name.", "na me.bsky.social", "https://bsky.app"])
+    /// Text copied from a web page carries invisible direction marks and
+    /// zero-width characters around the handle; a profile link names it too.
+    @Test(arguments: [
+        "\u{2066}@name.bsky.social\u{2069}",
+        "\u{202A}name.bsky.social\u{202C}",
+        "name\u{200B}.bsky.social",
+        "\u{FEFF}name.bsky.social",
+        "https://bsky.app/profile/name.bsky.social",
+        "bsky.app/profile/@name.bsky.social/",
+    ])
+    func handleIsFoundInPastedText(input: String) {
+        #expect(BlueskyAPI.handle(from: input) == "name.bsky.social")
+    }
+
+    /// A bare name is a handle on bsky.social, which the field shows beside it.
+    @Test(arguments: ["phranck", "@Phranck", "\u{2066}phranck\u{2069}"])
+    func bareNameGetsBlueskysDomain(input: String) {
+        #expect(BlueskyAPI.handle(from: input) == "phranck.bsky.social")
+    }
+
+    @Test(arguments: ["", "@", ".bsky.social", "name.", "na me.bsky.social", "na me", "https://bsky.app"])
     func inputThatCannotBeAHandleIsRejected(input: String) {
         #expect(BlueskyAPI.handle(from: input) == nil)
     }

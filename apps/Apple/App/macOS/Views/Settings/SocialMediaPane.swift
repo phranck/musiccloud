@@ -116,7 +116,7 @@ private enum SocialService: String, CaseIterable, Identifiable {
     var sheetExplanation: String {
         switch self {
         case .mastodon: String(localized: "Enter the server your account is on. You sign in on its own page.")
-        case .bluesky:  String(localized: "Enter your handle. You sign in on your server's own page.")
+        case .bluesky:  String(localized: "Enter your Bluesky name. A handle on a domain of your own, such as musiccloud.io, works as well.")
         }
     }
 
@@ -131,7 +131,16 @@ private enum SocialService: String, CaseIterable, Identifiable {
     var placeholder: String {
         switch self {
         case .mastodon: "mastodon.social"
-        case .bluesky:  "name.bsky.social"
+        case .bluesky:  "name"
+        }
+    }
+
+    /// The end of the handle shown beside the field while the input has no
+    /// domain of its own, which ``BlueskyAPI/handle(from:)`` then adds.
+    func fixedSuffix(for input: String) -> String? {
+        switch self {
+        case .mastodon: nil
+        case .bluesky:  input.contains(".") ? nil : "." + BlueskyAPI.defaultHandleDomain
         }
     }
 
@@ -231,10 +240,16 @@ private struct ConnectAccountSheet: View {
             Text(service.sheetExplanation)
                 .foregroundStyle(.secondary)
 
-            TextField(service.fieldLabel, text: $input, prompt: Text(verbatim: service.placeholder))
-                .textFieldStyle(.roundedBorder)
-                .disabled(isWorking)
-                .onSubmit(connect)
+            HStack(spacing: 6) {
+                TextField(service.fieldLabel, text: $input, prompt: Text(verbatim: service.placeholder))
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(isWorking)
+                    .onSubmit(connect)
+                if let suffix = service.fixedSuffix(for: input) {
+                    Text(verbatim: suffix)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             if let errorMessage {
                 Text(errorMessage)
