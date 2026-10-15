@@ -18,16 +18,19 @@ struct SocialMediaPane: View {
     @State private var accountToDisconnect: SocialAccount?
 
     var body: some View {
-        Form {
-            Section {
-                Toggle(String(localized: "Post new conversions automatically"), isOn: Bindable(autoPostSettings).isEnabled)
-            } footer: {
-                Text("Each account below says whether it takes part and with which template. A link that is already in the history is not posted again.")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                SettingsCard(tint: nil, footer: String(localized: "Each account below says whether it takes part and with which template. A link that is already in the history is not posted again.")) {
+                    Toggle(String(localized: "Post new conversions automatically"), isOn: Bindable(autoPostSettings).isEnabled)
+                }
+                accountSection(.mastodon, accounts: store.mastodonAccounts.map(SocialAccount.mastodon))
+                accountSection(.bluesky, accounts: store.blueskyAccounts.map(SocialAccount.bluesky))
             }
-            accountSection(.mastodon, accounts: store.mastodonAccounts.map(SocialAccount.mastodon))
-            accountSection(.bluesky, accounts: store.blueskyAccounts.map(SocialAccount.bluesky))
+            .padding(20)
+            // Outside a Form a toggle is a checkbox; the other panes show switches.
+            .toggleStyle(.switch)
         }
-        .formStyle(.grouped)
+        .background(Color(nsColor: .windowBackgroundColor))
         .sheet(item: $serviceToConnect) { service in
             ConnectAccountSheet(service: service)
         }
@@ -44,34 +47,92 @@ struct SocialMediaPane: View {
         }
     }
 
-    /// One service as a card: its name and an Add Account button as the
-    /// first row, then the connected accounts.
+    /// One service as a card tinted in its brand color: its name and an Add
+    /// Account button in the header, then the connected accounts.
     private func accountSection(_ service: SocialService, accounts: [SocialAccount]) -> some View {
-        Section {
-            HStack {
-                Label {
-                    Text(verbatim: service.name)
-                        .font(.headline)
-                } icon: {
-                    PostTemplateIconImage(icon: service.icon)
-                }
-                Spacer()
-                Button(String(localized: "Add Account…")) {
-                    serviceToConnect = service
-                }
-            }
+        SettingsCard(tint: service.brandColor, footer: service.footer) {
             if accounts.isEmpty {
                 Text("No accounts connected.")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(accounts) { account in
+                ForEach(Array(accounts.enumerated()), id: \.element.id) { index, account in
+                    if index > 0 {
+                        Divider()
+                    }
                     ConnectedAccountRow(account: account) {
                         accountToDisconnect = account
                     }
                 }
             }
-        } footer: {
-            Text(service.footer)
+        } header: {
+            Label {
+                Text(verbatim: service.name)
+                    .font(.headline)
+            } icon: {
+                PostTemplateIconImage(icon: service.icon)
+            }
+            Spacer()
+            Button(String(localized: "Add Account…")) {
+                serviceToConnect = service
+            }
+        }
+    }
+}
+
+// MARK: - SettingsCard
+
+/// A rounded card with an optional header row and a footer note below it.
+///
+/// With a `tint`, the header's background and the border take that color,
+/// faintly, so a service's card reads as that service without shouting.
+private struct SettingsCard<Content: View, Header: View>: View {
+    let tint: Color?
+    let footer: String
+    @ViewBuilder let content: () -> Content
+    @ViewBuilder let header: () -> Header
+
+    private let shape = RoundedRectangle(cornerRadius: 10)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 0) {
+                if Header.self != EmptyView.self {
+                    HStack(content: header)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background((tint ?? .secondary).opacity(0.08))
+                    Divider()
+                        .overlay((tint ?? .secondary).opacity(0.25))
+                }
+                VStack(alignment: .leading, spacing: 10, content: content)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(tint.map { $0.opacity(0.35) } ?? Color(nsColor: .separatorColor)))
+
+            Text(footer)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+        }
+    }
+}
+
+extension SettingsCard where Header == EmptyView {
+    init(tint: Color?, footer: String, @ViewBuilder content: @escaping () -> Content) {
+        self.init(tint: tint, footer: footer, content: content, header: { EmptyView() })
+    }
+}
+
+private extension SocialService {
+    /// The service's brand color: Mastodon's `#6364FF` from joinmastodon.org/branding,
+    /// Bluesky's `#1185FE` from bsky.app.
+    var brandColor: Color {
+        switch self {
+        case .mastodon: Color(red: 0x63 / 255, green: 0x64 / 255, blue: 0xFF / 255)
+        case .bluesky:  Color(red: 0x11 / 255, green: 0x85 / 255, blue: 0xFE / 255)
         }
     }
 }
