@@ -17,7 +17,6 @@ struct SettingsItem: View {
             }
             NSApp.keyWindow?.close()
             delegate.openSettings()
-            NSApp.activate()
         }
     }
 }
