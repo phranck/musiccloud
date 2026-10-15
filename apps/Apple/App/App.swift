@@ -74,9 +74,12 @@ struct MusicCloudApp: App {
                     }
                     .task {
                         UIApplication.shared.registerForRemoteNotifications()
-                        NotificationManager.requestPermission()
+                        // The permission dialog waits for the user, so the
+                        // launch work below runs while it is open.
+                        async let permission: Void = NotificationManager.requestPermission()
                         await TelemetryClient.shared.flushPending()
                         await AppSession.shared.prepare()
+                        await permission
                     }
             } else {
                 ContentUnavailableView(

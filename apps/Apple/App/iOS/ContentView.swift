@@ -26,29 +26,31 @@ struct ContentView: View {
 private struct IPhoneTabView: View {
     @Environment(ClipboardMonitor.self) private var monitor
 
-    @State private var selectedTab: Tab = .filter(.all)
+    @State private var selectedTab: TabID = .filter(.all)
 
     var body: some View {
         TabView(selection: $selectedTab) {
             ForEach(MediaFilter.allCases) { filter in
-                NavigationStack {
-                    HistoryView(initialFilter: filter)
+                Tab(filter.title, systemImage: filter.icon, value: TabID.filter(filter)) {
+                    NavigationStack {
+                        HistoryView(initialFilter: filter)
+                    }
                 }
-                .tabItem { Label(filter.title, systemImage: filter.icon) }
-                .tag(Tab.filter(filter))
             }
 
-            NavigationStack {
-                SettingsView()
-                    .navigationTitle("Settings")
+            Tab("Settings", systemImage: "gear", value: TabID.settings) {
+                NavigationStack {
+                    SettingsView()
+                        .navigationTitle("Settings")
+                }
             }
-            .tabItem { Label("Settings", systemImage: "gear") }
-            .tag(Tab.settings)
         }
         .followsConversions(of: monitor, filter: selectedFilter)
     }
 
-    private enum Tab: Hashable {
+    /// Identifies a tab for the selection. Named apart from `SwiftUI.Tab`,
+    /// which builds the tabs.
+    private enum TabID: Hashable {
         case filter(MediaFilter)
         case settings
     }

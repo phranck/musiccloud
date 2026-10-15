@@ -7,6 +7,8 @@ import SwiftUI
 struct ResultCardView: View {
     @Environment(\.openURL) private var openURL
     @State private var showServiceSheet = false
+    /// Counts taps on Copy Link, so each copy plays the success haptic.
+    @State private var copyCount = 0
 
     var entry: MediaEntry
 
@@ -35,10 +37,11 @@ struct ResultCardView: View {
             HStack(spacing: 12) {
                 Button {
                     Pasteboard.copy(entry.shortUrl)
-                    HapticFeedback.success()
+                    copyCount += 1
                 } label: {
                     Label("Copy Link", systemImage: "doc.on.doc")
                 }
+                .sensoryFeedback(.success, trigger: copyCount)
                 ShareLink(item: entry.shortUrl) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }

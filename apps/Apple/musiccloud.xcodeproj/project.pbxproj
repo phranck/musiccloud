@@ -1417,7 +1417,7 @@
 				INFOPLIST_FILE = "App/Supporting Files/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = musiccloud;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1452,7 +1452,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
 				MACOSX_DEPLOYMENT_TARGET = 26.6;
 				MARKETING_VERSION = 0.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
@@ -1476,7 +1476,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
 				MACOSX_DEPLOYMENT_TARGET = 26.6;
 				MARKETING_VERSION = 0.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
@@ -1501,7 +1501,7 @@
 				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1528,7 +1528,7 @@
 				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1637,7 +1637,7 @@
 				INFOPLIST_FILE = "App/Supporting Files/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = musiccloud;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

@@ -234,10 +234,10 @@ final class TemplateTextView: NSTextView {
     }
 
     /// Opens the completion list when the cursor stands in an unfinished
-    /// `{name`, on the next turn of the run loop, so the keystroke has
+    /// `{name`, on a later turn of the main actor, so the keystroke has
     /// reached the text first.
     private func completeIfInsidePlaceholder() {
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self, selectedRange().length == 0,
                   TemplateCompletion.partialRange(in: string, cursor: selectedRange().location) != nil
             else { return }

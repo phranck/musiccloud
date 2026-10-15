@@ -16,19 +16,28 @@ struct EntryActionsModifier: ViewModifier {
 
     @Environment(\.openURL) private var openURL
 
+    #if os(iOS)
+    /// Counts copies from the context menu. The card plays the haptic when it
+    /// changes, because the menu is gone by the time the copy has happened.
+    @State private var copyCount = 0
+    #endif
+
     func body(content: Content) -> some View {
         content
             #if os(macOS)
             .onTapGesture(count: 2) { openSharePage() }
             #else
             .onTapGesture { openSharePage() }
+            .sensoryFeedback(.impact(weight: .light), trigger: copyCount)
             #endif
             .contextMenu {
-                CopyShareURLButton(shortUrl: entry.shortUrl)
                 #if os(iOS)
+                CopyShareURLButton(shortUrl: entry.shortUrl) { copyCount += 1 }
                 ShareLink(item: entry.shortUrl) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
+                #else
+                CopyShareURLButton(shortUrl: entry.shortUrl)
                 #endif
                 OpenInBrowserButton(shortUrl: entry.shortUrl)
                 #if os(macOS)
@@ -54,13 +63,13 @@ private extension EntryActionsModifier {
 
 private struct CopyShareURLButton: View {
     let shortUrl: String
+    /// Runs after the link is on the clipboard, so the card can confirm the copy.
+    var onCopy: () -> Void = {}
 
     var body: some View {
         Button {
             Pasteboard.copy(shortUrl)
-            #if os(iOS)
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            #endif
+            onCopy()
         } label: {
             Label("Copy Share URL", systemImage: "doc.on.doc")
         }

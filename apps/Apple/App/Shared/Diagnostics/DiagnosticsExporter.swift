@@ -81,10 +81,10 @@ enum DiagnosticsExporter {
         }
 
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("musiccloud-diagnostics", isDirectory: true)
+            .appending(path: "musiccloud-diagnostics", directoryHint: .isDirectory)
         try? FileManager.default.removeItem(at: directory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let file = directory.appendingPathComponent("musiccloud-diagnostics-\(UUID().uuidString.prefix(8)).jsonl")
+        let file = directory.appending(path: "musiccloud-diagnostics-\(UUID().uuidString.prefix(8)).jsonl")
         try buffer.write(to: file, options: [.atomic, .completeFileProtection])
         return file
     }

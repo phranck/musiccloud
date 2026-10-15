@@ -3547,6 +3547,53 @@
         }
       }
     },
+    "Error" : {
+      "comment" : "Accessibility label of the status circle: the last conversion failed",
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chyba"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Fehler"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Error"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Erreur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Errore"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Fout"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Hata"
+          }
+        }
+      }
+    },
     "Error: %@" : {
       "localizations" : {
         "cs" : {
@@ -4613,6 +4660,53 @@
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "Kalkış"
+          }
+        }
+      }
+    },
+    "Log export failed: %@" : {
+      "comment" : "Shown below Export Diagnostics; the argument is the system's error message",
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Export protokolu se nezdařil: %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Protokollexport fehlgeschlagen: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "La exportación del registro falló: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Échec de l'exportation du journal : %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Esportazione log non riuscita: %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Logexport mislukt: %@"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Günlük dışa aktarma başarısız: %@"
           }
         }
       }
@@ -6855,6 +6949,53 @@
         }
       }
     },
+    "Processing" : {
+      "comment" : "Accessibility label of the status circle: a link is being converted",
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Zpracování"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Verarbeitung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Procesamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Traitement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Elaborazione"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Verwerking"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "İşleme"
+          }
+        }
+      }
+    },
     "Quit" : {
       "localizations" : {
         "cs" : {
@@ -8121,6 +8262,53 @@
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "Yıldız"
+          }
+        }
+      }
+    },
+    "Success" : {
+      "comment" : "Accessibility label of the status circle: the last conversion succeeded",
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Úspěch"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Erfolg"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Éxito"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Réussite"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Successo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Succes"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Başarı"
           }
         }
       }
