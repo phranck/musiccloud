@@ -38,10 +38,11 @@ struct SocialAccountLabel: View {
 // MARK: - SocialAccount + Connectors
 
 extension SocialAccount {
-    /// Signs the account out on its server and removes it.
+    /// Signs the account out on its server and removes it, with its automatic posting rule.
     @MainActor
     func disconnect() async {
         guard let delegate = AppDelegate.shared else { return }
+        delegate.autoPostSettings.removeRule(for: id)
         switch self {
         case .mastodon(let account): await delegate.mastodonConnector.disconnect(account)
         case .bluesky(let account):  await delegate.blueskyConnector.disconnect(account)

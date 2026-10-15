@@ -32,6 +32,11 @@ extension PostContext {
             serviceLinks: entry.serviceLinks
         )
     }
+
+    /// What the entry is called: its song, else its album, else its artist.
+    var title: String {
+        [PostVariable.songName, .albumName, .artist].lazy.compactMap { $0.value(in: self) }.first ?? ""
+    }
 }
 
 // MARK: - PostVariable
