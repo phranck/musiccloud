@@ -28,20 +28,6 @@ struct SocialMediaPane: View {
             accountSection(.bluesky, accounts: store.blueskyAccounts.map(SocialAccount.bluesky))
         }
         .formStyle(.grouped)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            HStack {
-                Spacer()
-                Menu(String(localized: "Connect Account")) {
-                    ForEach(SocialService.allCases) { service in
-                        Button(service.name + "…") {
-                            serviceToConnect = service
-                        }
-                    }
-                }
-                .fixedSize()
-            }
-            .padding(20)
-        }
         .sheet(item: $serviceToConnect) { service in
             ConnectAccountSheet(service: service)
         }
@@ -58,8 +44,22 @@ struct SocialMediaPane: View {
         }
     }
 
+    /// One service as a card: its name and an Add Account button as the
+    /// first row, then the connected accounts.
     private func accountSection(_ service: SocialService, accounts: [SocialAccount]) -> some View {
         Section {
+            HStack {
+                Label {
+                    Text(verbatim: service.name)
+                        .font(.headline)
+                } icon: {
+                    PostTemplateIconImage(icon: service.icon)
+                }
+                Spacer()
+                Button(String(localized: "Add Account…")) {
+                    serviceToConnect = service
+                }
+            }
             if accounts.isEmpty {
                 Text("No accounts connected.")
                     .foregroundStyle(.secondary)
@@ -69,12 +69,6 @@ struct SocialMediaPane: View {
                         accountToDisconnect = account
                     }
                 }
-            }
-        } header: {
-            Label {
-                Text(verbatim: service.name)
-            } icon: {
-                PostTemplateIconImage(icon: service.icon)
             }
         } footer: {
             Text(service.footer)
