@@ -27,6 +27,9 @@ enum DefaultsKey {
     /// Whether the Template Editor shows the variable legend. Defaults to `true`.
     static let templateLegendVisible = "templateLegendVisible"
 
-    /// ``AutoPostSettings`` as JSON: the master switch and each account's switch and default template.
+    /// ``AutoPostSettings`` as JSON: the master switch and each account's switch.
     static let autoPost = "autoPost"
+
+    /// ``DefaultTemplates`` as JSON: the template each account posts with, where the user chose one.
+    static let defaultTemplates = "defaultTemplates"
 }

@@ -41,12 +41,14 @@ final class SocialConnections {
 extension SocialAccount {
     /// Signs the account out on its server and removes it.
     ///
-    /// On the Mac it also removes the account's automatic posting rule,
-    /// which exists only there.
+    /// On the Mac it also removes the account's automatic posting rule and
+    /// its chosen default template, which exist only there, so an account
+    /// connected again later starts from its system template.
     @MainActor
     func disconnect() async {
         #if os(macOS)
         AppDelegate.shared?.autoPostSettings.removeRule(for: id)
+        AppDelegate.shared?.defaultTemplates.setTemplateID(nil, for: id)
         #endif
         let connections = SocialConnections.shared
         switch self {

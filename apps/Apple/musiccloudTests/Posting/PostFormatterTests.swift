@@ -116,19 +116,27 @@ struct PostComposerModelTests {
     private let bluesky = SocialAccount.bluesky(BlueskyAccount(
         did: "did:plc:abc", handle: "u.bsky.social", displayName: "", avatarURL: nil, pds: URL(string: "https://pds.example")!))
 
+    private let first = PostTemplate(name: "A", body: "**{song_name}** {share_url}")
+    private let second = PostTemplate(name: "B", body: "{artist}")
+
+    /// Mastodon chose `first` as its default; Bluesky has no choice and starts from its system template.
     private func model() -> PostComposerModel {
-        PostComposerModel(context: context,
-                          templates: [PostTemplate(name: "A", body: "**{song_name}** {share_url}"), PostTemplate(name: "B", body: "{artist}")],
-                          accounts: [mastodon, bluesky])
+        PostComposerModel(context: context, templates: PostTemplate.system + [first, second], accounts: [mastodon, bluesky],
+                          defaultTemplateIDs: [mastodon.id: first.id])
     }
 
-    @Test func everyAccountStartsWithTheFirstTemplate() {
+    @Test func everyAccountStartsWithItsDefaultTemplate() throws {
         let model = model()
+        let blueskySystem = try #require(PostTemplate.systemTemplate(for: bluesky))
+        #expect(model.templateID == nil)
         #expect(model.drafts[mastodon.id] == "**MoonDial** https://musiccloud.io/x")
-        #expect(model.drafts[bluesky.id] == "**MoonDial** https://musiccloud.io/x")
+        #expect(model.drafts[bluesky.id] == PostTemplateRenderer.render(blueskySystem.body, with: context))
         #expect(model.title == "MoonDial")
-        model.templateID = model.templates[1].id
+        model.templateID = second.id
         #expect(model.drafts[mastodon.id] == "Pat Metheny")
+        #expect(model.drafts[bluesky.id] == "Pat Metheny")
+        model.templateID = nil
+        #expect(model.drafts[mastodon.id] == "**MoonDial** https://musiccloud.io/x")
     }
 
     @Test func textOverTheLimitBlocksPosting() {

@@ -107,8 +107,11 @@ private extension TemplateEditorView {
 // MARK: - TemplateList
 
 /// The sidebar: the system templates and the user's by name, with add and
-/// delete below. Delete is off while a system template is selected. Every
-/// template can be duplicated from its context menu.
+/// delete below. Delete is off while a system template is selected.
+///
+/// A template that is the default of a connected account shows a
+/// ``DefaultTemplateSeal``. Every template's context menu makes it the
+/// default of chosen accounts and duplicates it.
 private struct TemplateList: View {
     @Binding var selectedID: PostTemplate.ID?
     let onAdd: () -> Void
@@ -116,23 +119,20 @@ private struct TemplateList: View {
     let onDuplicate: (PostTemplate) -> Void
 
     @Environment(PostTemplateStore.self) private var store
+    @Environment(SocialAccountStore.self) private var accountStore
 
     var body: some View {
         List(selection: $selectedID) {
             if !store.systemTemplates.isEmpty {
                 Section(String(localized: "System Templates")) {
                     ForEach(store.systemTemplates) { template in
-                        PostTemplateLabel(template: template, isSystem: true)
-                            .tag(template.id)
-                            .contextMenu { duplicateButton(template) }
+                        row(template, isSystem: true)
                     }
                 }
             }
             Section(String(localized: "My Templates")) {
                 ForEach(store.templates) { template in
-                    PostTemplateLabel(template: template, isSystem: false)
-                        .tag(template.id)
-                        .contextMenu { duplicateButton(template) }
+                    row(template, isSystem: false)
                 }
             }
         }
@@ -155,8 +155,20 @@ private struct TemplateList: View {
         }
     }
 
-    private func duplicateButton(_ template: PostTemplate) -> some View {
-        Button(String(localized: "Duplicate")) { onDuplicate(template) }
+    private func row(_ template: PostTemplate, isSystem: Bool) -> some View {
+        HStack {
+            PostTemplateLabel(template: template, isSystem: isSystem)
+            Spacer(minLength: 4)
+            DefaultTemplateSeal(template: template, isMenu: false)
+        }
+        .tag(template.id)
+        .contextMenu {
+            Menu(String(localized: "Use as Default for")) {
+                DefaultTemplateAccountToggles(template: template)
+            }
+            .disabled(SocialAccount.all(in: accountStore).isEmpty)
+            Button(String(localized: "Duplicate")) { onDuplicate(template) }
+        }
     }
 }
 
@@ -180,6 +192,8 @@ private struct TemplateList: View {
     ))
     return TemplateEditorView()
         .environment(store)
+        .environment(SocialAccountStore(directory: nil, keychain: nil))
+        .environment(DefaultTemplates(defaults: UserDefaults(suiteName: "TemplateEditorPreview") ?? .standard))
         .modelContainer(container)
         .frame(width: TemplateEditorView.initialSize.width, height: TemplateEditorView.initialSize.height)
 }

@@ -18,11 +18,14 @@ import Foundation
 @MainActor
 final class AutoPoster {
     private let settings: AutoPostSettings
+    private let defaultTemplates: DefaultTemplates
     private let accountStore: SocialAccountStore
     private let templateStore: PostTemplateStore
 
-    init(settings: AutoPostSettings, accountStore: SocialAccountStore, templateStore: PostTemplateStore) {
+    init(settings: AutoPostSettings, defaultTemplates: DefaultTemplates, accountStore: SocialAccountStore,
+         templateStore: PostTemplateStore) {
         self.settings = settings
+        self.defaultTemplates = defaultTemplates
         self.accountStore = accountStore
         self.templateStore = templateStore
     }
@@ -31,7 +34,8 @@ final class AutoPoster {
     func post(_ entry: MediaEntry) async {
         let context = PostContext(entry: entry)
         let plan = AutoPostPlan.make(context: context, accounts: SocialAccount.all(in: accountStore),
-                                     templates: templateStore.allTemplates, settings: settings)
+                                     templates: templateStore.allTemplates, settings: settings,
+                                     defaultTemplates: defaultTemplates)
         guard !plan.posts.isEmpty || !plan.skipped.isEmpty else { return }
 
         var posted: [SocialAccount] = []
