@@ -164,6 +164,8 @@
 		FDB800983080FE5E00AC2DA7 /* MarkdownShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800963080FE5E00AC2DA7 /* MarkdownShortcut.swift */; };
 		FDB8009A3080FE7600AC2DA7 /* MarkdownShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800993080FE7600AC2DA7 /* MarkdownShortcutTests.swift */; };
 		FDB8009C3081068000AC2DA7 /* TemplatePostLimitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8009B3081068000AC2DA7 /* TemplatePostLimitTests.swift */; };
+		FDB8009E3081265400AC2DA7 /* OpenGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8009D3081265400AC2DA7 /* OpenGraph.swift */; };
+		FDB800A03081276400AC2DA7 /* LinkCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8009F3081276400AC2DA7 /* LinkCardTests.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -369,6 +371,8 @@
 		FDB800963080FE5E00AC2DA7 /* MarkdownShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownShortcut.swift; sourceTree = "<group>"; };
 		FDB800993080FE7600AC2DA7 /* MarkdownShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownShortcutTests.swift; sourceTree = "<group>"; };
 		FDB8009B3081068000AC2DA7 /* TemplatePostLimitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplatePostLimitTests.swift; sourceTree = "<group>"; };
+		FDB8009D3081265400AC2DA7 /* OpenGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenGraph.swift; sourceTree = "<group>"; };
+		FDB8009F3081276400AC2DA7 /* LinkCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkCardTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -895,6 +899,7 @@
 				FDB8007130803A4900AC2DA7 /* BlueskyAccount.swift */,
 				FDB8007330803A9200AC2DA7 /* BlueskyConnector.swift */,
 				FDB800813080E9A300AC2DA7 /* SocialAccount.swift */,
+				FDB8009D3081265400AC2DA7 /* OpenGraph.swift */,
 			);
 			path = Social;
 			sourceTree = "<group>";
@@ -904,6 +909,7 @@
 			children = (
 				FDB8006530802F7B00AC2DA7 /* MastodonTests.swift */,
 				FDB80079308042C200AC2DA7 /* BlueskyTests.swift */,
+				FDB8009F3081276400AC2DA7 /* LinkCardTests.swift */,
 			);
 			path = Social;
 			sourceTree = "<group>";
@@ -1179,6 +1185,7 @@
 				FDDC7E252F805EB6005D779F /* ErrorRow.swift in Sources */,
 				FD2197D22F80996F00F4AD7D /* DashboardItem.swift in Sources */,
 				FD97C3802F80945D00E8D788 /* TrackItem.swift in Sources */,
+				FDB8009E3081265400AC2DA7 /* OpenGraph.swift in Sources */,
 				FDB8005330802E8800AC2DA7 /* JSONFile.swift in Sources */,
 				FD4CFB8E2F8075F2006135A6 /* AppLogger.swift in Sources */,
 				FDDC7E292F805EDC005D779F /* MediaSection.swift in Sources */,
@@ -1239,6 +1246,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BB00000000000001 /* StreamingServicesTests.swift in Sources */,
+				FDB800A03081276400AC2DA7 /* LinkCardTests.swift in Sources */,
 				FDB80046307FFC1700AC2DA7 /* TemplateEditingTests.swift in Sources */,
 				FDB8002E307FDE4800AC2DA7 /* PostTemplateTests.swift in Sources */,
 				BB00000000000002 /* MusicCloudAPITests.swift in Sources */,

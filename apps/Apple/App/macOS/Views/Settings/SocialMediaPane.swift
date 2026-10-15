@@ -306,6 +306,11 @@ private struct ConnectAccountSheet: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 6) {
+                // A Bluesky handle is written with an `@`, so the field shows it rather than asking for it.
+                if service == .bluesky {
+                    Text(verbatim: "@")
+                        .foregroundStyle(.secondary)
+                }
                 TextField(service.fieldLabel, text: $input, prompt: Text(verbatim: service.placeholder))
                     .textFieldStyle(.roundedBorder)
                     .disabled(isWorking)

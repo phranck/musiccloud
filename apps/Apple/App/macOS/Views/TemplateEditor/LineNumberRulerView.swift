@@ -42,6 +42,11 @@ final class LineNumberRulerView: NSRulerView {
         NSColor.textBackgroundColor.setFill()
         bounds.fill()
 
+        // The fill covers the ruler's own border, which then showed only below
+        // the text, so the separator is drawn here along the whole height.
+        NSColor.separatorColor.setFill()
+        NSRect(x: bounds.maxX - 1, y: bounds.minY, width: 1, height: bounds.height).fill()
+
         let text = textView.string as NSString
         let glyphRange = layoutManager.glyphRange(forBoundingRect: textView.visibleRect, in: textContainer)
         let visible = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
