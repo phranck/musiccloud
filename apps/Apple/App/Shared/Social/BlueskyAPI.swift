@@ -166,15 +166,31 @@ enum BlueskyAPI {
 
     // MARK: Posting
 
+    /// The largest image a link card's thumbnail may be, per Bluesky's guide to creating posts.
+    static let thumbnailByteLimit = 1_000_000
+
     /// Writes `post` as an `app.bsky.feed.post` record into the account's repository on its PDS.
-    static func createPostRequest(pds: URL, did: String, post: BlueskyPostText, createdAt: Date) -> URLRequest {
+    ///
+    /// - Parameter card: A link preview to show under the text, see ``BlueskyExternalEmbed``.
+    static func createPostRequest(pds: URL, did: String, post: BlueskyPostText, createdAt: Date,
+                                  card: BlueskyExternalEmbed? = nil) -> URLRequest {
         var request = URLRequest(url: pds.appending(path: "xrpc/com.atproto.repo.createRecord"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONEncoder().encode(BlueskyCreateRecord(
             repo: did,
             record: BlueskyPostRecord(text: post.text, facets: post.facets.isEmpty ? nil : post.facets,
-                                      createdAt: createdAt.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))))
+                                      createdAt: createdAt.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)),
+                                      embed: card)))
+        return request
+    }
+
+    /// Uploads `data`, such as a link card's image, as a blob the post can refer to.
+    static func uploadBlobRequest(pds: URL, data: Data, mimeType: String) -> URLRequest {
+        var request = URLRequest(url: pds.appending(path: "xrpc/com.atproto.repo.uploadBlob"))
+        request.httpMethod = "POST"
+        request.setValue(mimeType, forHTTPHeaderField: "Content-Type")
+        request.httpBody = data
         return request
     }
 
@@ -250,17 +266,96 @@ struct BlueskyCreateRecord: Encodable {
     let record: BlueskyPostRecord
 }
 
-/// An `app.bsky.feed.post` record: its text, facets and creation time.
+/// An `app.bsky.feed.post` record: its text, facets, creation time and an optional link card.
 struct BlueskyPostRecord: Encodable {
     let type = "app.bsky.feed.post"
     let text: String
     let facets: [BlueskyFacet]?
     /// ISO 8601, which the lexicon requires as a datetime string.
     let createdAt: String
+    let embed: BlueskyExternalEmbed?
 
     enum CodingKeys: String, CodingKey {
         case type = "$type"
-        case text, facets, createdAt
+        case text, facets, createdAt, embed
+    }
+}
+
+/// A blob a PDS stored, as `com.atproto.repo.uploadBlob` returns it and a record refers to it.
+///
+/// It is passed back exactly as received, so its fields are kept as JSON.
+struct BlueskyBlob: Codable, Equatable, Sendable {
+    let json: [String: BlueskyJSONValue]
+
+    init(from decoder: Decoder) throws {
+        json = try [String: BlueskyJSONValue](from: decoder)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        try json.encode(to: encoder)
+    }
+}
+
+/// A JSON value, for parts of an answer that go back unchanged.
+indirect enum BlueskyJSONValue: Codable, Equatable, Sendable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case object([String: BlueskyJSONValue])
+    case array([BlueskyJSONValue])
+    case null
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() { self = .null }
+        else if let value = try? container.decode(Bool.self) { self = .bool(value) }
+        else if let value = try? container.decode(Double.self) { self = .number(value) }
+        else if let value = try? container.decode(String.self) { self = .string(value) }
+        else if let value = try? container.decode([BlueskyJSONValue].self) { self = .array(value) }
+        else { self = .object(try container.decode([String: BlueskyJSONValue].self)) }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let value): try container.encode(value)
+        case .number(let value):
+            // Sizes are integers, and a PDS rejects `760898.0` where it expects `760898`.
+            if value.rounded() == value, abs(value) < 1e15 { try container.encode(Int64(value)) } else { try container.encode(value) }
+        case .bool(let value): try container.encode(value)
+        case .object(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .null: try container.encodeNil()
+        }
+    }
+}
+
+/// `com.atproto.repo.uploadBlob`'s answer.
+struct BlueskyUploadedBlob: Decodable {
+    let blob: BlueskyBlob
+}
+
+/// An `app.bsky.embed.external` link card: the page's address, title,
+/// description and, when it could be uploaded, a thumbnail.
+struct BlueskyExternalEmbed: Encodable, Equatable {
+    struct External: Encodable, Equatable {
+        let uri: String
+        let title: String
+        let description: String
+        let thumb: BlueskyBlob?
+    }
+
+    let external: External
+
+    private enum CodingKeys: String, CodingKey {
+        case type = "$type"
+        case external
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode("app.bsky.embed.external", forKey: .type)
+        try container.encode(external, forKey: .external)
     }
 }
 

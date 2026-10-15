@@ -139,11 +139,47 @@ final class BlueskyConnector {
         return try await refresh.value
     }
 
-    /// Posts `markdown` from `account` as plain text, with its links and hashtags as facets.
+    /// Posts `markdown` from `account` as plain text, with its links and hashtags as
+    /// facets and a preview card for its first link.
     func post(_ markdown: String, from account: BlueskyAccount) async throws {
-        let request = BlueskyAPI.createPostRequest(pds: account.pds, did: account.did,
-                                                   post: PostFormatter.bluesky(fromMarkdown: markdown), createdAt: .now)
+        let post = PostFormatter.bluesky(fromMarkdown: markdown)
+        let card = await linkCard(for: post, from: account)
+        let request = BlueskyAPI.createPostRequest(pds: account.pds, did: account.did, post: post, createdAt: .now, card: card)
         _ = try await sendAuthorized(request, for: account)
+    }
+
+    /// The preview card for the first link in `post`, from that page's Open Graph tags.
+    ///
+    /// Bluesky shows no preview unless the post brings one. The card is best
+    /// effort: a page or image that cannot be fetched leaves the post without
+    /// a card, or the card without its image, rather than stopping the post.
+    func linkCard(for post: BlueskyPostText, from account: BlueskyAccount) async -> BlueskyExternalEmbed? {
+        guard let uri = post.facets.lazy.compactMap({ facet -> String? in
+            if case .link(let uri) = facet.feature { return uri } else { return nil }
+        }).first, let page = URL(string: uri),
+              let answer = try? await session.checkedData(for: URLRequest(url: page)),
+              let html = String(data: answer.0, encoding: .utf8) ?? String(data: answer.0, encoding: .isoLatin1)
+        else { return nil }
+
+        let graph = OpenGraph(html: html, page: answer.1.url ?? page)
+        guard graph.title != nil || graph.description != nil || graph.image != nil else { return nil }
+        return BlueskyExternalEmbed(external: .init(uri: uri, title: graph.title ?? "", description: graph.description ?? "",
+                                                    thumb: await thumbnail(at: graph.image, for: account)))
+    }
+
+    /// The image at `url` uploaded to the account's PDS, or `nil` when it cannot be fetched or is too large.
+    func thumbnail(at url: URL?, for account: BlueskyAccount) async -> BlueskyBlob? {
+        guard let url, let answer = try? await session.checkedData(for: URLRequest(url: url)),
+              answer.0.count <= BlueskyAPI.thumbnailByteLimit else { return nil }
+        let data = answer.0
+        let mimeType = answer.1.mimeType.flatMap { $0.hasPrefix("image/") ? $0 : nil } ?? "image/jpeg"
+        do {
+            let (body, _) = try await sendAuthorized(BlueskyAPI.uploadBlobRequest(pds: account.pds, data: data, mimeType: mimeType), for: account)
+            return try JSONDecoder().decode(BlueskyUploadedBlob.self, from: body).blob
+        } catch {
+            AppLogger.api.error("Uploading a link card image failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 
     /// Sends `request` to the account's PDS with its access token and a proof naming that token.
