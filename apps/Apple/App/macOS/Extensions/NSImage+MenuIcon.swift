@@ -20,7 +20,8 @@ extension NSImage {
     static func menuIcon(named name: String, fallbackSymbol: String = "music.note") -> NSImage {
         let canvasSize = NSSize(width: 16, height: 16)
         guard let original = NSImage(named: name) else {
-            return NSImage(systemSymbolName: fallbackSymbol, accessibilityDescription: name) ?? NSImage()
+            return NSImage(systemSymbolName: fallbackSymbol, accessibilityDescription: name)?
+                .withSymbolConfiguration(.preferringHierarchical()) ?? NSImage()
         }
         let originalSize = original.size
         let scale = min(canvasSize.width / originalSize.width, canvasSize.height / originalSize.height)

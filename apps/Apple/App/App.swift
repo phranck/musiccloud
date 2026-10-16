@@ -91,6 +91,7 @@ struct MusicCloudApp: App {
                     systemImage: "exclamationmark.triangle",
                     description: Text(storeError ?? "Unknown error")
                 )
+                .symbolRenderingMode(.hierarchical)
             }
         }
     }
