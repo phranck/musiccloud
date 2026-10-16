@@ -6920,6 +6920,12 @@
             "value" : "Publicar automáticamente las conversiones nuevas"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Publier automatiquement les nouvelles conversions"
+          }
+        },
         "it" : {
           "stringUnit" : {
             "state" : "machine_translated",
