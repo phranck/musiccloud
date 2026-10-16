@@ -20,48 +20,141 @@ constant float TAU = 6.28318530718;
 
 // MARK: - Settings
 
-// The values the website renders with: the shader tokens its backend serves at
-// /api/v1/site-settings/design-tokens (read on 2026-10-15). They match
-// NIGHT_SKY_DEFAULTS in settings.ts except windSpeed and the two night sky
-// colors, which the tokens override.
+// The positions in the `values` argument of nightSkyColor. The order is
+// defined by SkyTokens.shaderNumbers and SkyTokens.shaderColors in
+// SkyTokens.swift, so a change there changes this list. A color takes three
+// positions: red, green and blue in 0...1.
+namespace slot {
+enum : int {
+    vignette,
+    skyWidth,
+    skyHeight,
+    skyFov,
+    polarisX,
+    polarisY,
+    rotationPeriod,
+    catalogSize,
+    catalogBrightness,
+    starDensity,
+    starSize,
+    starBrightness,
+    twinkleAmount,
+    twinkleSpeed,
+    cloudScale,
+    cloudCoverage,
+    cloudSoftness,
+    cloudOpacity,
+    cloudNightBrightness,
+    cloudDayBrightness,
+    cloudDetail,
+    clearZones,
+    warpStrength,
+    windSpeed,
+    windAngle,
+    evolveSpeed,
+    moonIntensity,
+    moonAngle,
+    sunIntensity,
+    sunAngle,
+    starOcclusion,
+    renderScale,
+    skyTop,
+    skyBottom = skyTop + 3,
+    skyTopDay = skyBottom + 3,
+    skyBottomDay = skyTopDay + 3,
+    cloudColor = skyBottomDay + 3,
+    cloudColorDay = cloudColor + 3,
+    count = cloudColorDay + 3,
+};
+} // namespace slot
 
-constant float vignette = 0.1;
-constant float2 skySize = float2(5632.0, 3168.0);
-constant float skyFov = 110.0;
-constant float2 polaris01 = float2(0.5, 0.66);
-constant float rotationPeriod = 1200.0;
-constant float catalogSize = 1.7;
-constant float catalogBrightness = 1.1;
-constant float starDensity = 170.0;
-constant float starSize = 1.1;
-constant float starBrightness = 0.95;
-constant float twinkleAmount = 0.6;
-constant float twinkleSpeed = 1.8;
-constant float cloudScale = 10.0;
-constant float cloudCoverage = 0.32;
-constant float cloudSoftness = 0.15;
-constant float cloudOpacity = 1.0;
-constant float cloudNightBrightness = 2.1;
-constant float cloudDayBrightness = 0.9;
-constant float cloudDetail = 7.0;
-constant float clearZones = 0.4;
-constant float warpStrength = 0.15;
-constant float windSpeed = 0.015;
-constant float windAngle = 180.0;
-constant float evolveSpeed = 0.035;
-constant float moonIntensity = 0.15;
-constant float moonAngle = 120.0;
-constant float sunIntensity = 1.0;
-constant float sunAngle = 120.0;
-constant float starOcclusion = 0.1;
-constant float renderScale = 0.7;
+/// The design-token values of the sky, read once per pixel from the `values`
+/// argument so the helpers below take them by name.
+struct SkySettings {
+    float vignette;
+    float2 skySize;
+    float skyFov;
+    float2 polaris01;
+    float rotationPeriod;
+    float catalogSize;
+    float catalogBrightness;
+    float starDensity;
+    float starSize;
+    float starBrightness;
+    float twinkleAmount;
+    float twinkleSpeed;
+    float cloudScale;
+    float cloudCoverage;
+    float cloudSoftness;
+    float cloudOpacity;
+    float cloudNightBrightness;
+    float cloudDayBrightness;
+    float cloudDetail;
+    float clearZones;
+    float warpStrength;
+    float windSpeed;
+    float windAngle;
+    float evolveSpeed;
+    float moonIntensity;
+    float moonAngle;
+    float sunIntensity;
+    float sunAngle;
+    float starOcclusion;
+    float renderScale;
+    float3 skyTop;
+    float3 skyBottom;
+    float3 skyTopDay;
+    float3 skyBottomDay;
+    float3 cloudColor;
+    float3 cloudColorDay;
+};
 
-constant uint skyTopHex = 0x0a1116;
-constant uint skyBottomHex = 0x122d44;
-constant uint skyTopDayHex = 0x0076d5;
-constant uint skyBottomDayHex = 0x69d1fd;
-constant uint cloudColorHex = 0x2c3b47;
-constant uint cloudColorDayHex = 0xe6edf3;
+/// The color at `index` and the two positions after it.
+inline float3 readColor(device const float *values, int index) {
+    return float3(values[index], values[index + 1], values[index + 2]);
+}
+
+/// Unpacks the `values` argument; the caller has checked it holds `slot::count` numbers.
+SkySettings readSettings(device const float *values) {
+    SkySettings settings;
+    settings.vignette = values[slot::vignette];
+    settings.skySize = float2(values[slot::skyWidth], values[slot::skyHeight]);
+    settings.skyFov = values[slot::skyFov];
+    settings.polaris01 = float2(values[slot::polarisX], values[slot::polarisY]);
+    settings.rotationPeriod = values[slot::rotationPeriod];
+    settings.catalogSize = values[slot::catalogSize];
+    settings.catalogBrightness = values[slot::catalogBrightness];
+    settings.starDensity = values[slot::starDensity];
+    settings.starSize = values[slot::starSize];
+    settings.starBrightness = values[slot::starBrightness];
+    settings.twinkleAmount = values[slot::twinkleAmount];
+    settings.twinkleSpeed = values[slot::twinkleSpeed];
+    settings.cloudScale = values[slot::cloudScale];
+    settings.cloudCoverage = values[slot::cloudCoverage];
+    settings.cloudSoftness = values[slot::cloudSoftness];
+    settings.cloudOpacity = values[slot::cloudOpacity];
+    settings.cloudNightBrightness = values[slot::cloudNightBrightness];
+    settings.cloudDayBrightness = values[slot::cloudDayBrightness];
+    settings.cloudDetail = values[slot::cloudDetail];
+    settings.clearZones = values[slot::clearZones];
+    settings.warpStrength = values[slot::warpStrength];
+    settings.windSpeed = values[slot::windSpeed];
+    settings.windAngle = values[slot::windAngle];
+    settings.evolveSpeed = values[slot::evolveSpeed];
+    settings.moonIntensity = values[slot::moonIntensity];
+    settings.moonAngle = values[slot::moonAngle];
+    settings.sunIntensity = values[slot::sunIntensity];
+    settings.sunAngle = values[slot::sunAngle];
+    settings.starOcclusion = values[slot::starOcclusion];
+    settings.renderScale = values[slot::renderScale];
+    settings.skyTop = readColor(values, slot::skyTop);
+    settings.skyBottom = readColor(values, slot::skyBottom);
+    settings.skyTopDay = readColor(values, slot::skyTopDay);
+    settings.skyBottomDay = readColor(values, slot::skyBottomDay);
+    settings.cloudColor = readColor(values, slot::cloudColor);
+    settings.cloudColorDay = readColor(values, slot::cloudColorDay);
+    return settings;
+}
 
 // MARK: - Star catalog
 
@@ -150,11 +243,6 @@ constant float4 starCatalog[starCount] = {
 
 // MARK: - Helpers
 
-/// `#rrggbb` as an RGB triple in 0...1, like `hexToRgb` in scene.ts.
-inline float3 hexColor(uint hex) {
-    return float3(float((hex >> 16) & 255u), float((hex >> 8) & 255u), float(hex & 255u)) / 255.0;
-}
-
 /// GLSL's `radians()`, which the Metal standard library does not offer.
 inline float radiansFromDegrees(float degrees) {
     return degrees * M_PI_F / 180.0;
@@ -224,50 +312,52 @@ struct CloudSample {
 };
 
 /// `cloudRaw` of scene.ts: the domain-warped cloud field at a plane position.
-CloudSample cloudRaw(float2 planeCuv, float time) {
-    float windRadians = radiansFromDegrees(windAngle);
-    float2 wind = float2(cos(windRadians), sin(windRadians)) * windSpeed * time;
-    float2 domain = planeCuv * cloudScale + wind;
-    float evolution = time * evolveSpeed;
+CloudSample cloudRaw(float2 planeCuv, float time, thread const SkySettings &settings) {
+    float windRadians = radiansFromDegrees(settings.windAngle);
+    float2 wind = float2(cos(windRadians), sin(windRadians)) * settings.windSpeed * time;
+    float2 domain = planeCuv * settings.cloudScale + wind;
+    float evolution = time * settings.evolveSpeed;
     float2 warp = float2(
         fbm(float3(domain * 0.9 + 13.1, evolution * 0.7), 3.0),
         fbm(float3(domain * 0.9 + 41.7, evolution * 0.7), 3.0)) - 0.5;
     CloudSample field;
-    field.warpedPoint = float3(domain + warp * warpStrength, evolution);
+    field.warpedPoint = float3(domain + warp * settings.warpStrength, evolution);
     field.domain = domain;
     field.evolution = evolution;
-    field.density = fbm(field.warpedPoint, cloudDetail);
+    field.density = fbm(field.warpedPoint, settings.cloudDetail);
     return field;
 }
 
 /// `cloudMask` of scene.ts: coverage threshold, with large clear windows
 /// carved between the cloud banks.
-float cloudMask(CloudSample field) {
-    float cloud = smoothstepGLSL(1.0 - cloudCoverage - cloudSoftness,
-                                 1.0 - cloudCoverage + cloudSoftness, field.density);
+float cloudMask(CloudSample field, thread const SkySettings &settings) {
+    float cloud = smoothstepGLSL(1.0 - settings.cloudCoverage - settings.cloudSoftness,
+                                 1.0 - settings.cloudCoverage + settings.cloudSoftness, field.density);
     float macroNoise = fbm(float3(field.domain * 0.3 + 71.3, field.evolution * 0.4), 3.0);
-    return cloud * mix(1.0, smoothstepGLSL(0.36, 0.6, macroNoise), clearZones);
+    return cloud * mix(1.0, smoothstepGLSL(0.36, 0.6, macroNoise), settings.clearZones);
 }
 
 /// `vignetteAt` of scene.ts: corner darkening relative to the window.
-inline float vignetteAt(float2 windowCuv) {
+inline float vignetteAt(float2 windowCuv, float vignette) {
     return 1.0 - vignette * smoothstepGLSL(0.45, 1.25, length(windowCuv) * 1.15);
 }
 
 /// `starLayer` of scene.ts: one grid of procedural fill stars. Distances are
 /// in points, which is what the website's buffer pixels divided by its pixel
 /// scale amount to, so the stars keep the website's size.
-float starLayer(float2 starUv, float density, float sizePoints, float brightnessFactor, float time) {
+float starLayer(float2 starUv, float density, float sizePoints, float brightnessFactor, float time,
+                thread const SkySettings &settings) {
     float2 grid = starUv * density;
     float2 cellID = floor(grid);
     float2 local = fract(grid);
     float cellHash = hash21(cellID);
     float present = step(cellHash, 0.22);
     float2 starPosition = float2(hash21(cellID + 7.1), hash21(cellID + 3.7)) * 0.6 + 0.2;
-    float distancePoints = length(local - starPosition) * (skySize.y / density);
+    float distancePoints = length(local - starPosition) * (settings.skySize.y / density);
     float star = smoothstepGLSL(sizePoints, sizePoints * 0.15, distancePoints);
     float magnitude = pow(hash21(cellID + 13.3), 3.0);
-    float twinkle = 1.0 + twinkleAmount * sin(time * twinkleSpeed * (0.5 + cellHash * 2.0) + cellHash * TAU);
+    float twinkle = 1.0 + settings.twinkleAmount
+                        * sin(time * settings.twinkleSpeed * (0.5 + cellHash * 2.0) + cellHash * TAU);
     return star * present * magnitude * brightnessFactor * twinkle;
 }
 
@@ -275,35 +365,37 @@ float starLayer(float2 starUv, float density, float sizePoints, float brightness
 /// the website draws additively. Each star is the vertex shader's projection
 /// plus the fragment shader's soft core and halo.
 float3 catalogStars(float2 pixel, float2 size, float2 skyOffset, float2 polaris, float theta,
-                    float aspect, float time, float occlusion, float starVisibility, float displayScale) {
+                    float aspect, float time, float occlusion, float starVisibility, float displayScale,
+                    thread const SkySettings &settings) {
     const float3 blueWhite = float3(0.72, 0.82, 1.00);
     const float3 white = float3(0.95, 0.97, 1.00);
     const float3 warm = float3(1.00, 0.86, 0.68);
     // The website's buffer pixels per point: renderScale times the device
     // pixel ratio, clamped to 2. Sprites never get smaller than one of them.
-    float pixelScale = renderScale * min(displayScale, 2.0);
+    float pixelScale = settings.renderScale * min(displayScale, 2.0);
     float3 light = float3(0.0);
     for (int index = 0; index < starCount; index++) {
         float4 star = starCatalog[index];
         float polarDistance = 90.0 - star.y;
         float negativeRightAscension = -(star.x / 24.0) * TAU;
         float angle = negativeRightAscension + theta;
-        float2 planeCuv = polaris + float2(cos(angle), sin(angle)) * (polarDistance / skyFov);
-        float2 skyPoint = (planeCuv / float2(aspect, 1.0) + 0.5) * skySize;
+        float2 planeCuv = polaris + float2(cos(angle), sin(angle)) * (polarDistance / settings.skyFov);
+        float2 skyPoint = (planeCuv / float2(aspect, 1.0) + 0.5) * settings.skySize;
         float2 windowPoint = skyPoint - skyOffset;
 
         float magnitude = star.z;
-        float sizePoints = catalogSize * (0.9 + (4.2 - magnitude) * 0.55);
+        float sizePoints = settings.catalogSize * (0.9 + (4.2 - magnitude) * 0.55);
         float diameter = max(sizePoints * pixelScale, 1.0) / pixelScale;
         float spriteDistance = length(pixel - windowPoint) * 2.0 / diameter;
         if (spriteDistance >= 1.0) continue;
 
         float seed = fract(negativeRightAscension * 13.37 + polarDistance * 7.7);
-        float twinkle = 1.0 + twinkleAmount * 0.6 * sin(time * twinkleSpeed * (0.6 + seed * 1.8) + seed * TAU);
-        float brightness = clamp(0.18 + (4.2 - magnitude) * 0.26, 0.0, 1.3) * catalogBrightness * twinkle;
+        float twinkle = 1.0 + settings.twinkleAmount * 0.6
+                            * sin(time * settings.twinkleSpeed * (0.6 + seed * 1.8) + seed * TAU);
+        float brightness = clamp(0.18 + (4.2 - magnitude) * 0.26, 0.0, 1.3) * settings.catalogBrightness * twinkle;
         brightness *= occlusion * starVisibility;
         float2 windowCuv = (windowPoint / size - 0.5) * float2(size.x / size.y, 1.0);
-        float alpha = brightness * vignetteAt(windowCuv);
+        float alpha = brightness * vignetteAt(windowCuv, settings.vignette);
 
         float3 tint = (star.w < 0.5) ? blueWhite : (star.w < 1.5) ? white : warm;
         float core = smoothstepGLSL(1.0, 0.15, spriteDistance);
@@ -325,29 +417,37 @@ float3 catalogStars(float2 pixel, float2 size, float2 skyOffset, float2 polaris,
 ///   - time: Seconds of animation, the website's `simTimeSeconds`.
 ///   - dayness: 0 for the night sky with stars, 1 for the day sky.
 ///   - displayScale: Device pixels per point, the website's `devicePixelRatio`.
+///   - values, valueCount: The design-token values in the order of `nightsky::slot`,
+///     which SkyTokens.shaderValues in SkyTokens.swift supplies.
 [[ stitchable ]] half4 nightSkyColor(float2 position, half4 color, float2 size, float time,
-                                     float dayness, float displayScale) {
+                                     float dayness, float displayScale,
+                                     device const float *values, int valueCount) {
     using namespace nightsky;
+
+    // Fewer values than slots would read past the buffer; the view's own
+    // color stands in until the arguments match.
+    if (valueCount < slot::count) return color;
+    SkySettings settings = readSettings(values);
 
     // The pixel in points from the bottom left, the orientation of gl_FragCoord.
     float2 pixel = float2(position.x, size.y - position.y);
-    float2 skyOffset = polaris01 * (skySize - size);
-    float aspect = skySize.x / skySize.y;
-    float2 planeUv = (pixel + skyOffset) / skySize;
+    float2 skyOffset = settings.polaris01 * (settings.skySize - size);
+    float aspect = settings.skySize.x / settings.skySize.y;
+    float2 planeUv = (pixel + skyOffset) / settings.skySize;
     float2 planeCuv = (planeUv - 0.5) * float2(aspect, 1.0);
     float2 windowCuv = (pixel / size - 0.5) * float2(size.x / size.y, 1.0);
-    float windowVignette = vignetteAt(windowCuv);
+    float windowVignette = vignetteAt(windowCuv, settings.vignette);
     float dither = (hash21(position * displayScale + fract(time)) - 0.5) / 255.0;
 
     // Pass A: sky gradient and procedural fill stars.
     float gradient = smoothstepGLSL(0.0, 1.0, planeUv.y);
-    float3 night = mix(hexColor(skyBottomHex), hexColor(skyTopHex), gradient);
-    float3 day = mix(hexColor(skyBottomDayHex), hexColor(skyTopDayHex), gradient);
+    float3 night = mix(settings.skyBottom, settings.skyTop, gradient);
+    float3 day = mix(settings.skyBottomDay, settings.skyTopDay, gradient);
     float3 sky = mix(night, day, dayness);
 
     float starVisibility = 1.0 - smoothstepGLSL(0.05, 0.45, dayness);
-    float2 polaris = float2((polaris01.x - 0.5) * aspect, polaris01.y - 0.5);
-    float theta = time / rotationPeriod * TAU;
+    float2 polaris = float2((settings.polaris01.x - 0.5) * aspect, settings.polaris01.y - 0.5);
+    float theta = time / settings.rotationPeriod * TAU;
     float2 relative = planeCuv - polaris;
     float cosTheta = cos(theta);
     float sinTheta = sin(theta);
@@ -355,13 +455,14 @@ float3 catalogStars(float2 pixel, float2 size, float2 skyOffset, float2 polaris,
     float2 starUv = float2(cosTheta * relative.x + sinTheta * relative.y,
                            -sinTheta * relative.x + cosTheta * relative.y);
 
-    CloudSample cloudField = cloudRaw(planeCuv, time);
-    float cloud = cloudMask(cloudField);
+    CloudSample cloudField = cloudRaw(planeCuv, time, settings);
+    float cloud = cloudMask(cloudField, settings);
 
     if (starVisibility > 0.0) {
-        float stars = starLayer(starUv, starDensity, starSize, 1.0, time)
-                    + starLayer(starUv + 31.7, starDensity * 0.35, starSize * 1.5, 1.4, time);
-        stars *= starBrightness * starVisibility;
+        float stars = starLayer(starUv, settings.starDensity, settings.starSize, 1.0, time, settings)
+                    + starLayer(starUv + 31.7, settings.starDensity * 0.35, settings.starSize * 1.5, 1.4, time,
+                                settings);
+        stars *= settings.starBrightness * starVisibility;
         sky += float3(0.85, 0.92, 1.0) * stars;
     }
     sky = saturate(sky * windowVignette + dither);
@@ -370,32 +471,32 @@ float3 catalogStars(float2 pixel, float2 size, float2 skyOffset, float2 polaris,
     // each star's center; a sprite is a few points wide, so the pixel's own
     // cloud value stands in for it.
     if (starVisibility > 0.0) {
-        float occlusion = 1.0 - clamp(cloud * starOcclusion, 0.0, 1.0);
+        float occlusion = 1.0 - clamp(cloud * settings.starOcclusion, 0.0, 1.0);
         sky = saturate(sky + catalogStars(pixel, size, skyOffset, polaris, theta, aspect, time,
-                                          occlusion, starVisibility, displayScale));
+                                          occlusion, starVisibility, displayScale, settings));
     }
 
     // Pass C: clouds with moon or sun rim light, alpha-blended over the rest.
-    float moonRadians = radiansFromDegrees(moonAngle);
-    float sunRadians = radiansFromDegrees(sunAngle);
+    float moonRadians = radiansFromDegrees(settings.moonAngle);
+    float sunRadians = radiansFromDegrees(settings.sunAngle);
     float2 lightDirection = normalize(mix(float2(cos(moonRadians), sin(moonRadians)),
                                           float2(cos(sunRadians), sin(sunRadians)), dayness));
     float density = cloudField.density;
     float towardLight = fbm(float3(cloudField.warpedPoint.xy + lightDirection * 0.18, cloudField.warpedPoint.z),
-                            min(cloudDetail, 4.0));
+                            min(settings.cloudDetail, 4.0));
     float rim = clamp((density - towardLight) * 4.5, 0.0, 1.0) * cloud;
     float coreShade = smoothstepGLSL(0.4, 1.0, density) * cloud;
 
-    float3 nightCloud = hexColor(cloudColorHex) + moonIntensity * rim * float3(0.50, 0.56, 0.62);
+    float3 nightCloud = settings.cloudColor + settings.moonIntensity * rim * float3(0.50, 0.56, 0.62);
     nightCloud *= 1.0 - 0.42 * coreShade;
-    nightCloud *= cloudNightBrightness;
+    nightCloud *= settings.cloudNightBrightness;
 
-    float3 dayCloud = hexColor(cloudColorDayHex) + sunIntensity * rim * float3(1.00, 0.97, 0.88);
+    float3 dayCloud = settings.cloudColorDay + settings.sunIntensity * rim * float3(1.00, 0.97, 0.88);
     dayCloud = mix(dayCloud, dayCloud * float3(0.72, 0.78, 0.86), coreShade * 0.55);
-    dayCloud *= cloudDayBrightness;
+    dayCloud *= settings.cloudDayBrightness;
 
     float3 cloudColor = saturate(mix(nightCloud, dayCloud, dayness) * windowVignette + dither);
-    float cloudAlpha = saturate(cloud * cloudOpacity);
+    float cloudAlpha = saturate(cloud * settings.cloudOpacity);
     float3 result = cloudColor * cloudAlpha + sky * (1.0 - cloudAlpha);
 
     return half4(half3(result), 1.0h);
