@@ -8,19 +8,21 @@ import UIKit
 /// Receives URLs from the iOS Share Sheet, resolves them to musiccloud.io short links,
 /// saves to SwiftData (CloudKit synced), and copies the result to the clipboard.
 ///
-/// After a conversion it stays open with ``ShareResultView``, which offers to
-/// post the link to the connected accounts; Done closes it.
+/// From the start it hosts the same ``ConversionSheet`` as the iOS app: the
+/// animation while the URL converts, then the result with posting to the
+/// connected accounts, or the error. The close button ends the extension.
 final class ShareViewController: UIViewController {
-    private var spinner: UIActivityIndicatorView!
-    private var statusLabel: UILabel!
-    private var iconView: UIImageView!
-    private var statusStack: UIStackView!
     /// Kept alive so CloudKit has time to sync after saving.
     private var syncContainer: ModelContainer?
+    /// Hosts the sheet; its root view is replaced for every phase.
+    private var host: UIHostingController<ConversionSheet>?
+    /// The phase the sheet shows, which decides how closing ends the extension.
+    private var phase: ConversionPhase = .converting
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupUI()
+        view.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.95)
+        show(.converting)
         handleSharedItems()
     }
 }
@@ -28,73 +30,31 @@ final class ShareViewController: UIViewController {
 // MARK: - UI
 
 private extension ShareViewController {
-    func setupUI() {
-        view.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.95)
-
-        let stack = UIStackView()
-        stack.axis = .vertical
-        stack.alignment = .center
-        stack.spacing = 12
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        statusStack = stack
-
-        iconView = UIImageView()
-        iconView.contentMode = .scaleAspectFit
-        iconView.tintColor = .tintColor
-        iconView.isHidden = true
-
-        spinner = UIActivityIndicatorView(style: .medium)
-        spinner.startAnimating()
-
-        statusLabel = UILabel()
-        statusLabel.font = .preferredFont(forTextStyle: .subheadline)
-        statusLabel.textColor = .secondaryLabel
-        statusLabel.text = String(localized: "Converting...")
-        statusLabel.textAlignment = .center
-        statusLabel.numberOfLines = 0
-
-        stack.addArrangedSubview(iconView)
-        stack.addArrangedSubview(spinner)
-        stack.addArrangedSubview(statusLabel)
-        view.addSubview(stack)
-
-        NSLayoutConstraint.activate([
-            iconView.widthAnchor.constraint(equalToConstant: 36),
-            iconView.heightAnchor.constraint(equalToConstant: 36),
-            stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            stack.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 24),
-        ])
-    }
-
-    /// Replaces the progress with the result screen, which stays until the user closes it.
-    func showResult(for entry: MediaEntry) {
-        statusStack.isHidden = true
-        let accounts = SocialAccount.all(in: SocialConnections.shared.store)
-        let result = ShareResultView(entry: entry, accounts: accounts) { [weak self] in
-            self?.complete()
+    /// Shows `newPhase` in the sheet, hosting the sheet the first time.
+    func show(_ newPhase: ConversionPhase) {
+        phase = newPhase
+        let sheet = ConversionSheet(phase: newPhase) { [weak self] in
+            self?.close()
         }
-        let host = UIHostingController(rootView: result.symbolRenderingMode(.hierarchical))
+        if let host {
+            host.rootView = sheet
+            return
+        }
+        let host = UIHostingController(rootView: sheet)
         addChild(host)
         host.view.frame = view.bounds
         host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(host.view)
         host.didMove(toParent: self)
+        self.host = host
     }
 
-    func showError(_ message: String) {
-        spinner.stopAnimating()
-        spinner.isHidden = true
-        iconView.image = UIImage(systemName: "xmark.circle.fill",
-                                 withConfiguration: UIImage.SymbolConfiguration(hierarchicalColor: .systemRed))
-        iconView.tintColor = .systemRed
-        iconView.isHidden = false
-        statusLabel.text = message
-        statusLabel.textColor = .secondaryLabel
-
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            self?.cancel()
+    /// Ends the extension: completed once the link is converted, cancelled before that or after a failure.
+    func close() {
+        if case .finished = phase {
+            complete()
+        } else {
+            cancel()
         }
     }
 }
@@ -144,7 +104,7 @@ private extension ShareViewController {
     @MainActor
     func processURL(_ urlString: String) {
         guard StreamingServices.isStreamingURL(urlString) else {
-            showError(String(localized: "This URL is not from a supported streaming service"))
+            show(.failed(message: String(localized: "This URL is not from a supported streaming service")))
             return
         }
 
@@ -158,9 +118,9 @@ private extension ShareViewController {
 
                 Pasteboard.copy(conversion.response.shortUrl)
                 HapticFeedback.success()
-                showResult(for: entry)
+                show(.finished(entry))
             } catch {
-                showError(ResolveError(error).errorDescription ?? error.localizedDescription)
+                show(.failed(message: ResolveError(error).errorDescription ?? error.localizedDescription))
             }
         }
     }

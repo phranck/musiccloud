@@ -5,8 +5,13 @@ import SwiftData
 // MARK: - ContentView
 
 /// Root view for the iOS app. Uses NavigationStack on iPhone and NavigationSplitView on iPad.
+///
+/// It also opens the conversion sheet over both when the clipboard check
+/// finds a streaming URL.
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(ClipboardMonitor.self) private var monitor
+    @Environment(HistoryManager.self) private var historyManager
 
     var body: some View {
         Group {
@@ -17,6 +22,84 @@ struct ContentView: View {
             }
         }
         .symbolRenderingMode(.hierarchical)
+        .clipboardConversionSheet(monitor: monitor, historyManager: historyManager)
+    }
+}
+
+// MARK: - Clipboard Conversion Sheet
+
+extension View {
+    /// Opens the ``ConversionSheet`` whenever the clipboard check begins a conversion.
+    ///
+    /// The monitor checks the clipboard while the app is active, starting
+    /// when it becomes active, so the sheet comes up when the app finds a
+    /// streaming URL there. A URL handed over through the paste button, a
+    /// drop or a `musiccloud://` link shows its result on the Home screen
+    /// instead. A conversion cancelled by leaving for the background returns
+    /// the monitor to `.idle`, which closes the sheet; the next check picks
+    /// the URL up again and opens it anew.
+    ///
+    /// - Parameters:
+    ///   - monitor: The monitor whose clipboard conversions the sheet follows.
+    ///   - historyManager: Finds the converted entry the result shows.
+    func clipboardConversionSheet(monitor: ClipboardMonitor, historyManager: HistoryManager) -> some View {
+        modifier(ClipboardConversionSheetModifier(monitor: monitor, historyManager: historyManager))
+    }
+}
+
+/// Decides when the conversion sheet opens and closes, and which phase it
+/// shows; see ``SwiftUICore/View/clipboardConversionSheet(monitor:historyManager:)``.
+private struct ClipboardConversionSheetModifier: ViewModifier {
+    let monitor: ClipboardMonitor
+    let historyManager: HistoryManager
+
+    @State private var isPresented = false
+
+    func body(content: Content) -> some View {
+        content
+            // Only a start opens the sheet, so one the user closed while the
+            // URL converted stays closed when the result arrives.
+            .onChange(of: monitor.conversionCount) {
+                if monitor.origin == .clipboard {
+                    isPresented = true
+                }
+            }
+            .onChange(of: monitor.status) {
+                if monitor.status == .idle {
+                    isPresented = false
+                }
+            }
+            .sheet(isPresented: $isPresented) {
+                ClipboardConversionSheetContent(monitor: monitor, historyManager: historyManager) {
+                    isPresented = false
+                }
+            }
+    }
+}
+
+/// The ``ConversionSheet`` in the phase of the monitor's status. It reads the
+/// status in its own body, so the sheet follows every change of it.
+private struct ClipboardConversionSheetContent: View {
+    let monitor: ClipboardMonitor
+    let historyManager: HistoryManager
+    /// Closes the sheet.
+    let onClose: () -> Void
+
+    var body: some View {
+        ConversionSheet(phase: phase, onClose: onClose)
+    }
+
+    /// The monitor's status as the sheet shows it.
+    private var phase: ConversionPhase {
+        switch monitor.status {
+        case .idle, .processing:
+            return .converting
+        case .success(let shortUrl, _):
+            guard let entry = historyManager.entry(forShortUrl: shortUrl) else { return .failed(message: nil) }
+            return .finished(entry)
+        case .error(let error):
+            return .failed(message: error.errorDescription)
+        }
     }
 }
 

@@ -8,8 +8,11 @@ import SwiftUI
 
 // MARK: - ShareResultView
 
-/// The Share Extension's screen after a link is converted: the cover, title
-/// and artist, and the connected accounts to post it to.
+/// The screen after a link is converted: the cover, title and artist, the
+/// link with its copy button, and the connected accounts to post it to.
+///
+/// The Share Extension shows it after its own conversion, and the iOS app
+/// shows it in the conversion sheet for a link it found on the clipboard.
 ///
 /// With several accounts none is checked at first, so nothing is posted
 /// without a tap. A single account needs no choice and is checked from the
@@ -20,7 +23,7 @@ import SwiftUI
 /// posting at all.
 struct ShareResultView: View {
     let entry: MediaEntry
-    /// Closes the extension.
+    /// Closes the screen: the Share Extension ends, the app's sheet goes away.
     let onDone: () -> Void
 
     @State private var model: PostComposerModel
@@ -33,7 +36,7 @@ struct ShareResultView: View {
     /// - Parameters:
     ///   - entry: The converted entry, already in the history.
     ///   - accounts: The connected accounts.
-    ///   - onDone: Closes the extension.
+    ///   - onDone: Closes the screen.
     init(entry: MediaEntry, accounts: [SocialAccount], onDone: @escaping () -> Void) {
         self.entry = entry
         self.onDone = onDone
@@ -48,62 +51,46 @@ struct ShareResultView: View {
     private var offersChoice: Bool { model.accounts.count > 1 }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    cover
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                }
-                // The cover reaches from edge to edge of the sheet, past the form's margins.
-                .listSectionMargins(.horizontal, 0)
+        Form {
+            Section {
+                cover
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+            // The cover reaches from edge to edge of the sheet, past the form's margins.
+            .listSectionMargins(.horizontal, 0)
 
-                // The link itself, right below the cover, with or without accounts.
-                Section {
-                    Text(entry.shortUrl)
-                        .textSelection(.enabled)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                    copyLinkButton
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+            // The link itself, right below the cover, with or without accounts.
+            Section {
+                Text(entry.shortUrl)
+                    .font(.subheadline)
+                    .textSelection(.enabled)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                copyLinkButton
+            }
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
 
-                if !model.accounts.isEmpty {
-                    Section(String(localized: "Accounts")) {
-                        ForEach(model.accounts) { account in
-                            AccountRow(model: model, account: account, isChoosable: offersChoice)
-                        }
+            if !model.accounts.isEmpty {
+                Section(String(localized: "Accounts")) {
+                    ForEach(model.accounts) { account in
+                        AccountRow(model: model, account: account, isChoosable: offersChoice)
                     }
                 }
             }
-            // The cover starts right below the bar, without the form's top gap.
-            .contentMargins(.top, 0, for: .scrollContent)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    OutlinedLogoText(size: 25)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: onDone) {
-                        Image(systemName: "xmark.circle.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .font(.title)
-                            .foregroundStyle(.secondary)
-                    }
-                    .accessibilityLabel(String(localized: "Close"))
-                    // Closing ends the extension, and a post on its way would end with it.
-                    .disabled(model.isPosting)
-                }
-                // The symbol is the button, so it gets no glass capsule around it.
-                .sharedBackgroundVisibility(.hidden)
-            }
-            .safeAreaInset(edge: .bottom) {
-                if !model.accounts.isEmpty {
-                    postButton
-                }
+        }
+        // The cover starts right below the header, without the form's top gap.
+        .contentMargins(.top, 0, for: .scrollContent)
+        .safeAreaBar(edge: .top, spacing: 0) {
+            // Closing ends the Share Extension, and a post on its way would end with it.
+            SheetHeader(isCloseDisabled: model.isPosting, onClose: onDone)
+        }
+        .safeAreaInset(edge: .bottom) {
+            if !model.accounts.isEmpty {
+                postButton
             }
         }
     }
@@ -146,13 +133,14 @@ struct ShareResultView: View {
     private static let closeDelay: Duration = .seconds(2)
 
     /// Copies the musiccloud link and confirms it for a moment.
+    ///
+    /// The label is text only, so it sits centered in the button.
     private var copyLinkButton: some View {
         Button {
             Pasteboard.copy(entry.shortUrl)
             didCopyLink = true
         } label: {
-            Label(didCopyLink ? String(localized: "Copied to clipboard!") : String(localized: "Copy URL to Clipboard"),
-                  systemImage: didCopyLink ? "checkmark" : "doc.on.doc")
+            Text(didCopyLink ? String(localized: "Copied to clipboard!") : String(localized: "Copy URL to Clipboard"))
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
@@ -194,6 +182,43 @@ struct ShareResultView: View {
         guard model.selectedAccounts.allSatisfy({ model.states[$0.id] == .posted }) else { return }
         try? await Task.sleep(for: Self.closeDelay)
         onDone()
+    }
+}
+
+// MARK: - SheetHeader
+
+/// The bar at the top of the result screen and of every state of the iOS
+/// app's conversion sheet: the wordmark centered across the full width and
+/// the close button at the trailing edge.
+///
+/// It is a view of its own rather than navigation bar content, because the
+/// alignment of the bar's principal placement is not documented. So the
+/// wordmark and the close button sit in the same place in every state and
+/// in the Share Extension.
+struct SheetHeader: View {
+    private static let horizontalPadding: CGFloat = 16
+    private static let verticalPadding: CGFloat = 12
+
+    /// Whether the close button is disabled, such as while a post is on its way.
+    var isCloseDisabled = false
+    /// Closes the screen.
+    let onClose: () -> Void
+
+    var body: some View {
+        OutlinedLogoText(size: 25)
+            .frame(maxWidth: .infinity)
+            .overlay(alignment: .trailing) {
+                Button(action: onClose) {
+                    Image(systemName: "xmark.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityLabel(String(localized: "Close"))
+                .disabled(isCloseDisabled)
+            }
+            .padding(.horizontal, Self.horizontalPadding)
+            .padding(.vertical, Self.verticalPadding)
     }
 }
 

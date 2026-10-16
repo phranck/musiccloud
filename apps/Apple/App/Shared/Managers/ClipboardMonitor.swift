@@ -38,12 +38,15 @@ import UIKit
 ///
 /// ### Current State
 /// - ``status``
+/// - ``origin``
+/// - ``conversionCount``
 ///
 /// ### Status Types
 /// - ``Status``
+/// - ``Origin``
 ///
 /// ### Methods
-/// - ``convert(url:)``
+/// - ``convert(url:origin:)``
 @Observable
 @MainActor
 final class ClipboardMonitor {
@@ -57,6 +60,17 @@ final class ClipboardMonitor {
     private var lastChangeCount: Int = -1
 
     var status: Status = .idle
+
+    /// Where the last conversion that started came from.
+    private(set) var origin: Origin = .request
+
+    /// How many conversions have started, so an observer sees each start.
+    ///
+    /// ``status`` alone does not show one: the same URL answered from the
+    /// history twice sets the same `.success` again, which is no change to
+    /// observe. It counts up after ``origin`` is set, so an observer of the
+    /// count reads the origin of the conversion that just started.
+    private(set) var conversionCount = 0
 
     /// Called with every entry a conversion adds to the history, after it is
     /// stored. An entry answered from the history is not new and is not passed.
@@ -143,6 +157,18 @@ extension ClipboardMonitor {
             return nil
         }
     }
+
+    /// Where a conversion was started.
+    ///
+    /// The iOS app opens its conversion sheet only for a URL it found on the
+    /// clipboard by itself. A link the user handed over through the paste
+    /// button, a drop or a `musiccloud://` link shows its result in place.
+    enum Origin: Equatable {
+        /// The clipboard check found the URL.
+        case clipboard
+        /// The user handed the URL over: the paste button, a dropped link or a `musiccloud://` link.
+        case request
+    }
 }
 
 // MARK: - Public API
@@ -156,9 +182,13 @@ extension ClipboardMonitor {
     /// URL that is already in the history is answered from there instead of
     /// asking the backend again.
     ///
-    /// - Parameter url: A URL that passed ``StreamingServices/isStreamingURL(_:)``.
-    func convert(url: String) {
+    /// - Parameters:
+    ///   - url: A URL that passed ``StreamingServices/isStreamingURL(_:)``.
+    ///   - origin: Where the URL came from; ``Origin/request`` unless the clipboard check found it.
+    func convert(url: String, origin: Origin = .request) {
         guard !status.isProcessing else { return }
+        self.origin = origin
+        conversionCount += 1
 
         if let existing = historyManager.entry(forOriginalUrl: url) {
             Pasteboard.copy(existing.shortUrl)
@@ -265,7 +295,7 @@ private extension ClipboardMonitor {
     /// 1. Reads the current clipboard content
     /// 2. Compares it to the last seen content to avoid duplicates
     /// 3. Checks if it's a streaming service URL using ``StreamingServices``
-    /// 4. Hands a new streaming URL to ``convert(url:)``
+    /// 4. Hands a new streaming URL to ``convert(url:origin:)``
     ///
     /// - Note: This method must be called from the main actor
     func checkClipboard() {
@@ -301,7 +331,7 @@ private extension ClipboardMonitor {
         guard StreamingServices.isStreamingURL(content) else { return }
         AppLogger.clipboard.debug("clipboard holds a streaming URL")
 
-        convert(url: content)
+        convert(url: content, origin: .clipboard)
     }
 }
 
