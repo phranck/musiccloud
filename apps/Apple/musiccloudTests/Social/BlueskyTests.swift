@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import Synchronization
 import Testing
 @testable import musiccloud
 
@@ -176,5 +177,166 @@ struct DPoPKeyTests {
         #expect(!session.expires(within: 60, from: now))
         session.expiresAt = nil
         #expect(!session.expires(within: 60, from: now))
+    }
+}
+
+// MARK: - BlueskySessionRenewalTests
+
+/// The app and the Share Extension renewing one session.
+///
+/// Each process has its own connector, and both share the session and the
+/// lock file, as the two processes share the app group Keychain and
+/// container. Two connectors over one store stand for the two processes:
+/// their in-process refresh tasks are separate, so only the file lock keeps
+/// them from presenting the same refresh token twice.
+@MainActor
+struct BlueskySessionRenewalTests {
+    private let account = BlueskyAccount(did: TokenEndpointProtocol.accountDID, handle: "name.bsky.social", displayName: "",
+                                         avatarURL: nil, pds: URL(string: "https://pds.example")!)
+    /// The fake token endpoint's host, unique to each test, so tests running in parallel count apart.
+    private let tokenHost = "\(UUID().uuidString.lowercased()).token.test"
+    /// The folder of the store's files and its lock file.
+    private let folder = FileManager.default.temporaryDirectory.appending(path: "musiccloud-tests-bluesky-\(UUID().uuidString)")
+
+    /// A session whose access token has ended, holding the refresh token the fake endpoint accepts first.
+    private var expiredSession: BlueskySession {
+        BlueskySession(accessToken: "expired", refreshToken: "refresh-0", expiresAt: .now.addingTimeInterval(-10),
+                       dpopKey: DPoPKey().rawRepresentation, issuer: "https://\(tokenHost)",
+                       tokenEndpoint: URL(string: "https://\(tokenHost)/oauth/token")!, revocationEndpoint: nil)
+    }
+
+    /// A store in ``folder`` holding ``expiredSession`` for ``account``.
+    private func makeStore() throws -> SocialAccountStore {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let store = SocialAccountStore(directory: folder, keychain: nil)
+        store.add(account, session: expiredSession)
+        return store
+    }
+
+    /// A connector, standing for one process, whose requests the fake token endpoint answers.
+    private func connector(for store: SocialAccountStore) -> BlueskyConnector {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [TokenEndpointProtocol.self]
+        return BlueskyConnector(store: store, session: URLSession(configuration: configuration))
+    }
+
+    @Test func twoProcessesRenewingAtOnceRefreshOnce() async throws {
+        let store = try makeStore()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let app = connector(for: store)
+        let shareExtension = connector(for: store)
+
+        async let fromApp = app.validSession(for: account)
+        async let fromExtension = shareExtension.validSession(for: account)
+        let sessions = try await [fromApp, fromExtension]
+
+        #expect(TokenEndpointProtocol.requests(to: tokenHost) == 1)
+        #expect(sessions.map(\.accessToken) == ["access-1", "access-1"])
+        #expect(store.session(for: account)?.refreshToken == "refresh-1")
+    }
+
+    @Test func sessionTheOtherProcessRenewedIsUsedWithoutRefreshing() async throws {
+        let store = try makeStore()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let shareExtension = connector(for: store)
+        var renewedByApp = expiredSession
+        renewedByApp.accessToken = "renewed-by-app"
+        renewedByApp.refreshToken = "refresh-from-app"
+        renewedByApp.expiresAt = .now.addingTimeInterval(3600)
+
+        // The app holds the lock while it renews; the extension meanwhile finds
+        // the expired session and waits for the lock.
+        let lock = try #require(store.blueskySessionLock)
+        let waiting = try await lock.withLock {
+            let waiting = Task { try await shareExtension.validSession(for: account) }
+            try await Task.sleep(for: .milliseconds(200))
+            store.setSession(renewedByApp, for: account)
+            return waiting
+        }
+        let session = try await waiting.value
+
+        #expect(session.accessToken == "renewed-by-app")
+        #expect(TokenEndpointProtocol.requests(to: tokenHost) == 0)
+    }
+}
+
+// MARK: - TokenEndpointProtocol
+
+/// A Bluesky token endpoint that rotates the refresh token, as Bluesky does.
+///
+/// It accepts only the refresh token it issued last, starting with
+/// `refresh-0`, and answers with `access-N` and `refresh-N`. Any other
+/// refresh token is refused with `invalid_grant`. State is kept per host, so
+/// each test uses a host of its own.
+private final class TokenEndpointProtocol: URLProtocol {
+    /// The DID the endpoint names as the token's subject.
+    static let accountDID = "did:plc:renewal"
+
+    /// Requests and renewals per host.
+    private struct Counts {
+        var requests = 0
+        var renewals = 0
+    }
+
+    private static let counts = Mutex<[String: Counts]>([:])
+
+    /// How many refresh requests reached `host`, accepted or refused.
+    static func requests(to host: String) -> Int {
+        counts.withLock { $0[host]?.requests ?? 0 }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url, let host = url.host() else { return }
+        let presented = Self.formValue("refresh_token", in: request)
+        let issued: Int? = Self.counts.withLock { counts in
+            var current = counts[host, default: Counts()]
+            current.requests += 1
+            defer { counts[host] = current }
+            guard presented == "refresh-\(current.renewals)" else { return nil }
+            current.renewals += 1
+            return current.renewals
+        }
+        let status: Int
+        let json: String
+        if let issued {
+            status = 200
+            json = #"{"access_token":"access-\#(issued)","refresh_token":"refresh-\#(issued)","expires_in":3600,"sub":"\#(Self.accountDID)","token_type":"DPoP"}"#
+        } else {
+            status = 400
+            json = #"{"error":"invalid_grant"}"#
+        }
+        guard let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil,
+                                             headerFields: ["Content-Type": "application/json"]) else { return }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(json.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+
+    /// The value of `name` in the request's form body, which URLSession hands over as a stream.
+    private static func formValue(_ name: String, in request: URLRequest) -> String? {
+        var body = request.httpBody ?? Data()
+        if body.isEmpty, let stream = request.httpBodyStream {
+            stream.open()
+            defer { stream.close() }
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while stream.hasBytesAvailable {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                guard count > 0 else { break }
+                body.append(buffer, count: count)
+            }
+        }
+        let form = String(data: body, encoding: .utf8) ?? ""
+        for pair in form.split(separator: "&") {
+            let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
+            if parts.first == name {
+                return parts.count > 1 ? parts[1].removingPercentEncoding : ""
+            }
+        }
+        return nil
     }
 }
