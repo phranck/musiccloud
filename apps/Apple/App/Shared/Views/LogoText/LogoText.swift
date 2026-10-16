@@ -49,6 +49,45 @@ struct LogoText: View {
     }
 }
 
+// MARK: - OutlinedLogoText
+
+/// The wordmark with a black outline one pixel wide, so its light colors keep
+/// their edge on bright backgrounds such as the day sky or a white bar.
+///
+/// SwiftUI has no stroke for text, so black copies of the wordmark sit one
+/// pixel off in eight directions behind it.
+struct OutlinedLogoText: View {
+    private static let outlineDirections = 8
+
+    let fontSize: CGFloat
+    let isAnimating: Bool
+
+    @Environment(\.displayScale) private var displayScale
+
+    /// - Parameters:
+    ///   - fontSize: The font size to use (default: 25)
+    ///   - isAnimating: Whether to animate the gradient (default: false)
+    init(size fontSize: CGFloat = 25, isAnimating: Bool = false) {
+        self.fontSize = fontSize
+        self.isAnimating = isAnimating
+    }
+
+    var body: some View {
+        let pixel = 1 / displayScale
+        ZStack {
+            ForEach(0..<Self.outlineDirections, id: \.self) { direction in
+                let angle = Double(direction) * 2 * .pi / Double(Self.outlineDirections)
+                LogoText(size: fontSize)
+                    .colorMultiply(.black)
+                    .offset(x: cos(angle) * pixel, y: sin(angle) * pixel)
+            }
+            LogoText(size: fontSize, isAnimating: isAnimating)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: "musiccloud"))
+    }
+}
+
 // MARK: - LogoContent
 
 private struct LogoContent: View {

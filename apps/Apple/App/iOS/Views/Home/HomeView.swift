@@ -24,7 +24,7 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                LogoText(size: 25)
+                OutlinedLogoText(size: 25)
             }
         }
     }

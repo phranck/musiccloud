@@ -74,7 +74,7 @@ private extension ShareViewController {
         let result = ShareResultView(entry: entry, accounts: accounts) { [weak self] in
             self?.complete()
         }
-        let host = UIHostingController(rootView: result)
+        let host = UIHostingController(rootView: result.symbolRenderingMode(.hierarchical))
         addChild(host)
         host.view.frame = view.bounds
         host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -85,7 +85,8 @@ private extension ShareViewController {
     func showError(_ message: String) {
         spinner.stopAnimating()
         spinner.isHidden = true
-        iconView.image = UIImage(systemName: "xmark.circle.fill")
+        iconView.image = UIImage(systemName: "xmark.circle.fill",
+                                 withConfiguration: UIImage.SymbolConfiguration(hierarchicalColor: .systemRed))
         iconView.tintColor = .systemRed
         iconView.isHidden = false
         statusLabel.text = message

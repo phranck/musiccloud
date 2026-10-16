@@ -61,7 +61,11 @@ struct PanelSection<Content: View>: View {
             GlassContentCard(
                 cornerRadius: PanelMetrics.cornerRadius,
                 isHighlighted: isHovered,
-                content: paddedContent.onHover { isHovered = $0 }
+                // The hosting view inside the glass hosts its own SwiftUI
+                // hierarchy, so it is given the panel's rendering mode here.
+                content: paddedContent
+                    .onHover { isHovered = $0 }
+                    .symbolRenderingMode(.hierarchical)
             )
         } else {
             paddedContent
