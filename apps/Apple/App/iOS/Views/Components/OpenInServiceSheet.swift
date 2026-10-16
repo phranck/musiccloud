@@ -36,7 +36,15 @@ struct OpenInServiceSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .close) { dismiss() }
+                    // The close role exists from iOS 26 on; before, the same mark is drawn by hand.
+                    if #available(iOS 26, *) {
+                        Button(role: .close) { dismiss() }
+                    } else {
+                        Button { dismiss() } label: {
+                            Image(systemName: "xmark")
+                        }
+                        .accessibilityLabel(String(localized: "Close"))
+                    }
                 }
             }
         }

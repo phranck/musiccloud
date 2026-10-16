@@ -66,9 +66,7 @@ private struct ConversionProgressView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Converting URL"))
-        .safeAreaBar(edge: .top, spacing: 0) {
-            SheetHeader(onClose: onClose)
-        }
+        .sheetHeader(onClose: onClose)
     }
 }
 
@@ -87,9 +85,7 @@ private struct ConversionErrorView: View {
             systemImage: "exclamationmark.triangle.fill",
             description: message.map { Text($0) }
         )
-        .safeAreaBar(edge: .top, spacing: 0) {
-            SheetHeader(onClose: onClose)
-        }
+        .sheetHeader(onClose: onClose)
     }
 }
 
