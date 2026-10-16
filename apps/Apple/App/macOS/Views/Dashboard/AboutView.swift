@@ -112,39 +112,10 @@ private struct AppIdentityHeader: View {
                 .frame(width: 96, height: 96)
                 // Lifts the icon off the sky, which is busiest behind it.
                 .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
-            OutlinedWordmark()
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Text(verbatim: "musiccloud"))
+            OutlinedLogoText(size: 28)
         }
         .frame(maxWidth: .infinity)
         .padding(.bottom, 36)
-    }
-}
-
-// MARK: - OutlinedWordmark
-
-/// The rainbow wordmark with a black outline one pixel wide, so its light
-/// colors keep their edge on the bright day sky.
-///
-/// SwiftUI has no stroke for text, so black copies of the wordmark sit one
-/// pixel off in eight directions behind it.
-private struct OutlinedWordmark: View {
-    private static let fontSize: CGFloat = 28
-    private static let outlineDirections = 8
-
-    @Environment(\.displayScale) private var displayScale
-
-    var body: some View {
-        let pixel = 1 / displayScale
-        ZStack {
-            ForEach(0..<Self.outlineDirections, id: \.self) { direction in
-                let angle = Double(direction) * 2 * .pi / Double(Self.outlineDirections)
-                LogoText(size: Self.fontSize)
-                    .colorMultiply(.black)
-                    .offset(x: cos(angle) * pixel, y: sin(angle) * pixel)
-            }
-            LogoText(size: Self.fontSize)
-        }
     }
 }
 
