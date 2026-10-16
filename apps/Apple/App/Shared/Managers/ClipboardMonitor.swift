@@ -271,7 +271,7 @@ extension ClipboardMonitor {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                self.checkClipboard()
+                await self.checkClipboard()
                 try? await Task.sleep(for: Self.pollInterval)
             }
         }
@@ -298,7 +298,7 @@ private extension ClipboardMonitor {
     /// 4. Hands a new streaming URL to ``convert(url:origin:)``
     ///
     /// - Note: This method must be called from the main actor
-    func checkClipboard() {
+    func checkClipboard() async {
         // A URL copied while a conversion runs is picked up afterwards: the
         // change count is only consumed once nothing is converting.
         guard !status.isProcessing else { return }
@@ -313,23 +313,53 @@ private extension ClipboardMonitor {
         #endif
         guard currentCount != lastChangeCount else { return }
         lastChangeCount = currentCount
+        // Only the change count and the type identifiers are logged here.
+        // Whatever was copied stays out of the log unless it is a streaming
+        // URL: it can be a password, a message or anything else in hand.
+        let log = AppLogger.clipboard
 
         #if os(iOS)
-        guard UIPasteboard.general.hasURLs else { return }
+        let pasteboard = UIPasteboard.general
+        log.info("change \(currentCount), hasURLs \(pasteboard.hasURLs), hasStrings \(pasteboard.hasStrings), types \(pasteboard.types.joined(separator: ", "), privacy: .public)")
+        // `hasURLs` only sees a `public.url` item, so a link copied as text,
+        // such as from Notes, would pass unseen. Pattern detection finds a
+        // link in text as well and, unlike reading the string, raises no
+        // paste prompt; the prompt comes only for a clipboard that holds one.
+        let patterns = (try? await pasteboard.detectedPatterns(for: [\UIPasteboard.DetectedValues.probableWebURL])) ?? []
+        guard patterns.contains(\UIPasteboard.DetectedValues.probableWebURL) else {
+            log.info("skipped: no web URL on the clipboard")
+            return
+        }
+        // A conversion may have started while the detection ran.
+        guard !status.isProcessing else { return }
         #else
-        guard !Self.holdsConcealedContent(NSPasteboard.general) else { return }
+        log.info("change \(currentCount), types \((NSPasteboard.general.types ?? []).map(\.rawValue).joined(separator: ", "), privacy: .public)")
+        guard !Self.holdsConcealedContent(NSPasteboard.general) else {
+            log.info("skipped: concealed content")
+            return
+        }
         #endif
 
-        guard let raw = Pasteboard.string else { return }
+        guard let raw = Pasteboard.string else {
+            log.info("skipped: no string on the clipboard")
+            return
+        }
         let content = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return }
-        guard content != lastSeenContent else { return }
+        guard !content.isEmpty else {
+            log.info("skipped: empty string")
+            return
+        }
+        guard content != lastSeenContent else {
+            log.info("skipped: same content as last time")
+            return
+        }
 
         lastSeenContent = content
-        // Whatever else was copied stays out of the log: it can be a
-        // password, a message or anything else the user had in hand.
-        guard StreamingServices.isStreamingURL(content) else { return }
-        AppLogger.clipboard.debug("clipboard holds a streaming URL")
+        guard StreamingServices.isStreamingURL(content) else {
+            log.info("skipped: not a streaming URL")
+            return
+        }
+        log.info("clipboard holds a streaming URL: \(content, privacy: .public), status \(String(describing: self.status), privacy: .public)")
 
         convert(url: content, origin: .clipboard)
     }
