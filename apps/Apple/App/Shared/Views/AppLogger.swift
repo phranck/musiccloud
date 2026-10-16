@@ -26,7 +26,7 @@ import OSLog
 ///
 /// In Console.app, filter by:
 /// - **Subsystem**: `io.musiccloud.app`
-/// - **Category**: `UI`, `ClipboardMonitor`, `API`, or `History`
+/// - **Category**: `UI`, `ClipboardMonitor`, `API`, `History`, or `ShareExtension`
 enum AppLogger {
 
     /// The application subsystem identifier
@@ -43,4 +43,7 @@ enum AppLogger {
 
     /// Logger for history management operations
     static let history = Logger(subsystem: subsystem, category: "History")
+
+    /// Logger for the iOS share extension, from receiving the shared items to closing
+    static let shareExtension = Logger(subsystem: subsystem, category: "ShareExtension")
 }

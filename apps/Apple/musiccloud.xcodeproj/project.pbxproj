@@ -97,7 +97,6 @@
 		FDB80011307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8000F307FBCBC00AC2DA7 /* AppAccessClient.swift */; };
 		FDB80013307FBCDB00AC2DA7 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80012307FBCDB00AC2DA7 /* AppSession.swift */; };
 		FDB80014307FBCDB00AC2DA7 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80012307FBCDB00AC2DA7 /* AppSession.swift */; };
-		FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80016307FBED400AC2DA7 /* GratConfig.swift */; };
 		FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */; };
 		FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
 		FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
@@ -198,6 +197,25 @@
 		FDB800CD3081A35600AC2DA7 /* SkyTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CC3081A35600AC2DA7 /* SkyTokens.swift */; };
 		FDB800CF3081A3DA00AC2DA7 /* SkyTokensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */; };
 		FDB800D13082687B00AC2DA7 /* AboutItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D03082687B00AC2DA7 /* AboutItem.swift */; };
+		FDB800D23082898E00AC2DA7 /* ShareResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800B03081575F00AC2DA7 /* ShareResultView.swift */; };
+		FDB800D430828AB900AC2DA7 /* ConversionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */; };
+		FDB800D5308298B100AC2DA7 /* ConversionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */; };
+		FDB800D73082A7B100AC2DA7 /* PlainTextItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */; };
+		FDB800D83082A7B100AC2DA7 /* PlainTextItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */; };
+		FDB800DB3082A7D100AC2DA7 /* PlainTextItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */; };
+		FDB800DD3082AD6800AC2DA7 /* DefaultsKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */; };
+		FDB800DE3082ADB500AC2DA7 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC3A8E2F81BE7700FB68D9 /* NotificationManager.swift */; };
+		FDB800DF3082ADC800AC2DA7 /* sound6.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE682F85225D00EC883B /* sound6.mp3 */; };
+		FDB800E03082ADC800AC2DA7 /* sound10.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6C2F85225D00EC883B /* sound10.mp3 */; };
+		FDB800E13082ADC800AC2DA7 /* sound11.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6D2F85225D00EC883B /* sound11.mp3 */; };
+		FDB800E23082ADC800AC2DA7 /* sound7.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE692F85225D00EC883B /* sound7.mp3 */; };
+		FDB800E33082ADC800AC2DA7 /* sound9.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6B2F85225D00EC883B /* sound9.mp3 */; };
+		FDB800E43082ADC800AC2DA7 /* sound3.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE652F85225D00EC883B /* sound3.mp3 */; };
+		FDB800E53082ADC800AC2DA7 /* sound5.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE672F85225D00EC883B /* sound5.mp3 */; };
+		FDB800E63082ADC800AC2DA7 /* sound8.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6A2F85225D00EC883B /* sound8.mp3 */; };
+		FDB800E73082ADC800AC2DA7 /* sound4.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE662F85225D00EC883B /* sound4.mp3 */; };
+		FDB800E83082ADC800AC2DA7 /* sound1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE632F85225D00EC883B /* sound1.mp3 */; };
+		FDB800E93082ADC800AC2DA7 /* sound2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE642F85225D00EC883B /* sound2.mp3 */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -351,7 +369,6 @@
 		FDB8000C307FBC9000AC2DA7 /* AppSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionStore.swift; sourceTree = "<group>"; };
 		FDB8000F307FBCBC00AC2DA7 /* AppAccessClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessClient.swift; sourceTree = "<group>"; };
 		FDB80012307FBCDB00AC2DA7 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
-		FDB80016307FBED400AC2DA7 /* GratConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GratConfig.swift; sourceTree = "<group>"; };
 		FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessTests.swift; sourceTree = "<group>"; };
 		FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLink.swift; sourceTree = "<group>"; };
 		FDB8001D307FC94700AC2DA7 /* NativeAppLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLinkTests.swift; sourceTree = "<group>"; };
@@ -416,6 +433,10 @@
 		FDB800CC3081A35600AC2DA7 /* SkyTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTokens.swift; sourceTree = "<group>"; };
 		FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTokensTests.swift; sourceTree = "<group>"; };
 		FDB800D03082687B00AC2DA7 /* AboutItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutItem.swift; sourceTree = "<group>"; };
+		FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversionSheet.swift; sourceTree = "<group>"; };
+		FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainTextItem.swift; sourceTree = "<group>"; };
+		FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainTextItemTests.swift; sourceTree = "<group>"; };
+		FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultsKeyTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -584,6 +605,8 @@
 				FF00000000000016 /* EntryActionsModifier.swift */,
 				DC0000000000003F0 /* ConversionFilterModifier.swift */,
 				FDB800833080E9D500AC2DA7 /* SocialAccountLabel.swift */,
+				FDB800B03081575F00AC2DA7 /* ShareResultView.swift */,
+				FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -625,6 +648,7 @@
 				FF00000000000014 /* SharedStoreConfiguration.swift */,
 				FDB8004F30802E5500AC2DA7 /* KeychainItems.swift */,
 				FDB8005230802E8800AC2DA7 /* JSONFile.swift */,
+				FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -776,9 +800,9 @@
 				BB00000000000024 /* Intents */,
 				BB00000000000022 /* Managers */,
 				BB00000000000023 /* Models */,
-				FDB80015307FBED400AC2DA7 /* Support */,
 				FDB8002C307FDE4800AC2DA7 /* Posting */,
 				FDB8006430802F7B00AC2DA7 /* Social */,
+				FDB800D93082A7D100AC2DA7 /* Utils */,
 			);
 			path = musiccloudTests;
 			sourceTree = "<group>";
@@ -826,7 +850,6 @@
 				CC00000000000001 /* ShareViewController.swift */,
 				CC00000000000002 /* Info.plist */,
 				CC00000000000003 /* ShareExtension.entitlements */,
-				FDB800B03081575F00AC2DA7 /* ShareResultView.swift */,
 			);
 			path = ShareExtension;
 			sourceTree = "<group>";
@@ -877,14 +900,6 @@
 				FDB80012307FBCDB00AC2DA7 /* AppSession.swift */,
 			);
 			path = AppAccess;
-			sourceTree = "<group>";
-		};
-		FDB80015307FBED400AC2DA7 /* Support */ = {
-			isa = PBXGroup;
-			children = (
-				FDB80016307FBED400AC2DA7 /* GratConfig.swift */,
-			);
-			path = Support;
 			sourceTree = "<group>";
 		};
 		FDB8001F307FDA5900AC2DA7 /* Posting */ = {
@@ -974,6 +989,15 @@
 				FDB800893080EA2E00AC2DA7 /* PostComposerView.swift */,
 			);
 			path = Composer;
+			sourceTree = "<group>";
+		};
+		FDB800D93082A7D100AC2DA7 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */,
+				FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */,
+			);
+			path = Utils;
 			sourceTree = "<group>";
 		};
 		FDDC7E1C2F805B3C005D779F /* Supporting Files */ = {
@@ -1119,6 +1143,17 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FDB800DF3082ADC800AC2DA7 /* sound6.mp3 in Resources */,
+				FDB800E03082ADC800AC2DA7 /* sound10.mp3 in Resources */,
+				FDB800E13082ADC800AC2DA7 /* sound11.mp3 in Resources */,
+				FDB800E23082ADC800AC2DA7 /* sound7.mp3 in Resources */,
+				FDB800E33082ADC800AC2DA7 /* sound9.mp3 in Resources */,
+				FDB800E43082ADC800AC2DA7 /* sound3.mp3 in Resources */,
+				FDB800E53082ADC800AC2DA7 /* sound5.mp3 in Resources */,
+				FDB800E63082ADC800AC2DA7 /* sound8.mp3 in Resources */,
+				FDB800E73082ADC800AC2DA7 /* sound4.mp3 in Resources */,
+				FDB800E83082ADC800AC2DA7 /* sound1.mp3 in Resources */,
+				FDB800E93082ADC800AC2DA7 /* sound2.mp3 in Resources */,
 				FDB800C7308160A900AC2DA7 /* Nasalization Rg.otf in Resources */,
 				DC000000000000000000A001 /* Localizable.xcstrings in Resources */,
 			);
@@ -1198,8 +1233,10 @@
 				FD1437752F81964000A5B46D /* ShareButton.swift in Sources */,
 				FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */,
 				FDB800CB30817C6400AC2DA7 /* NightSkyBackground.swift in Sources */,
+				FDB800D83082A7B100AC2DA7 /* PlainTextItem.swift in Sources */,
 				FDB8000A307F9E7A00AC2DA7 /* HistoryPane.swift in Sources */,
 				FDB8006030802F0800AC2DA7 /* MastodonConnector.swift in Sources */,
+				FDB800D430828AB900AC2DA7 /* ConversionSheet.swift in Sources */,
 				FD05A10C2F83900100000001 /* ContentType.swift in Sources */,
 				FD05A10E2F83900100000002 /* APIError.swift in Sources */,
 				FD05A1102F83900100000003 /* ResolveError.swift in Sources */,
@@ -1235,6 +1272,7 @@
 				FDF8735C2F7EEDE600D05057 /* HistoryManager.swift in Sources */,
 				FDB8005830802EBE00AC2DA7 /* MastodonAPI.swift in Sources */,
 				DA05592DC35D842081D71462 /* NSView+Extensions.swift in Sources */,
+				FDB800D23082898E00AC2DA7 /* ShareResultView.swift in Sources */,
 				7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */,
 				FDB80008307F9E7800AC2DA7 /* NotificationsPane.swift in Sources */,
 				AA00000000000060 /* CachedAsyncImage.swift in Sources */,
@@ -1308,9 +1346,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FDB800DB3082A7D100AC2DA7 /* PlainTextItemTests.swift in Sources */,
 				BB00000000000001 /* StreamingServicesTests.swift in Sources */,
 				FDB800A03081276400AC2DA7 /* LinkCardTests.swift in Sources */,
 				FDB80046307FFC1700AC2DA7 /* TemplateEditingTests.swift in Sources */,
+				FDB800DD3082AD6800AC2DA7 /* DefaultsKeyTests.swift in Sources */,
 				FDB8002E307FDE4800AC2DA7 /* PostTemplateTests.swift in Sources */,
 				BB00000000000002 /* MusicCloudAPITests.swift in Sources */,
 				FDB800933080F19900AC2DA7 /* AutoPostTests.swift in Sources */,
@@ -1324,7 +1364,6 @@
 				FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */,
 				FDB8001E307FC94700AC2DA7 /* NativeAppLinkTests.swift in Sources */,
 				FDB8009A3080FE7600AC2DA7 /* MarkdownShortcutTests.swift in Sources */,
-				FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */,
 				FDB800953080FCDF00AC2DA7 /* ArtistHashtagTests.swift in Sources */,
 				FDB800CF3081A3DA00AC2DA7 /* SkyTokensTests.swift in Sources */,
 				BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */,
@@ -1358,6 +1397,7 @@
 				FDB80040307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift in Sources */,
 				FDB800873080EA1C00AC2DA7 /* PostComposerModel.swift in Sources */,
 				FDB80044307FFC0D00AC2DA7 /* TemplateCompletion.swift in Sources */,
+				FDB800D73082A7B100AC2DA7 /* PlainTextItem.swift in Sources */,
 				FF0000000000010B /* APIError.swift in Sources */,
 				FDB800B230815AED00AC2DA7 /* WebSignIn.swift in Sources */,
 				FDB800B330815AED00AC2DA7 /* OpenGraph.swift in Sources */,
@@ -1367,8 +1407,10 @@
 				FDB800B630815AED00AC2DA7 /* SocialConnections.swift in Sources */,
 				FDB800B730815AED00AC2DA7 /* SocialService.swift in Sources */,
 				FDB800B830815AED00AC2DA7 /* SocialServiceError.swift in Sources */,
+				FDB800DE3082ADB500AC2DA7 /* NotificationManager.swift in Sources */,
 				FDB800B930815AED00AC2DA7 /* MastodonConnector.swift in Sources */,
 				FDB800BA30815AED00AC2DA7 /* OAuthSupport.swift in Sources */,
+				FDB800D5308298B100AC2DA7 /* ConversionSheet.swift in Sources */,
 				FDB800BB30815AED00AC2DA7 /* DPoPKey.swift in Sources */,
 				FDB800BC30815AED00AC2DA7 /* SocialAccount.swift in Sources */,
 				FDB800BD30815AED00AC2DA7 /* SocialAccountStore.swift in Sources */,

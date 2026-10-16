@@ -144,5 +144,19 @@ struct ClipboardMonitorTests {
 
         #expect(monitor.status == .processing(url: "https://open.spotify.com/track/first"))
     }
+
+    @MainActor
+    @Test func refusedConversionNeitherStartsNorTakesOverTheOrigin() throws {
+        let container = try SharedStoreConfiguration.makeContainer()
+        let monitor = ClipboardMonitor(historyManager: HistoryManager(modelContext: container.mainContext))
+        monitor.status = .processing(url: "https://open.spotify.com/track/first")
+
+        monitor.convert(url: "https://open.spotify.com/track/second", origin: .clipboard)
+
+        // The iOS conversion sheet opens on a new count from the clipboard,
+        // so a refused URL must leave both alone.
+        #expect(monitor.conversionCount == 0)
+        #expect(monitor.origin == .request)
+    }
 }
 

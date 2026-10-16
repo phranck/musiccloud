@@ -149,7 +149,7 @@ enum NotificationManager {
         Task { @MainActor in
             do {
                 try await UNUserNotificationCenter.current().add(request)
-                playSound()
+                playConversionSound()
             } catch {
                 AppLogger.ui.error("Notification failed: \(error.localizedDescription)")
             }
@@ -176,17 +176,25 @@ extension NotificationManager {
     }
 }
 
-// MARK: - Private API
-
-private extension NotificationManager {
+extension NotificationManager {
+    /// Plays the sound chosen in Settings, unless sounds are switched off.
+    ///
+    /// The app plays it with every conversion notification, and the share
+    /// extension, which sends no notification, plays it on its own. Both read
+    /// the choice from ``DefaultsKey/shared``.
     @MainActor
-    static func playSound() {
-        guard UserDefaults.standard.object(forKey: DefaultsKey.playNotificationSound) as? Bool ?? true else { return }
-        let rawValue = UserDefaults.standard.string(forKey: DefaultsKey.notificationSound) ?? NotificationSound.default.rawValue
+    static func playConversionSound() {
+        let defaults = DefaultsKey.shared
+        guard defaults.object(forKey: DefaultsKey.playNotificationSound) as? Bool ?? true else { return }
+        let rawValue = defaults.string(forKey: DefaultsKey.notificationSound) ?? NotificationSound.default.rawValue
         let sound = NotificationSound(rawValue: rawValue) ?? .default
         sound.play()
     }
+}
 
+// MARK: - Private API
+
+private extension NotificationManager {
     /// Creates a notification attachment from image data.
     static func createAttachment(from data: Data, id: String) -> UNNotificationAttachment? {
         let tempDir = FileManager.default.temporaryDirectory

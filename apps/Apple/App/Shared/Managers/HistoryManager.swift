@@ -60,6 +60,18 @@ final class HistoryManager {
         )
         return try? modelContext.fetch(descriptor).first
     }
+
+    /// Finds an existing entry by its musiccloud.io short link.
+    ///
+    /// The monitor's ``ClipboardMonitor/Status/success(shortUrl:mediaType:)``
+    /// names the converted entry by this link, so the iOS conversion sheet
+    /// finds the entry to show through it.
+    func entry(forShortUrl shortUrl: String) -> MediaEntry? {
+        let descriptor = FetchDescriptor<MediaEntry>(
+            predicate: #Predicate { $0.shortUrl == shortUrl }
+        )
+        return try? modelContext.fetch(descriptor).first
+    }
 }
 
 // MARK: - Private API

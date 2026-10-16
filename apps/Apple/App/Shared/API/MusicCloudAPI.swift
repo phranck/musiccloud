@@ -49,15 +49,17 @@ enum MusicCloudAPI {
     /// Base URL for the musiccloud.io API and short links.
     ///
     /// Override in DEBUG builds via the `MUSICCLOUD_BASE_URL` environment variable
-    /// (e.g. set in Xcode scheme). Falls back to the local frontend, whose
-    /// port is the `frontend` service in the repository's `grat.config`.
+    /// (e.g. set in Xcode scheme), such as `http://localhost:3001` for the local
+    /// frontend, the `frontend` service in the repository's `grat.config`.
+    /// Without it a debug build converts against production, so a build on a
+    /// device works, where `localhost` is the device itself.
     #if DEBUG
     static let baseURL: URL = {
         if let envURL = ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"],
            let url = URL(string: envURL) {
             return url
         }
-        return URL(string: "http://localhost:3001")!
+        return productionURL
     }()
     #else
     static let baseURL = productionURL
@@ -70,15 +72,16 @@ enum MusicCloudAPI {
     /// The backend that serves the app's attested routes under `/api/app/`.
     ///
     /// Override in DEBUG builds via the `MUSICCLOUD_API_URL` environment
-    /// variable. Falls back to the local backend, whose port is the
-    /// `backend` service in the repository's `grat.config`.
+    /// variable, such as `http://localhost:4001` for the local backend, the
+    /// `backend` service in the repository's `grat.config`. Without it a debug
+    /// build uses production, like ``baseURL``.
     #if DEBUG
     static let appAccessURL: URL = {
         if let envURL = ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"],
            let url = URL(string: envURL) {
             return url
         }
-        return URL(string: "http://localhost:4001")!
+        return productionAppAccessURL
     }()
     #else
     static let appAccessURL = productionAppAccessURL

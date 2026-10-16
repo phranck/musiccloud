@@ -124,13 +124,12 @@ struct AppAccessTests {
         #expect(MusicCloudAPI.appAccessURL(forSite: MusicCloudAPI.productionURL) == MusicCloudAPI.productionAppAccessURL)
     }
 
-    /// The Debug fallback has to reach the local backend, whose port
-    /// `grat.config` at the repository root decides.
-    @Test func debugAppAccessURLIsLocalBackend() throws {
+    /// Without an override a Debug build uses the production backend, like
+    /// ``MusicCloudAPI/baseURL``.
+    @Test func debugAppAccessURLFallsBackToProduction() {
         #if DEBUG
         guard ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"] == nil else { return }
-        #expect(MusicCloudAPI.appAccessURL.host == "localhost")
-        #expect(MusicCloudAPI.appAccessURL.port == (try GratConfig.port(ofService: "backend")))
+        #expect(MusicCloudAPI.appAccessURL == MusicCloudAPI.productionAppAccessURL)
         #endif
     }
 }

@@ -73,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPanel()
         setupEventMonitor()
         NSApplication.shared.registerForRemoteNotifications()
+        DefaultsKey.moveSharedSettings()
         Task { await NotificationManager.requestPermission() }
         NotificationManager.cleanupAttachmentCache()
         Task { await TelemetryClient.shared.flushPending() }

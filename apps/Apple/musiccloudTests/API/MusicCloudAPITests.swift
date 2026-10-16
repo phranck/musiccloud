@@ -14,13 +14,12 @@ struct MusicCloudAPITests {
         #expect(url.host != nil)
     }
 
-    /// The Debug fallback has to reach the local frontend, whose port
-    /// `grat.config` at the repository root decides.
-    @Test func debugBaseURLIsLocalFrontend() throws {
+    /// Without an override a Debug build converts against production, so a
+    /// build on a device, where `localhost` is the device itself, works.
+    @Test func debugBaseURLFallsBackToProduction() {
         #if DEBUG
         guard ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"] == nil else { return }
-        #expect(MusicCloudAPI.baseURL.host == "localhost")
-        #expect(MusicCloudAPI.baseURL.port == (try GratConfig.port(ofService: "frontend")))
+        #expect(MusicCloudAPI.baseURL == MusicCloudAPI.productionURL)
         #endif
     }
 
