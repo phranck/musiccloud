@@ -59,7 +59,7 @@ struct ShareResultView: View {
                     .listRowSeparator(.hidden)
             }
             // The cover reaches from edge to edge of the sheet, past the form's margins.
-            .listSectionMargins(.horizontal, 0)
+            .edgeToEdgeSection()
 
             // The link itself, right below the cover, with or without accounts.
             Section {
@@ -84,10 +84,8 @@ struct ShareResultView: View {
         }
         // The cover starts right below the header, without the form's top gap.
         .contentMargins(.top, 0, for: .scrollContent)
-        .safeAreaBar(edge: .top, spacing: 0) {
-            // Closing ends the Share Extension, and a post on its way would end with it.
-            SheetHeader(isCloseDisabled: model.isPosting, onClose: onDone)
-        }
+        // Closing ends the Share Extension, and a post on its way would end with it.
+        .sheetHeader(isCloseDisabled: model.isPosting, onClose: onDone)
         .safeAreaInset(edge: .bottom) {
             if !model.accounts.isEmpty {
                 postButton
@@ -219,6 +217,40 @@ struct SheetHeader: View {
             }
             .padding(.horizontal, Self.horizontalPadding)
             .padding(.vertical, Self.verticalPadding)
+    }
+}
+
+extension View {
+    /// Pins a ``SheetHeader`` above this view.
+    ///
+    /// On iOS 26 it is a safe area bar, which gives it the system's scroll
+    /// edge effect. Before, `safeAreaBar` does not exist, so it is a safe area
+    /// inset on the bar material, which keeps scrolled content legible below it.
+    ///
+    /// - Parameters:
+    ///   - isCloseDisabled: Whether the close button is disabled.
+    ///   - onClose: Closes the screen.
+    @ViewBuilder
+    func sheetHeader(isCloseDisabled: Bool = false, onClose: @escaping () -> Void) -> some View {
+        let header = SheetHeader(isCloseDisabled: isCloseDisabled, onClose: onClose)
+        if #available(iOS 26, *) {
+            safeAreaBar(edge: .top, spacing: 0) { header }
+        } else {
+            safeAreaInset(edge: .top, spacing: 0) { header.background(.bar) }
+        }
+    }
+
+    /// Lets the rows of a form section reach the edges of the screen.
+    ///
+    /// `listSectionMargins` exists from iOS 26 on. Before, the section keeps
+    /// the form's margins.
+    @ViewBuilder
+    func edgeToEdgeSection() -> some View {
+        if #available(iOS 26, *) {
+            listSectionMargins(.horizontal, 0)
+        } else {
+            self
+        }
     }
 }
 
