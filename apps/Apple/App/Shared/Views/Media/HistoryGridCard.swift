@@ -44,11 +44,11 @@ private struct GridCardInfo: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(entry.contentType.subtitle)
-                .font(.headline)
+                .font(Self.subtitleFont)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
             Text(entry.contentType.title)
-                .font(.subheadline)
+                .font(Self.titleFont)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -56,4 +56,13 @@ private struct GridCardInfo: View {
         .padding(10)
         .background(.regularMaterial)
     }
+
+    // On iOS the caption is a step smaller than on the Mac.
+    #if os(iOS)
+    private static let subtitleFont = Font.subheadline.weight(.semibold)
+    private static let titleFont = Font.footnote
+    #else
+    private static let subtitleFont = Font.headline
+    private static let titleFont = Font.subheadline
+    #endif
 }
