@@ -201,6 +201,9 @@
 		FDB800D23082898E00AC2DA7 /* ShareResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800B03081575F00AC2DA7 /* ShareResultView.swift */; };
 		FDB800D430828AB900AC2DA7 /* ConversionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */; };
 		FDB800D5308298B100AC2DA7 /* ConversionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */; };
+		FDB800D73082A7B100AC2DA7 /* PlainTextItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */; };
+		FDB800D83082A7B100AC2DA7 /* PlainTextItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */; };
+		FDB800DB3082A7D100AC2DA7 /* PlainTextItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -420,6 +423,8 @@
 		FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTokensTests.swift; sourceTree = "<group>"; };
 		FDB800D03082687B00AC2DA7 /* AboutItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutItem.swift; sourceTree = "<group>"; };
 		FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversionSheet.swift; sourceTree = "<group>"; };
+		FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainTextItem.swift; sourceTree = "<group>"; };
+		FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainTextItemTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -631,6 +636,7 @@
 				FF00000000000014 /* SharedStoreConfiguration.swift */,
 				FDB8004F30802E5500AC2DA7 /* KeychainItems.swift */,
 				FDB8005230802E8800AC2DA7 /* JSONFile.swift */,
+				FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -785,6 +791,7 @@
 				FDB80015307FBED400AC2DA7 /* Support */,
 				FDB8002C307FDE4800AC2DA7 /* Posting */,
 				FDB8006430802F7B00AC2DA7 /* Social */,
+				FDB800D93082A7D100AC2DA7 /* Utils */,
 			);
 			path = musiccloudTests;
 			sourceTree = "<group>";
@@ -979,6 +986,14 @@
 				FDB800893080EA2E00AC2DA7 /* PostComposerView.swift */,
 			);
 			path = Composer;
+			sourceTree = "<group>";
+		};
+		FDB800D93082A7D100AC2DA7 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */,
+			);
+			path = Utils;
 			sourceTree = "<group>";
 		};
 		FDDC7E1C2F805B3C005D779F /* Supporting Files */ = {
@@ -1203,6 +1218,7 @@
 				FD1437752F81964000A5B46D /* ShareButton.swift in Sources */,
 				FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */,
 				FDB800CB30817C6400AC2DA7 /* NightSkyBackground.swift in Sources */,
+				FDB800D83082A7B100AC2DA7 /* PlainTextItem.swift in Sources */,
 				FDB8000A307F9E7A00AC2DA7 /* HistoryPane.swift in Sources */,
 				FDB8006030802F0800AC2DA7 /* MastodonConnector.swift in Sources */,
 				FDB800D430828AB900AC2DA7 /* ConversionSheet.swift in Sources */,
@@ -1315,6 +1331,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FDB800DB3082A7D100AC2DA7 /* PlainTextItemTests.swift in Sources */,
 				BB00000000000001 /* StreamingServicesTests.swift in Sources */,
 				FDB800A03081276400AC2DA7 /* LinkCardTests.swift in Sources */,
 				FDB80046307FFC1700AC2DA7 /* TemplateEditingTests.swift in Sources */,
@@ -1365,6 +1382,7 @@
 				FDB80040307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift in Sources */,
 				FDB800873080EA1C00AC2DA7 /* PostComposerModel.swift in Sources */,
 				FDB80044307FFC0D00AC2DA7 /* TemplateCompletion.swift in Sources */,
+				FDB800D73082A7B100AC2DA7 /* PlainTextItem.swift in Sources */,
 				FF0000000000010B /* APIError.swift in Sources */,
 				FDB800B230815AED00AC2DA7 /* WebSignIn.swift in Sources */,
 				FDB800B330815AED00AC2DA7 /* OpenGraph.swift in Sources */,

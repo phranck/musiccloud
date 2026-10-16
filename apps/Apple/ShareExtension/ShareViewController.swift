@@ -3,6 +3,7 @@ import os
 import SwiftData
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 // MARK: - ShareViewController
 
@@ -159,13 +160,34 @@ private extension ShareViewController {
         }
         if provider.canLoadObject(ofClass: String.self) {
             log.info("Attachment \(index): loading as text")
-            return await withCheckedContinuation { continuation in
+            let text: String? = await withCheckedContinuation { continuation in
                 _ = provider.loadObject(ofClass: String.self) { text, error in
                     if let error {
                         log.error("Attachment \(index): text load failed: \(String(describing: error), privacy: .public)")
                     } else {
                         log.info("Attachment \(index): text \(text ?? "nil", privacy: .public)")
                     }
+                    continuation.resume(returning: text)
+                }
+            }
+            if let text { return text }
+        }
+        // Spotify registers `public.plain-text` with data that NSString cannot
+        // be instantiated from (NSItemProvider error -1200), so the bytes are
+        // read with PlainTextItem.
+        if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
+            log.info("Attachment \(index): loading plain text data")
+            return await withCheckedContinuation { continuation in
+                _ = provider.loadDataRepresentation(forTypeIdentifier: UTType.plainText.identifier) { data, error in
+                    guard let data else {
+                        log.error("Attachment \(index): plain text data load failed: \(String(describing: error), privacy: .public)")
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    let head = data.prefix(16).map { String(format: "%02x", $0) }.joined(separator: " ")
+                    log.info("Attachment \(index): \(data.count) bytes, starting \(head, privacy: .public)")
+                    let text = PlainTextItem.text(from: data)
+                    log.info("Attachment \(index): read as \(text ?? "nil", privacy: .public)")
                     continuation.resume(returning: text)
                 }
             }
