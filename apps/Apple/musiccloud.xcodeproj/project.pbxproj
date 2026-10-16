@@ -197,6 +197,7 @@
 		FDB800CB30817C6400AC2DA7 /* NightSkyBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CA30817C6400AC2DA7 /* NightSkyBackground.swift */; };
 		FDB800CD3081A35600AC2DA7 /* SkyTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CC3081A35600AC2DA7 /* SkyTokens.swift */; };
 		FDB800CF3081A3DA00AC2DA7 /* SkyTokensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */; };
+		FDB800D13082687B00AC2DA7 /* AboutItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D03082687B00AC2DA7 /* AboutItem.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -414,6 +415,7 @@
 		FDB800CA30817C6400AC2DA7 /* NightSkyBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightSkyBackground.swift; sourceTree = "<group>"; };
 		FDB800CC3081A35600AC2DA7 /* SkyTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTokens.swift; sourceTree = "<group>"; };
 		FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTokensTests.swift; sourceTree = "<group>"; };
+		FDB800D03082687B00AC2DA7 /* AboutItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutItem.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -692,6 +694,7 @@
 				3D07C91D3461C5C97C2F4AC0 /* MenuBarView.swift */,
 				FDDC7E2C2F805F1A005D779F /* QuitItem.swift */,
 				FDA7B3012F84200100000001 /* SettingsItem.swift */,
+				FDB800D03082687B00AC2DA7 /* AboutItem.swift */,
 			);
 			path = Panel;
 			sourceTree = "<group>";
@@ -1190,6 +1193,7 @@
 				FD97C3842F80948700E8D788 /* ArtistItem.swift in Sources */,
 				170DCCFF835C9EB8AE1CD81F /* MenuBarView.swift in Sources */,
 				FDB80043307FFC0D00AC2DA7 /* TemplateCompletion.swift in Sources */,
+				FDB800D13082687B00AC2DA7 /* AboutItem.swift in Sources */,
 				FDB80048307FFC3900AC2DA7 /* LineNumberRulerView.swift in Sources */,
 				FD1437752F81964000A5B46D /* ShareButton.swift in Sources */,
 				FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */,
