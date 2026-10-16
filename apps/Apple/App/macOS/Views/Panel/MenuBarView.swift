@@ -51,6 +51,9 @@ struct MenuBarView: View {
                     SettingsItem()
                 }
                 PanelSection(interactive: true) {
+                    AboutItem()
+                }
+                PanelSection(interactive: true) {
                     QuitItem()
                 }
             }

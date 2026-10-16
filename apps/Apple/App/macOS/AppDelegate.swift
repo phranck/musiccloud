@@ -223,7 +223,14 @@ extension AppDelegate {
     }
 
     /// Opens the settings window, creating it if needed.
-    func openSettings() {
+    ///
+    /// - Parameter pane: The pane to show, or `nil` to keep the one last shown.
+    ///   The window reads its pane from `DefaultsKey.settingsPane`, so writing
+    ///   it there also switches a window that is already open.
+    func openSettings(showing pane: SettingsPane? = nil) {
+        if let pane {
+            UserDefaults.standard.set(pane.rawValue, forKey: DefaultsKey.settingsPane)
+        }
         let rootView = SettingsView()
             .environment(historyManager)
             .environment(monitor)
