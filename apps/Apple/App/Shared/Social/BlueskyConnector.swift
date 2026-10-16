@@ -237,6 +237,9 @@ private extension BlueskyConnector {
     /// refused for the other. Holding the lock makes the second process wait
     /// until the first has stored its new session. A store kept in memory
     /// has no lock and is only ever used by one process.
+    ///
+    /// - Throws: `CancellationError` when iOS ends the background activity the
+    ///   lock is held in, so the next request renews again.
     func renewUnderLock(for account: BlueskyAccount) async throws -> BlueskySession {
         guard let lock = store.blueskySessionLock else { return try await renewIfStillDue(account) }
         return try await lock.withLock { try await self.renewIfStillDue(account) }

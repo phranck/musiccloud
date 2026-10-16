@@ -5,6 +5,7 @@
 
 import Foundation
 import Observation
+import Synchronization
 
 // MARK: - SocialAccountStore
 
@@ -198,6 +199,15 @@ private extension Array where Element: Identifiable {
 
 // MARK: - SessionFileLock
 
+/// Runs `block` inside a background activity, in the shape of
+/// `ProcessInfo.performExpiringActivity(withReason:using:)`.
+///
+/// The runner calls `block` with `expired` set to `false` once the activity
+/// holds, and the activity lasts as long as that call runs. It calls `block`
+/// with `expired` set to `true` when the system is about to suspend the
+/// process, or at once when it cannot start the activity.
+typealias ExpiringActivityRunner = @Sendable (_ reason: String, _ block: @escaping @Sendable (_ expired: Bool) -> Void) -> Void
+
 /// An exclusive POSIX advisory lock (`flock`) on a file, held around a short piece of async work.
 ///
 /// An advisory lock binds every process that opens the same file, so the app
@@ -207,28 +217,76 @@ private extension Array where Element: Identifiable {
 /// so it waits on a global dispatch queue and never on the caller's actor.
 /// The system drops the lock when a process ends while holding it, so a
 /// crash never leaves the other process waiting.
+///
+/// iOS terminates a suspended process that still holds a file lock in an
+/// app group container, with the termination code 0xdead10cc. The lock is
+/// therefore only ever held inside a background activity, which keeps the
+/// process running until the work is done. When the system ends the
+/// activity early, the lock is released at once and the work is cancelled.
 struct SessionFileLock: Sendable {
     /// The lock file, created on first use. Its content is never read.
     let url: URL
+    /// Starts the background activity each hold of the lock runs in.
+    let runActivity: ExpiringActivityRunner
+
+    /// Creates a lock on the file at `url`.
+    ///
+    /// - Parameters:
+    ///   - url: The lock file, which every process that shares the work opens.
+    ///   - runActivity: Starts the background activity around each hold, ``systemActivity`` unless a test replaces it.
+    init(url: URL, runActivity: @escaping ExpiringActivityRunner = SessionFileLock.systemActivity) {
+        self.url = url
+        self.runActivity = runActivity
+    }
+
+    #if os(macOS)
+    /// The Mac does not suspend a process holding a file lock, so the activity
+    /// starts at once on a dispatch thread and never expires.
+    static let systemActivity: ExpiringActivityRunner = { _, block in
+        DispatchQueue.global(qos: .userInitiated).async { block(false) }
+    }
+    #else
+    /// `ProcessInfo.performExpiringActivity(withReason:using:)`, which holds a
+    /// background task assertion in the app and in app extensions alike.
+    static let systemActivity: ExpiringActivityRunner = { reason, block in
+        ProcessInfo.processInfo.performExpiringActivity(withReason: reason, using: block)
+    }
+    #endif
 
     /// Runs `body` while holding the lock, waiting first until no other holder has it.
     ///
-    /// The lock is released when `body` returns or throws.
+    /// The lock is released when `body` returns or throws, and the background
+    /// activity ends after that.
     ///
-    /// - Parameters:
-    ///   - isolation: The caller's actor, which `body` runs on.
-    ///   - body: The work to serialize. It stays short and never waits for the
-    ///     user, because every other process waits for it.
+    /// - Parameter body: The work to serialize. It stays short and never
+    ///   waits for the user, because every other process waits for it.
     /// - Returns: What `body` returns.
-    /// - Throws: A `POSIXError` when the lock file cannot be opened or locked, or what `body` throws.
-    func withLock<Value>(isolation: isolated (any Actor)? = #isolation,
-                         _ body: () async throws -> Value) async throws -> Value {
+    /// - Throws: `CancellationError` when the background activity cannot start
+    ///   or ends before `body` finished, a `POSIXError` when the lock file
+    ///   cannot be opened or locked, or what `body` throws.
+    func withLock<Value: Sendable>(_ body: @escaping @Sendable () async throws -> Value) async throws -> Value {
+        let activity = try await LockActivity.begin(reason: "Holding \(url.lastPathComponent)", using: runActivity)
+        defer { activity.end() }
         let descriptor = try await Self.acquire(at: url.path(percentEncoded: false))
-        defer {
-            flock(descriptor, LOCK_UN)
-            close(descriptor)
+        guard activity.hold(descriptor) else {
+            Self.release(descriptor)
+            throw CancellationError()
         }
-        return try await body()
+        defer { activity.releaseLock() }
+
+        let work = Task { try await body() }
+        activity.whenExpired { work.cancel() }
+        do {
+            return try await withTaskCancellationHandler {
+                try await work.value
+            } onCancel: {
+                work.cancel()
+            }
+        } catch {
+            // A cancelled request throws its own error, such as `URLError.cancelled`.
+            if activity.isExpired { throw CancellationError() }
+            throw error
+        }
     }
 
     /// Opens the lock file at `path` and waits on a dispatch thread until it holds the exclusive lock.
@@ -258,8 +316,124 @@ struct SessionFileLock: Sendable {
         }
     }
 
+    /// Releases the lock `descriptor` holds and closes it.
+    fileprivate static func release(_ descriptor: Int32) {
+        flock(descriptor, LOCK_UN)
+        close(descriptor)
+    }
+
     /// The error `errno` names after a failed system call.
     private static func lastError() -> POSIXError {
         POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+    }
+}
+
+// MARK: - LockActivity
+
+/// The background activity around one hold of a ``SessionFileLock``, and the
+/// lock's descriptor while it is held.
+///
+/// The activity lasts while its first call waits on ``finished``, which a
+/// dispatch thread does, so no actor is blocked. When the system ends the
+/// activity, ``expire()`` releases the lock right away rather than waiting
+/// for the cancelled work to return, because a process suspended while
+/// holding it is terminated with 0xdead10cc.
+private final class LockActivity: Sendable {
+    private struct State {
+        /// Resumed once the activity holds, or with `CancellationError` when it cannot.
+        var started: CheckedContinuation<Void, Error>?
+        var isExpired = false
+        /// The locked file, from ``hold(_:)`` until ``releaseLock()``.
+        var descriptor: Int32?
+        /// Cancels the work under the lock.
+        var onExpiry: (@Sendable () -> Void)?
+    }
+
+    private let state = Mutex(State())
+    /// Signaled when the hold ends or the activity expires, which lets the activity's first call return.
+    private let finished = DispatchSemaphore(value: 0)
+
+    /// Starts an activity through `runActivity` and returns once it holds.
+    ///
+    /// - Throws: `CancellationError` when the system cannot start the activity.
+    static func begin(reason: String, using runActivity: ExpiringActivityRunner) async throws -> LockActivity {
+        let activity = LockActivity()
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            activity.state.withLock { $0.started = continuation }
+            runActivity(reason) { expired in
+                if expired {
+                    activity.expire()
+                } else {
+                    activity.takeStarted()?.resume()
+                    activity.finished.wait()
+                }
+            }
+        }
+        return activity
+    }
+
+    /// Whether the system ended the activity.
+    var isExpired: Bool { state.withLock { $0.isExpired } }
+
+    /// Records `descriptor` as held, or returns `false` when the activity expired while the lock was awaited.
+    func hold(_ descriptor: Int32) -> Bool {
+        state.withLock { state in
+            guard !state.isExpired else { return false }
+            state.descriptor = descriptor
+            return true
+        }
+    }
+
+    /// Calls `handler` when the activity expires, or at once when it has expired already.
+    func whenExpired(_ handler: @escaping @Sendable () -> Void) {
+        let expiredAlready = state.withLock { state in
+            guard !state.isExpired else { return true }
+            state.onExpiry = handler
+            return false
+        }
+        if expiredAlready { handler() }
+    }
+
+    /// Releases and closes the held lock, if it is still held.
+    func releaseLock() {
+        state.withLock { state in
+            if let descriptor = state.descriptor {
+                SessionFileLock.release(descriptor)
+                state.descriptor = nil
+            }
+        }
+    }
+
+    /// Ends the activity once the hold is over.
+    func end() {
+        finished.signal()
+    }
+
+    /// Handles the system ending the activity: the lock is released, the work cancelled, and the activity let go.
+    ///
+    /// The descriptor stays open until ``releaseLock()`` closes it, so it is never closed twice.
+    private func expire() {
+        let (started, onExpiry) = state.withLock { state in
+            state.isExpired = true
+            if let descriptor = state.descriptor {
+                flock(descriptor, LOCK_UN)
+            }
+            defer {
+                state.started = nil
+                state.onExpiry = nil
+            }
+            return (state.started, state.onExpiry)
+        }
+        started?.resume(throwing: CancellationError())
+        onExpiry?()
+        finished.signal()
+    }
+
+    /// The continuation waiting for the activity to hold, taken so it is resumed once.
+    private func takeStarted() -> CheckedContinuation<Void, Error>? {
+        state.withLock { state in
+            defer { state.started = nil }
+            return state.started
+        }
     }
 }
