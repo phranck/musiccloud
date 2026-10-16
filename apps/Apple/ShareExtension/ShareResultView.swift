@@ -24,6 +24,11 @@ struct ShareResultView: View {
     let onDone: () -> Void
 
     @State private var model: PostComposerModel
+    /// Whether the copy button has just copied the link, so it shows its confirmation.
+    @State private var didCopyLink = false
+
+    /// How long the copy button shows its confirmation before it reads as a button again.
+    private static let copyConfirmation: Duration = .seconds(2)
 
     /// - Parameters:
     ///   - entry: The converted entry, already in the history.
@@ -54,6 +59,18 @@ struct ShareResultView: View {
                 // The cover reaches from edge to edge of the sheet, past the form's margins.
                 .listSectionMargins(.horizontal, 0)
 
+                // The link itself, right below the cover, with or without accounts.
+                Section {
+                    Text(entry.shortUrl)
+                        .textSelection(.enabled)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                    copyLinkButton
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+
                 if !model.accounts.isEmpty {
                     Section(String(localized: "Accounts")) {
                         ForEach(model.accounts) { account in
@@ -67,7 +84,7 @@ struct ShareResultView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    LogoText(size: 25)
+                    OutlinedLogoText(size: 25)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: onDone) {
@@ -127,6 +144,26 @@ struct ShareResultView: View {
     /// How long the sheet stays open after every post went out, so the green
     /// checks can be seen before it closes.
     private static let closeDelay: Duration = .seconds(2)
+
+    /// Copies the musiccloud link and confirms it for a moment.
+    private var copyLinkButton: some View {
+        Button {
+            Pasteboard.copy(entry.shortUrl)
+            didCopyLink = true
+        } label: {
+            Label(didCopyLink ? String(localized: "Copied to clipboard!") : String(localized: "Copy URL to Clipboard"),
+                  systemImage: didCopyLink ? "checkmark" : "doc.on.doc")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .sensoryFeedback(.success, trigger: didCopyLink) { _, copied in copied }
+        .task(id: didCopyLink) {
+            guard didCopyLink else { return }
+            try? await Task.sleep(for: Self.copyConfirmation)
+            didCopyLink = false
+        }
+    }
 
     private var postButton: some View {
         Button {
