@@ -25,8 +25,10 @@ final class BlueskyConnector {
     /// and the PDS hand out separate nonces, and a request with another
     /// server's nonce is refused.
     private var nonces: [String: String] = [:]
-    /// Refreshes in flight per account. A refresh token works once, so two
-    /// requests renewing the same session would sign the account out.
+    /// Refreshes in flight per account in this process. A refresh token works
+    /// once, so two requests renewing the same session would sign the account
+    /// out. The store's ``SocialAccountStore/blueskySessionLock`` does the same
+    /// between this process and the other one.
     private var refreshes: [BlueskyAccount.ID: Task<BlueskySession, Error>] = [:]
 
     /// Renew an access token this long before it ends.
@@ -125,6 +127,11 @@ final class BlueskyConnector {
 
     /// The session of `account`, renewed first when its access token is about to end.
     ///
+    /// A session that is still valid is returned without taking any lock.
+    /// Renewals within this process share one task, and the task renews
+    /// under the store's session lock, so the app and the Share Extension
+    /// never present the same rotating refresh token twice.
+    ///
     /// - Throws: When the session is gone or the server refuses to renew it,
     ///   in which case the account has to be connected again.
     func validSession(for account: BlueskyAccount) async throws -> BlueskySession {
@@ -133,7 +140,7 @@ final class BlueskyConnector {
         if let running = refreshes[account.id] {
             return try await running.value
         }
-        let refresh = Task { try await self.refresh(stored, for: account) }
+        let refresh = Task { try await self.renewUnderLock(for: account) }
         refreshes[account.id] = refresh
         defer { refreshes[account.id] = nil }
         return try await refresh.value
@@ -221,6 +228,29 @@ private extension BlueskyConnector {
                                                decoder: BlueskyAPI.decoder)
         guard server.issuer == issuerText else { throw SocialServiceError.unexpectedAnswer }
         return server
+    }
+
+    /// Renews the session of `account` while holding the store's session lock.
+    ///
+    /// The app and the Share Extension each renew on their own, and Bluesky
+    /// rotates the refresh token every time, so a token one process used is
+    /// refused for the other. Holding the lock makes the second process wait
+    /// until the first has stored its new session. A store kept in memory
+    /// has no lock and is only ever used by one process.
+    func renewUnderLock(for account: BlueskyAccount) async throws -> BlueskySession {
+        guard let lock = store.blueskySessionLock else { return try await renewIfStillDue(account) }
+        return try await lock.withLock { try await self.renewIfStillDue(account) }
+    }
+
+    /// The stored session of `account`, read again and renewed only when it is still about to end.
+    ///
+    /// The session is read again because the other process may have renewed
+    /// it while this one waited for the lock. Its session is then valid and
+    /// is used as it is, since the refresh token read before has been used up.
+    func renewIfStillDue(_ account: BlueskyAccount) async throws -> BlueskySession {
+        guard let stored = store.session(for: account) else { throw SocialServiceError.signedOut }
+        guard stored.expires(within: Self.refreshMargin) else { return stored }
+        return try await refresh(stored, for: account)
     }
 
     /// Renews `stored` with its refresh token, which the server replaces with a new one.
