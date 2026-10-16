@@ -97,7 +97,6 @@
 		FDB80011307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8000F307FBCBC00AC2DA7 /* AppAccessClient.swift */; };
 		FDB80013307FBCDB00AC2DA7 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80012307FBCDB00AC2DA7 /* AppSession.swift */; };
 		FDB80014307FBCDB00AC2DA7 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80012307FBCDB00AC2DA7 /* AppSession.swift */; };
-		FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80016307FBED400AC2DA7 /* GratConfig.swift */; };
 		FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */; };
 		FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
 		FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
@@ -370,7 +369,6 @@
 		FDB8000C307FBC9000AC2DA7 /* AppSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionStore.swift; sourceTree = "<group>"; };
 		FDB8000F307FBCBC00AC2DA7 /* AppAccessClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessClient.swift; sourceTree = "<group>"; };
 		FDB80012307FBCDB00AC2DA7 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
-		FDB80016307FBED400AC2DA7 /* GratConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GratConfig.swift; sourceTree = "<group>"; };
 		FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessTests.swift; sourceTree = "<group>"; };
 		FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLink.swift; sourceTree = "<group>"; };
 		FDB8001D307FC94700AC2DA7 /* NativeAppLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLinkTests.swift; sourceTree = "<group>"; };
@@ -802,7 +800,6 @@
 				BB00000000000024 /* Intents */,
 				BB00000000000022 /* Managers */,
 				BB00000000000023 /* Models */,
-				FDB80015307FBED400AC2DA7 /* Support */,
 				FDB8002C307FDE4800AC2DA7 /* Posting */,
 				FDB8006430802F7B00AC2DA7 /* Social */,
 				FDB800D93082A7D100AC2DA7 /* Utils */,
@@ -903,14 +900,6 @@
 				FDB80012307FBCDB00AC2DA7 /* AppSession.swift */,
 			);
 			path = AppAccess;
-			sourceTree = "<group>";
-		};
-		FDB80015307FBED400AC2DA7 /* Support */ = {
-			isa = PBXGroup;
-			children = (
-				FDB80016307FBED400AC2DA7 /* GratConfig.swift */,
-			);
-			path = Support;
 			sourceTree = "<group>";
 		};
 		FDB8001F307FDA5900AC2DA7 /* Posting */ = {
@@ -1375,7 +1364,6 @@
 				FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */,
 				FDB8001E307FC94700AC2DA7 /* NativeAppLinkTests.swift in Sources */,
 				FDB8009A3080FE7600AC2DA7 /* MarkdownShortcutTests.swift in Sources */,
-				FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */,
 				FDB800953080FCDF00AC2DA7 /* ArtistHashtagTests.swift in Sources */,
 				FDB800CF3081A3DA00AC2DA7 /* SkyTokensTests.swift in Sources */,
 				BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */,
