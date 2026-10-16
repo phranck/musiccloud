@@ -204,6 +204,19 @@
 		FDB800D73082A7B100AC2DA7 /* PlainTextItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */; };
 		FDB800D83082A7B100AC2DA7 /* PlainTextItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */; };
 		FDB800DB3082A7D100AC2DA7 /* PlainTextItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */; };
+		FDB800DD3082AD6800AC2DA7 /* DefaultsKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */; };
+		FDB800DE3082ADB500AC2DA7 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC3A8E2F81BE7700FB68D9 /* NotificationManager.swift */; };
+		FDB800DF3082ADC800AC2DA7 /* sound6.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE682F85225D00EC883B /* sound6.mp3 */; };
+		FDB800E03082ADC800AC2DA7 /* sound10.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6C2F85225D00EC883B /* sound10.mp3 */; };
+		FDB800E13082ADC800AC2DA7 /* sound11.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6D2F85225D00EC883B /* sound11.mp3 */; };
+		FDB800E23082ADC800AC2DA7 /* sound7.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE692F85225D00EC883B /* sound7.mp3 */; };
+		FDB800E33082ADC800AC2DA7 /* sound9.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6B2F85225D00EC883B /* sound9.mp3 */; };
+		FDB800E43082ADC800AC2DA7 /* sound3.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE652F85225D00EC883B /* sound3.mp3 */; };
+		FDB800E53082ADC800AC2DA7 /* sound5.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE672F85225D00EC883B /* sound5.mp3 */; };
+		FDB800E63082ADC800AC2DA7 /* sound8.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6A2F85225D00EC883B /* sound8.mp3 */; };
+		FDB800E73082ADC800AC2DA7 /* sound4.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE662F85225D00EC883B /* sound4.mp3 */; };
+		FDB800E83082ADC800AC2DA7 /* sound1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE632F85225D00EC883B /* sound1.mp3 */; };
+		FDB800E93082ADC800AC2DA7 /* sound2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE642F85225D00EC883B /* sound2.mp3 */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -425,6 +438,7 @@
 		FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversionSheet.swift; sourceTree = "<group>"; };
 		FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainTextItem.swift; sourceTree = "<group>"; };
 		FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainTextItemTests.swift; sourceTree = "<group>"; };
+		FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultsKeyTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -992,6 +1006,7 @@
 			isa = PBXGroup;
 			children = (
 				FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */,
+				FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -1139,6 +1154,17 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FDB800DF3082ADC800AC2DA7 /* sound6.mp3 in Resources */,
+				FDB800E03082ADC800AC2DA7 /* sound10.mp3 in Resources */,
+				FDB800E13082ADC800AC2DA7 /* sound11.mp3 in Resources */,
+				FDB800E23082ADC800AC2DA7 /* sound7.mp3 in Resources */,
+				FDB800E33082ADC800AC2DA7 /* sound9.mp3 in Resources */,
+				FDB800E43082ADC800AC2DA7 /* sound3.mp3 in Resources */,
+				FDB800E53082ADC800AC2DA7 /* sound5.mp3 in Resources */,
+				FDB800E63082ADC800AC2DA7 /* sound8.mp3 in Resources */,
+				FDB800E73082ADC800AC2DA7 /* sound4.mp3 in Resources */,
+				FDB800E83082ADC800AC2DA7 /* sound1.mp3 in Resources */,
+				FDB800E93082ADC800AC2DA7 /* sound2.mp3 in Resources */,
 				FDB800C7308160A900AC2DA7 /* Nasalization Rg.otf in Resources */,
 				DC000000000000000000A001 /* Localizable.xcstrings in Resources */,
 			);
@@ -1335,6 +1361,7 @@
 				BB00000000000001 /* StreamingServicesTests.swift in Sources */,
 				FDB800A03081276400AC2DA7 /* LinkCardTests.swift in Sources */,
 				FDB80046307FFC1700AC2DA7 /* TemplateEditingTests.swift in Sources */,
+				FDB800DD3082AD6800AC2DA7 /* DefaultsKeyTests.swift in Sources */,
 				FDB8002E307FDE4800AC2DA7 /* PostTemplateTests.swift in Sources */,
 				BB00000000000002 /* MusicCloudAPITests.swift in Sources */,
 				FDB800933080F19900AC2DA7 /* AutoPostTests.swift in Sources */,
@@ -1392,6 +1419,7 @@
 				FDB800B630815AED00AC2DA7 /* SocialConnections.swift in Sources */,
 				FDB800B730815AED00AC2DA7 /* SocialService.swift in Sources */,
 				FDB800B830815AED00AC2DA7 /* SocialServiceError.swift in Sources */,
+				FDB800DE3082ADB500AC2DA7 /* NotificationManager.swift in Sources */,
 				FDB800B930815AED00AC2DA7 /* MastodonConnector.swift in Sources */,
 				FDB800BA30815AED00AC2DA7 /* OAuthSupport.swift in Sources */,
 				FDB800D5308298B100AC2DA7 /* ConversionSheet.swift in Sources */,

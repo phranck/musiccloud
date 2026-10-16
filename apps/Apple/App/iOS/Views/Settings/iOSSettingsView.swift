@@ -7,7 +7,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(ClipboardMonitor.self) private var monitor
     @AppStorage(DefaultsKey.clipboardMonitoringEnabled) private var clipboardMonitoringEnabled = true
-    @AppStorage(DefaultsKey.playNotificationSound) private var playNotificationSound = true
+    @AppStorage(DefaultsKey.playNotificationSound, store: DefaultsKey.shared) private var playNotificationSound = true
 
     @State private var exportedLogURL: URL?
     @State private var isExporting = false

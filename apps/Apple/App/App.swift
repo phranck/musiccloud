@@ -33,6 +33,7 @@ struct MusicCloudApp: App {
     init() {
         // The account sign-in looks for its window here; see WebSignIn.windowScenes.
         WebSignIn.windowScenes = { UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene } }
+        DefaultsKey.moveSharedSettings()
         do {
             let container = try SharedStoreConfiguration.makeContainer()
             modelContainer = container

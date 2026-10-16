@@ -221,6 +221,7 @@ private extension ShareViewController {
 
                 Pasteboard.copy(conversion.response.shortUrl)
                 HapticFeedback.success()
+                NotificationManager.playConversionSound()
                 show(.finished(entry))
             } catch {
                 log.error("Conversion or save failed: \(String(describing: error), privacy: .public)")
