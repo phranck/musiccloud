@@ -105,6 +105,10 @@ private struct LogoContent: View {
             Image(systemName: "music.note")
                 .font(.system(size: fontSize * 0.95, weight: .semibold))
 #if os(iOS)
+                // The note's offset was tuned in a navigation bar, where it
+                // renders exactly as at the large image scale (measured in a
+                // preview); set here, it looks the same outside a bar too.
+                .imageScale(.large)
                 .offset(x: -0.5, y: fontSize * -0.24)
 #else
                 .offset(x: -0.3, y: fontSize * -0.12)
