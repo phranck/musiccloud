@@ -247,16 +247,50 @@ struct BlueskySessionRenewalTests {
         // The app holds the lock while it renews; the extension meanwhile finds
         // the expired session and waits for the lock.
         let lock = try #require(store.blueskySessionLock)
+        let account = account
+        let renewed = renewedByApp
         let waiting = try await lock.withLock {
             let waiting = Task { try await shareExtension.validSession(for: account) }
             try await Task.sleep(for: .milliseconds(200))
-            store.setSession(renewedByApp, for: account)
+            await store.setSession(renewed, for: account)
             return waiting
         }
         let session = try await waiting.value
 
         #expect(session.accessToken == "renewed-by-app")
         #expect(TokenEndpointProtocol.requests(to: tokenHost) == 0)
+    }
+}
+
+// MARK: - SessionFileLockTests
+
+/// The lock's background activity, which iOS can end before the work under the lock is done.
+struct SessionFileLockTests {
+    @Test func expiredActivityCancelsTheWorkAndReleasesTheLock() async throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "musiccloud-tests-lock-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = folder.appending(path: "test.lock")
+        // An activity the system ends 300 ms after it started, as iOS does before suspending the process.
+        let lock = SessionFileLock(url: url) { _, block in
+            DispatchQueue.global().async { block(false) }
+            DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(300)) { block(true) }
+        }
+
+        let started = ContinuousClock.now
+        await #expect(throws: CancellationError.self) {
+            try await lock.withLock { try await Task.sleep(for: .seconds(5)) }
+        }
+        #expect(ContinuousClock.now - started < .seconds(2))
+        #expect(isUnlocked(url))
+    }
+
+    /// Whether another holder could take the lock on `url` right now.
+    private func isUnlocked(_ url: URL) -> Bool {
+        let descriptor = open(url.path(percentEncoded: false), O_RDWR)
+        guard descriptor >= 0 else { return false }
+        defer { close(descriptor) }
+        return flock(descriptor, LOCK_EX | LOCK_NB) == 0
     }
 }
 
