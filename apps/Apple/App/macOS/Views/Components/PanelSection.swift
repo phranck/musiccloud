@@ -14,9 +14,9 @@ import SwiftUI
 /// so it refracts the desktop behind the transparent panel. SwiftUI's glass
 /// needs a `GlassEffectContainer` in this window, and that container draws a
 /// shared surface behind all cards. An interactive card answers hover with
-/// its tint on every system: on macOS 27, where its glass is also marked
-/// interactive, the glass draws no hover response of its own under the
-/// SwiftUI content.
+/// its tint on every system. From macOS 27 its glass is also marked
+/// interactive, which AppKit documents as visual feedback "when it is
+/// interacted with"; on macOS 27.2 that feedback shows nothing on hover.
 ///
 /// ## Usage
 ///
