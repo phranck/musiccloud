@@ -17,6 +17,10 @@ struct AboutView: View {
     // swiftlint:disable:next force_unwrapping
     private static let mastodonURL = URL(string: "https://oldbytes.space/@musiccloud")!
 
+    /// The sky's design-token values: the defaults, then the saved copy,
+    /// then what the backend serves when the pane appears.
+    @State private var skyTokens = SkyTokens()
+
     var body: some View {
         Form {
             Section {
@@ -42,8 +46,22 @@ struct AboutView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .background {
-            AboutBackground()
+            AboutBackground(tokens: skyTokens)
                 .ignoresSafeArea()
+        }
+        .task {
+            await loadSkyTokens()
+        }
+    }
+
+    /// Shows the saved values first, so an offline start draws the sky the
+    /// backend served last, and then the current ones.
+    private func loadSkyTokens() async {
+        if let saved = await SkyTokens.saved() {
+            skyTokens = saved
+        }
+        if let fetched = await SkyTokens.fetchAndSave() {
+            skyTokens = fetched
         }
     }
 }
@@ -62,13 +80,16 @@ private struct AboutBackground: View {
     private static let dayFadeStart = 0.28
     private static let dayFadeEnd = 0.50
 
+    /// The values the sky is drawn with.
+    let tokens: SkyTokens
+
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         if colorScheme == .dark {
-            NightSkyBackground()
+            NightSkyBackground(tokens: tokens)
         } else {
-            NightSkyBackground()
+            NightSkyBackground(tokens: tokens)
                 .mask {
                     LinearGradient(stops: [
                         .init(color: .black, location: Self.dayFadeStart),

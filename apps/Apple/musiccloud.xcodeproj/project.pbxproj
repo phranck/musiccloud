@@ -195,6 +195,8 @@
 		FDB800C7308160A900AC2DA7 /* Nasalization Rg.otf in Resources */ = {isa = PBXBuildFile; fileRef = FDDC7E2E2F80622F005D779F /* Nasalization Rg.otf */; };
 		FDB800C930817C4600AC2DA7 /* NightSky.metal in Sources */ = {isa = PBXBuildFile; fileRef = FDB800C830817C4600AC2DA7 /* NightSky.metal */; };
 		FDB800CB30817C6400AC2DA7 /* NightSkyBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CA30817C6400AC2DA7 /* NightSkyBackground.swift */; };
+		FDB800CD3081A35600AC2DA7 /* SkyTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CC3081A35600AC2DA7 /* SkyTokens.swift */; };
+		FDB800CF3081A3DA00AC2DA7 /* SkyTokensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -410,6 +412,8 @@
 		FDB800B03081575F00AC2DA7 /* ShareResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareResultView.swift; sourceTree = "<group>"; };
 		FDB800C830817C4600AC2DA7 /* NightSky.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = NightSky.metal; sourceTree = "<group>"; };
 		FDB800CA30817C6400AC2DA7 /* NightSkyBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightSkyBackground.swift; sourceTree = "<group>"; };
+		FDB800CC3081A35600AC2DA7 /* SkyTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTokens.swift; sourceTree = "<group>"; };
+		FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTokensTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -662,6 +666,7 @@
 				FD70F1B3AEE2E43BDEE0DC9D /* PanelSection.swift */,
 				FDB800C830817C4600AC2DA7 /* NightSky.metal */,
 				FDB800CA30817C6400AC2DA7 /* NightSkyBackground.swift */,
+				FDB800CC3081A35600AC2DA7 /* SkyTokens.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -799,6 +804,7 @@
 			isa = PBXGroup;
 			children = (
 				BB00000000000014 /* MediaEntryTests.swift */,
+				FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -1216,6 +1222,7 @@
 				FDB8003A307FF00900AC2DA7 /* PostTemplateIcon.swift in Sources */,
 				FDDC7E2B2F805F03005D779F /* MediaRow.swift in Sources */,
 				FDB8003E307FF05400AC2DA7 /* NSImage+MenuIcon.swift in Sources */,
+				FDB800CD3081A35600AC2DA7 /* SkyTokens.swift in Sources */,
 				FDB80004307F9E6F00AC2DA7 /* SettingsSidebar.swift in Sources */,
 				FDB80037307FE6D400AC2DA7 /* TemplatesPane.swift in Sources */,
 				FD2748DF34499A932431649A /* PanelSection.swift in Sources */,
@@ -1315,6 +1322,7 @@
 				FDB8009A3080FE7600AC2DA7 /* MarkdownShortcutTests.swift in Sources */,
 				FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */,
 				FDB800953080FCDF00AC2DA7 /* ArtistHashtagTests.swift in Sources */,
+				FDB800CF3081A3DA00AC2DA7 /* SkyTokensTests.swift in Sources */,
 				BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */,
 				FDB8007A308042C200AC2DA7 /* BlueskyTests.swift in Sources */,
 			);
