@@ -32,6 +32,8 @@ struct TemplatePostLimitTests {
         #expect(text[start...] == "bc")
     }
 
+    #if os(macOS)
+
     @Test func limitComesFromTheIconsService() {
         #expect(TemplatePostLimit(icon: .bluesky, mastodonAccounts: [])?.limit == 300)
         #expect(TemplatePostLimit(icon: .mastodon, mastodonAccounts: [])?.limit == 500)
@@ -47,4 +49,6 @@ struct TemplatePostLimitTests {
         let markdown = TemplatePostLimit(icon: .mastodon, mastodonAccounts: [mastodon(limit: 5000, markdown: true)])
         #expect(markdown?.service == .mastodon(markdown: true))
     }
+
+    #endif
 }

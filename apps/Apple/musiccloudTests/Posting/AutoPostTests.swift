@@ -2,6 +2,8 @@ import Foundation
 import Testing
 @testable import musiccloud
 
+#if os(macOS)
+
 // MARK: - AutoPostTests
 
 @MainActor
@@ -161,3 +163,5 @@ struct DefaultTemplatesTests {
         #expect(DefaultTemplates(defaults: defaults).templateIDs.isEmpty)
     }
 }
+
+#endif
