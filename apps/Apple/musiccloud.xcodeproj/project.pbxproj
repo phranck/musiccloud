@@ -62,6 +62,8 @@
 		FD05A10C2F83900100000001 /* ContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10B2F83900100000001 /* ContentType.swift */; };
 		FD05A10E2F83900100000002 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10D2F83900100000002 /* APIError.swift */; };
 		FD05A1102F83900100000003 /* ResolveError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10F2F83900100000003 /* ResolveError.swift */; };
+		FD094D7930838BC000D317E2 /* StreamingServicesPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD094D7830838BC000D317E2 /* StreamingServicesPane.swift */; };
+		FD094D7B30838BCA00D317E2 /* StreamingServicesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD094D7A30838BCA00D317E2 /* StreamingServicesSettingsView.swift */; };
 		FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */; };
 		FD0C899A2F81B1FD00AE61FB /* RainbowPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */; };
 		FD0C899C2F81B50F00AE61FB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */; };
@@ -337,6 +339,8 @@
 		FD05A10B2F83900100000001 /* ContentType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentType.swift; sourceTree = "<group>"; };
 		FD05A10D2F83900100000002 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
 		FD05A10F2F83900100000003 /* ResolveError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveError.swift; sourceTree = "<group>"; };
+		FD094D7830838BC000D317E2 /* StreamingServicesPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServicesPane.swift; sourceTree = "<group>"; };
+		FD094D7A30838BCA00D317E2 /* StreamingServicesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServicesSettingsView.swift; sourceTree = "<group>"; };
 		FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIcon.swift; sourceTree = "<group>"; };
 		FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RainbowPalette.swift; sourceTree = "<group>"; };
 		FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -734,6 +738,7 @@
 				FDB80009307F9E7A00AC2DA7 /* HistoryPane.swift */,
 				FDB80036307FE6D400AC2DA7 /* TemplatesPane.swift */,
 				FDB8006230802F4200AC2DA7 /* SocialMediaPane.swift */,
+				FD094D7830838BC000D317E2 /* StreamingServicesPane.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -780,6 +785,7 @@
 			children = (
 				DD00000000000014 /* iOSSettingsView.swift */,
 				FDB800A730814E7C00AC2DA7 /* SocialMediaSettingsView.swift */,
+				FD094D7A30838BCA00D317E2 /* StreamingServicesSettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -1257,6 +1263,7 @@
 				8B76C213DB85A0116DCD1056 /* MusicCloudAPI.swift in Sources */,
 				FDF0E9572F81C6D8004DEFCE /* AboutView.swift in Sources */,
 				FDF0E9582F81C6D8004DEFCE /* SettingsView.swift in Sources */,
+				FD094D7B30838BCA00D317E2 /* StreamingServicesSettingsView.swift in Sources */,
 				FDF0E9592F81C6D8004DEFCE /* DashboardView.swift in Sources */,
 				FDB8000E307FBC9000AC2DA7 /* AppSessionStore.swift in Sources */,
 				FDF0E95A2F81C6D8004DEFCE /* HistoryView.swift in Sources */,
@@ -1326,6 +1333,7 @@
 				FDB80021307FDA6100AC2DA7 /* PostTemplate.swift in Sources */,
 				DC0000000000003B1 /* ConversionFilterModifier.swift in Sources */,
 				AA00000000000070 /* HapticFeedback.swift in Sources */,
+				FD094D7930838BC000D317E2 /* StreamingServicesPane.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
 				FDB800A630814E2700AC2DA7 /* ConnectAccountModel.swift in Sources */,
 				EF00000000000101 /* BuildChannel.swift in Sources */,

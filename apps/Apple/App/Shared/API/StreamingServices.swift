@@ -4,28 +4,14 @@ import Foundation
 
 /// Identifies and validates URLs from supported music streaming services.
 ///
-/// `StreamingServices` provides domain-based detection for 25+ music streaming
-/// platforms including Spotify, Apple Music, YouTube Music, Tidal, and many others.
-/// It uses both exact domain matching and suffix matching for platforms with
-/// variable subdomains.
+/// `StreamingServices` provides domain-based detection for the streaming
+/// platforms listed in ``all``, such as Spotify, Apple Music, YouTube Music,
+/// Tidal, and many others. It uses both exact domain matching and suffix
+/// matching for platforms with variable subdomains.
 ///
-/// ## Supported Services
-///
-/// ### Major Platforms
-/// - Spotify (open.spotify.com, play.spotify.com)
-/// - Apple Music (music.apple.com)
-/// - YouTube Music (youtube.com, music.youtube.com, youtu.be)
-/// - Tidal (tidal.com, listen.tidal.com)
-/// - Deezer (deezer.com)
-/// - SoundCloud (soundcloud.com)
-///
-/// ### Regional & Specialized
-/// - Bandcamp (*.bandcamp.com)
-/// - QQ Music (y.qq.com)
-/// - NetEase Cloud Music (music.163.com)
-/// - Melon (melon.com)
-/// - JioSaavn (jiosaavn.com)
-/// - And 15+ more services
+/// A service the user switched off in Settings is listed in ``all`` like any
+/// other, but ``isStreamingURL(_:defaults:)`` skips its domains, so a disabled
+/// service is treated the same as a domain the app never supported.
 ///
 /// ## Usage
 ///
@@ -44,65 +30,153 @@ import Foundation
 /// ## Topics
 ///
 /// ### URL Validation
-/// - ``isStreamingURL(_:)``
+/// - ``isStreamingURL(_:defaults:)``
+///
+/// ### Services
+/// - ``Service``
+/// - ``all``
+/// - ``allSortedByDisplayName``
+/// - ``isEnabled(_:defaults:)``
+/// - ``setEnabled(_:for:defaults:)``
 enum StreamingServices {
 
-    /// Exact domain matches for streaming services.
-    ///
-    /// Contains fully-qualified domain names that must match exactly.
-    /// Used for services with fixed, predictable domains.
-    private static let exactDomains: Set<String> = [
-        "open.spotify.com", "play.spotify.com",
-        "music.apple.com",
-        "youtube.com", "www.youtube.com", "youtu.be", "music.youtube.com",
-        "soundcloud.com", "www.soundcloud.com",
-        "tidal.com", "www.tidal.com", "listen.tidal.com",
-        "deezer.com", "www.deezer.com",
-        "audius.co",
-        "napster.com", "play.napster.com", "web.napster.com",
-        "pandora.com", "www.pandora.com",
-        "open.qobuz.com", "play.qobuz.com",
-        "boomplay.com", "www.boomplay.com",
-        "kkbox.com", "www.kkbox.com",
-        "audiomack.com", "www.audiomack.com",
-        "music.163.com",
-        "y.qq.com",
-        "melon.com", "www.melon.com",
-        "music.bugs.co.kr",
-        "jiosaavn.com", "www.jiosaavn.com",
-        "beatport.com", "www.beatport.com"
+    /// One streaming service this app can detect, with the domains that identify it.
+    struct Service: Identifiable, Hashable {
+        /// Stable identifier, persisted when the user turns this service off in Settings.
+        ///
+        /// Never renamed once shipped: renaming it would silently turn a
+        /// disabled service back on for everyone who had turned it off.
+        let id: String
+
+        /// The name shown in Settings.
+        let displayName: String
+
+        /// Fully-qualified domains that must match exactly.
+        let exactDomains: Set<String>
+
+        /// Domain suffixes that match any subdomain, such as `artist.bandcamp.com`.
+        let suffixDomains: [String]
+
+        /// Creates the stable identity and host patterns used by detection and Settings.
+        /// - Parameters:
+        ///   - id: The persisted identifier; keep it unchanged after release.
+        ///   - displayName: The service's brand name shown to the user.
+        ///   - exactDomains: Complete lowercase hosts accepted without subdomain expansion.
+        ///   - suffixDomains: Leading-dot suffixes accepting both the base host and its subdomains.
+        init(id: String, displayName: String, exactDomains: Set<String>, suffixDomains: [String] = []) {
+            self.id = id
+            self.displayName = displayName
+            self.exactDomains = exactDomains
+            self.suffixDomains = suffixDomains
+        }
+
+        /// Whether `host` belongs to this service.
+        fileprivate func matches(host: String) -> Bool {
+            if exactDomains.contains(host) { return true }
+            return suffixDomains.contains { host.hasSuffix($0) || host == String($0.dropFirst()) }
+        }
+    }
+
+    /// Every streaming service this app can detect. ``allSortedByDisplayName``
+    /// is what Settings lists, since this array's order is just declaration order.
+    static let all: [Service] = [
+        Service(id: "spotify", displayName: "Spotify",
+                exactDomains: ["open.spotify.com", "play.spotify.com"]),
+        Service(id: "appleMusic", displayName: "Apple Music",
+                exactDomains: ["music.apple.com"]),
+        Service(id: "youtube", displayName: "YouTube / YouTube Music",
+                exactDomains: ["youtube.com", "www.youtube.com", "youtu.be", "music.youtube.com"]),
+        Service(id: "soundcloud", displayName: "SoundCloud",
+                exactDomains: ["soundcloud.com", "www.soundcloud.com"]),
+        Service(id: "tidal", displayName: "Tidal",
+                exactDomains: ["tidal.com", "www.tidal.com", "listen.tidal.com"]),
+        Service(id: "deezer", displayName: "Deezer",
+                exactDomains: ["deezer.com", "www.deezer.com"]),
+        Service(id: "audius", displayName: "Audius",
+                exactDomains: ["audius.co"]),
+        Service(id: "napster", displayName: "Napster",
+                exactDomains: ["napster.com", "play.napster.com", "web.napster.com"]),
+        Service(id: "pandora", displayName: "Pandora",
+                exactDomains: ["pandora.com", "www.pandora.com"]),
+        Service(id: "qobuz", displayName: "Qobuz",
+                exactDomains: ["open.qobuz.com", "play.qobuz.com"]),
+        Service(id: "boomplay", displayName: "Boomplay",
+                exactDomains: ["boomplay.com", "www.boomplay.com"]),
+        Service(id: "kkbox", displayName: "KKBOX",
+                exactDomains: ["kkbox.com", "www.kkbox.com"]),
+        Service(id: "audiomack", displayName: "Audiomack",
+                exactDomains: ["audiomack.com", "www.audiomack.com"]),
+        Service(id: "neteaseCloudMusic", displayName: "NetEase Cloud Music",
+                exactDomains: ["music.163.com"]),
+        Service(id: "qqMusic", displayName: "QQ Music",
+                exactDomains: ["y.qq.com"]),
+        Service(id: "melon", displayName: "Melon",
+                exactDomains: ["melon.com", "www.melon.com"]),
+        Service(id: "bugs", displayName: "Bugs",
+                exactDomains: ["music.bugs.co.kr"]),
+        Service(id: "jiosaavn", displayName: "JioSaavn",
+                exactDomains: ["jiosaavn.com", "www.jiosaavn.com"]),
+        Service(id: "beatport", displayName: "Beatport",
+                exactDomains: ["beatport.com", "www.beatport.com"]),
+        Service(id: "bandcamp", displayName: "Bandcamp",
+                exactDomains: [], suffixDomains: [".bandcamp.com"]),
     ]
 
-    /// Domain suffixes for services with variable subdomains.
-    ///
-    /// Contains domain patterns that match any subdomain.
-    /// Used for services like Bandcamp where each artist has a unique subdomain
-    /// (e.g., artist.bandcamp.com, band.bandcamp.com).
-    private static let suffixDomains: [String] = [
-        ".bandcamp.com"
-    ]
+    /// ``all``, sorted by ``Service/displayName`` for Settings.
+    static var allSortedByDisplayName: [Service] {
+        all.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+    }
+}
+
+// MARK: - Enabled Services
+
+extension StreamingServices {
+    /// Whether `service` currently takes part in URL detection. Defaults to `true`.
+    /// - Parameters:
+    ///   - service: The stable service whose persisted choice is read.
+    ///   - defaults: Shared app-group preferences, or a private suite owned by a test.
+    /// - Returns: Whether this preference store allows detecting the service's URLs.
+    static func isEnabled(_ service: Service, defaults: UserDefaults = DefaultsKey.shared) -> Bool {
+        !disabledServiceIDs(in: defaults).contains(service.id)
+    }
+
+    /// Turns `service` on or off for URL detection without changing other services.
+    /// - Parameters:
+    ///   - isEnabled: Whether the service participates in URL detection.
+    ///   - service: The service whose stable ID is persisted.
+    ///   - defaults: Shared app-group preferences, or a private suite owned by a test.
+    static func setEnabled(_ isEnabled: Bool, for service: Service, defaults: UserDefaults = DefaultsKey.shared) {
+        var ids = disabledServiceIDs(in: defaults)
+        if isEnabled {
+            ids.remove(service.id)
+        } else {
+            ids.insert(service.id)
+        }
+        defaults.set(Array(ids), forKey: DefaultsKey.disabledStreamingServices)
+    }
 }
 
 // MARK: - URL Matching
 
 extension StreamingServices {
 
-    /// Determines if a URL string belongs to a supported streaming service.
+    /// Determines if a URL string belongs to a supported, enabled streaming service.
     ///
-    /// Validates the URL by checking its domain against known streaming services.
-    /// Performs both exact domain matching and suffix matching for services with
-    /// variable subdomains.
+    /// Validates the URL by checking its domain against the enabled entries
+    /// in ``all``. Performs both exact domain matching and suffix matching
+    /// for services with variable subdomains.
     ///
-    /// - Parameter urlString: The URL string to validate
-    /// - Returns: `true` if the URL belongs to a supported streaming service, `false` otherwise
+    /// - Parameters:
+    ///   - urlString: The URL string to validate.
+    ///   - defaults: Shared service choices, or an isolated store supplied by a test.
+    /// - Returns: `true` if the URL belongs to a supported streaming service that is currently enabled, `false` otherwise
     ///
     /// ## Validation Process
     ///
     /// 1. Checks URL length (must be ≤ 500 characters)
     /// 2. Parses the URL to extract the host/domain
     /// 3. Normalizes the host to lowercase
-    /// 4. Checks against ``exactDomains`` set for exact matches
-    /// 5. Checks against ``suffixDomains`` for suffix matches
+    /// 4. Checks the host against every enabled service's domains
     ///
     /// ## Examples
     ///
@@ -118,37 +192,32 @@ extension StreamingServices {
     /// StreamingServices.isStreamingURL(String(repeating: "x", count: 501))  // false (too long)
     /// ```
     ///
-    /// ## Performance
-    ///
-    /// - Exact domain lookup: O(1) via `Set` membership test
-    /// - Suffix matching: O(n) where n = number of suffix patterns (currently 1)
-    /// - URL parsing overhead is minimal for valid URLs
-    ///
-    /// - Note: Returns `false` for malformed URLs, excessively long strings, or URLs without a valid host
-    static func isStreamingURL(_ urlString: String) -> Bool {
+    /// - Note: Returns `false` for malformed URLs, excessively long strings, URLs without a valid host, or a host whose service is disabled.
+    static func isStreamingURL(_ urlString: String, defaults: UserDefaults = DefaultsKey.shared) -> Bool {
         guard
             urlString.count <= 500,
             let host = webURL(urlString)?.host?.lowercased()
         else { return false }
 
-        if exactDomains.contains(host) { return true }
-        return suffixDomains.contains { host.hasSuffix($0) || host == String($0.dropFirst()) }
+        return all.contains { isEnabled($0, defaults: defaults) && $0.matches(host: host) }
     }
 
     /// Extracts the streaming URL from `musiccloud://resolve?url=<streaming URL>`.
     ///
     /// Any app or web page can open this link without asking the user, so the
-    /// parameter is returned only when it passes ``isStreamingURL(_:)``, the
+    /// parameter is returned only when it passes ``isStreamingURL(_:defaults:)``, the
     /// same check the clipboard and the paste button apply.
     ///
-    /// - Parameter url: The URL the app was opened with.
+    /// - Parameters:
+    ///   - url: The URL the app was opened with.
+    ///   - defaults: The same service choices used by direct URL detection.
     /// - Returns: The streaming URL to resolve, or `nil` when the link is anything else.
-    static func streamingURL(fromDeepLink url: URL) -> String? {
+    static func streamingURL(fromDeepLink url: URL, defaults: UserDefaults = DefaultsKey.shared) -> String? {
         guard url.scheme == "musiccloud",
               url.host == "resolve",
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let parameter = components.queryItems?.first(where: { $0.name == "url" })?.value,
-              isStreamingURL(parameter) else {
+              isStreamingURL(parameter, defaults: defaults) else {
             return nil
         }
         return parameter
@@ -172,5 +241,15 @@ extension StreamingServices {
             url.host?.isEmpty == false
         else { return nil }
         return url
+    }
+}
+
+private extension StreamingServices {
+    /// Reads the IDs of services the user turned off in Settings.
+    /// Production uses the shared app group, so the app, Share Extension and Shortcuts agree.
+    /// - Parameter defaults: The preference domain to read, isolated per mutating test.
+    /// - Returns: Persisted disabled IDs, or an empty set before the first choice.
+    static func disabledServiceIDs(in defaults: UserDefaults) -> Set<String> {
+        Set(defaults.stringArray(forKey: DefaultsKey.disabledStreamingServices) ?? [])
     }
 }

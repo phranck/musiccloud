@@ -34,7 +34,7 @@ import UIKit
 /// ## Topics
 ///
 /// ### Initialization
-/// - ``init(historyManager:copyToPasteboard:pasteboard:resolveURL:notifySuccess:)``
+/// - ``init(historyManager:copyToPasteboard:pasteboard:streamingDefaults:resolveURL:notifySuccess:)``
 ///
 /// ### Current State
 /// - ``status``
@@ -52,6 +52,7 @@ import UIKit
 final class ClipboardMonitor {
     private let historyManager: HistoryManager
     private let pasteboard: SystemPasteboard
+    private let streamingDefaults: UserDefaults
     private let resolveURL: @Sendable (String) async throws -> Conversion
     private let notifySuccess: @MainActor (MediaEntry) -> Void
     /// Keeps hosted tests from replacing the device's actual clipboard.
@@ -91,17 +92,20 @@ final class ClipboardMonitor {
     ///   - historyManager: The history manager to use for storing conversions.
     ///   - copyToPasteboard: Optional result sink. By default, writes to the supplied pasteboard.
     ///   - pasteboard: The general clipboard in production, or an isolated named board in tests.
+    ///   - streamingDefaults: Shared service choices, or a unique preference suite owned by a test.
     ///   - resolveURL: The network conversion boundary. Tests supply fixture answers.
     ///   - notifySuccess: The notification boundary. Tests isolate it from system notifications.
     init(
         historyManager: HistoryManager,
         copyToPasteboard: (@MainActor (String) -> Void)? = nil,
         pasteboard: SystemPasteboard = .general,
+        streamingDefaults: UserDefaults = DefaultsKey.shared,
         resolveURL: @escaping @Sendable (String) async throws -> Conversion = { try await MusicCloudAPI.convert(url: $0) },
         notifySuccess: @escaping @MainActor (MediaEntry) -> Void = { NotificationManager.notifySuccess(entry: $0) }
     ) {
         self.historyManager = historyManager
         self.pasteboard = pasteboard
+        self.streamingDefaults = streamingDefaults
         self.resolveURL = resolveURL
         self.notifySuccess = notifySuccess
         self.copyToPasteboard = copyToPasteboard ?? { Pasteboard.copy($0, to: pasteboard) }
@@ -204,7 +208,7 @@ extension ClipboardMonitor {
     /// after resolving, so an entry synced during the request is reused.
     ///
     /// - Parameters:
-    ///   - url: A URL that passed ``StreamingServices/isStreamingURL(_:)``.
+    ///   - url: A URL that passed ``StreamingServices/isStreamingURL(_:defaults:)``.
     ///   - origin: Where the URL came from; ``Origin/request`` unless the clipboard check found it.
     func convert(url: String, origin: Origin = .request) {
         guard !status.isProcessing else { return }
@@ -389,11 +393,11 @@ extension ClipboardMonitor {
             return
         }
 
-        lastSeenContent = content
-        guard StreamingServices.isStreamingURL(content) else {
+        guard StreamingServices.isStreamingURL(content, defaults: streamingDefaults) else {
             log.info("skipped: not a streaming URL")
             return
         }
+        lastSeenContent = content
         log.info("clipboard holds a streaming URL: \(content, privacy: .public), status \(String(describing: self.status), privacy: .public)")
 
         convert(url: content, origin: .clipboard)

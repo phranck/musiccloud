@@ -38,6 +38,12 @@ struct SettingsView: View {
                 } label: {
                     Label(String(localized: "Social Media"), systemImage: "person.2")
                 }
+
+                NavigationLink {
+                    StreamingServicesSettingsView()
+                } label: {
+                    Label(String(localized: "Streaming Services"), systemImage: "music.note.list")
+                }
             }
 
             if BuildChannel.diagnosticsEnabled {

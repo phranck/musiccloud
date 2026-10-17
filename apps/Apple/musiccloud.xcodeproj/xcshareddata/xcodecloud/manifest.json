@@ -1,0 +1,9 @@
+{
+  "id" : "eec937d6-cf33-4904-9cdf-336cda3c5821",
+  "targets" : [
+    {
+      "id" : "7A589655-5EE5-4E41-8CBD-5B5A4CE40ACA",
+      "name" : "musiccloud"
+    }
+  ]
+}

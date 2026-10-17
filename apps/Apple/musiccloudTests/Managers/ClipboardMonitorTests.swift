@@ -284,6 +284,24 @@ struct ClipboardOriginTests {
         }
     }
 
+    /// A disabled link must be eligible again when the service is enabled and the user copies it anew.
+    @Test func serviceDetectionReturnsAfterReenable() async throws {
+        let suite = "ClipboardServiceTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let spotify = try #require(StreamingServices.all.first { $0.id == "spotify" })
+        let fixture = try cachedFixture(remote: false, defaults: defaults)
+        defer { release(fixture.pasteboard, retaining: fixture.container) }
+        StreamingServices.setEnabled(false, for: spotify, defaults: defaults)
+        await fixture.monitor.checkClipboard()
+        #expect(fixture.monitor.conversionCount == 0)
+        StreamingServices.setEnabled(true, for: spotify, defaults: defaults)
+        Pasteboard.copy(Self.sourceURL, to: fixture.pasteboard)
+        await fixture.monitor.checkClipboard()
+        #expect(fixture.monitor.conversionCount == 1)
+        #expect(fixture.monitor.status == .success(shortUrl: Self.shortURL, mediaType: .track))
+    }
+
     /// A direct user request remains independent of automatic clipboard-origin policy.
     @Test func explicitConversionRemainsAvailable() throws {
         let fixture = try cachedFixture(remote: true)
@@ -341,12 +359,12 @@ struct ClipboardOriginTests {
 
 private extension ClipboardOriginTests {
     /// Builds an in-memory history hit so polling cannot contact the production backend.
-    func cachedFixture(remote: Bool) throws -> (container: ModelContainer, pasteboard: SystemPasteboard, monitor: ClipboardMonitor) {
+    func cachedFixture(remote: Bool, defaults: UserDefaults = DefaultsKey.shared) throws -> (container: ModelContainer, pasteboard: SystemPasteboard, monitor: ClipboardMonitor) {
         let container = try SharedStoreConfiguration.makeContainer()
         let history = HistoryManager(modelContext: container.mainContext)
         history.add(MediaEntry(originalUrl: Self.sourceURL, shortUrl: Self.shortURL, mediaType: .track))
         let pasteboard = makePasteboard(remote: remote)
-        let monitor = ClipboardMonitor(historyManager: history, pasteboard: pasteboard, notifySuccess: { _ in
+        let monitor = ClipboardMonitor(historyManager: history, pasteboard: pasteboard, streamingDefaults: defaults, notifySuccess: { _ in
             Issue.record("A cached conversion must not send a notification")
         })
         return (container, pasteboard, monitor)

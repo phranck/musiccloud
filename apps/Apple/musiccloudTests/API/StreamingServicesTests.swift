@@ -194,4 +194,79 @@ struct StreamingServicesTests {
         let url = try #require(URL(string: link))
         #expect(StreamingServices.streamingURL(fromDeepLink: url) == nil)
     }
+
+    // MARK: Service Toggles
+
+    /// Each mutation uses a new preference domain, so parallel URL tests remain independent.
+    @Test func disabledServiceIsNotDetected() throws {
+        try withIsolatedDefaults { defaults in
+            let spotify = try #require(StreamingServices.all.first { $0.id == "spotify" })
+            #expect(StreamingServices.isStreamingURL("https://open.spotify.com/track/abc", defaults: defaults))
+            StreamingServices.setEnabled(false, for: spotify, defaults: defaults)
+            #expect(!StreamingServices.isStreamingURL("https://open.spotify.com/track/abc", defaults: defaults))
+        }
+    }
+
+    /// Enabling a disabled service restores detection in the same persistent store.
+    @Test func reenabledServiceIsDetectedAgain() throws {
+        try withIsolatedDefaults { defaults in
+            let spotify = try #require(StreamingServices.all.first { $0.id == "spotify" })
+            StreamingServices.setEnabled(false, for: spotify, defaults: defaults)
+            StreamingServices.setEnabled(true, for: spotify, defaults: defaults)
+            #expect(StreamingServices.isStreamingURL("https://open.spotify.com/track/abc", defaults: defaults))
+        }
+    }
+
+    /// A choice for Spotify cannot disable a different provider.
+    @Test func disablingOneServiceLeavesOthersDetected() throws {
+        try withIsolatedDefaults { defaults in
+            let spotify = try #require(StreamingServices.all.first { $0.id == "spotify" })
+            StreamingServices.setEnabled(false, for: spotify, defaults: defaults)
+            #expect(StreamingServices.isStreamingURL("https://www.deezer.com/track/12345", defaults: defaults))
+        }
+    }
+
+    /// A missing preference defaults to enabled without writing into shared app settings.
+    @Test func unknownServiceIsEnabledByDefault() throws {
+        try withIsolatedDefaults { defaults in
+            let service = StreamingServices.Service(id: "test.unknown", displayName: "Test Service", exactDomains: ["example.test"])
+            #expect(StreamingServices.isEnabled(service, defaults: defaults))
+        }
+    }
+
+    /// The disabled choice persists while a different preference domain stays unaffected.
+    @Test func serviceChoiceIsStoredAndDoesNotLeakToAnotherStore() throws {
+        try withIsolatedDefaults { defaults in
+            try withIsolatedDefaults { other in
+                let spotify = try #require(StreamingServices.all.first { $0.id == "spotify" })
+                StreamingServices.setEnabled(false, for: spotify, defaults: defaults)
+                #expect(!StreamingServices.isEnabled(spotify, defaults: defaults))
+                #expect(StreamingServices.isEnabled(spotify, defaults: other))
+                #expect(defaults.stringArray(forKey: DefaultsKey.disabledStreamingServices) == [spotify.id])
+            }
+        }
+    }
+
+    /// Deep links use the same persisted service choice as clipboard and explicit paste validation.
+    @Test func deepLinkIgnoresDisabledServices() throws {
+        try withIsolatedDefaults { defaults in
+            let spotify = try #require(StreamingServices.all.first { $0.id == "spotify" })
+            let link = try #require(URL(string: "musiccloud://resolve?url=https%3A%2F%2Fopen.spotify.com%2Ftrack%2Fabc"))
+            StreamingServices.setEnabled(false, for: spotify, defaults: defaults)
+            #expect(StreamingServices.streamingURL(fromDeepLink: link, defaults: defaults) == nil)
+            StreamingServices.setEnabled(true, for: spotify, defaults: defaults)
+            #expect(StreamingServices.streamingURL(fromDeepLink: link, defaults: defaults) != nil)
+        }
+    }
+}
+
+private extension StreamingServicesTests {
+    /// Runs a synchronous assertion against preferences owned and removed by this test only.
+    /// - Parameter test: The assertions receiving a unique, initially empty defaults suite.
+    func withIsolatedDefaults(_ test: (UserDefaults) throws -> Void) throws {
+        let suite = "StreamingServicesTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        try test(defaults)
+    }
 }

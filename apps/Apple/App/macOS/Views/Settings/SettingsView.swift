@@ -44,12 +44,13 @@ private struct SettingsPaneView: View {
 
     var body: some View {
         switch pane {
-        case .general:       GeneralPane()
-        case .notifications: NotificationsPane()
-        case .history:       HistoryPane()
-        case .socialMedia:   SocialMediaPane()
-        case .templates:     TemplatesPane()
-        case .about:         AboutView()
+        case .general:           GeneralPane()
+        case .notifications:     NotificationsPane()
+        case .history:           HistoryPane()
+        case .socialMedia:       SocialMediaPane()
+        case .streamingServices: StreamingServicesPane()
+        case .templates:         TemplatesPane()
+        case .about:             AboutView()
         }
     }
 }
