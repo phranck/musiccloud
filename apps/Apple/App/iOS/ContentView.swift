@@ -57,10 +57,10 @@ private struct ClipboardConversionSheetModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            // Only a start opens the sheet, so one the user closed while the
-            // URL converted stays closed when the result arrives.
-            .onChange(of: monitor.conversionCount) {
-                if monitor.origin == .clipboard {
+            // Monitoring can start before this view mounts. Include that
+            // conversion, but never reopen a dismissed sheet on status changes.
+            .onChange(of: monitor.conversionCount, initial: true) {
+                if monitor.origin == .clipboard, monitor.status != .idle {
                     isPresented = true
                 }
             }

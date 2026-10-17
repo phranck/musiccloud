@@ -51,6 +51,8 @@ import UIKit
 @MainActor
 final class ClipboardMonitor {
     private let historyManager: HistoryManager
+    /// Keeps hosted tests from replacing the device's actual clipboard.
+    private let copyToPasteboard: @MainActor (String) -> Void
     private var lastSeenContent: String?
     @ObservationIgnored
     private var pollTask: Task<Void, Never>?
@@ -82,9 +84,13 @@ final class ClipboardMonitor {
     ///
     /// Starts monitoring the clipboard when monitoring is enabled.
     ///
-    /// - Parameter historyManager: The history manager to use for storing conversions
-    init(historyManager: HistoryManager) {
+    /// - Parameters:
+    ///   - historyManager: The history manager to use for storing conversions.
+    ///   - copyToPasteboard: Writes a converted link. Defaults to the system clipboard;
+    ///     tests supply an isolated sink so they never replace existing clipboard data.
+    init(historyManager: HistoryManager, copyToPasteboard: @escaping @MainActor (String) -> Void = { Pasteboard.copy($0) }) {
         self.historyManager = historyManager
+        self.copyToPasteboard = copyToPasteboard
         if Self.isEnabled {
             startMonitoring()
         }
@@ -191,7 +197,7 @@ extension ClipboardMonitor {
         conversionCount += 1
 
         if let existing = historyManager.entry(forOriginalUrl: url) {
-            Pasteboard.copy(existing.shortUrl)
+            copyToPasteboard(existing.shortUrl)
             lastSeenContent = existing.shortUrl
             status = .success(shortUrl: existing.shortUrl, mediaType: existing.mediaType)
             AppLogger.clipboard.debug("already resolved → \(existing.shortUrl)")
@@ -235,7 +241,7 @@ private extension ClipboardMonitor {
             let entry = conversion.makeEntry(originalUrl: url)
             let shortUrl = conversion.response.shortUrl
             historyManager.add(entry)
-            Pasteboard.copy(shortUrl)
+            copyToPasteboard(shortUrl)
             lastSeenContent = shortUrl
             status = .success(shortUrl: shortUrl, mediaType: entry.mediaType)
             #if os(iOS)

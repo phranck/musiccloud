@@ -4,6 +4,9 @@ import Testing
 @testable import musiccloud
 #if os(macOS)
 import AppKit
+#else
+import SwiftUI
+import UIKit
 #endif
 
 // MARK: - ClipboardMonitorTests
@@ -159,4 +162,64 @@ struct ClipboardMonitorTests {
         #expect(monitor.origin == .request)
     }
 }
+
+#if os(iOS)
+/// Exercises the production sheet modifier in a real hosting controller on iOS.
+/// The store and clipboard sink are isolated from the user's data.
+@Suite(.serialized)
+@MainActor
+struct ClipboardConversionSheetTests {
+    /// A cached answer finishes synchronously, including when monitoring starts
+    /// before the root view mounts. Both timings must present the result sheet.
+    @Test(arguments: [true, false])
+    func cachedClipboardConversionKeepsItsSheet(startBeforeMount: Bool) async throws {
+        let container = try SharedStoreConfiguration.makeContainer()
+        let history = HistoryManager(modelContext: container.mainContext)
+        let entry = MediaEntry(
+            originalUrl: "https://open.spotify.com/track/clipboard-sheet-test",
+            shortUrl: "https://musiccloud.io/clipboard-sheet-test",
+            mediaType: .track,
+            track: TrackInfo(title: "Clipboard sheet test", artists: ["Test artist"])
+        )
+        history.add(entry)
+        let monitor = ClipboardMonitor(historyManager: history, copyToPasteboard: { _ in })
+        if startBeforeMount {
+            monitor.convert(url: entry.originalUrl, origin: .clipboard)
+        }
+
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        var didAppear = false
+        let host = UIHostingController(rootView:
+            Text("Clipboard sheet host")
+                .clipboardConversionSheet(monitor: monitor, historyManager: history)
+                .modelContainer(container)
+                .onAppear { didAppear = true }
+        )
+        window.rootViewController = host
+        window.isHidden = false
+        defer {
+            host.dismiss(animated: false)
+            window.isHidden = true
+            window.rootViewController = nil
+        }
+        host.view.layoutIfNeeded()
+        for _ in 0..<100 {
+            if didAppear { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(didAppear, "The host must mount before a later conversion starts")
+        if !startBeforeMount {
+            monitor.convert(url: entry.originalUrl, origin: .clipboard)
+        }
+
+        for _ in 0..<100 {
+            if host.presentedViewController != nil { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(monitor.status == .success(shortUrl: entry.shortUrl, mediaType: .track))
+        #expect(host.presentedViewController != nil, "The clipboard result must remain in a presented sheet")
+    }
+}
+#endif
 
