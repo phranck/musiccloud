@@ -57,6 +57,19 @@ enum StreamingServices {
         /// Domain suffixes that match any subdomain, such as `artist.bandcamp.com`.
         let suffixDomains: [String]
 
+        /// The bundled brand mark, shared across Settings and native platform menus.
+        var iconAssetName: String {
+            let assetID =
+                switch id {
+                case "appleMusic": "apple-music"
+                case "neteaseCloudMusic": "netease-settings"
+                case "boomplay": "boomplay-settings"
+                case "qqMusic": "qqmusic"
+                default: id
+                }
+            return "ServiceIcons/\(assetID)"
+        }
+
         /// Creates the stable identity and host patterns used by detection and Settings.
         /// - Parameters:
         ///   - id: The persisted identifier; keep it unchanged after release.
@@ -80,46 +93,29 @@ enum StreamingServices {
     /// Every streaming service this app can detect. ``allSortedByDisplayName``
     /// is what Settings lists, since this array's order is just declaration order.
     static let all: [Service] = [
-        Service(id: "spotify", displayName: "Spotify",
-                exactDomains: ["open.spotify.com", "play.spotify.com"]),
-        Service(id: "appleMusic", displayName: "Apple Music",
-                exactDomains: ["music.apple.com"]),
-        Service(id: "youtube", displayName: "YouTube / YouTube Music",
-                exactDomains: ["youtube.com", "www.youtube.com", "youtu.be", "music.youtube.com"]),
-        Service(id: "soundcloud", displayName: "SoundCloud",
-                exactDomains: ["soundcloud.com", "www.soundcloud.com"]),
-        Service(id: "tidal", displayName: "Tidal",
-                exactDomains: ["tidal.com", "www.tidal.com", "listen.tidal.com"]),
-        Service(id: "deezer", displayName: "Deezer",
-                exactDomains: ["deezer.com", "www.deezer.com"]),
-        Service(id: "audius", displayName: "Audius",
-                exactDomains: ["audius.co"]),
-        Service(id: "napster", displayName: "Napster",
-                exactDomains: ["napster.com", "play.napster.com", "web.napster.com"]),
-        Service(id: "pandora", displayName: "Pandora",
-                exactDomains: ["pandora.com", "www.pandora.com"]),
-        Service(id: "qobuz", displayName: "Qobuz",
-                exactDomains: ["open.qobuz.com", "play.qobuz.com"]),
-        Service(id: "boomplay", displayName: "Boomplay",
-                exactDomains: ["boomplay.com", "www.boomplay.com"]),
-        Service(id: "kkbox", displayName: "KKBOX",
-                exactDomains: ["kkbox.com", "www.kkbox.com"]),
-        Service(id: "audiomack", displayName: "Audiomack",
-                exactDomains: ["audiomack.com", "www.audiomack.com"]),
-        Service(id: "neteaseCloudMusic", displayName: "NetEase Cloud Music",
-                exactDomains: ["music.163.com"]),
-        Service(id: "qqMusic", displayName: "QQ Music",
-                exactDomains: ["y.qq.com"]),
-        Service(id: "melon", displayName: "Melon",
-                exactDomains: ["melon.com", "www.melon.com"]),
-        Service(id: "bugs", displayName: "Bugs",
-                exactDomains: ["music.bugs.co.kr"]),
-        Service(id: "jiosaavn", displayName: "JioSaavn",
-                exactDomains: ["jiosaavn.com", "www.jiosaavn.com"]),
-        Service(id: "beatport", displayName: "Beatport",
-                exactDomains: ["beatport.com", "www.beatport.com"]),
-        Service(id: "bandcamp", displayName: "Bandcamp",
-                exactDomains: [], suffixDomains: [".bandcamp.com"]),
+        Service(id: "spotify", displayName: "Spotify", exactDomains: ["open.spotify.com", "play.spotify.com"]),
+        Service(id: "appleMusic", displayName: "Apple Music", exactDomains: ["music.apple.com"]),
+        Service(
+            id: "youtube",
+            displayName: "YouTube / YouTube Music",
+            exactDomains: ["youtube.com", "www.youtube.com", "youtu.be", "music.youtube.com"]
+        ), Service(id: "soundcloud", displayName: "SoundCloud", exactDomains: ["soundcloud.com", "www.soundcloud.com"]),
+        Service(id: "tidal", displayName: "Tidal", exactDomains: ["tidal.com", "www.tidal.com", "listen.tidal.com"]),
+        Service(id: "deezer", displayName: "Deezer", exactDomains: ["deezer.com", "www.deezer.com"]),
+        Service(id: "audius", displayName: "Audius", exactDomains: ["audius.co"]),
+        Service(id: "napster", displayName: "Napster", exactDomains: ["napster.com", "play.napster.com", "web.napster.com"]),
+        Service(id: "pandora", displayName: "Pandora", exactDomains: ["pandora.com", "www.pandora.com"]),
+        Service(id: "qobuz", displayName: "Qobuz", exactDomains: ["open.qobuz.com", "play.qobuz.com"]),
+        Service(id: "boomplay", displayName: "Boomplay", exactDomains: ["boomplay.com", "www.boomplay.com"]),
+        Service(id: "kkbox", displayName: "KKBOX", exactDomains: ["kkbox.com", "www.kkbox.com"]),
+        Service(id: "audiomack", displayName: "Audiomack", exactDomains: ["audiomack.com", "www.audiomack.com"]),
+        Service(id: "neteaseCloudMusic", displayName: "NetEase Cloud Music", exactDomains: ["music.163.com"]),
+        Service(id: "qqMusic", displayName: "QQ Music", exactDomains: ["y.qq.com"]),
+        Service(id: "melon", displayName: "Melon", exactDomains: ["melon.com", "www.melon.com"]),
+        Service(id: "bugs", displayName: "Bugs", exactDomains: ["music.bugs.co.kr"]),
+        Service(id: "jiosaavn", displayName: "JioSaavn", exactDomains: ["jiosaavn.com", "www.jiosaavn.com"]),
+        Service(id: "beatport", displayName: "Beatport", exactDomains: ["beatport.com", "www.beatport.com"]),
+        Service(id: "bandcamp", displayName: "Bandcamp", exactDomains: [], suffixDomains: [".bandcamp.com"]),
     ]
 
     /// ``all``, sorted by ``Service/displayName`` for Settings.
@@ -147,12 +143,25 @@ extension StreamingServices {
     ///   - defaults: Shared app-group preferences, or a private suite owned by a test.
     static func setEnabled(_ isEnabled: Bool, for service: Service, defaults: UserDefaults = DefaultsKey.shared) {
         var ids = disabledServiceIDs(in: defaults)
-        if isEnabled {
-            ids.remove(service.id)
-        } else {
-            ids.insert(service.id)
-        }
+        if isEnabled { ids.remove(service.id) } else { ids.insert(service.id) }
         defaults.set(Array(ids), forKey: DefaultsKey.disabledStreamingServices)
+    }
+}
+
+extension StreamingServices {
+    /// Whether every supported service is enabled in the supplied preference store.
+    /// - Parameter defaults: Shared preferences, or an isolated test store.
+    static func allEnabled(defaults: UserDefaults = DefaultsKey.shared) -> Bool { all.allSatisfy { isEnabled($0, defaults: defaults) } }
+
+    /// Persists one choice for every supported service without changing unknown IDs.
+    /// - Parameters:
+    ///   - isEnabled: Whether all supported services should participate in detection.
+    ///   - defaults: Shared preferences, or an isolated test store.
+    static func setAllEnabled(_ isEnabled: Bool, defaults: UserDefaults = DefaultsKey.shared) {
+        var ids = disabledServiceIDs(in: defaults)
+        let supportedIDs = Set(all.map(\.id))
+        if isEnabled { ids.subtract(supportedIDs) } else { ids.formUnion(supportedIDs) }
+        defaults.set(ids.sorted(), forKey: DefaultsKey.disabledStreamingServices)
     }
 }
 
@@ -194,10 +203,7 @@ extension StreamingServices {
     ///
     /// - Note: Returns `false` for malformed URLs, excessively long strings, URLs without a valid host, or a host whose service is disabled.
     static func isStreamingURL(_ urlString: String, defaults: UserDefaults = DefaultsKey.shared) -> Bool {
-        guard
-            urlString.count <= 500,
-            let host = webURL(urlString)?.host?.lowercased()
-        else { return false }
+        guard urlString.count <= 500, let host = webURL(urlString)?.host?.lowercased() else { return false }
 
         return all.contains { isEnabled($0, defaults: defaults) && $0.matches(host: host) }
     }
@@ -213,13 +219,9 @@ extension StreamingServices {
     ///   - defaults: The same service choices used by direct URL detection.
     /// - Returns: The streaming URL to resolve, or `nil` when the link is anything else.
     static func streamingURL(fromDeepLink url: URL, defaults: UserDefaults = DefaultsKey.shared) -> String? {
-        guard url.scheme == "musiccloud",
-              url.host == "resolve",
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let parameter = components.queryItems?.first(where: { $0.name == "url" })?.value,
-              isStreamingURL(parameter, defaults: defaults) else {
-            return nil
-        }
+        guard url.scheme == "musiccloud", url.host == "resolve", let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            let parameter = components.queryItems?.first(where: { $0.name == "url" })?.value, isStreamingURL(parameter, defaults: defaults)
+        else { return nil }
         return parameter
     }
 
@@ -234,10 +236,7 @@ extension StreamingServices {
     /// - Parameter string: The address to parse.
     /// - Returns: The URL, or `nil` when the string is not an `http` or `https` address with a host.
     static func webURL(_ string: String) -> URL? {
-        guard
-            let url = URL(string: string),
-            let scheme = url.scheme?.lowercased(),
-            scheme == "https" || scheme == "http",
+        guard let url = URL(string: string), let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http",
             url.host?.isEmpty == false
         else { return nil }
         return url
