@@ -17,12 +17,11 @@ enum NotificationSound: String, CaseIterable, Identifiable {
     case sound1, sound2, sound3, sound4, sound5, sound6
     case sound7, sound8, sound9, sound10, sound11
 
+    #if os(macOS)
     /// The sound that is playing. Held so it is not released halfway
     /// through, and only touched on the main actor.
-    #if os(macOS)
+
     @MainActor private static var currentSound: NSSound?
-    #else
-    @MainActor private static var audioPlayer: AVAudioPlayer?
     #endif
 
     var id: String { rawValue }
@@ -49,7 +48,8 @@ enum NotificationSound: String, CaseIterable, Identifiable {
 
     static let `default`: NotificationSound = .sound6
 
-    /// Plays this sound once.
+    /// Plays this sound once. On iOS, audio hardware startup is queued off
+    /// the main actor so conversion and Settings animations remain responsive.
     @MainActor
     func play() {
         guard let url = Bundle.main.url(
@@ -67,15 +67,45 @@ enum NotificationSound: String, CaseIterable, Identifiable {
         Self.currentSound = sound
         sound.play()
         #else
-        do {
-            Self.audioPlayer = try AVAudioPlayer(contentsOf: url)
-            Self.audioPlayer?.play()
-        } catch {
-            AppLogger.ui.error("Failed to play notification sound: \(error.localizedDescription)")
-        }
+        Task { await NotificationSoundPlayback.shared.play(url: url) }
         #endif
     }
 }
+
+#if os(iOS)
+// MARK: - Sound Playback
+
+/// Owns the iOS audio player away from the UI executor.
+///
+/// AVAudioPlayer starts the audio hardware synchronously in play(). Keeping
+/// construction, playback, and replacement on this actor prevents that work
+/// and the previous player's teardown from blocking conversion animations.
+actor NotificationSoundPlayback {
+    static let shared = NotificationSoundPlayback()
+
+    private let makePlayer: @Sendable (URL) throws -> AVAudioPlayer
+    private var player: AVAudioPlayer?
+
+    /// Creates a serial playback owner.
+    /// - Parameter makePlayer: Opens a bundled audio file. Tests inject this
+    ///   system boundary to verify it executes outside the main thread.
+    init(makePlayer: @escaping @Sendable (URL) throws -> AVAudioPlayer = { try AVAudioPlayer(contentsOf: $0) }) {
+        self.makePlayer = makePlayer
+    }
+
+    /// Starts one bundled sound and retains its player until a later request.
+    /// - Parameter url: The bundled audio file to play once. Calls are serialized
+    ///   so an overlapping request replaces, rather than races, the current player.
+    func play(url: URL) {
+        do {
+            player = try makePlayer(url)
+            player?.play()
+        } catch {
+            AppLogger.ui.error("Failed to play notification sound: \(error.localizedDescription)")
+        }
+    }
+}
+#endif
 
 // MARK: - Public API
 
@@ -145,7 +175,7 @@ enum NotificationManager {
             trigger: nil
         )
 
-        // The sound is played on the main actor, so the task runs there.
+        // Sound selection uses the main actor; iOS playback queues its own work.
         Task { @MainActor in
             do {
                 try await UNUserNotificationCenter.current().add(request)

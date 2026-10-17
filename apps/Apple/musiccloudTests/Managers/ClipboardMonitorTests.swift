@@ -5,6 +5,7 @@ import Testing
 #if os(macOS)
 import AppKit
 #else
+import AVFoundation
 import SwiftUI
 import UIKit
 #endif
@@ -164,11 +165,48 @@ struct ClipboardMonitorTests {
 }
 
 #if os(iOS)
-/// Exercises the production sheet modifier in a real hosting controller on iOS.
+/// Exercises clipboard-sheet presentation and audio responsiveness on iOS.
 /// The store and clipboard sink are isolated from the user's data.
 @Suite(.serialized)
 @MainActor
 struct ClipboardConversionSheetTests {
+    /// Exercises the real audio factory so a main-actor dispatch cannot reintroduce the freeze.
+    @Test func audioPlayerIsCreatedOffTheMainThread() async throws {
+        let url = try #require(Bundle.main.url(forResource: NotificationSound.default.rawValue, withExtension: "mp3"))
+        await confirmation("Audio factory executes once") { created in
+            let playback = NotificationSoundPlayback(makePlayer: { url in
+                #expect(!Thread.isMainThread)
+                created()
+                return try AVAudioPlayer(contentsOf: url)
+            })
+            await playback.play(url: url)
+        }
+    }
+
+    /// Audio hardware startup must not hold the main actor while a conversion animates.
+    @Test func soundStartupDoesNotBlockAnimation() async throws {
+        let url = try #require(Bundle.main.url(forResource: NotificationSound.default.rawValue, withExtension: "mp3"))
+        var heartbeatStarted = false
+        let heartbeat = Task { @MainActor in
+            heartbeatStarted = true
+            var maximumGap: TimeInterval = 0
+            while !Task.isCancelled {
+                let started = Date()
+                try? await Task.sleep(for: .milliseconds(10))
+                maximumGap = max(maximumGap, Date().timeIntervalSince(started))
+            }
+            return maximumGap
+        }
+        defer { heartbeat.cancel() }
+        while !heartbeatStarted { await Task.yield() }
+        await NotificationSoundPlayback.shared.play(url: url)
+        heartbeat.cancel()
+        let maximumGap = await heartbeat.value
+        // A 100 ms stall skips three frames of the 30 FPS conversion animation.
+        let maximumAllowedGap: TimeInterval = 0.1
+        #expect(maximumGap < maximumAllowedGap, "Sound startup must not freeze the animation for 100 ms")
+    }
+
     /// A cached answer finishes synchronously, including when monitoring starts
     /// before the root view mounts. Both timings must present the result sheet.
     @Test(arguments: [true, false])
