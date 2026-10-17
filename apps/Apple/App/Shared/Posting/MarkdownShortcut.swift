@@ -53,11 +53,11 @@ enum MarkdownShortcut: Sendable, CaseIterable {
         let source = text as NSString
         let selected = source.substring(with: selection)
         switch self {
-        case .bold:   return Self.toggle("**", in: source, selection: selection, selected: selected)
+        case .bold: return Self.toggle("**", in: source, selection: selection, selected: selected)
         case .italic: return Self.toggle("*", in: source, selection: selection, selected: selected)
-        case .code:   return Self.toggle("`", in: source, selection: selection, selected: selected)
-        case .quote:  return Self.toggleQuote(in: source, selection: selection)
-        case .link:   return Self.link(selected, selection: selection, url: clipboard.flatMap(Self.webURL))
+        case .code: return Self.toggle("`", in: source, selection: selection, selected: selected)
+        case .quote: return Self.toggleQuote(in: source, selection: selection)
+        case .link: return Self.link(selected, selection: selection, url: clipboard.flatMap(Self.webURL))
         }
     }
 }
@@ -69,24 +69,34 @@ private extension MarkdownShortcut {
 
         // The markers are part of the selection.
         if selectedLength >= 2 * width, selected.hasPrefix(marker), selected.hasSuffix(marker),
-           !isPartOfLongerMarker(marker, at: selection.location, in: source) {
+            !isPartOfLongerMarker(marker, at: selection.location, in: source)
+        {
             let inner = (selected as NSString).substring(with: NSRange(location: width, length: selectedLength - 2 * width))
-            return Edit(range: selection, replacement: inner, selection: NSRange(location: selection.location, length: (inner as NSString).length))
+            return Edit(
+                range: selection,
+                replacement: inner,
+                selection: NSRange(location: selection.location, length: (inner as NSString).length)
+            )
         }
 
         // The markers stand just outside the selection.
         let before = NSRange(location: selection.location - width, length: width)
         let after = NSRange(location: NSMaxRange(selection), length: width)
-        if before.location >= 0, NSMaxRange(after) <= source.length,
-           source.substring(with: before) == marker, source.substring(with: after) == marker,
-           !isPartOfLongerMarker(marker, at: before.location, in: source) {
-            return Edit(range: NSRange(location: before.location, length: selectedLength + 2 * width),
-                        replacement: selected,
-                        selection: NSRange(location: before.location, length: selectedLength))
+        if before.location >= 0, NSMaxRange(after) <= source.length, source.substring(with: before) == marker,
+            source.substring(with: after) == marker, !isPartOfLongerMarker(marker, at: before.location, in: source)
+        {
+            return Edit(
+                range: NSRange(location: before.location, length: selectedLength + 2 * width),
+                replacement: selected,
+                selection: NSRange(location: before.location, length: selectedLength)
+            )
         }
 
-        return Edit(range: selection, replacement: marker + selected + marker,
-                    selection: NSRange(location: selection.location + width, length: selectedLength))
+        return Edit(
+            range: selection,
+            replacement: marker + selected + marker,
+            selection: NSRange(location: selection.location + width, length: selectedLength)
+        )
     }
 
     /// Whether the `*` at `location` belongs to a `**`, so italic leaves bold alone.
@@ -101,40 +111,40 @@ private extension MarkdownShortcut {
         let lineRange = source.lineRange(for: selection)
         var block = source.substring(with: lineRange)
         let endsWithNewline = block.hasSuffix("\n")
-        if endsWithNewline {
-            block.removeLast()
-        }
+        if endsWithNewline { block.removeLast() }
         let lines = block.components(separatedBy: "\n")
         let isQuoted = lines.allSatisfy { $0.hasPrefix(">") }
         let changed = lines.map { line -> String in
             guard isQuoted else { return "> " + line }
             return line.hasPrefix("> ") ? String(line.dropFirst(2)) : String(line.dropFirst())
         }.joined(separator: "\n")
-        return Edit(range: lineRange, replacement: changed + (endsWithNewline ? "\n" : ""),
-                    selection: NSRange(location: lineRange.location, length: (changed as NSString).length))
+        return Edit(
+            range: lineRange,
+            replacement: changed + (endsWithNewline ? "\n" : ""),
+            selection: NSRange(location: lineRange.location, length: (changed as NSString).length)
+        )
     }
 
     /// `[selected](url)`, with the URL filled in when there is one.
     static func link(_ selected: String, selection: NSRange, url: String?) -> Edit {
         let target = url ?? "url"
         let replacement = "[\(selected)](\(target))"
-        let after: NSRange = if selected.isEmpty {
-            // The text is what is still missing.
-            NSRange(location: selection.location + 1, length: 0)
-        } else if url != nil {
-            // Nothing is missing, so the cursor goes behind the link.
-            NSRange(location: selection.location + (replacement as NSString).length, length: 0)
-        } else {
-            NSRange(location: selection.location + (selected as NSString).length + 3, length: (target as NSString).length)
-        }
+        let after: NSRange =
+            if selected.isEmpty {
+                // The text is what is still missing.
+                NSRange(location: selection.location + 1, length: 0)
+            } else if url != nil {
+                // Nothing is missing, so the cursor goes behind the link.
+                NSRange(location: selection.location + (replacement as NSString).length, length: 0)
+            } else { NSRange(location: selection.location + (selected as NSString).length + 3, length: (target as NSString).length) }
         return Edit(range: selection, replacement: replacement, selection: after)
     }
 
     /// `text` when it is one `http` or `https` URL with a host, without surrounding whitespace.
     static func webURL(_ text: String) -> String? {
         let candidate = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !candidate.contains(where: \.isWhitespace), let url = URL(string: candidate),
-              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https", url.host() != nil
+        guard !candidate.contains(where: \.isWhitespace), let url = URL(string: candidate), let scheme = url.scheme?.lowercased(),
+            scheme == "http" || scheme == "https", url.host() != nil
         else { return nil }
         return candidate
     }

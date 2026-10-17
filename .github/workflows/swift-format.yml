@@ -1,0 +1,48 @@
+name: Swift formatting
+
+on:
+  pull_request:
+    paths:
+      - 'apps/Apple/**'
+      - '.swift-format'
+      - '.xcode-version'
+      - '.xcode-build-version'
+      - 'scripts/swift-format*'
+      - 'scripts/swift-format/**'
+      - '.github/workflows/swift-format.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/Apple/**'
+      - '.swift-format'
+      - '.xcode-version'
+      - '.xcode-build-version'
+      - 'scripts/swift-format*'
+      - 'scripts/swift-format/**'
+      - '.github/workflows/swift-format.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swift-format-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  formatting:
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Select pinned Xcode
+        shell: bash
+        run: |
+          version="$(tr -d '\n' < .xcode-version)"
+          echo "DEVELOPER_DIR=/Applications/Xcode_${version}.app/Contents/Developer" >> "$GITHUB_ENV"
+      - name: Verify argument-layout regressions
+        run: node --test scripts/swift-format/fixtures.test.mjs
+      - name: Check native source formatting
+        run: node scripts/swift-format.mjs

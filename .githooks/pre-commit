@@ -30,6 +30,13 @@ else
   exit 1
 fi
 # react-doctor hook end
+
+# Native edits must match the same pinned formatter used by CI.
+if git diff --cached --name-only --diff-filter=ACMR | grep -Eq '^apps/Apple/.*\.swift$|^\.(swift-format|xcode-version|xcode-build-version)$|^scripts/swift-format'; then
+  node scripts/swift-format.mjs || exit 1
+  node --test scripts/swift-format/fixtures.test.mjs || exit 1
+fi
+
 # Block commits that contain secrets. Requires gitleaks on PATH.
 set -euo pipefail
 

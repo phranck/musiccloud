@@ -20,12 +20,9 @@ struct NotificationsPane: View {
         Form {
             Section {
                 Toggle(String(localized: "Play Notification Sound"), isOn: $playNotificationSound)
-                if playNotificationSound {
-                    NotificationSoundPicker(selectedSound: $notificationSound)
-                }
+                if playNotificationSound { NotificationSoundPicker(selectedSound: $notificationSound) }
             }
-        }
-        .formStyle(.grouped)
+        }.formStyle(.grouped)
     }
 }
 
@@ -37,9 +34,7 @@ private struct NotificationSoundPicker: View {
     var body: some View {
         HStack {
             Picker(String(localized: "Sound"), selection: $selectedSound) {
-                ForEach(NotificationSound.allCases) { sound in
-                    Text(sound.displayName).tag(sound.rawValue)
-                }
+                ForEach(NotificationSound.allCases) { sound in Text(sound.displayName).tag(sound.rawValue) }
             }
 
             Button {

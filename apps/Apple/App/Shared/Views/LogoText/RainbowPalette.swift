@@ -32,14 +32,14 @@ enum RainbowPalette {
 
     /// RGB values for each base color, single source of truth.
     private static let baseRGB: [RGB] = [
-        RGB(red: 1.0, green: 0.4, blue: 0.6),   // Pink/Magenta
-        RGB(red: 0.6, green: 0.4, blue: 1.0),   // Purple
-        RGB(red: 0.3, green: 0.6, blue: 1.0),   // Blue
-        RGB(red: 0.0, green: 0.8, blue: 0.9),   // Cyan
-        RGB(red: 0.0, green: 0.9, blue: 0.7),   // Teal
-        RGB(red: 0.5, green: 0.9, blue: 0.3),   // Green
-        RGB(red: 0.9, green: 0.9, blue: 0.3),   // Yellow
-        RGB(red: 1.0, green: 0.7, blue: 0.3)    // Orange
+        RGB(red: 1.0, green: 0.4, blue: 0.6),  // Pink/Magenta
+        RGB(red: 0.6, green: 0.4, blue: 1.0),  // Purple
+        RGB(red: 0.3, green: 0.6, blue: 1.0),  // Blue
+        RGB(red: 0.0, green: 0.8, blue: 0.9),  // Cyan
+        RGB(red: 0.0, green: 0.9, blue: 0.7),  // Teal
+        RGB(red: 0.5, green: 0.9, blue: 0.3),  // Green
+        RGB(red: 0.9, green: 0.9, blue: 0.3),  // Yellow
+        RGB(red: 1.0, green: 0.7, blue: 0.3),  // Orange
     ]
 
     /// Base color palette containing 8 primary rainbow colors, derived from ``baseRGB``.
@@ -53,11 +53,13 @@ enum RainbowPalette {
             let next = baseRGB[(index + 1) % baseRGB.count]
             for step in 0..<4 {
                 let fraction = Double(step) / 4.0
-                expanded.append(Color(
-                    red: from.red + (next.red - from.red) * fraction,
-                    green: from.green + (next.green - from.green) * fraction,
-                    blue: from.blue + (next.blue - from.blue) * fraction
-                ))
+                expanded.append(
+                    Color(
+                        red: from.red + (next.red - from.red) * fraction,
+                        green: from.green + (next.green - from.green) * fraction,
+                        blue: from.blue + (next.blue - from.blue) * fraction
+                    )
+                )
             }
         }
         return expanded

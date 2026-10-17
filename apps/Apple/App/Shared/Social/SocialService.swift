@@ -22,7 +22,7 @@ enum SocialService: String, CaseIterable, Identifiable, Sendable {
     var name: String {
         switch self {
         case .mastodon: "Mastodon"
-        case .bluesky:  "Bluesky"
+        case .bluesky: "Bluesky"
         }
     }
 
@@ -30,20 +30,18 @@ enum SocialService: String, CaseIterable, Identifiable, Sendable {
     var icon: PostTemplateIcon {
         switch self {
         case .mastodon: .mastodon
-        case .bluesky:  .bluesky
+        case .bluesky: .bluesky
         }
     }
 
     /// The service's brand color, the one its logo is drawn in; see ``PostTemplateIcon/brandColor``.
-    var brandColor: Color {
-        icon.brandColor ?? .secondary
-    }
+    var brandColor: Color { icon.brandColor ?? .secondary }
 
     /// The title of the sheet that connects an account.
     var sheetTitle: String {
         switch self {
         case .mastodon: String(localized: "Connect Mastodon Account")
-        case .bluesky:  String(localized: "Connect Bluesky Account")
+        case .bluesky: String(localized: "Connect Bluesky Account")
         }
     }
 
@@ -51,7 +49,7 @@ enum SocialService: String, CaseIterable, Identifiable, Sendable {
     var sheetExplanation: String {
         switch self {
         case .mastodon: String(localized: "Enter the server your account is on. You sign in on its own page.")
-        case .bluesky:  String(localized: "Enter your Bluesky name. A handle on a domain of your own, such as musiccloud.io, works as well.")
+        case .bluesky: String(localized: "Enter your Bluesky name. A handle on a domain of your own, such as musiccloud.io, works as well.")
         }
     }
 
@@ -59,7 +57,7 @@ enum SocialService: String, CaseIterable, Identifiable, Sendable {
     var fieldLabel: String {
         switch self {
         case .mastodon: String(localized: "Server")
-        case .bluesky:  String(localized: "Handle")
+        case .bluesky: String(localized: "Handle")
         }
     }
 
@@ -67,7 +65,7 @@ enum SocialService: String, CaseIterable, Identifiable, Sendable {
     var placeholder: String {
         switch self {
         case .mastodon: "mastodon.social"
-        case .bluesky:  "name"
+        case .bluesky: "name"
         }
     }
 
@@ -76,7 +74,7 @@ enum SocialService: String, CaseIterable, Identifiable, Sendable {
     func fixedSuffix(for input: String) -> String? {
         switch self {
         case .mastodon: nil
-        case .bluesky:  input.contains(".") ? nil : "." + BlueskyAPI.defaultHandleDomain
+        case .bluesky: input.contains(".") ? nil : "." + BlueskyAPI.defaultHandleDomain
         }
     }
 
@@ -84,28 +82,26 @@ enum SocialService: String, CaseIterable, Identifiable, Sendable {
     var footer: String {
         switch self {
         case .mastodon: String(localized: "musiccloud can post to these accounts. Your password stays with your server.")
-        case .bluesky:  String(localized: "musiccloud can post to these accounts. Your password stays with Bluesky.")
+        case .bluesky: String(localized: "musiccloud can post to these accounts. Your password stays with Bluesky.")
         }
     }
 
     /// The accounts of this service in `store`, in the order they were connected.
-    @MainActor
-    func accounts(in store: SocialAccountStore) -> [SocialAccount] {
+    @MainActor func accounts(in store: SocialAccountStore) -> [SocialAccount] {
         switch self {
         case .mastodon: store.mastodonAccounts.map(SocialAccount.mastodon)
-        case .bluesky:  store.blueskyAccounts.map(SocialAccount.bluesky)
+        case .bluesky: store.blueskyAccounts.map(SocialAccount.bluesky)
         }
     }
 
     /// Signs in the account `input` names on this service and stores it.
     ///
     /// - Throws: ``SocialServiceError``, `CancellationError` when the user closes the browser sheet, or a network error.
-    @MainActor
-    func connect(_ input: String) async throws {
+    @MainActor func connect(_ input: String) async throws {
         let connections = SocialConnections.shared
         switch self {
         case .mastodon: try await connections.mastodon.connect(instanceInput: input)
-        case .bluesky:  try await connections.bluesky.connect(handleInput: input)
+        case .bluesky: try await connections.bluesky.connect(handleInput: input)
         }
     }
 }

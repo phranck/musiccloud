@@ -59,9 +59,7 @@ final class ShareViewController: UIViewController {
         log.error("Memory warning, \(Self.memoryReport, privacy: .public)")
     }
 
-    deinit {
-        AppLogger.shareExtension.info("deinit")
-    }
+    deinit { AppLogger.shareExtension.info("deinit") }
 }
 
 // MARK: - Diagnostics
@@ -92,9 +90,7 @@ private extension ShareViewController {
     func show(_ newPhase: ConversionPhase) {
         phase = newPhase
         log.info("show \(self.phaseName, privacy: .public)")
-        let sheet = ConversionSheet(phase: newPhase) { [weak self] in
-            self?.close()
-        }
+        let sheet = ConversionSheet(phase: newPhase) { [weak self] in self?.close() }
         if let host {
             host.rootView = sheet
             return
@@ -111,11 +107,7 @@ private extension ShareViewController {
     /// Ends the extension: completed once the link is converted, cancelled before that or after a failure.
     func close() {
         log.info("Close tapped, phase \(self.phaseName, privacy: .public)")
-        if case .finished = phase {
-            complete()
-        } else {
-            cancel(reason: "closed by the user")
-        }
+        if case .finished = phase { complete() } else { cancel(reason: "closed by the user") }
     }
 }
 
@@ -126,7 +118,9 @@ private extension ShareViewController {
     func handleSharedItems() {
         let items = extensionContext?.inputItems as? [NSExtensionItem] ?? []
         let providers = items.flatMap { $0.attachments ?? [] }
-        log.info("extensionContext \(self.extensionContext == nil ? "missing" : "present", privacy: .public), \(items.count) input items, \(providers.count) attachments")
+        log.info(
+            "extensionContext \(self.extensionContext == nil ? "missing" : "present", privacy: .public), \(items.count) input items, \(providers.count) attachments"
+        )
         for (index, provider) in providers.enumerated() {
             log.info("Attachment \(index): types \(provider.registeredTypeIdentifiers.joined(separator: ", "), privacy: .public)")
         }
@@ -200,8 +194,7 @@ private extension ShareViewController {
 // MARK: - Resolve + Persist
 
 private extension ShareViewController {
-    @MainActor
-    func processURL(_ urlString: String) {
+    @MainActor func processURL(_ urlString: String) {
         guard StreamingServices.isStreamingURL(urlString) else {
             log.error("Not a streaming URL: \(urlString, privacy: .public)")
             show(.failed(message: String(localized: "This URL is not from a supported streaming service")))
@@ -212,7 +205,9 @@ private extension ShareViewController {
             do {
                 // The extension has no local network access, so it always
                 // converts against production, also in a debug build.
-                log.info("Converting \(urlString, privacy: .public) against \(MusicCloudAPI.productionURL.absoluteString, privacy: .public), \(Self.memoryReport, privacy: .public)")
+                log.info(
+                    "Converting \(urlString, privacy: .public) against \(MusicCloudAPI.productionURL.absoluteString, privacy: .public), \(Self.memoryReport, privacy: .public)"
+                )
                 let conversion = try await MusicCloudAPI.convert(url: urlString, baseURL: MusicCloudAPI.productionURL)
                 log.info("Converted to \(conversion.response.shortUrl, privacy: .public)")
                 let entry = conversion.makeEntry(originalUrl: urlString)

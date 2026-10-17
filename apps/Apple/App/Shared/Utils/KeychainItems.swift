@@ -38,21 +38,15 @@ struct KeychainItems: Sendable {
         item[kSecValueData as String] = data
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         let status = SecItemAdd(item as CFDictionary, nil)
-        if status != errSecSuccess {
-            AppLogger.api.error("Keychain write for \(account) in \(service) failed with status \(status)")
-        }
+        if status != errSecSuccess { AppLogger.api.error("Keychain write for \(account) in \(service) failed with status \(status)") }
     }
 
     private func baseQuery(account: String) -> [String: Any] {
         var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
+            kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account,
             kSecUseDataProtectionKeychain as String: true,
         ]
-        if let accessGroup {
-            query[kSecAttrAccessGroup as String] = accessGroup
-        }
+        if let accessGroup { query[kSecAttrAccessGroup as String] = accessGroup }
         return query
     }
 }

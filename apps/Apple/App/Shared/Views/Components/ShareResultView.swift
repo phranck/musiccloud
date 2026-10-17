@@ -41,9 +41,7 @@ struct ShareResultView: View {
         self.entry = entry
         self.onDone = onDone
         let model = PostComposerModel(context: PostContext(entry: entry), accounts: accounts)
-        if let only = accounts.first, accounts.count == 1, !model.isOutOfBounds(only) {
-            model.selectedAccountIDs = [only.id]
-        }
+        if let only = accounts.first, accounts.count == 1, !model.isOutOfBounds(only) { model.selectedAccountIDs = [only.id] }
         _model = State(initialValue: model)
     }
 
@@ -52,44 +50,26 @@ struct ShareResultView: View {
 
     var body: some View {
         Form {
-            Section {
-                cover
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-            // The cover reaches from edge to edge of the sheet, past the form's margins.
-            .edgeToEdgeSection()
+            Section { cover.listRowInsets(EdgeInsets()).listRowBackground(Color.clear).listRowSeparator(.hidden) }
+                // The cover reaches from edge to edge of the sheet, past the form's margins.
+                .edgeToEdgeSection()
 
             // The link itself, right below the cover, with or without accounts.
             Section {
-                Text(entry.shortUrl)
-                    .font(.subheadline)
-                    .textSelection(.enabled)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                Text(entry.shortUrl).font(.subheadline).textSelection(.enabled).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                 copyLinkButton
-            }
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
+            }.listRowBackground(Color.clear).listRowSeparator(.hidden)
 
             if !model.accounts.isEmpty {
                 Section(String(localized: "Accounts")) {
-                    ForEach(model.accounts) { account in
-                        AccountRow(model: model, account: account, isChoosable: offersChoice)
-                    }
+                    ForEach(model.accounts) { account in AccountRow(model: model, account: account, isChoosable: offersChoice) }
                 }
             }
-        }
-        // The cover starts right below the header, without the form's top gap.
-        .contentMargins(.top, 0, for: .scrollContent)
-        // Closing ends the Share Extension, and a post on its way would end with it.
-        .sheetHeader(isCloseDisabled: model.isPosting, onClose: onDone)
-        .safeAreaInset(edge: .bottom) {
-            if !model.accounts.isEmpty {
-                postButton
-            }
+        }  // The cover starts right below the header, without the form's top gap.
+        .contentMargins(.top, 0, for: .scrollContent)  // Closing ends the Share Extension, and a post on its way would end with it.
+        .sheetHeader(isCloseDisabled: model.isPosting, onClose: onDone).safeAreaInset(edge: .bottom) {
+            if !model.accounts.isEmpty { postButton }
         }
     }
 
@@ -97,33 +77,19 @@ struct ShareResultView: View {
     /// artist on a band at its foot that darkens downward, so white text
     /// stays readable on light artwork too.
     private var cover: some View {
-        Color.clear
-            .aspectRatio(1, contentMode: .fit)
-            .overlay {
-                CachedAsyncImage(entry: entry) {
-                    ArtworkPlaceholder(icon: entry.contentType.placeholderIcon, symbolFont: .system(size: 64))
-                }
+        Color.clear.aspectRatio(1, contentMode: .fit).overlay {
+            CachedAsyncImage(entry: entry) { ArtworkPlaceholder(icon: entry.contentType.placeholderIcon, symbolFont: .system(size: 64)) }
+        }.clipped().overlay(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.contentType.title).font(.title2.bold())
+                Text(entry.contentType.subtitle).font(.headline).foregroundStyle(.white.opacity(0.8))
+            }.foregroundStyle(.white).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(
+                .top,
+                56
+            ).padding(.bottom, 20).background {
+                LinearGradient(colors: [.black.opacity(0), .black.opacity(0.75)], startPoint: .top, endPoint: .bottom)
             }
-            .clipped()
-            .overlay(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(entry.contentType.title)
-                        .font(.title2.bold())
-                    Text(entry.contentType.subtitle)
-                        .font(.headline)
-                        .foregroundStyle(.white.opacity(0.8))
-                }
-                .foregroundStyle(.white)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
-                .padding(.top, 56)
-                .padding(.bottom, 20)
-                .background {
-                    LinearGradient(colors: [.black.opacity(0), .black.opacity(0.75)], startPoint: .top, endPoint: .bottom)
-                }
-            }
-            .accessibilityElement(children: .combine)
+        }.accessibilityElement(children: .combine)
     }
 
     /// How long the sheet stays open after every post went out, so the green
@@ -138,13 +104,12 @@ struct ShareResultView: View {
             Pasteboard.copy(entry.shortUrl)
             didCopyLink = true
         } label: {
-            Text(didCopyLink ? String(localized: "Copied to clipboard!") : String(localized: "Copy URL to Clipboard"))
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .sensoryFeedback(.success, trigger: didCopyLink) { _, copied in copied }
-        .task(id: didCopyLink) {
+            Text(didCopyLink ? String(localized: "Copied to clipboard!") : String(localized: "Copy URL to Clipboard")).frame(
+                maxWidth: .infinity
+            )
+        }.buttonStyle(.borderedProminent).controlSize(.large).sensoryFeedback(.success, trigger: didCopyLink) { _, copied in copied }.task(
+            id: didCopyLink
+        ) {
             guard didCopyLink else { return }
             try? await Task.sleep(for: Self.copyConfirmation)
             didCopyLink = false
@@ -157,19 +122,8 @@ struct ShareResultView: View {
         } label: {
             // The title stays in the layout while the spinner shows, so the
             // button keeps its size.
-            Text("Post")
-                .opacity(model.isPosting ? 0 : 1)
-                .overlay {
-                    if model.isPosting {
-                        ProgressView()
-                    }
-                }
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(!model.canPost)
-        .padding()
+            Text("Post").opacity(model.isPosting ? 0 : 1).overlay { if model.isPosting { ProgressView() } }.frame(maxWidth: .infinity)
+        }.buttonStyle(.borderedProminent).controlSize(.large).disabled(!model.canPost).padding()
     }
 
     /// Posts to the checked accounts and closes the sheet once every one of
@@ -203,20 +157,11 @@ struct SheetHeader: View {
     let onClose: () -> Void
 
     var body: some View {
-        OutlinedLogoText(size: 25)
-            .frame(maxWidth: .infinity)
-            .overlay(alignment: .trailing) {
-                Button(action: onClose) {
-                    Image(systemName: "xmark.circle.fill")
-                        .symbolRenderingMode(.hierarchical)
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel(String(localized: "Close"))
-                .disabled(isCloseDisabled)
-            }
-            .padding(.horizontal, Self.horizontalPadding)
-            .padding(.vertical, Self.verticalPadding)
+        OutlinedLogoText(size: 25).frame(maxWidth: .infinity).overlay(alignment: .trailing) {
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill").symbolRenderingMode(.hierarchical).font(.title2).foregroundStyle(.secondary)
+            }.accessibilityLabel(String(localized: "Close")).disabled(isCloseDisabled)
+        }.padding(.horizontal, Self.horizontalPadding).padding(.vertical, Self.verticalPadding)
     }
 }
 
@@ -230,8 +175,7 @@ extension View {
     /// - Parameters:
     ///   - isCloseDisabled: Whether the close button is disabled.
     ///   - onClose: Closes the screen.
-    @ViewBuilder
-    func sheetHeader(isCloseDisabled: Bool = false, onClose: @escaping () -> Void) -> some View {
+    @ViewBuilder func sheetHeader(isCloseDisabled: Bool = false, onClose: @escaping () -> Void) -> some View {
         let header = SheetHeader(isCloseDisabled: isCloseDisabled, onClose: onClose)
         if #available(iOS 26, *) {
             safeAreaBar(edge: .top, spacing: 0) { header }
@@ -244,14 +188,7 @@ extension View {
     ///
     /// `listSectionMargins` exists from iOS 26 on. Before, the section keeps
     /// the form's margins.
-    @ViewBuilder
-    func edgeToEdgeSection() -> some View {
-        if #available(iOS 26, *) {
-            listSectionMargins(.horizontal, 0)
-        } else {
-            self
-        }
-    }
+    @ViewBuilder func edgeToEdgeSection() -> some View { if #available(iOS 26, *) { listSectionMargins(.horizontal, 0) } else { self } }
 }
 
 // MARK: - AccountRow
@@ -278,15 +215,12 @@ private struct AccountRow: View {
                 model.selectedAccountIDs.formSymmetricDifference([account.id])
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(
+                        isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary)
+                    )
                     content
                 }
-            }
-            .buttonStyle(.plain)
-            .disabled(isLocked)
-            .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }.buttonStyle(.plain).disabled(isLocked).accessibilityAddTraits(isSelected ? .isSelected : [])
         } else {
             content
         }
@@ -298,9 +232,7 @@ private struct AccountRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 SocialAccountLabel(account: account)
                 if case .failed(let message) = state {
-                    Label(message, systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.red)
+                    Label(message, systemImage: "exclamationmark.triangle.fill").font(.footnote).foregroundStyle(.red)
                 }
             }
             Spacer()
@@ -308,20 +240,13 @@ private struct AccountRow: View {
         }
     }
 
-    @ViewBuilder
-    private var status: some View {
+    @ViewBuilder private var status: some View {
         switch state {
-        case .posting:
-            ProgressView()
-        case .posted:
-            Label(String(localized: "Posted"), systemImage: "checkmark.circle.fill")
-                .labelStyle(.iconOnly)
-                .foregroundStyle(.green)
+        case .posting: ProgressView()
+        case .posted: Label(String(localized: "Posted"), systemImage: "checkmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(.green)
         case .idle, .failed:
             if model.isOutOfBounds(account) {
-                Text(verbatim: "\(model.length(for: account)) / \(account.limit)")
-                    .monospacedDigit()
-                    .foregroundStyle(.red)
+                Text(verbatim: "\(model.length(for: account)) / \(account.limit)").monospacedDigit().foregroundStyle(.red)
             }
         }
     }

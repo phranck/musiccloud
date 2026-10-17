@@ -59,17 +59,10 @@ struct MusicCloudAPITests {
     }
 
     @Test(arguments: [
-        "https://musiccloud.io.evil.com/abc",
-        "https://evil.com/abc",
-        "http://musiccloud.io/abc",
-        "file:///etc/passwd",
-        "tel:+431234567",
+        "https://musiccloud.io.evil.com/abc", "https://evil.com/abc", "http://musiccloud.io/abc", "file:///etc/passwd", "tel:+431234567",
         "musiccloud.io/abc",
-    ])
-    func shortLinkOutsideMusicCloudIsRefused(_ shortUrl: String) throws {
+    ]) func shortLinkOutsideMusicCloudIsRefused(_ shortUrl: String) throws {
         let base = try #require(URL(string: "https://musiccloud.io"))
-        #expect(throws: ResolveError.self) {
-            try response(shortUrl: shortUrl).pointing(at: base)
-        }
+        #expect(throws: ResolveError.self) { try response(shortUrl: shortUrl).pointing(at: base) }
     }
 }

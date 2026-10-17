@@ -30,22 +30,16 @@ struct ConversionSheet: View {
     /// Closes the sheet.
     let onClose: () -> Void
 
-    var body: some View {
-        content
-            .symbolRenderingMode(.hierarchical)
-    }
+    var body: some View { content.symbolRenderingMode(.hierarchical) }
 
-    @ViewBuilder
-    private var content: some View {
+    @ViewBuilder private var content: some View {
         switch phase {
-        case .converting:
-            ConversionProgressView(onClose: onClose)
+        case .converting: ConversionProgressView(onClose: onClose)
         case .finished(let entry):
             ShareResultView(entry: entry, accounts: SocialAccount.all(in: SocialConnections.shared.store), onDone: onClose)
                 // The result keeps its post state per entry, so a later conversion starts a fresh one.
                 .id(entry.id)
-        case .failed(let message):
-            ConversionErrorView(message: message, onClose: onClose)
+        case .failed(let message): ConversionErrorView(message: message, onClose: onClose)
         }
     }
 }
@@ -62,11 +56,9 @@ private struct ConversionProgressView: View {
         VStack(spacing: 32) {
             OutlinedLogoText(size: 44, isAnimating: true)
             EqualizerBars()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "Converting URL"))
-        .sheetHeader(onClose: onClose)
+        }.frame(maxWidth: .infinity, maxHeight: .infinity).accessibilityElement(children: .ignore).accessibilityLabel(
+            String(localized: "Converting URL")
+        ).sheetHeader(onClose: onClose)
     }
 }
 
@@ -84,8 +76,7 @@ private struct ConversionErrorView: View {
             "Couldn't convert this URL",
             systemImage: "exclamationmark.triangle.fill",
             description: message.map { Text($0) }
-        )
-        .sheetHeader(onClose: onClose)
+        ).sheetHeader(onClose: onClose)
     }
 }
 
@@ -118,14 +109,10 @@ private struct EqualizerBars: View {
         TimelineView(.animation(minimumInterval: 1 / Self.framesPerSecond, paused: reduceMotion)) { timeline in
             HStack(alignment: .bottom, spacing: Self.barSpacing) {
                 ForEach(Self.restingLevels.indices, id: \.self) { index in
-                    Capsule()
-                        .fill(.tint)
-                        .frame(width: Self.barWidth, height: Self.fullHeight * level(of: index, at: timeline.date))
+                    Capsule().fill(.tint).frame(width: Self.barWidth, height: Self.fullHeight * level(of: index, at: timeline.date))
                 }
-            }
-            .frame(height: Self.fullHeight, alignment: .bottom)
-        }
-        .accessibilityHidden(true)
+            }.frame(height: Self.fullHeight, alignment: .bottom)
+        }.accessibilityHidden(true)
     }
 
     /// The height of bar `index` at `date`, as a fraction of the full height.

@@ -35,21 +35,9 @@ struct MediaRow: View {
     var entry: MediaEntry
 
     var body: some View {
-        MediaItem(entry: entry)
-            .background {
-                if isHovered {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Self.highlightBackground)
-                        .padding(.horizontal, 4)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                copyToClipboardAndOpen()
-            }
-            .onHover { hovering in
-                isHovered = hovering
-            }
+        MediaItem(entry: entry).background {
+            if isHovered { RoundedRectangle(cornerRadius: 16).fill(Self.highlightBackground).padding(.horizontal, 4) }
+        }.contentShape(Rectangle()).onTapGesture { copyToClipboardAndOpen() }.onHover { hovering in isHovered = hovering }
     }
 }
 
@@ -70,7 +58,7 @@ private extension MediaRow {
 private extension MediaRow {
     /// Copies the short URL to clipboard, opens it in the browser, and closes the panel (macOS only).
     func copyToClipboardAndOpen() {
-#if os(macOS)
+        #if os(macOS)
         Pasteboard.copy(entry.shortUrl)
 
         guard let url = StreamingServices.webURL(entry.shortUrl) else {
@@ -80,6 +68,6 @@ private extension MediaRow {
         NSWorkspace.shared.open(url)
 
         NSApp.keyWindow?.close()
-#endif
+        #endif
     }
 }

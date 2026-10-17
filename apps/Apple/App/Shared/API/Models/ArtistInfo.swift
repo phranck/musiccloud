@@ -31,9 +31,7 @@ extension ArtistInfo {
 
     /// The follower count in the user's locale, shortened for the media
     /// card, such as `1.5M` in English.
-    var formattedFollowers: String? {
-        formattedFollowers(locale: .current)
-    }
+    var formattedFollowers: String? { formattedFollowers(locale: .current) }
 
     /// The follower count shortened with the locale's compact names and at
     /// most one decimal, or `nil` without a count.

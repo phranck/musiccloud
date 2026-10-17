@@ -34,12 +34,7 @@ struct TemplateDetailView: View {
     ///   - isReadOnly: Whether it ships with the app and cannot be changed.
     ///   - onChange: Called with the edited template after every change.
     ///   - onDuplicate: Called to copy the template under a new name.
-    init(
-        template: PostTemplate,
-        isReadOnly: Bool,
-        onChange: @escaping (PostTemplate) -> Void,
-        onDuplicate: @escaping () -> Void
-    ) {
+    init(template: PostTemplate, isReadOnly: Bool, onChange: @escaping (PostTemplate) -> Void, onDuplicate: @escaping () -> Void) {
         self.isReadOnly = isReadOnly
         self.onChange = onChange
         self.onDuplicate = onDuplicate
@@ -49,29 +44,22 @@ struct TemplateDetailView: View {
         _newestEntries = Query(newest)
     }
 
-    private var postLimit: TemplatePostLimit? {
-        TemplatePostLimit(icon: draft.icon, mastodonAccounts: accounts.mastodonAccounts)
-    }
+    private var postLimit: TemplatePostLimit? { TemplatePostLimit(icon: draft.icon, mastodonAccounts: accounts.mastodonAccounts) }
 
-    private var filledText: String? {
-        newestEntries.first.map { PostTemplateRenderer.render(draft.body, with: PostContext(entry: $0)) }
-    }
+    private var filledText: String? { newestEntries.first.map { PostTemplateRenderer.render(draft.body, with: PostContext(entry: $0)) } }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack {
                 if isReadOnly {
-                    PostTemplateLabel(template: draft, isSystem: true)
-                        .font(.headline)
+                    PostTemplateLabel(template: draft, isSystem: true).font(.headline)
                     Spacer()
                     Button(String(localized: "Use as New Template"), action: onDuplicate)
                 } else {
                     PostTemplateIconPicker(icon: $draft.icon)
-                    TextField(String(localized: "Name"), text: $draft.name)
-                        .textFieldStyle(.roundedBorder)
+                    TextField(String(localized: "Name"), text: $draft.name).textFieldStyle(.roundedBorder)
                 }
-            }
-            .padding(12)
+            }.padding(12)
             Divider()
             VSplitView {
                 VStack(spacing: 0) {
@@ -80,16 +68,11 @@ struct TemplateDetailView: View {
                         isEditable: !isReadOnly,
                         tokens: TemplateCompletion.tokens(serviceLinks: newestEntries.first?.serviceLinks ?? [])
                     )
-                    if let postLimit, let filledText {
-                        CharacterCounter(length: postLimit.length(of: filledText), limit: postLimit.limit)
-                    }
-                }
-                .frame(minHeight: 140)
-                TemplatePreview(filledText: filledText, postLimit: postLimit)
-                    .frame(minHeight: 100)
+                    if let postLimit, let filledText { CharacterCounter(length: postLimit.length(of: filledText), limit: postLimit.limit) }
+                }.frame(minHeight: 140)
+                TemplatePreview(filledText: filledText, postLimit: postLimit).frame(minHeight: 100)
             }
-        }
-        .onChange(of: draft) {
+        }.onChange(of: draft) {
             guard !isReadOnly else { return }
             onChange(draft)
         }
@@ -122,8 +105,7 @@ struct TemplatePostLimit: Equatable {
         case .bluesky:
             service = .bluesky
             limit = BlueskyAPI.postGraphemeLimit
-        default:
-            return nil
+        default: return nil
         }
     }
 
@@ -132,8 +114,7 @@ struct TemplatePostLimit: Equatable {
         switch service {
         case .mastodon(let markdownRendered):
             PostFormatter.mastodonLength(of: markdownRendered ? markdown : PostFormatter.mastodonPlainText(fromMarkdown: markdown))
-        case .bluesky:
-            PostFormatter.bluesky(fromMarkdown: markdown).graphemeCount
+        case .bluesky: PostFormatter.bluesky(fromMarkdown: markdown).graphemeCount
         }
     }
 }
@@ -148,13 +129,8 @@ private struct CharacterCounter: View {
     var body: some View {
         HStack {
             Spacer()
-            Text("\(length) / \(limit) characters")
-                .monospacedDigit()
-                .foregroundStyle(length > limit ? .red : .secondary)
-        }
-        .font(.callout)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+            Text("\(length) / \(limit) characters").monospacedDigit().foregroundStyle(length > limit ? .red : .secondary)
+        }.font(.callout).padding(.horizontal, 12).padding(.vertical, 6)
     }
 }
 
@@ -173,26 +149,20 @@ private struct TemplatePreview: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Preview")
-                    .font(.headline)
+                Text("Preview").font(.headline)
                 if let filledText {
-                    Text(Self.preview(of: filledText, limit: postLimit))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background(.background, in: .rect(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
-                    Text("Filled with your latest conversion.")
-                        .foregroundStyle(.secondary)
+                    Text(Self.preview(of: filledText, limit: postLimit)).textSelection(.enabled).frame(
+                        maxWidth: .infinity,
+                        alignment: .leading
+                    ).padding(12).background(.background, in: .rect(cornerRadius: 8)).overlay(
+                        RoundedRectangle(cornerRadius: 8).strokeBorder(.separator)
+                    )
+                    Text("Filled with your latest conversion.").foregroundStyle(.secondary)
                 } else {
-                    Text("Convert a link to see the preview.")
-                        .foregroundStyle(.secondary)
+                    Text("Convert a link to see the preview.").foregroundStyle(.secondary)
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-        }
-        .background(.background.secondary)
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
+        }.background(.background.secondary)
     }
 
     /// The text shown, with everything past the limit marked.

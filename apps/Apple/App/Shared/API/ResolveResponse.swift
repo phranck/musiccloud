@@ -18,9 +18,7 @@ struct ResolveResponse: Decodable, Sendable {
     /// The origin the backend writes into every short link, whichever host served the request.
     private static let productionOrigin = URLComponents(url: MusicCloudAPI.productionURL, resolvingAgainstBaseURL: false)
 
-    private enum CodingKeys: String, CodingKey {
-        case shortUrl, track, album, artist, links
-    }
+    private enum CodingKeys: String, CodingKey { case shortUrl, track, album, artist, links }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -28,9 +26,7 @@ struct ResolveResponse: Decodable, Sendable {
         track = try container.decodeIfPresent(TrackInfo.self, forKey: .track)
         album = try container.decodeIfPresent(AlbumInfo.self, forKey: .album)
         artist = try container.decodeIfPresent(ArtistInfo.self, forKey: .artist)
-        do {
-            links = try container.decodeIfPresent([ServiceLink].self, forKey: .links) ?? []
-        } catch {
+        do { links = try container.decodeIfPresent([ServiceLink].self, forKey: .links) ?? [] } catch {
             AppLogger.api.warning("Failed to decode service links: \(error)")
             links = []
         }
@@ -48,9 +44,7 @@ struct ResolveResponse: Decodable, Sendable {
     /// - Returns: A copy whose `shortUrl` starts with `baseURL`.
     /// - Throws: ``ResolveError/invalidResponse`` when the short link is on another origin.
     func pointing(at baseURL: URL) throws -> ResolveResponse {
-        guard
-            let link = URLComponents(string: shortUrl),
-            let base = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
+        guard let link = URLComponents(string: shortUrl), let base = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
             Self.hasSameOrigin(link, base) || Self.productionOrigin.map({ Self.hasSameOrigin(link, $0) }) == true
         else {
             AppLogger.api.error("Refused short link outside the musiccloud origin")
@@ -70,9 +64,7 @@ struct ResolveResponse: Decodable, Sendable {
 
     /// Compares scheme, host and port, ignoring case where URLs do.
     private static func hasSameOrigin(_ lhs: URLComponents, _ rhs: URLComponents) -> Bool {
-        lhs.scheme?.lowercased() == rhs.scheme?.lowercased()
-            && lhs.host?.lowercased() == rhs.host?.lowercased()
-            && lhs.port == rhs.port
+        lhs.scheme?.lowercased() == rhs.scheme?.lowercased() && lhs.host?.lowercased() == rhs.host?.lowercased() && lhs.port == rhs.port
             && lhs.host?.isEmpty == false
     }
 
@@ -127,7 +119,5 @@ struct Conversion: Sendable {
     /// The history entry for this conversion.
     ///
     /// - Parameter originalUrl: The streaming URL the user converted.
-    func makeEntry(originalUrl: String) -> MediaEntry {
-        response.toMediaEntry(originalUrl: originalUrl, artworkData: artworkData)
-    }
+    func makeEntry(originalUrl: String) -> MediaEntry { response.toMediaEntry(originalUrl: originalUrl, artworkData: artworkData) }
 }

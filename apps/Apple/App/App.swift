@@ -9,22 +9,15 @@ import SwiftUI
 ///
 /// On macOS, all state is owned by ``AppDelegate``. The SwiftUI `App` struct
 /// provides only a minimal `Settings` scene as required by the framework.
-@main
-struct MusicCloudApp: App {
+@main struct MusicCloudApp: App {
 
-#if os(macOS)
+    #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        WindowGroup {
-            EmptyView()
-                .frame(width: 0, height: 0)
-                .hidden()
-        }
-        .defaultSize(width: 0, height: 0)
-        .defaultLaunchBehavior(.suppressed)
+        WindowGroup { EmptyView().frame(width: 0, height: 0).hidden() }.defaultSize(width: 0, height: 0).defaultLaunchBehavior(.suppressed)
     }
-#else
+    #else
     private let modelContainer: ModelContainer?
     @State private var historyManager: HistoryManager?
     @State private var monitor: ClipboardMonitor?
@@ -55,10 +48,7 @@ struct MusicCloudApp: App {
     var body: some Scene {
         WindowGroup {
             if let modelContainer, let historyManager, let monitor {
-                ContentView()
-                    .modelContainer(modelContainer)
-                    .environment(historyManager)
-                    .environment(monitor)
+                ContentView().modelContainer(modelContainer).environment(historyManager).environment(monitor)
                     // The accounts Settings connects; their connectors live beside them in SocialConnections.
                     .environment(SocialConnections.shared.store)
                     // Only leaving for the background stops the monitor. Control
@@ -66,18 +56,11 @@ struct MusicCloudApp: App {
                     // moment, and a conversion running then has to finish.
                     .onChange(of: scenePhase) { _, newPhase in
                         switch newPhase {
-                        case .active where ClipboardMonitor.isEnabled:
-                            monitor.startMonitoring()
-                        case .background:
-                            monitor.stopMonitoring()
-                        default:
-                            break
+                        case .active where ClipboardMonitor.isEnabled: monitor.startMonitoring()
+                        case .background: monitor.stopMonitoring()
+                        default: break
                         }
-                    }
-                    .onOpenURL { url in
-                        handleIncomingURL(url)
-                    }
-                    .task {
+                    }.onOpenURL { url in handleIncomingURL(url) }.task {
                         UIApplication.shared.registerForRemoteNotifications()
                         // The permission dialog waits for the user, so the
                         // launch work below runs while it is open.
@@ -91,8 +74,7 @@ struct MusicCloudApp: App {
                     "Database Error",
                     systemImage: "exclamationmark.triangle",
                     description: Text(storeError ?? "Unknown error")
-                )
-                .symbolRenderingMode(.hierarchical)
+                ).symbolRenderingMode(.hierarchical)
             }
         }
     }
@@ -102,5 +84,5 @@ struct MusicCloudApp: App {
         monitor?.convert(url: streamingURL)
     }
 
-#endif
+    #endif
 }

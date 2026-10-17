@@ -23,30 +23,26 @@ struct EntryActionsModifier: ViewModifier {
     #endif
 
     func body(content: Content) -> some View {
-        content
-            #if os(macOS)
-            .onTapGesture(count: 2) { openSharePage() }
+        #if os(macOS)
+        let interactiveContent = content.onTapGesture(count: 2) { openSharePage() }
+        #else
+        let interactiveContent = content.onTapGesture { openSharePage() }.sensoryFeedback(.impact(weight: .light), trigger: copyCount)
+        #endif
+        interactiveContent.contextMenu {
+            #if os(iOS)
+            CopyShareURLButton(shortUrl: entry.shortUrl) { copyCount += 1 }
+            ShareLink(item: entry.shortUrl) { Label("Share", systemImage: "square.and.arrow.up") }
             #else
-            .onTapGesture { openSharePage() }
-            .sensoryFeedback(.impact(weight: .light), trigger: copyCount)
+            CopyShareURLButton(shortUrl: entry.shortUrl)
             #endif
-            .contextMenu {
-                #if os(iOS)
-                CopyShareURLButton(shortUrl: entry.shortUrl) { copyCount += 1 }
-                ShareLink(item: entry.shortUrl) {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                }
-                #else
-                CopyShareURLButton(shortUrl: entry.shortUrl)
-                #endif
-                OpenInBrowserButton(shortUrl: entry.shortUrl)
-                #if os(macOS)
-                ServiceLinksMenu(entry: entry)
-                PostEntryButton(entry: entry)
-                #endif
-                Divider()
-                DeleteEntryButton(onDelete: onDelete)
-            }
+            OpenInBrowserButton(shortUrl: entry.shortUrl)
+            #if os(macOS)
+            ServiceLinksMenu(entry: entry)
+            PostEntryButton(entry: entry)
+            #endif
+            Divider()
+            DeleteEntryButton(onDelete: onDelete)
+        }
     }
 }
 
@@ -117,7 +113,8 @@ private struct PostEntryButton: View {
 
     var body: some View {
         if let delegate = AppDelegate.shared,
-           !delegate.socialAccountStore.mastodonAccounts.isEmpty || !delegate.socialAccountStore.blueskyAccounts.isEmpty {
+            !delegate.socialAccountStore.mastodonAccounts.isEmpty || !delegate.socialAccountStore.blueskyAccounts.isEmpty
+        {
             Button {
                 delegate.openComposer(for: entry)
             } label: {

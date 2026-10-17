@@ -25,13 +25,9 @@ struct AboutView: View {
         Form {
             Section {
                 LabeledContent(String(localized: "Version"), value: Bundle.main.appVersion)
-                LabeledContent(String(localized: "Website")) {
-                    Link("musiccloud.io", destination: MusicCloudAPI.productionURL)
-                }
+                LabeledContent(String(localized: "Website")) { Link("musiccloud.io", destination: MusicCloudAPI.productionURL) }
                 LabeledContent {
-                    Link(destination: Self.mastodonURL) {
-                        Text(verbatim: "@musiccloud")
-                    }
+                    Link(destination: Self.mastodonURL) { Text(verbatim: "@musiccloud") }
                 } label: {
                     Text(verbatim: "Mastodon")
                 }
@@ -39,17 +35,8 @@ struct AboutView: View {
                 AppIdentityHeader()
             }
 
-            if BuildChannel.diagnosticsEnabled {
-                DiagnosticsSection()
-            }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .background {
-            AboutBackground(tokens: skyTokens)
-                .ignoresSafeArea()
-        }
-        .task {
+            if BuildChannel.diagnosticsEnabled { DiagnosticsSection() }
+        }.formStyle(.grouped).scrollContentBackground(.hidden).background { AboutBackground(tokens: skyTokens).ignoresSafeArea() }.task {
             await loadSkyTokens()
         }
     }
@@ -57,12 +44,8 @@ struct AboutView: View {
     /// Shows the saved values first, so an offline start draws the sky the
     /// backend served last, and then the current ones.
     private func loadSkyTokens() async {
-        if let saved = await SkyTokens.saved() {
-            skyTokens = saved
-        }
-        if let fetched = await SkyTokens.fetchAndSave() {
-            skyTokens = fetched
-        }
+        if let saved = await SkyTokens.saved() { skyTokens = saved }
+        if let fetched = await SkyTokens.fetchAndSave() { skyTokens = fetched }
     }
 }
 
@@ -89,14 +72,13 @@ private struct AboutBackground: View {
         if colorScheme == .dark {
             NightSkyBackground(tokens: tokens)
         } else {
-            NightSkyBackground(tokens: tokens)
-                .mask {
-                    LinearGradient(stops: [
-                        .init(color: .black, location: Self.dayFadeStart),
-                        .init(color: .clear, location: Self.dayFadeEnd),
-                    ], startPoint: .top, endPoint: .bottom)
-                }
-                .background(Color(nsColor: .windowBackgroundColor))
+            NightSkyBackground(tokens: tokens).mask {
+                LinearGradient(
+                    stops: [.init(color: .black, location: Self.dayFadeStart), .init(color: .clear, location: Self.dayFadeEnd)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }.background(Color(nsColor: .windowBackgroundColor))
         }
     }
 }
@@ -107,15 +89,11 @@ private struct AboutBackground: View {
 private struct AppIdentityHeader: View {
     var body: some View {
         VStack(spacing: 8) {
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 96, height: 96)
+            Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 96, height: 96)
                 // Lifts the icon off the sky, which is busiest behind it.
                 .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
             OutlinedLogoText(size: 28)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 36)
+        }.frame(maxWidth: .infinity).padding(.bottom, 36)
     }
 }
 
@@ -132,18 +110,12 @@ private struct DiagnosticsSection: View {
                     Task { await exportLogs() }
                 } label: {
                     Label("Export Diagnostics", systemImage: "square.and.arrow.up")
-                }
-                .disabled(isExporting)
+                }.disabled(isExporting)
 
-                if isExporting {
-                    ProgressView().controlSize(.small)
-                }
+                if isExporting { ProgressView().controlSize(.small) }
             }
 
-            if let exportError {
-                Text(exportError)
-                    .foregroundStyle(.red)
-            }
+            if let exportError { Text(exportError).foregroundStyle(.red) }
         } header: {
             Text("Diagnostics")
         } footer: {
@@ -161,22 +133,20 @@ private extension DiagnosticsSection {
             let url = try await DiagnosticsExporter.exportLogs()
             presentSharePicker(for: url)
         } catch {
-            exportError = String(localized: "Log export failed: \(error.localizedDescription)",
-                                 comment: "Shown below Export Diagnostics; the argument is the system's error message")
+            exportError = String(
+                localized: "Log export failed: \(error.localizedDescription)",
+                comment: "Shown below Export Diagnostics; the argument is the system's error message"
+            )
         }
     }
 
     func presentSharePicker(for url: URL) {
         let picker = NSSharingServicePicker(items: [url])
-        guard let window = NSApp.keyWindow,
-              let contentView = window.contentView else { return }
+        guard let window = NSApp.keyWindow, let contentView = window.contentView else { return }
         picker.show(relativeTo: .zero, of: contentView, preferredEdge: .minY)
     }
 }
 
-#Preview {
-    AboutView()
-        .frame(width: 400, height: 440)
-}
+#Preview { AboutView().frame(width: 400, height: 440) }
 
 #endif

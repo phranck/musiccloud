@@ -20,14 +20,12 @@ import OSLog
 /// read can take seconds on a device.
 enum DiagnosticsExporter {
 
-    private static let lookBack: TimeInterval = 60 * 60 * 6 // 6 hours
+    private static let lookBack: TimeInterval = 60 * 60 * 6  // 6 hours
     private static let maxEntries = 5_000
 
     /// Errors raised during export. Surfaced to the UI so the caller can
     /// show a toast; the share sheet is not presented on failure.
-    enum ExportError: Error {
-        case unavailable
-    }
+    enum ExportError: Error { case unavailable }
 
     /// Produce a JSONL file of recent log entries for the musiccloud
     /// subsystem and return its URL.
@@ -39,11 +37,8 @@ enum DiagnosticsExporter {
     ///
     /// Reading the log store blocks for as long as it takes, so this runs on
     /// the concurrent pool rather than on the caller's actor.
-    @concurrent
-    static func exportLogs() async throws -> URL {
-        guard let store = try? OSLogStore(scope: .currentProcessIdentifier) else {
-            throw ExportError.unavailable
-        }
+    @concurrent static func exportLogs() async throws -> URL {
+        guard let store = try? OSLogStore(scope: .currentProcessIdentifier) else { throw ExportError.unavailable }
         let start = store.position(date: Date(timeIntervalSinceNow: -lookBack))
         let predicate = NSPredicate(format: "subsystem == %@", "io.musiccloud.app")
         let entries = try store.getEntries(at: start, matching: predicate)
@@ -80,8 +75,7 @@ enum DiagnosticsExporter {
             buffer.append(0x0A)
         }
 
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "musiccloud-diagnostics", directoryHint: .isDirectory)
+        let directory = FileManager.default.temporaryDirectory.appending(path: "musiccloud-diagnostics", directoryHint: .isDirectory)
         try? FileManager.default.removeItem(at: directory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let file = directory.appending(path: "musiccloud-diagnostics-\(UUID().uuidString.prefix(8)).jsonl")

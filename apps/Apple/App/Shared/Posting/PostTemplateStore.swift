@@ -17,9 +17,7 @@ import Observation
 /// System templates ship with the app. They are listed with the user's
 /// templates but never stored, changed or deleted; ``duplicate(_:)`` turns
 /// one into a template of the user's own.
-@MainActor
-@Observable
-final class PostTemplateStore {
+@MainActor @Observable final class PostTemplateStore {
     /// The user's templates in the order they are listed.
     private(set) var templates: [PostTemplate] = []
 
@@ -44,27 +42,21 @@ final class PostTemplateStore {
     }
 
     /// Every template a post can be written with: the system templates first, then the user's.
-    var allTemplates: [PostTemplate] {
-        systemTemplates + templates
-    }
+    var allTemplates: [PostTemplate] { systemTemplates + templates }
 
     /// Whether the template with `id` ships with the app and cannot be changed.
-    func isSystem(_ id: PostTemplate.ID) -> Bool {
-        systemTemplates.contains { $0.id == id }
-    }
+    func isSystem(_ id: PostTemplate.ID) -> Bool { systemTemplates.contains { $0.id == id } }
 
     /// Adds a copy of `template` under a new name and returns it, which is
     /// how a system template becomes a blueprint for one of the user's own.
-    @discardableResult
-    func duplicate(_ template: PostTemplate) -> PostTemplate {
+    @discardableResult func duplicate(_ template: PostTemplate) -> PostTemplate {
         let copy = PostTemplate(name: String(localized: "\(template.name) Copy"), body: template.body, icon: template.icon)
         change { $0.append(copy) }
         return copy
     }
 
     /// Adds a template and returns it.
-    @discardableResult
-    func add(name: String, body: String = "") -> PostTemplate {
+    @discardableResult func add(name: String, body: String = "") -> PostTemplate {
         let template = PostTemplate(name: name, body: body)
         change { $0.append(template) }
         return template
@@ -79,9 +71,7 @@ final class PostTemplateStore {
     }
 
     /// Removes the template with `id`.
-    func delete(id: PostTemplate.ID) {
-        change { $0.removeAll { $0.id == id } }
-    }
+    func delete(id: PostTemplate.ID) { change { $0.removeAll { $0.id == id } } }
 
     /// Reads the file again, applies `edit`, and writes the result.
     ///
@@ -95,19 +85,11 @@ final class PostTemplateStore {
     }
 
     /// `Application Support/musiccloud/post-templates.json`.
-    nonisolated static func defaultFileURL() -> URL? {
-        .applicationSupportFile(named: "post-templates.json")
-    }
+    nonisolated static func defaultFileURL() -> URL? { .applicationSupportFile(named: "post-templates.json") }
 }
 
 private extension PostTemplateStore {
-    func load() {
-        if let stored = file?.load() {
-            templates = stored
-        }
-    }
+    func load() { if let stored = file?.load() { templates = stored } }
 
-    func save() {
-        file?.save(templates)
-    }
+    func save() { file?.save(templates) }
 }

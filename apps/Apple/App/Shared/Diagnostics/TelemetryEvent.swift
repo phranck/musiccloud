@@ -65,11 +65,7 @@ struct TelemetryEvent: Codable {
     /// Factory for transport-level failures (no HTTP response, DNS,
     /// TLS, timeout). `errorKind` is typically `NETWORK_TIMEOUT` or
     /// `NETWORK_OFFLINE`.
-    static func networkError(
-        sourceUrl: String?,
-        errorKind: String,
-        message: String
-    ) -> TelemetryEvent {
+    static func networkError(sourceUrl: String?, errorKind: String, message: String) -> TelemetryEvent {
         TelemetryEvent(
             eventType: "network_error",
             eventTime: Date(),
@@ -102,13 +98,9 @@ struct TelemetryEvent: Codable {
 
     // MARK: Device / bundle context
 
-    private static var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
-    }
+    private static var appVersion: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown" }
 
-    private static var buildNumber: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"
-    }
+    private static var buildNumber: String { Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown" }
 
     private static var platform: String {
         #if os(macOS)
@@ -118,9 +110,7 @@ struct TelemetryEvent: Codable {
         #endif
     }
 
-    private static var osVersion: String {
-        ProcessInfo.processInfo.operatingSystemVersionString
-    }
+    private static var osVersion: String { ProcessInfo.processInfo.operatingSystemVersionString }
 
     /// Hardware identifier like `"iPhone15,2"` or `"Mac14,7"`, read with `uname(3)`.
     private static var deviceModel: String {
@@ -128,9 +118,7 @@ struct TelemetryEvent: Codable {
         uname(&systemInfo)
         let mirror = Mirror(reflecting: systemInfo.machine)
         return mirror.children.reduce(into: "") { partial, element in
-            if let value = element.value as? Int8, value != 0 {
-                partial.append(Character(UnicodeScalar(UInt8(value))))
-            }
+            if let value = element.value as? Int8, value != 0 { partial.append(Character(UnicodeScalar(UInt8(value)))) }
         }
     }
 }

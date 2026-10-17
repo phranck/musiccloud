@@ -76,14 +76,11 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
 
     /// Keeps the binding and the coloring in step with the text view, and
     /// answers its completion requests.
-    @MainActor
-    final class Coordinator: NSObject, NSTextViewDelegate {
+    @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: MarkdownTemplateEditor
         weak var textView: NSTextView?
 
-        init(parent: MarkdownTemplateEditor) {
-            self.parent = parent
-        }
+        init(parent: MarkdownTemplateEditor) { self.parent = parent }
 
         func textDidChange(_ notification: Notification) {
             guard let textView else { return }
@@ -114,9 +111,7 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
             storage.beginEditing()
             storage.setAttributes([.font: MarkdownTemplateEditor.baseFont, .foregroundColor: NSColor.labelColor], range: whole)
             let highlights = TemplateSyntaxHighlighter.highlights(in: storage.string) { known.contains("{\($0)}") }
-            for highlight in highlights {
-                storage.addAttributes(Self.attributes(for: highlight.kind), range: highlight.range)
-            }
+            for highlight in highlights { storage.addAttributes(Self.attributes(for: highlight.kind), range: highlight.range) }
             storage.endEditing()
         }
 
@@ -124,22 +119,15 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
             let fonts = NSFontManager.shared
             let base = MarkdownTemplateEditor.baseFont
             switch kind {
-            case .variable:
-                return [.foregroundColor: TemplateSyntaxColors.variable]
+            case .variable: return [.foregroundColor: TemplateSyntaxColors.variable]
             case .unknownVariable:
                 return [.foregroundColor: TemplateSyntaxColors.unknownVariable, .underlineStyle: NSUnderlineStyle.single.rawValue]
-            case .heading, .bold:
-                return [.font: fonts.convert(base, toHaveTrait: .boldFontMask)]
-            case .italic:
-                return [.font: fonts.convert(base, toHaveTrait: .italicFontMask)]
-            case .code:
-                return [.foregroundColor: TemplateSyntaxColors.code]
-            case .quote:
-                return [.foregroundColor: TemplateSyntaxColors.quote]
-            case .link:
-                return [.foregroundColor: TemplateSyntaxColors.link]
-            case .hashtag:
-                return [.foregroundColor: TemplateSyntaxColors.hashtag]
+            case .heading, .bold: return [.font: fonts.convert(base, toHaveTrait: .boldFontMask)]
+            case .italic: return [.font: fonts.convert(base, toHaveTrait: .italicFontMask)]
+            case .code: return [.foregroundColor: TemplateSyntaxColors.code]
+            case .quote: return [.foregroundColor: TemplateSyntaxColors.quote]
+            case .link: return [.foregroundColor: TemplateSyntaxColors.link]
+            case .hashtag: return [.foregroundColor: TemplateSyntaxColors.hashtag]
             }
         }
     }
@@ -191,8 +179,9 @@ final class TemplateTextView: NSTextView {
             let paragraph = text.paragraphRange(for: selection)
             let glyphs = layoutManager.glyphRange(forCharacterRange: paragraph, actualCharacterRange: nil)
             guard glyphs.length > 0 else { return nil }
-            fragment = layoutManager.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
-                .union(layoutManager.lineFragmentRect(forGlyphAt: NSMaxRange(glyphs) - 1, effectiveRange: nil))
+            fragment = layoutManager.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil).union(
+                layoutManager.lineFragmentRect(forGlyphAt: NSMaxRange(glyphs) - 1, effectiveRange: nil)
+            )
         }
         guard fragment.height > 0 else { return nil }
         return NSRect(x: bounds.minX, y: fragment.minY + textContainerOrigin.y, width: bounds.width, height: fragment.height)
@@ -207,10 +196,9 @@ final class TemplateTextView: NSTextView {
     /// `insertText`, so ⌘Z undoes it and the coloring follows.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        guard isEditable, window?.firstResponder === self,
-              let key = event.charactersIgnoringModifiers,
-              modifiers == .command || (modifiers == [.command, .shift] && !key.contains(where: \.isLetter)),
-              let shortcut = MarkdownShortcut(commandKey: key)
+        guard isEditable, window?.firstResponder === self, let key = event.charactersIgnoringModifiers,
+            modifiers == .command || (modifiers == [.command, .shift] && !key.contains(where: \.isLetter)),
+            let shortcut = MarkdownShortcut(commandKey: key)
         else { return super.performKeyEquivalent(with: event) }
 
         let edit = shortcut.edit(in: string, selection: selectedRange(), clipboard: Pasteboard.string)
@@ -239,7 +227,7 @@ final class TemplateTextView: NSTextView {
     private func completeIfInsidePlaceholder() {
         Task { @MainActor [weak self] in
             guard let self, selectedRange().length == 0,
-                  TemplateCompletion.partialRange(in: string, cursor: selectedRange().location) != nil
+                TemplateCompletion.partialRange(in: string, cursor: selectedRange().location) != nil
             else { return }
             complete(nil)
         }

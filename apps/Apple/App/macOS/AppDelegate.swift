@@ -14,8 +14,7 @@ import SwiftUI
 ///
 /// Replaces SwiftUI's `MenuBarExtra` with a manual `NSStatusItem` + `NSPanel`
 /// approach to enable custom icon animations during URL resolution.
-@MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+@MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var panel: NSPanel!
     private var dashboardWindow: NSWindow?
@@ -34,9 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let container = try SharedStoreConfiguration.makeContainer()
             AppLogger.history.debug("SwiftData store: \(container.configurations.first?.url.path ?? "unknown")")
             return container
-        } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
-        }
+        } catch { fatalError("Failed to create ModelContainer: \(error)") }
     }()
 
     private(set) var mainContext: ModelContext!
@@ -51,12 +48,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let autoPostSettings = AutoPostSettings()
     /// The template each account posts with, set in Settings and in the Template Editor.
     let defaultTemplates = DefaultTemplates()
-    private(set) lazy var autoPoster: AutoPoster = AutoPoster(settings: autoPostSettings, defaultTemplates: defaultTemplates,
-                                                              accountStore: socialAccountStore, templateStore: templateStore)
+    private(set) lazy var autoPoster: AutoPoster = AutoPoster(
+        settings: autoPostSettings,
+        defaultTemplates: defaultTemplates,
+        accountStore: socialAccountStore,
+        templateStore: templateStore
+    )
 
-    deinit {
-        statusObservation?.cancel()
-    }
+    deinit { statusObservation?.cancel() }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -113,13 +112,9 @@ private extension AppDelegate {
     /// `Observations` yields the current value first and then every change,
     /// on the main actor, because its closure is formed there.
     func startObservingStatus() {
-        let isProcessingValues = Observations { [weak self] in
-            self?.monitor.status.isProcessing ?? false
-        }
+        let isProcessingValues = Observations { [weak self] in self?.monitor.status.isProcessing ?? false }
         statusObservation = Task { [weak self] in
-            for await isProcessing in isProcessingValues {
-                self?.iconHostingView.rootView = MenuBarIcon(isProcessing: isProcessing)
-            }
+            for await isProcessing in isProcessingValues { self?.iconHostingView.rootView = MenuBarIcon(isProcessing: isProcessing) }
         }
     }
 }
@@ -145,21 +140,12 @@ private extension AppDelegate {
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .utilityWindow
 
-        let rootView = MenuBarView()
-            .environment(\.modelContext, mainContext)
-            .environment(monitor)
-            .symbolRenderingMode(.hierarchical)
+        let rootView = MenuBarView().environment(\.modelContext, mainContext).environment(monitor).symbolRenderingMode(.hierarchical)
 
         panel.contentViewController = NSHostingController(rootView: rootView)
     }
 
-    @objc func togglePanel() {
-        if panel.isVisible {
-            closePanel()
-        } else {
-            openPanel()
-        }
-    }
+    @objc func togglePanel() { if panel.isVisible { closePanel() } else { openPanel() } }
 
     func openPanel() {
         guard let buttonFrame = statusItem.button?.window?.frame else { return }
@@ -185,9 +171,7 @@ private extension AppDelegate {
         panel.makeKeyAndOrderFront(nil)
         // A window's alpha only animates through its animator proxy, also
         // under a SwiftUI animation.
-        NSAnimationContext.animate(.easeOut(duration: 0.23)) {
-            panel.animator().alphaValue = 1
-        }
+        NSAnimationContext.animate(.easeOut(duration: 0.23)) { panel.animator().alphaValue = 1 }
     }
 
     func closePanel() {
@@ -205,10 +189,7 @@ private extension AppDelegate {
 extension AppDelegate {
     /// Opens the dashboard window, creating it if needed.
     func openDashboard() {
-        let rootView = DashboardView()
-            .environment(\.modelContext, mainContext)
-            .environment(historyManager)
-            .environment(monitor)
+        let rootView = DashboardView().environment(\.modelContext, mainContext).environment(historyManager).environment(monitor)
             .symbolRenderingMode(.hierarchical)
 
         dashboardWindow = showWindow(
@@ -229,17 +210,10 @@ extension AppDelegate {
     ///   The window reads its pane from `DefaultsKey.settingsPane`, so writing
     ///   it there also switches a window that is already open.
     func openSettings(showing pane: SettingsPane? = nil) {
-        if let pane {
-            UserDefaults.standard.set(pane.rawValue, forKey: DefaultsKey.settingsPane)
-        }
-        let rootView = SettingsView()
-            .environment(historyManager)
-            .environment(monitor)
-            .environment(templateStore)
-            .environment(socialAccountStore)
-            .environment(autoPostSettings)
-            .environment(defaultTemplates)
-            .symbolRenderingMode(.hierarchical)
+        if let pane { UserDefaults.standard.set(pane.rawValue, forKey: DefaultsKey.settingsPane) }
+        let rootView = SettingsView().environment(historyManager).environment(monitor).environment(templateStore).environment(
+            socialAccountStore
+        ).environment(autoPostSettings).environment(defaultTemplates).symbolRenderingMode(.hierarchical)
 
         // Per the HIG, a settings window has no minimize or zoom button: it
         // opens quickly again and sizes itself to its content. SwiftUI owns
@@ -264,15 +238,10 @@ extension AppDelegate {
     ///
     /// - Parameter templateID: The template to show, or `nil` to keep the current one.
     func openTemplateEditor(selecting templateID: PostTemplate.ID? = nil) {
-        if let templateID {
-            templateStore.editorSelectionID = templateID
-        }
-        let rootView = TemplateEditorView()
-            .environment(\.modelContext, mainContext)
-            .environment(templateStore)
-            .environment(socialAccountStore)
-            .environment(defaultTemplates)
-            .symbolRenderingMode(.hierarchical)
+        if let templateID { templateStore.editorSelectionID = templateID }
+        let rootView = TemplateEditorView().environment(\.modelContext, mainContext).environment(templateStore).environment(
+            socialAccountStore
+        ).environment(defaultTemplates).symbolRenderingMode(.hierarchical)
 
         templateEditorWindow = showWindow(
             &templateEditorWindow,
@@ -299,8 +268,7 @@ extension AppDelegate {
             accounts: SocialAccount.all(in: socialAccountStore),
             defaultTemplateIDs: defaultTemplates.templateIDs
         )
-        let rootView = PostComposerView(model: model)
-            .symbolRenderingMode(.hierarchical)
+        let rootView = PostComposerView(model: model).symbolRenderingMode(.hierarchical)
 
         composerWindow = showWindow(
             &composerWindow,
@@ -315,9 +283,7 @@ extension AppDelegate {
     }
 
     /// Closes the composer, after posting or when the user cancels.
-    func closeComposer() {
-        composerWindow?.close()
-    }
+    func closeComposer() { composerWindow?.close() }
 }
 
 // MARK: - Window Helpers
@@ -334,12 +300,7 @@ private extension AppDelegate {
         var bridgesToolbarAndTitle: Bool = false
     }
 
-    @discardableResult
-    func showWindow<Content: View>(
-        _ stored: inout NSWindow?,
-        rootView: Content,
-        config: WindowConfig
-    ) -> NSWindow {
+    @discardableResult func showWindow<Content: View>(_ stored: inout NSWindow?, rootView: Content, config: WindowConfig) -> NSWindow {
         if let window = stored {
             bringToFront(window)
             reassertKey(window)
@@ -357,22 +318,16 @@ private extension AppDelegate {
         window.titlebarAppearsTransparent = config.titlebarAppearsTransparent
         let isFixedSize = !config.styleMask.contains(.resizable)
         let hostingController = NSHostingController(rootView: rootView)
-        if config.bridgesToolbarAndTitle {
-            hostingController.sceneBridgingOptions = [.toolbars, .title]
-        }
+        if config.bridgesToolbarAndTitle { hostingController.sceneBridgingOptions = [.toolbars, .title] }
         // A fixed-size window keeps the size given here. By default the
         // hosting controller sizes the window to its content, which has no
         // size yet when it is installed, and the window shrinks to zero.
         // The saved position would then be restored onto an empty frame.
-        if isFixedSize {
-            hostingController.sizingOptions = []
-        }
+        if isFixedSize { hostingController.sizingOptions = [] }
         window.contentViewController = hostingController
         window.isReleasedWhenClosed = false
         window.delegate = self
-        if isFixedSize {
-            window.setContentSize(config.size)
-        }
+        if isFixedSize { window.setContentSize(config.size) }
 
         // A resizable window gets its saved frame back. A fixed-size window
         // only keeps its saved position, because a frame saved under an
@@ -410,11 +365,7 @@ private extension AppDelegate {
     /// LSUIElement apps can lose focus between panel close and window open.
     /// Asserting key status again after the current event has been handled
     /// keeps the window key across the entire desktop.
-    func reassertKey(_ window: NSWindow) {
-        Task { @MainActor in
-            bringToFront(window)
-        }
-    }
+    func reassertKey(_ window: NSWindow) { Task { @MainActor in bringToFront(window) } }
 }
 
 // MARK: - Window Lifecycle
@@ -444,15 +395,10 @@ private extension AppDelegate {
             guard let self, self.panel.isVisible else { return }
 
             // Ignore clicks on the status item button (togglePanel handles those)
-            if let buttonWindow = self.statusItem.button?.window,
-               buttonWindow == event.window {
-                return
-            }
+            if let buttonWindow = self.statusItem.button?.window, buttonWindow == event.window { return }
 
             // Ignore clicks inside the panel itself
-            if self.panel == event.window {
-                return
-            }
+            if self.panel == event.window { return }
 
             self.closePanel()
         }
@@ -465,7 +411,5 @@ private extension AppDelegate {
 ///
 /// Required for `.nonactivatingPanel` style panels to accept key status
 /// after being dismissed and reopened.
-private final class MenuBarPanel: NSPanel {
-    override var canBecomeKey: Bool { true }
-}
+private final class MenuBarPanel: NSPanel { override var canBecomeKey: Bool { true } }
 #endif

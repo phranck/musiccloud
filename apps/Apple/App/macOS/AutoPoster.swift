@@ -15,15 +15,14 @@ import Foundation
 /// calls it through `onNewEntry`. The text is built the way the composer
 /// builds it, from each account's default template, and an account whose
 /// text does not fit is left out and named in the notification.
-@MainActor
-final class AutoPoster {
+@MainActor final class AutoPoster {
     private let settings: AutoPostSettings
     private let defaultTemplates: DefaultTemplates
     private let accountStore: SocialAccountStore
     private let templateStore: PostTemplateStore
 
-    init(settings: AutoPostSettings, defaultTemplates: DefaultTemplates, accountStore: SocialAccountStore,
-         templateStore: PostTemplateStore) {
+    init(settings: AutoPostSettings, defaultTemplates: DefaultTemplates, accountStore: SocialAccountStore, templateStore: PostTemplateStore)
+    {
         self.settings = settings
         self.defaultTemplates = defaultTemplates
         self.accountStore = accountStore
@@ -33,9 +32,13 @@ final class AutoPoster {
     /// Posts `entry` where the settings say, then notifies once.
     func post(_ entry: MediaEntry) async {
         let context = PostContext(entry: entry)
-        let plan = AutoPostPlan.make(context: context, accounts: SocialAccount.all(in: accountStore),
-                                     templates: templateStore.allTemplates, settings: settings,
-                                     defaultTemplates: defaultTemplates)
+        let plan = AutoPostPlan.make(
+            context: context,
+            accounts: SocialAccount.all(in: accountStore),
+            templates: templateStore.allTemplates,
+            settings: settings,
+            defaultTemplates: defaultTemplates
+        )
         guard !plan.posts.isEmpty || !plan.skipped.isEmpty else { return }
 
         var posted: [SocialAccount] = []
@@ -51,18 +54,14 @@ final class AutoPoster {
         }
 
         var lines: [String] = []
-        if !posted.isEmpty {
-            lines.append(String(localized: "Posted to \(posted.map(\.handle).formatted(.list(type: .and)))."))
-        }
-        for (account, reason) in plan.skipped {
-            lines.append(reason.message(for: account.handle))
-        }
-        for (account, message) in failed {
-            lines.append(String(localized: "Posting to \(account.handle) failed: \(message)"))
-        }
-        await NotificationManager.notify(title: String(localized: "Automatic post: \(context.title)"),
-                                         body: lines.joined(separator: "\n"),
-                                         identifier: "auto-post-\(entry.id.uuidString)")
+        if !posted.isEmpty { lines.append(String(localized: "Posted to \(posted.map(\.handle).formatted(.list(type: .and))).")) }
+        for (account, reason) in plan.skipped { lines.append(reason.message(for: account.handle)) }
+        for (account, message) in failed { lines.append(String(localized: "Posting to \(account.handle) failed: \(message)")) }
+        await NotificationManager.notify(
+            title: String(localized: "Automatic post: \(context.title)"),
+            body: lines.joined(separator: "\n"),
+            identifier: "auto-post-\(entry.id.uuidString)"
+        )
     }
 }
 

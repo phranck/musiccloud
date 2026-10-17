@@ -30,24 +30,15 @@ struct CachedAsyncImage<Placeholder: View>: View {
     @State private var pointSize: CGFloat = 0
 
     var body: some View {
-        Group {
-            if let image {
-                Image(decorative: image, scale: displayScale)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                placeholder()
+        Group { if let image { Image(decorative: image, scale: displayScale).resizable().scaledToFill() } else { placeholder() } }
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                max(proxy.size.width, proxy.size.height)
+            } action: { newValue in
+                pointSize = newValue
+            }.task(id: cacheKey) {
+                guard pixelSize > 0 else { return }
+                image = await loadImage()
             }
-        }
-        .onGeometryChange(for: CGFloat.self) { proxy in
-            max(proxy.size.width, proxy.size.height)
-        } action: { newValue in
-            pointSize = newValue
-        }
-        .task(id: cacheKey) {
-            guard pixelSize > 0 else { return }
-            image = await loadImage()
-        }
     }
 }
 
@@ -68,9 +59,7 @@ private extension CachedAsyncImage {
         if let cached = ArtworkThumbnailCache.shared.image(forKey: key) { return cached }
 
         var data = entry.artworkImageData
-        if data == nil, let artworkUrl = entry.contentType.artworkUrl {
-            data = await MusicCloudAPI.downloadArtwork(from: artworkUrl)
-        }
+        if data == nil, let artworkUrl = entry.contentType.artworkUrl { data = await MusicCloudAPI.downloadArtwork(from: artworkUrl) }
         guard let data, !Task.isCancelled else { return nil }
 
         guard let thumbnail = await ArtworkThumbnailCache.thumbnail(from: data, maxPixelSize: pixelSize) else { return nil }
@@ -98,9 +87,7 @@ final class ArtworkThumbnailCache: @unchecked Sendable {
         return cache
     }()
 
-    func image(forKey key: String) -> CGImage? {
-        cache.object(forKey: key as NSString)
-    }
+    func image(forKey key: String) -> CGImage? { cache.object(forKey: key as NSString) }
 
     func store(_ image: CGImage, forKey key: String) {
         cache.setObject(image, forKey: key as NSString, cost: image.bytesPerRow * image.height)
@@ -116,14 +103,11 @@ final class ArtworkThumbnailCache: @unchecked Sendable {
     ///   - data: Encoded image data, such as JPEG or PNG.
     ///   - maxPixelSize: The longest edge of the result, in pixels.
     /// - Returns: The decoded thumbnail, or `nil` when the data is not an image.
-    @concurrent
-    static func thumbnail(from data: Data, maxPixelSize: Int) async -> CGImage? {
+    @concurrent static func thumbnail(from data: Data, maxPixelSize: Int) async -> CGImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true, kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
         ]
         return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }

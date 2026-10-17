@@ -33,11 +33,6 @@ struct MediaSection: View {
     var history: [MediaEntry]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(history) { entry in
-                MediaRow(entry: entry)
-            }
-        }
-        .padding(.vertical, 4)
+        VStack(alignment: .leading, spacing: 0) { ForEach(history) { entry in MediaRow(entry: entry) } }.padding(.vertical, 4)
     }
 }

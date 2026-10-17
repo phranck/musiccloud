@@ -77,9 +77,7 @@ actor TelemetryClient {
     }
 
     /// The events waiting to be sent, oldest first.
-    var queuedEvents: [TelemetryEvent] {
-        loadedQueue().map(\.event)
-    }
+    var queuedEvents: [TelemetryEvent] { loadedQueue().map(\.event) }
 
     // MARK: - Queue
 
@@ -109,8 +107,7 @@ actor TelemetryClient {
             case .delivered, .rejected:
                 pending?.removeAll { $0.id == queued.id }
                 persist()
-            case .retryLater:
-                return
+            case .retryLater: return
             }
         }
     }
@@ -170,9 +167,7 @@ actor TelemetryClient {
         var queue: [QueuedEvent] = []
         if let queueURL, let data = try? Data(contentsOf: queueURL) {
             for line in data.split(separator: 0x0A) {
-                if let queued = try? decoder.decode(QueuedEvent.self, from: Data(line)) {
-                    queue.append(queued)
-                }
+                if let queued = try? decoder.decode(QueuedEvent.self, from: Data(line)) { queue.append(queued) }
             }
         }
         let trimmedQueue = Self.trimmed(queue, now: Date())
@@ -199,10 +194,8 @@ actor TelemetryClient {
     /// `Application Support/musiccloud/telemetry-queue.jsonl`, created on demand.
     static func defaultQueueURL() -> URL? {
         let fileManager = FileManager.default
-        guard let base = try? fileManager.url(for: .applicationSupportDirectory,
-                                              in: .userDomainMask,
-                                              appropriateFor: nil,
-                                              create: true) else { return nil }
+        guard let base = try? fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        else { return nil }
         let directory = base.appending(path: "musiccloud", directoryHint: .isDirectory)
         try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory.appending(path: "telemetry-queue.jsonl")

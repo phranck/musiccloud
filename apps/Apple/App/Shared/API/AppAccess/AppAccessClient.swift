@@ -37,8 +37,8 @@ enum AppAccessClient {
         case "MC-AUTH-0006": .challengeRejected
         case "MC-AUTH-0007": .proofRejected
         case "MC-AUTH-0008": .keyUnknown
-        case "MC-REQ-0009":  .keyAlreadyAttested
-        default:             .unavailable
+        case "MC-REQ-0009": .keyAlreadyAttested
+        default: .unavailable
         }
     }
 }
@@ -57,20 +57,20 @@ extension AppAccessClient {
 
     /// `POST /api/app/attest` with the key id, the attestation object and the challenge it signs.
     static func attestRequest(base: URL, keyId: String, attestation: Data, challenge: String) throws -> URLRequest {
-        try jsonRequest(base: base, path: "api/app/attest", body: [
-            "keyId": keyId,
-            "attestation": attestation.base64EncodedString(),
-            "challenge": challenge,
-        ])
+        try jsonRequest(
+            base: base,
+            path: "api/app/attest",
+            body: ["keyId": keyId, "attestation": attestation.base64EncodedString(), "challenge": challenge]
+        )
     }
 
     /// `POST /api/app/session` with an assertion over a fresh challenge.
     static func sessionRequest(base: URL, keyId: String, assertion: Data, challenge: String) throws -> URLRequest {
-        try jsonRequest(base: base, path: "api/app/session", body: [
-            "keyId": keyId,
-            "assertion": assertion.base64EncodedString(),
-            "challenge": challenge,
-        ])
+        try jsonRequest(
+            base: base,
+            path: "api/app/session",
+            body: ["keyId": keyId, "assertion": assertion.base64EncodedString(), "challenge": challenge]
+        )
     }
 
     /// `POST /api/app/resolve` with the session token. The answer has the
@@ -94,30 +94,18 @@ extension AppAccessClient {
 // MARK: - Calls
 
 extension AppAccessClient {
-    private struct ChallengeResponse: Decodable {
-        let challenge: String
-    }
+    private struct ChallengeResponse: Decodable { let challenge: String }
 
     /// Fetches a one-time challenge, valid for five minutes.
-    @concurrent
-    static func fetchChallenge(base: URL) async throws(Failure) -> String {
+    @concurrent static func fetchChallenge(base: URL) async throws(Failure) -> String {
         let data = try await send(challengeRequest(base: base))
-        do {
-            return try JSONDecoder().decode(ChallengeResponse.self, from: data).challenge
-        } catch {
-            throw .unavailable
-        }
+        do { return try JSONDecoder().decode(ChallengeResponse.self, from: data).challenge } catch { throw .unavailable }
     }
 
     /// Sends a request whose answer is a session token.
-    @concurrent
-    static func fetchToken(_ request: URLRequest) async throws(Failure) -> AppSessionToken {
+    @concurrent static func fetchToken(_ request: URLRequest) async throws(Failure) -> AppSessionToken {
         let data = try await send(request)
-        do {
-            return try JSONDecoder.appSession.decode(SessionResponse.self, from: data).token
-        } catch {
-            throw .unavailable
-        }
+        do { return try JSONDecoder.appSession.decode(SessionResponse.self, from: data).token } catch { throw .unavailable }
     }
 
     private struct SessionResponse: Decodable {
@@ -138,9 +126,7 @@ extension AppAccessClient {
     static func send(_ request: URLRequest) async throws(Failure) -> Data {
         let data: Data
         let response: URLResponse
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
+        do { (data, response) = try await URLSession.shared.data(for: request) } catch {
             AppLogger.api.error("App access: transport failed: \(error.localizedDescription)")
             throw .unavailable
         }

@@ -13,8 +13,7 @@ import Foundation
 ///
 /// PKCE and a random `state` tie the returned code to this request, so a
 /// code from another sign-in is rejected.
-@MainActor
-final class MastodonConnector {
+@MainActor final class MastodonConnector {
     private let store: SocialAccountStore
     private let session: URLSession
     private let webSignIn = WebSignIn()
@@ -29,27 +28,32 @@ final class MastodonConnector {
     /// - Parameter instanceInput: A host, URL or handle; see ``MastodonAPI/instanceURL(from:)``.
     /// - Returns: The connected account.
     /// - Throws: ``SocialServiceError``, `CancellationError` when the user closes the sheet, or a network error.
-    @discardableResult
-    func connect(instanceInput: String) async throws -> MastodonAccount {
+    @discardableResult func connect(instanceInput: String) async throws -> MastodonAccount {
         guard let instance = MastodonAPI.instanceURL(from: instanceInput) else {
             throw SocialServiceError.invalidInput(String(localized: "Enter the address of a Mastodon server, such as mastodon.social."))
         }
         let app = try await appCredentials(for: instance)
         let verifier = OAuthSupport.makeCodeVerifier()
         let state = UUID().uuidString
-        let authorizeURL = MastodonAPI.authorizeURL(instance: instance, clientID: app.clientID, state: state,
-                                                    codeChallenge: OAuthSupport.codeChallenge(for: verifier))
+        let authorizeURL = MastodonAPI.authorizeURL(
+            instance: instance,
+            clientID: app.clientID,
+            state: state,
+            codeChallenge: OAuthSupport.codeChallenge(for: verifier)
+        )
         let callback = try await webSignIn.signIn(at: authorizeURL, callbackScheme: MastodonAPI.callbackScheme)
-        guard callback.queryValue("state") == state, let code = callback.queryValue("code") else {
-            throw SocialServiceError.missingCode
-        }
+        guard callback.queryValue("state") == state, let code = callback.queryValue("code") else { throw SocialServiceError.missingCode }
 
-        let token = try await session.decoded(MastodonTokenResponse.self,
-                                              for: MastodonAPI.tokenRequest(instance: instance, app: app, code: code, codeVerifier: verifier),
-                                              decoder: MastodonAPI.decoder).accessToken
-        let profile = try await session.decoded(MastodonCredentialAccount.self,
-                                                for: MastodonAPI.verifyCredentialsRequest(instance: instance, token: token),
-                                                decoder: MastodonAPI.decoder)
+        let token = try await session.decoded(
+            MastodonTokenResponse.self,
+            for: MastodonAPI.tokenRequest(instance: instance, app: app, code: code, codeVerifier: verifier),
+            decoder: MastodonAPI.decoder
+        ).accessToken
+        let profile = try await session.decoded(
+            MastodonCredentialAccount.self,
+            for: MastodonAPI.verifyCredentialsRequest(instance: instance, token: token),
+            decoder: MastodonAPI.decoder
+        )
         let server = await serverInfo(of: instance)
         let account = MastodonAccount(
             instance: instance,
@@ -73,9 +77,7 @@ final class MastodonConnector {
         var refreshed = account
         refreshed.characterLimit = description.characterLimit
         refreshed.supportsMarkdown = description.supportsMarkdown
-        if refreshed != account {
-            store.update(refreshed)
-        }
+        if refreshed != account { store.update(refreshed) }
         return refreshed
     }
 
@@ -83,9 +85,15 @@ final class MastodonConnector {
     func post(_ markdown: String, from account: MastodonAccount) async throws {
         guard let token = store.token(for: account) else { throw SocialServiceError.signedOut }
         let text = account.supportsMarkdown ? markdown : PostFormatter.mastodonPlainText(fromMarkdown: markdown)
-        _ = try await session.checkedData(for: MastodonAPI.postStatusRequest(
-            instance: account.instance, token: token, text: text,
-            markdown: account.supportsMarkdown, idempotencyKey: UUID().uuidString))
+        _ = try await session.checkedData(
+            for: MastodonAPI.postStatusRequest(
+                instance: account.instance,
+                token: token,
+                text: text,
+                markdown: account.supportsMarkdown,
+                idempotencyKey: UUID().uuidString
+            )
+        )
     }
 
     /// Revokes the account's token on its instance and removes the account.
@@ -96,9 +104,7 @@ final class MastodonConnector {
         if let token = store.token(for: account), let app = store.appCredentials(for: account.host) {
             do {
                 _ = try await session.checkedData(for: MastodonAPI.revokeRequest(instance: account.instance, app: app, token: token))
-            } catch {
-                AppLogger.api.error("Revoking the token of \(account.handle) failed: \(error.localizedDescription)")
-            }
+            } catch { AppLogger.api.error("Revoking the token of \(account.handle) failed: \(error.localizedDescription)") }
         }
         store.remove(account)
     }
@@ -112,9 +118,7 @@ private extension MastodonConnector {
     /// Decoded with a plain decoder; see ``MastodonAppCredentials``.
     func appCredentials(for instance: URL) async throws -> MastodonAppCredentials {
         let host = instance.host() ?? instance.absoluteString
-        if let stored = store.appCredentials(for: host) {
-            return stored
-        }
+        if let stored = store.appCredentials(for: host) { return stored }
         let credentials = try await session.decoded(MastodonAppCredentials.self, for: MastodonAPI.registerAppRequest(instance: instance))
         store.setAppCredentials(credentials, for: host)
         return credentials
@@ -127,8 +131,10 @@ private extension MastodonConnector {
     }
 
     func instanceDescription(of instance: URL) async throws -> MastodonInstanceDescription {
-        try await session.decoded(MastodonInstanceDescription.self,
-                                  for: MastodonAPI.instanceRequest(instance: instance),
-                                  decoder: MastodonAPI.decoder)
+        try await session.decoded(
+            MastodonInstanceDescription.self,
+            for: MastodonAPI.instanceRequest(instance: instance),
+            decoder: MastodonAPI.decoder
+        )
     }
 }

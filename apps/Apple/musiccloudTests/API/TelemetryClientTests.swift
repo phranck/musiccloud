@@ -36,9 +36,7 @@ struct TelemetryClientTests {
 
     @Test func queueKeepsOnlyTheNewestEvents() async {
         let telemetry = TelemetryClient(queueURL: nil)
-        for index in 0..<(TelemetryClient.maximumQueuedEvents + 20) {
-            await telemetry.enqueue(event(message: "event \(index)"))
-        }
+        for index in 0..<(TelemetryClient.maximumQueuedEvents + 20) { await telemetry.enqueue(event(message: "event \(index)")) }
         let queued = await telemetry.queuedEvents
         #expect(queued.count == TelemetryClient.maximumQueuedEvents)
         #expect(queued.last?.message == "event \(TelemetryClient.maximumQueuedEvents + 19)")
@@ -76,8 +74,9 @@ struct TelemetryClientTests {
     }
 
     @Test func eventsSurviveARelaunch() async throws {
-        let queueURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("musiccloud-tests-telemetry-\(UUID().uuidString).jsonl")
+        let queueURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "musiccloud-tests-telemetry-\(UUID().uuidString).jsonl"
+        )
         defer { try? FileManager.default.removeItem(at: queueURL) }
 
         await TelemetryClient(queueURL: queueURL).enqueue(event(message: "kept"))
@@ -103,7 +102,8 @@ private class StatusProtocol: URLProtocol {
 
     override func startLoading() {
         guard let url = request.url,
-              let response = HTTPURLResponse(url: url, statusCode: Self.statusCode, httpVersion: nil, headerFields: nil) else { return }
+            let response = HTTPURLResponse(url: url, statusCode: Self.statusCode, httpVersion: nil, headerFields: nil)
+        else { return }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data())
         client?.urlProtocolDidFinishLoading(self)
@@ -112,14 +112,8 @@ private class StatusProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
-private final class AcceptingProtocol: StatusProtocol {
-    override class var statusCode: Int { 201 }
-}
+private final class AcceptingProtocol: StatusProtocol { override class var statusCode: Int { 201 } }
 
-private final class RejectingProtocol: StatusProtocol {
-    override class var statusCode: Int { 400 }
-}
+private final class RejectingProtocol: StatusProtocol { override class var statusCode: Int { 400 } }
 
-private final class UnavailableProtocol: StatusProtocol {
-    override class var statusCode: Int { 503 }
-}
+private final class UnavailableProtocol: StatusProtocol { override class var statusCode: Int { 503 } }

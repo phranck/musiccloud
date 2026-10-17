@@ -14,8 +14,8 @@ enum MediaType: String, Codable {
     /// The SF Symbol that stands for this type everywhere in the app.
     var icon: String {
         switch self {
-        case .track:  "music.note"
-        case .album:  "square.stack"
+        case .track: "music.note"
+        case .album: "square.stack"
         case .artist: "person.circle"
         }
     }

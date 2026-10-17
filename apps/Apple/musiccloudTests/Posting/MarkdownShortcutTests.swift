@@ -71,8 +71,11 @@ struct MarkdownShortcutTests {
     }
 
     @Test func linkTakesAURLFromTheClipboardAndPutsTheCursorBehindIt() {
-        let edit = MarkdownShortcut.link.edit(in: "Listen", selection: NSRange(location: 0, length: 6),
-                                              clipboard: "  https://musiccloud.io/x\n")
+        let edit = MarkdownShortcut.link.edit(
+            in: "Listen",
+            selection: NSRange(location: 0, length: 6),
+            clipboard: "  https://musiccloud.io/x\n"
+        )
         #expect(edit.replacement == "[Listen](https://musiccloud.io/x)")
         #expect(edit.selection == NSRange(location: 33, length: 0))
     }

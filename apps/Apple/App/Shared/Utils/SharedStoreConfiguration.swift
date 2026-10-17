@@ -32,9 +32,7 @@ enum SharedStoreConfiguration {
     static let isHostingTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     static var modelConfiguration: ModelConfiguration {
-        if isHostingTests {
-            return ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-        }
+        if isHostingTests { return ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none) }
         return ModelConfiguration(
             "default",
             groupContainer: .identifier(appGroupIdentifier),
@@ -43,10 +41,6 @@ enum SharedStoreConfiguration {
     }
 
     static func makeContainer() throws -> ModelContainer {
-        try ModelContainer(
-            for: MediaEntry.self,
-            migrationPlan: MediaEntryMigrationPlan.self,
-            configurations: modelConfiguration
-        )
+        try ModelContainer(for: MediaEntry.self, migrationPlan: MediaEntryMigrationPlan.self, configurations: modelConfiguration)
     }
 }

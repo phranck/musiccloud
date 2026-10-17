@@ -53,8 +53,7 @@ enum TemplateCompletion {
 
     /// Every placeholder for the editor: the variables, then one per service link.
     static func tokens(serviceLinks: [ServiceLink]) -> [String] {
-        PostVariable.allCases.map(\.token)
-            + serviceLinks.map { "{\($0.service)\(PostTemplateRenderer.serviceLinkSuffix)}" }
+        PostVariable.allCases.map(\.token) + serviceLinks.map { "{\($0.service)\(PostTemplateRenderer.serviceLinkSuffix)}" }
     }
 }
 
@@ -65,12 +64,10 @@ private extension TemplateCompletion {
     /// Lowercase ASCII letters, digits and the underscore, as in `{song_name}`.
     static func isNameCharacter(_ character: unichar) -> Bool {
         switch character {
-        case unichar(UInt8(ascii: "a"))...unichar(UInt8(ascii: "z")),
-             unichar(UInt8(ascii: "0"))...unichar(UInt8(ascii: "9")),
-             unichar(UInt8(ascii: "_")):
+        case unichar(UInt8(ascii: "a"))...unichar(UInt8(ascii: "z")), unichar(UInt8(ascii: "0"))...unichar(UInt8(ascii: "9")),
+            unichar(UInt8(ascii: "_")):
             true
-        default:
-            false
+        default: false
         }
     }
 }

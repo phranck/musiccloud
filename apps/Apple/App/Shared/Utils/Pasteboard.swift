@@ -19,8 +19,7 @@ typealias SystemPasteboard = UIPasteboard
 /// Extension treat the clipboard alike. On macOS a write clears the
 /// pasteboard first, which drops every other representation the previous
 /// content had.
-@MainActor
-enum Pasteboard {
+@MainActor enum Pasteboard {
     /// Metadata observed on a Universal Clipboard item received from another device.
     private static let remoteOriginType = "com.apple.is-remote-clipboard"
 

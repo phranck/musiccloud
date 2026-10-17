@@ -42,9 +42,7 @@ enum MastodonAPI {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(idempotencyKey, forHTTPHeaderField: "Idempotency-Key")
         var body = ["status": text]
-        if markdown {
-            body["content_type"] = markdownContentType
-        }
+        if markdown { body["content_type"] = markdownContentType }
         request.httpBody = try? JSONEncoder().encode(body)
         return request
     }
@@ -57,14 +55,10 @@ enum MastodonAPI {
     /// - Returns: `https://<host>` with the host in lowercase, or `nil` when no host can be read.
     static func instanceURL(from input: String) -> URL? {
         var text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !text.contains("://"), let atSign = text.lastIndex(of: "@") {
-            text = String(text[text.index(after: atSign)...])
-        }
-        if !text.contains("://") {
-            text = "https://" + text
-        }
-        guard let host = URLComponents(string: text)?.host?.lowercased(),
-              host.contains("."), !host.hasPrefix("."), !host.hasSuffix(".") else { return nil }
+        if !text.contains("://"), let atSign = text.lastIndex(of: "@") { text = String(text[text.index(after: atSign)...]) }
+        if !text.contains("://") { text = "https://" + text }
+        guard let host = URLComponents(string: text)?.host?.lowercased(), host.contains("."), !host.hasPrefix("."), !host.hasSuffix(".")
+        else { return nil }
         return URL(string: "https://\(host)")
     }
 
@@ -74,10 +68,7 @@ enum MastodonAPI {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONEncoder().encode([
-            "client_name": clientName,
-            "redirect_uris": redirectURI,
-            "scopes": scopes,
-            "website": website,
+            "client_name": clientName, "redirect_uris": redirectURI, "scopes": scopes, "website": website,
         ])
         return request
     }
@@ -89,37 +80,31 @@ enum MastodonAPI {
     static func authorizeURL(instance: URL, clientID: String, state: String, codeChallenge: String) -> URL {
         var components = URLComponents(url: instance.appending(path: "oauth/authorize"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "client_id", value: clientID),
-            URLQueryItem(name: "redirect_uri", value: redirectURI),
-            URLQueryItem(name: "scope", value: scopes),
-            URLQueryItem(name: "state", value: state),
-            URLQueryItem(name: "code_challenge", value: codeChallenge),
-            URLQueryItem(name: "code_challenge_method", value: "S256"),
-            URLQueryItem(name: "force_login", value: "true"),
+            URLQueryItem(name: "response_type", value: "code"), URLQueryItem(name: "client_id", value: clientID),
+            URLQueryItem(name: "redirect_uri", value: redirectURI), URLQueryItem(name: "scope", value: scopes),
+            URLQueryItem(name: "state", value: state), URLQueryItem(name: "code_challenge", value: codeChallenge),
+            URLQueryItem(name: "code_challenge_method", value: "S256"), URLQueryItem(name: "force_login", value: "true"),
         ]
         return components?.url ?? instance
     }
 
     /// Exchanges the authorization `code` for an access token.
     static func tokenRequest(instance: URL, app: MastodonAppCredentials, code: String, codeVerifier: String) -> URLRequest {
-        OAuthSupport.formRequest(instance.appending(path: "oauth/token"), [
-            ("grant_type", "authorization_code"),
-            ("code", code),
-            ("client_id", app.clientID),
-            ("client_secret", app.clientSecret),
-            ("redirect_uri", redirectURI),
-            ("code_verifier", codeVerifier),
-        ])
+        OAuthSupport.formRequest(
+            instance.appending(path: "oauth/token"),
+            [
+                ("grant_type", "authorization_code"), ("code", code), ("client_id", app.clientID), ("client_secret", app.clientSecret),
+                ("redirect_uri", redirectURI), ("code_verifier", codeVerifier),
+            ]
+        )
     }
 
     /// Makes `token` invalid on `instance`, which is what disconnecting an account does there.
     static func revokeRequest(instance: URL, app: MastodonAppCredentials, token: String) -> URLRequest {
-        OAuthSupport.formRequest(instance.appending(path: "oauth/revoke"), [
-            ("client_id", app.clientID),
-            ("client_secret", app.clientSecret),
-            ("token", token),
-        ])
+        OAuthSupport.formRequest(
+            instance.appending(path: "oauth/revoke"),
+            [("client_id", app.clientID), ("client_secret", app.clientSecret), ("token", token)]
+        )
     }
 
     /// The account `token` belongs to.
@@ -130,9 +115,7 @@ enum MastodonAPI {
     }
 
     /// The instance's public description, which holds its character limit.
-    static func instanceRequest(instance: URL) -> URLRequest {
-        URLRequest(url: instance.appending(path: "api/v2/instance"))
-    }
+    static func instanceRequest(instance: URL) -> URLRequest { URLRequest(url: instance.appending(path: "api/v2/instance")) }
 
     /// The decoder for every Mastodon answer, whose keys are in snake case.
     static var decoder: JSONDecoder {
@@ -161,9 +144,7 @@ struct MastodonAppCredentials: Codable, Equatable, Sendable {
 }
 
 /// The part of `POST /oauth/token`'s answer musiccloud keeps.
-struct MastodonTokenResponse: Decodable {
-    let accessToken: String
-}
+struct MastodonTokenResponse: Decodable { let accessToken: String }
 
 /// The part of the Account entity shown in Settings.
 struct MastodonCredentialAccount: Decodable {
@@ -189,7 +170,5 @@ struct MastodonInstanceDescription: Decodable {
     var characterLimit: Int { configuration?.statuses?.maxCharacters ?? MastodonAPI.defaultCharacterLimit }
 
     /// Whether the instance renders Markdown in posts.
-    var supportsMarkdown: Bool {
-        configuration?.statuses?.supportedMimeTypes?.contains(MastodonAPI.markdownContentType) ?? false
-    }
+    var supportsMarkdown: Bool { configuration?.statuses?.supportedMimeTypes?.contains(MastodonAPI.markdownContentType) ?? false }
 }

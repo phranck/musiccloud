@@ -19,9 +19,7 @@ import SwiftUI
 /// composer, automatic posting, the Settings rows and the Template Editor
 /// read the same entries, so a default set in one place shows in all of them.
 /// The entries are kept as JSON under ``DefaultsKey/defaultTemplates``.
-@MainActor
-@Observable
-final class DefaultTemplates {
+@MainActor @Observable final class DefaultTemplates {
     /// The chosen template per account. An account missing here, or naming
     /// a deleted template, falls back to its service's system template.
     private(set) var templateIDs: [SocialAccount.ID: PostTemplate.ID]
@@ -60,16 +58,12 @@ final class DefaultTemplates {
         save()
     }
 
-    private func save() {
-        defaults.set(try? JSONEncoder().encode(templateIDs), forKey: DefaultsKey.defaultTemplates)
-    }
+    private func save() { defaults.set(try? JSONEncoder().encode(templateIDs), forKey: DefaultsKey.defaultTemplates) }
 
     /// The shape automatic posting stored before the default template moved
     /// here: each rule named its own template.
     private struct LegacyAutoPost: Decodable {
-        struct Rule: Decodable {
-            var templateID: PostTemplate.ID?
-        }
+        struct Rule: Decodable { var templateID: PostTemplate.ID? }
 
         var rules: [SocialAccount.ID: Rule]
     }
@@ -77,7 +71,8 @@ final class DefaultTemplates {
     /// The templates the old automatic posting rules in `defaults` chose, per account.
     private static func legacyAutoPostTemplateIDs(in defaults: UserDefaults) -> [SocialAccount.ID: PostTemplate.ID] {
         guard let data = defaults.data(forKey: DefaultsKey.autoPost),
-              let legacy = try? JSONDecoder().decode(LegacyAutoPost.self, from: data) else { return [:] }
+            let legacy = try? JSONDecoder().decode(LegacyAutoPost.self, from: data)
+        else { return [:] }
         return legacy.rules.compactMapValues(\.templateID)
     }
 }
@@ -90,22 +85,16 @@ final class DefaultTemplates {
 ///
 /// The settings are per account, because several accounts of one service
 /// can be connected. They are kept as JSON under ``DefaultsKey/autoPost``.
-@MainActor
-@Observable
-final class AutoPostSettings {
+@MainActor @Observable final class AutoPostSettings {
     /// One account's part in automatic posting.
     ///
     /// Rules stored by an earlier version also name a template. Decoding
     /// skips that field, and ``DefaultTemplates`` takes it over as the
     /// account's default.
-    struct AccountRule: Codable, Equatable, Sendable {
-        var isEnabled = false
-    }
+    struct AccountRule: Codable, Equatable, Sendable { var isEnabled = false }
 
     /// The master switch. Off, nothing is posted automatically, whatever the accounts say.
-    var isEnabled: Bool {
-        didSet { save() }
-    }
+    var isEnabled: Bool { didSet { save() } }
 
     private(set) var rules: [SocialAccount.ID: AccountRule]
 
@@ -125,9 +114,7 @@ final class AutoPostSettings {
     }
 
     /// The rule of the account with `id`, off when it has none yet.
-    func rule(for id: SocialAccount.ID) -> AccountRule {
-        rules[id] ?? AccountRule()
-    }
+    func rule(for id: SocialAccount.ID) -> AccountRule { rules[id] ?? AccountRule() }
 
     func setRule(_ rule: AccountRule, for id: SocialAccount.ID) {
         rules[id] = rule
@@ -190,9 +177,13 @@ struct AutoPostPlan: Equatable {
     /// Nothing is planned while the master switch is off. An account that is
     /// switched off is neither posted to nor reported as skipped, because the
     /// user did not ask for it.
-    @MainActor
-    static func make(context: PostContext, accounts: [SocialAccount], templates: [PostTemplate],
-                     settings: AutoPostSettings, defaultTemplates: DefaultTemplates) -> AutoPostPlan {
+    @MainActor static func make(
+        context: PostContext,
+        accounts: [SocialAccount],
+        templates: [PostTemplate],
+        settings: AutoPostSettings,
+        defaultTemplates: DefaultTemplates
+    ) -> AutoPostPlan {
         var plan = AutoPostPlan()
         guard settings.isEnabled else { return plan }
         for account in accounts {
@@ -220,12 +211,10 @@ extension AutoPostPlan.Skip {
     /// whole sentence, so every language can order it as it needs.
     func message(for handle: String) -> String {
         switch self {
-        case .missingTemplate:
-            String(localized: "Not posted to \(handle), because its template no longer exists.")
+        case .missingTemplate: String(localized: "Not posted to \(handle), because its template no longer exists.")
         case .tooLong(let length, let limit):
             String(localized: "Not posted to \(handle), because the text has \(length) of \(limit) characters.")
-        case .empty:
-            String(localized: "Not posted to \(handle), because the template gives no text for this entry.")
+        case .empty: String(localized: "Not posted to \(handle), because the template gives no text for this entry.")
         }
     }
 }

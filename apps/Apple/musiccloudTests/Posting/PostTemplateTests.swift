@@ -6,18 +6,28 @@ import Testing
 
 struct PostTemplateRendererTests {
     private let track = PostContext(
-        track: TrackInfo(title: "MoonDial", artists: ["Pat Metheny"], albumName: "MoonDial", durationMs: 383_000, releaseDate: "2024-07-26"),
+        track: TrackInfo(
+            title: "MoonDial",
+            artists: ["Pat Metheny"],
+            albumName: "MoonDial",
+            durationMs: 383_000,
+            releaseDate: "2024-07-26"
+        ),
         album: nil,
         artist: nil,
         shareURL: "https://musiccloud.io/3CCvY3vW",
         originalURL: "https://open.spotify.com/track/3sn5gqosgrs0y1ljACKUCt",
-        serviceLinks: [ServiceLink(service: "spotify", displayName: "Spotify", url: "https://open.spotify.com/track/3sn5gqosgrs0y1ljACKUCt")]
+        serviceLinks: [
+            ServiceLink(service: "spotify", displayName: "Spotify", url: "https://open.spotify.com/track/3sn5gqosgrs0y1ljACKUCt")
+        ]
     )
 
     @Test func variablesAreFilled() {
         let body = "Now playing: {song_name} by {artist} ({release_year}, {duration})\n{share_url}"
-        #expect(PostTemplateRenderer.render(body, with: track)
-            == "Now playing: MoonDial by Pat Metheny (2024, 6:23)\nhttps://musiccloud.io/3CCvY3vW")
+        #expect(
+            PostTemplateRenderer.render(body, with: track)
+                == "Now playing: MoonDial by Pat Metheny (2024, 6:23)\nhttps://musiccloud.io/3CCvY3vW"
+        )
     }
 
     @Test func serviceLinksResolveFromTheEntry() {
@@ -52,8 +62,10 @@ struct PostTemplateRendererTests {
             originalURL: "",
             serviceLinks: []
         )
-        #expect(PostTemplateRenderer.render("{album_name} by {artist}, {track_count} tracks, {release_year}", with: album)
-            == "Night Drive by A, B, 11 tracks, 2023")
+        #expect(
+            PostTemplateRenderer.render("{album_name} by {artist}, {track_count} tracks, {release_year}", with: album)
+                == "Night Drive by A, B, 11 tracks, 2023"
+        )
     }
 }
 
@@ -80,8 +92,7 @@ struct SystemTemplateTests {
 
 // MARK: - PostTemplateStoreTests
 
-@MainActor
-struct PostTemplateStoreTests {
+@MainActor struct PostTemplateStoreTests {
     /// A file in a folder whose name has a space, like "Application Support",
     /// so a path that is percent-encoded by mistake fails here as it does there.
     private func temporaryFile() -> URL {
@@ -147,12 +158,12 @@ struct PostTemplateStoreTests {
     /// added, load without an icon instead of failing the whole file.
     @Test func templatesWithoutOrWithUnknownIconsLoad() throws {
         let json = #"""
-        [
-          {"id":"6C1E5C32-6F5B-4D7B-9C4E-1A2B3C4D5E6F","name":"Old","body":"{song_name}"},
-          {"id":"7D2F6D43-7A6C-4E8C-AD5F-2B3C4D5E6F70","name":"Future","body":"x","icon":"threads"},
-          {"id":"8E307E54-8B7D-4F9D-BE60-3C4D5E6F7081","name":"Toot","body":"y","icon":"mastodon"}
-        ]
-        """#
+            [
+              {"id":"6C1E5C32-6F5B-4D7B-9C4E-1A2B3C4D5E6F","name":"Old","body":"{song_name}"},
+              {"id":"7D2F6D43-7A6C-4E8C-AD5F-2B3C4D5E6F70","name":"Future","body":"x","icon":"threads"},
+              {"id":"8E307E54-8B7D-4F9D-BE60-3C4D5E6F7081","name":"Toot","body":"y","icon":"mastodon"}
+            ]
+            """#
         let templates = try JSONDecoder().decode([PostTemplate].self, from: Data(json.utf8))
         #expect(templates.map(\.icon) == [nil, nil, .mastodon])
     }

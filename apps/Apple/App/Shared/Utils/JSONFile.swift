@@ -29,9 +29,7 @@ final class JSONFile<Value: Codable> {
     func load() -> Value? {
         // A file system path, not a URL path: "Application Support" must keep its space.
         guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else { return nil }
-        do {
-            return try JSONDecoder().decode(Value.self, from: Data(contentsOf: url))
-        } catch {
+        do { return try JSONDecoder().decode(Value.self, from: Data(contentsOf: url)) } catch {
             isUnreadable = true
             AppLogger.ui.error("\(self.label) could not be read: \(error.localizedDescription)")
             return nil
@@ -45,9 +43,7 @@ final class JSONFile<Value: Codable> {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(value).write(to: url, options: .atomic)
-        } catch {
-            AppLogger.ui.error("\(self.label) could not be saved: \(error.localizedDescription)")
-        }
+        } catch { AppLogger.ui.error("\(self.label) could not be saved: \(error.localizedDescription)") }
     }
 }
 
@@ -56,15 +52,13 @@ extension URL {
     /// Application Support cannot be found.
     static func applicationSupportFolder() -> URL? {
         let fileManager = FileManager.default
-        guard let base = try? fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask,
-                                              appropriateFor: nil, create: true) else { return nil }
+        guard let base = try? fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        else { return nil }
         let directory = base.appending(path: "musiccloud", directoryHint: .isDirectory)
         try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
 
     /// `Application Support/musiccloud/<name>`; see ``applicationSupportFolder()``.
-    static func applicationSupportFile(named name: String) -> URL? {
-        applicationSupportFolder()?.appending(path: name)
-    }
+    static func applicationSupportFile(named name: String) -> URL? { applicationSupportFolder()?.appending(path: name) }
 }

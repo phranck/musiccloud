@@ -13,9 +13,7 @@ extension View {
     ///   - filter: The filter that switches to the converted type.
     func followsConversions(of monitor: ClipboardMonitor, filter: Binding<MediaFilter>) -> some View {
         onChange(of: monitor.status) {
-            if case .success(_, let mediaType) = monitor.status {
-                filter.wrappedValue = MediaFilter(for: mediaType)
-            }
+            if case .success(_, let mediaType) = monitor.status { filter.wrappedValue = MediaFilter(for: mediaType) }
         }
     }
 }

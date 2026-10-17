@@ -18,12 +18,9 @@ struct MediaItem: View {
     var body: some View {
         Group {
             switch entry.contentType {
-            case .track(let info):
-                TrackItem(track: info, entry: entry)
-            case .album(let info):
-                AlbumItem(album: info, entry: entry)
-            case .artist(let info):
-                ArtistItem(artist: info, entry: entry)
+            case .track(let info): TrackItem(track: info, entry: entry)
+            case .album(let info): AlbumItem(album: info, entry: entry)
+            case .artist(let info): ArtistItem(artist: info, entry: entry)
             }
         }
     }

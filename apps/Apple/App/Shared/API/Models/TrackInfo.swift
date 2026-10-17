@@ -18,9 +18,7 @@ struct TrackInfo: Codable, Equatable {
 // MARK: - Public API
 
 extension TrackInfo {
-    var artistsString: String {
-        artists.joined(separator: ", ")
-    }
+    var artistsString: String { artists.joined(separator: ", ") }
 
     var formattedDuration: String? {
         guard let millis = durationMs else { return nil }

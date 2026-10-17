@@ -9,18 +9,14 @@ import SwiftData
 /// All queries are handled by SwiftData's `@Query` in the views.
 /// This class only manages mutations (add, remove, clear) and
 /// lookup operations needed by ``ClipboardMonitor``.
-@Observable
-@MainActor
-final class HistoryManager {
+@Observable @MainActor final class HistoryManager {
     private let logger = Logger(subsystem: "io.musiccloud.app", category: "HistoryManager")
     private let modelContext: ModelContext
 
     /// Creates a new history manager.
     ///
     /// - Parameter modelContext: The SwiftData model context for persistence
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
-    }
+    init(modelContext: ModelContext) { self.modelContext = modelContext }
 
     /// Adds a new conversion entry to the history.
     ///
@@ -46,18 +42,14 @@ final class HistoryManager {
             try modelContext.delete(model: MediaEntry.self)
             save()
             logger.debug("Cleared all entries")
-        } catch {
-            logger.error("Failed to clear entries: \(error.localizedDescription)")
-        }
+        } catch { logger.error("Failed to clear entries: \(error.localizedDescription)") }
     }
 
     /// Finds an existing entry by its original URL.
     ///
     /// Used for duplicate detection in the clipboard monitor.
     func entry(forOriginalUrl url: String) -> MediaEntry? {
-        let descriptor = FetchDescriptor<MediaEntry>(
-            predicate: #Predicate { $0.originalUrl == url }
-        )
+        let descriptor = FetchDescriptor<MediaEntry>(predicate: #Predicate { $0.originalUrl == url })
         return try? modelContext.fetch(descriptor).first
     }
 
@@ -67,9 +59,7 @@ final class HistoryManager {
     /// names the converted entry by this link, so the iOS conversion sheet
     /// finds the entry to show through it.
     func entry(forShortUrl shortUrl: String) -> MediaEntry? {
-        let descriptor = FetchDescriptor<MediaEntry>(
-            predicate: #Predicate { $0.shortUrl == shortUrl }
-        )
+        let descriptor = FetchDescriptor<MediaEntry>(predicate: #Predicate { $0.shortUrl == shortUrl })
         return try? modelContext.fetch(descriptor).first
     }
 }
@@ -78,11 +68,5 @@ final class HistoryManager {
 
 private extension HistoryManager {
     /// Saves the model context, logging any errors.
-    func save() {
-        do {
-            try modelContext.save()
-        } catch {
-            logger.error("Save failed: \(error)")
-        }
-    }
+    func save() { do { try modelContext.save() } catch { logger.error("Save failed: \(error)") } }
 }

@@ -32,8 +32,7 @@ struct TemplateEditorView: View {
                 onAdd: addTemplate,
                 onDelete: deleteSelected,
                 onDuplicate: { selectedID = store.duplicate($0).id }
-            )
-                .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 300)
+            ).navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 300)
         } detail: {
             if let template = selectedTemplate {
                 TemplateDetailView(
@@ -41,8 +40,7 @@ struct TemplateEditorView: View {
                     isReadOnly: store.isSystem(template.id),
                     onChange: store.update,
                     onDuplicate: { selectedID = store.duplicate(template).id }
-                )
-                .id(template.id)
+                ).id(template.id)
             } else {
                 ContentUnavailableView {
                     Label(String(localized: "No Templates"), systemImage: "text.bubble")
@@ -56,20 +54,16 @@ struct TemplateEditorView: View {
         // On the split view rather than in its detail column, so the legend
         // takes its width from the window's trailing edge and the template
         // sidebar keeps its own.
-        .inspector(isPresented: $showsLegend) {
-            VariableLegend()
-                .inspectorColumnWidth(min: 200, ideal: 240, max: 320)
-        }
-        .toolbar {
+        .inspector(isPresented: $showsLegend) { VariableLegend().inspectorColumnWidth(min: 200, ideal: 240, max: 320) }.toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button(String(localized: "Variables"), systemImage: "sidebar.trailing") {
-                    showsLegend.toggle()
-                }
-                .help(String(localized: "Show or hide the variable legend"))
+                Button(String(localized: "Variables"), systemImage: "sidebar.trailing") { showsLegend.toggle() }.help(
+                    String(localized: "Show or hide the variable legend")
+                )
             }
-        }
-        .navigationTitle(selectedTemplate?.name ?? String(localized: "Templates"))
-        .frame(minWidth: Self.minimumSize.width, minHeight: Self.minimumSize.height)
+        }.navigationTitle(selectedTemplate?.name ?? String(localized: "Templates")).frame(
+            minWidth: Self.minimumSize.width,
+            minHeight: Self.minimumSize.height
+        )
     }
 
     /// The smallest the window may become, so sidebar, editor, preview and legend keep their room.
@@ -80,21 +74,12 @@ struct TemplateEditorView: View {
 }
 
 private extension TemplateEditorView {
-    var selectedTemplate: PostTemplate? {
-        store.allTemplates.first { $0.id == selectedID } ?? store.allTemplates.first
-    }
+    var selectedTemplate: PostTemplate? { store.allTemplates.first { $0.id == selectedID } ?? store.allTemplates.first }
 
     /// The list shows the first template as selected until another is chosen.
-    var selectionBinding: Binding<PostTemplate.ID?> {
-        Binding(
-            get: { selectedTemplate?.id },
-            set: { if let id = $0 { selectedID = id } }
-        )
-    }
+    var selectionBinding: Binding<PostTemplate.ID?> { Binding(get: { selectedTemplate?.id }, set: { if let id = $0 { selectedID = id } }) }
 
-    func addTemplate() {
-        selectedID = store.add(name: String(localized: "New Template")).id
-    }
+    func addTemplate() { selectedID = store.add(name: String(localized: "New Template")).id }
 
     /// Deletes the selected template unless it ships with the app.
     func deleteSelected() {
@@ -125,33 +110,22 @@ private struct TemplateList: View {
         List(selection: $selectedID) {
             if !store.systemTemplates.isEmpty {
                 Section(String(localized: "System Templates")) {
-                    ForEach(store.systemTemplates) { template in
-                        row(template, isSystem: true)
-                    }
+                    ForEach(store.systemTemplates) { template in row(template, isSystem: true) }
                 }
             }
-            Section(String(localized: "My Templates")) {
-                ForEach(store.templates) { template in
-                    row(template, isSystem: false)
-                }
-            }
-        }
-        .listStyle(.sidebar)
-        .onDeleteCommand(perform: onDelete)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Section(String(localized: "My Templates")) { ForEach(store.templates) { template in row(template, isSystem: false) } }
+        }.listStyle(.sidebar).onDeleteCommand(perform: onDelete).safeAreaInset(edge: .bottom, spacing: 0) {
             HStack {
                 // One control group, so add and delete have the same size
                 // whatever the height of their symbols.
                 ControlGroup {
                     Button(String(localized: "Add Template"), systemImage: "plus", action: onAdd)
-                    Button(String(localized: "Delete Template"), systemImage: "minus", action: onDelete)
-                        .disabled(selectedID.map(store.isSystem) ?? true)
-                }
-                .labelStyle(.iconOnly)
-                .fixedSize()
+                    Button(String(localized: "Delete Template"), systemImage: "minus", action: onDelete).disabled(
+                        selectedID.map(store.isSystem) ?? true
+                    )
+                }.labelStyle(.iconOnly).fixedSize()
                 Spacer()
-            }
-            .padding(10)
+            }.padding(10)
         }
     }
 
@@ -160,13 +134,10 @@ private struct TemplateList: View {
             PostTemplateLabel(template: template, isSystem: isSystem)
             Spacer(minLength: 4)
             DefaultTemplateSeal(template: template, isMenu: false)
-        }
-        .tag(template.id)
-        .contextMenu {
-            Menu(String(localized: "Use as Default for")) {
-                DefaultTemplateAccountToggles(template: template)
-            }
-            .disabled(SocialAccount.all(in: accountStore).isEmpty)
+        }.tag(template.id).contextMenu {
+            Menu(String(localized: "Use as Default for")) { DefaultTemplateAccountToggles(template: template) }.disabled(
+                SocialAccount.all(in: accountStore).isEmpty
+            )
             Button(String(localized: "Duplicate")) { onDuplicate(template) }
         }
     }
@@ -175,27 +146,36 @@ private struct TemplateList: View {
 #Preview {
     let store = PostTemplateStore(
         fileURL: nil,
-        systemTemplates: [PostTemplate(name: "Now playing", body: "Now playing: **{song_name}** by {artist}\n{track_count}\n{share_url}\n\n#nowplaying")]
+        systemTemplates: [
+            PostTemplate(name: "Now playing", body: "Now playing: **{song_name}** by {artist}\n{track_count}\n{share_url}\n\n#nowplaying")
+        ]
     )
     store.add(name: "Album tip", body: "Album tip: {album_name} by {artist} ({release_year})\n{share_url}")
     // swiftlint:disable:next force_try
     let container = try! ModelContainer(for: MediaEntry.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    container.mainContext.insert(MediaEntry(
-        originalUrl: "https://open.spotify.com/track/3sn5gqosgrs0y1ljACKUCt",
-        shortUrl: "https://musiccloud.io/3CCvY3vW",
-        mediaType: .track,
-        artworkImageData: nil,
-        track: TrackInfo(title: "MoonDial", artists: ["Pat Metheny"], albumName: "MoonDial", durationMs: 383_000, releaseDate: "2024-07-26"),
-        album: nil,
-        artist: nil,
-        serviceLinks: [ServiceLink(service: "spotify", displayName: "Spotify", url: "https://open.spotify.com/track/3sn5gqosgrs0y1ljACKUCt")]
-    ))
-    return TemplateEditorView()
-        .environment(store)
-        .environment(SocialAccountStore(directory: nil, keychain: nil))
-        .environment(DefaultTemplates(defaults: UserDefaults(suiteName: "TemplateEditorPreview") ?? .standard))
-        .modelContainer(container)
-        .frame(width: TemplateEditorView.initialSize.width, height: TemplateEditorView.initialSize.height)
+    container.mainContext.insert(
+        MediaEntry(
+            originalUrl: "https://open.spotify.com/track/3sn5gqosgrs0y1ljACKUCt",
+            shortUrl: "https://musiccloud.io/3CCvY3vW",
+            mediaType: .track,
+            artworkImageData: nil,
+            track: TrackInfo(
+                title: "MoonDial",
+                artists: ["Pat Metheny"],
+                albumName: "MoonDial",
+                durationMs: 383_000,
+                releaseDate: "2024-07-26"
+            ),
+            album: nil,
+            artist: nil,
+            serviceLinks: [
+                ServiceLink(service: "spotify", displayName: "Spotify", url: "https://open.spotify.com/track/3sn5gqosgrs0y1ljACKUCt")
+            ]
+        )
+    )
+    return TemplateEditorView().environment(store).environment(SocialAccountStore(directory: nil, keychain: nil)).environment(
+        DefaultTemplates(defaults: UserDefaults(suiteName: "TemplateEditorPreview") ?? .standard)
+    ).modelContainer(container).frame(width: TemplateEditorView.initialSize.width, height: TemplateEditorView.initialSize.height)
 }
 
 #endif

@@ -6,23 +6,56 @@ import Testing
 
 // MARK: - AutoPostTests
 
-@MainActor
-struct AutoPostTests {
+@MainActor struct AutoPostTests {
     private let context = PostContext(
-        track: TrackInfo(title: "MoonDial", artists: ["Pat Metheny"], albumName: "MoonDial", durationMs: 383_000, releaseDate: "2024-07-26"),
-        album: nil, artist: nil, shareURL: "https://musiccloud.io/x", originalURL: "", serviceLinks: [])
+        track: TrackInfo(
+            title: "MoonDial",
+            artists: ["Pat Metheny"],
+            albumName: "MoonDial",
+            durationMs: 383_000,
+            releaseDate: "2024-07-26"
+        ),
+        album: nil,
+        artist: nil,
+        shareURL: "https://musiccloud.io/x",
+        originalURL: "",
+        serviceLinks: []
+    )
 
     private let short = PostTemplate(name: "Short", body: "{song_name} {share_url}")
     private let long = PostTemplate(name: "Long", body: String(repeating: "x", count: 301))
     /// A name that is no variable renders as nothing, and its line goes with it.
     private let blank = PostTemplate(name: "Blank", body: "{no_such_variable}\n")
 
-    private let first = SocialAccount.mastodon(MastodonAccount(
-        instance: URL(string: "https://oldbytes.space")!, accountID: "1", username: "a", displayName: "", avatarURL: nil, characterLimit: 500))
-    private let second = SocialAccount.mastodon(MastodonAccount(
-        instance: URL(string: "https://mastodon.social")!, accountID: "2", username: "b", displayName: "", avatarURL: nil, characterLimit: 500))
-    private let bluesky = SocialAccount.bluesky(BlueskyAccount(
-        did: "did:plc:abc", handle: "c.bsky.social", displayName: "", avatarURL: nil, pds: URL(string: "https://pds.example")!))
+    private let first = SocialAccount.mastodon(
+        MastodonAccount(
+            instance: URL(string: "https://oldbytes.space")!,
+            accountID: "1",
+            username: "a",
+            displayName: "",
+            avatarURL: nil,
+            characterLimit: 500
+        )
+    )
+    private let second = SocialAccount.mastodon(
+        MastodonAccount(
+            instance: URL(string: "https://mastodon.social")!,
+            accountID: "2",
+            username: "b",
+            displayName: "",
+            avatarURL: nil,
+            characterLimit: 500
+        )
+    )
+    private let bluesky = SocialAccount.bluesky(
+        BlueskyAccount(
+            did: "did:plc:abc",
+            handle: "c.bsky.social",
+            displayName: "",
+            avatarURL: nil,
+            pds: URL(string: "https://pds.example")!
+        )
+    )
 
     /// A suite of its own, so the test never reads or writes the app's settings.
     private func makeDefaults() -> UserDefaults {
@@ -33,8 +66,13 @@ struct AutoPostTests {
     }
 
     private func plan(_ settings: AutoPostSettings, _ defaultTemplates: DefaultTemplates) -> AutoPostPlan {
-        AutoPostPlan.make(context: context, accounts: [first, second, bluesky], templates: [short, long, blank],
-                          settings: settings, defaultTemplates: defaultTemplates)
+        AutoPostPlan.make(
+            context: context,
+            accounts: [first, second, bluesky],
+            templates: [short, long, blank],
+            settings: settings,
+            defaultTemplates: defaultTemplates
+        )
     }
 
     @Test func nothingPostsWhileTheMasterSwitchIsOff() {
@@ -65,9 +103,7 @@ struct AutoPostTests {
         let settings = AutoPostSettings(defaults: defaults)
         let defaultTemplates = DefaultTemplates(defaults: defaults)
         settings.isEnabled = true
-        for account in [first, second, bluesky] {
-            settings.setRule(.init(isEnabled: true), for: account.id)
-        }
+        for account in [first, second, bluesky] { settings.setRule(.init(isEnabled: true), for: account.id) }
         defaultTemplates.setTemplateID(long.id, for: bluesky.id)
         defaultTemplates.setTemplateID(blank.id, for: first.id)
         defaultTemplates.setTemplateID(UUID(), for: second.id)
@@ -98,14 +134,28 @@ struct AutoPostTests {
 
 // MARK: - DefaultTemplatesTests
 
-@MainActor
-struct DefaultTemplatesTests {
+@MainActor struct DefaultTemplatesTests {
     private let mine = PostTemplate(name: "Mine", body: "{song_name}")
 
-    private let mastodon = SocialAccount.mastodon(MastodonAccount(
-        instance: URL(string: "https://oldbytes.space")!, accountID: "1", username: "a", displayName: "", avatarURL: nil, characterLimit: 500))
-    private let bluesky = SocialAccount.bluesky(BlueskyAccount(
-        did: "did:plc:abc", handle: "c.bsky.social", displayName: "", avatarURL: nil, pds: URL(string: "https://pds.example")!))
+    private let mastodon = SocialAccount.mastodon(
+        MastodonAccount(
+            instance: URL(string: "https://oldbytes.space")!,
+            accountID: "1",
+            username: "a",
+            displayName: "",
+            avatarURL: nil,
+            characterLimit: 500
+        )
+    )
+    private let bluesky = SocialAccount.bluesky(
+        BlueskyAccount(
+            did: "did:plc:abc",
+            handle: "c.bsky.social",
+            displayName: "",
+            avatarURL: nil,
+            pds: URL(string: "https://pds.example")!
+        )
+    )
 
     private func makeDefaults() -> UserDefaults {
         let suite = "DefaultTemplatesTests-\(UUID().uuidString)"

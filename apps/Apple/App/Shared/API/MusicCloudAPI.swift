@@ -55,10 +55,7 @@ enum MusicCloudAPI {
     /// device works, where `localhost` is the device itself.
     #if DEBUG
     static let baseURL: URL = {
-        if let envURL = ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"],
-           let url = URL(string: envURL) {
-            return url
-        }
+        if let envURL = ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"], let url = URL(string: envURL) { return url }
         return productionURL
     }()
     #else
@@ -77,10 +74,7 @@ enum MusicCloudAPI {
     /// build uses production, like ``baseURL``.
     #if DEBUG
     static let appAccessURL: URL = {
-        if let envURL = ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"],
-           let url = URL(string: envURL) {
-            return url
-        }
+        if let envURL = ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"], let url = URL(string: envURL) { return url }
         return productionAppAccessURL
     }()
     #else
@@ -91,9 +85,7 @@ enum MusicCloudAPI {
     ///
     /// A caller that converts against production, such as the Share
     /// Extension in a debug build, also uses the production backend.
-    static func appAccessURL(forSite site: URL) -> URL {
-        site == productionURL ? productionAppAccessURL : appAccessURL
-    }
+    static func appAccessURL(forSite site: URL) -> URL { site == productionURL ? productionAppAccessURL : appAccessURL }
 }
 
 // MARK: - Resolve
@@ -151,8 +143,7 @@ extension MusicCloudAPI {
     /// refuses the token, the session renews once and the request is sent
     /// again. Without a session, or when the attested backend cannot be
     /// reached, the request goes to the public route `/api/resolve`.
-    @concurrent
-    static func resolve(url: String, baseURL: URL? = nil) async throws -> ResolveResponse {
+    @concurrent static func resolve(url: String, baseURL: URL? = nil) async throws -> ResolveResponse {
         let base = baseURL ?? Self.baseURL
         let appAccess = appAccessURL(forSite: base)
 
@@ -164,9 +155,7 @@ extension MusicCloudAPI {
             } catch AttestedRouteUnavailable.sessionRejected {
                 // The second pass renews the session and sends the request again.
                 await AppSession.shared.invalidate(for: appAccess)
-            } catch AttestedRouteUnavailable.unreachable {
-                break
-            }
+            } catch AttestedRouteUnavailable.unreachable { break }
         }
 
         var request = URLRequest(url: base.appending(path: "api/resolve"))
@@ -179,9 +168,7 @@ extension MusicCloudAPI {
 
     /// Whether a 404 body is the backend's answer for a route it does not
     /// have (`MC-RES-0003`), rather than for a link it could not find.
-    static func isRouteNotFound(_ data: Data) -> Bool {
-        (try? JSONDecoder().decode(APIError.self, from: data))?.error == "MC-RES-0003"
-    }
+    static func isRouteNotFound(_ data: Data) -> Bool { (try? JSONDecoder().decode(APIError.self, from: data))?.error == "MC-RES-0003" }
 
     /// Why the attested route gave no answer, so ``resolve(url:baseURL:)`` falls back.
     private enum AttestedRouteUnavailable: Error {
@@ -206,9 +193,7 @@ extension MusicCloudAPI {
 
         let data: Data
         let response: URLResponse
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
+        do { (data, response) = try await URLSession.shared.data(for: request) } catch {
             AppLogger.api.error("  transport failed: \(error.localizedDescription)")
             if isAttestedRoute { throw AttestedRouteUnavailable.unreachable }
             report(.networkError(sourceUrl: url, errorKind: "NETWORK_FAILURE", message: error.localizedDescription))
@@ -221,12 +206,8 @@ extension MusicCloudAPI {
         // The body names what the user converted, so only its size is logged.
         AppLogger.api.debug("← HTTP \(statusCode), \(data.count) bytes")
 
-        if isAttestedRoute, statusCode == 401 {
-            throw AttestedRouteUnavailable.sessionRejected
-        }
-        if isAttestedRoute, statusCode == 404, Self.isRouteNotFound(data) {
-            throw AttestedRouteUnavailable.unreachable
-        }
+        if isAttestedRoute, statusCode == 401 { throw AttestedRouteUnavailable.sessionRejected }
+        if isAttestedRoute, statusCode == 404, Self.isRouteNotFound(data) { throw AttestedRouteUnavailable.unreachable }
 
         if statusCode == 429 {
             reportResolveError(url: url, kind: "RATE_LIMITED", status: statusCode, body: bodyString)
@@ -241,9 +222,7 @@ extension MusicCloudAPI {
         }
 
         let decoded: ResolveResponse
-        do {
-            decoded = try JSONDecoder().decode(ResolveResponse.self, from: data)
-        } catch {
+        do { decoded = try JSONDecoder().decode(ResolveResponse.self, from: data) } catch {
             AppLogger.api.error("  decode failed: \(error)")
             report(.resolveError(sourceUrl: url, errorKind: "DECODE_FAILED", httpStatus: statusCode, message: error.localizedDescription))
             throw error
@@ -269,13 +248,10 @@ extension MusicCloudAPI {
     ///   - baseURL: The backend to ask, ``baseURL`` when `nil`.
     /// - Returns: The answer and the artwork, which is `nil` when there is none or it failed to load.
     /// - Throws: Whatever ``resolve(url:baseURL:)`` throws.
-    @concurrent
-    static func convert(url: String, baseURL: URL? = nil) async throws -> Conversion {
+    @concurrent static func convert(url: String, baseURL: URL? = nil) async throws -> Conversion {
         let response = try await resolve(url: url, baseURL: baseURL)
         var artworkData: Data?
-        if let artworkUrl = response.contentType.artworkUrl {
-            artworkData = await downloadArtwork(from: artworkUrl)
-        }
+        if let artworkUrl = response.contentType.artworkUrl { artworkData = await downloadArtwork(from: artworkUrl) }
         return Conversion(response: response, artworkData: artworkData)
     }
 
@@ -283,13 +259,13 @@ extension MusicCloudAPI {
     /// `errorKind`. Keep the set small so server-side filters stay simple.
     private static func errorKind(for error: ResolveError) -> String {
         switch error {
-        case .rateLimited:   return "RATE_LIMITED"
-        case .invalidURL:    return "INVALID_URL"
-        case .networkError:  return "NETWORK_ERROR"
-        case .serviceDown:   return "SERVICE_DOWN"
-        case .httpError:     return "HTTP_ERROR"
+        case .rateLimited: return "RATE_LIMITED"
+        case .invalidURL: return "INVALID_URL"
+        case .networkError: return "NETWORK_ERROR"
+        case .serviceDown: return "SERVICE_DOWN"
+        case .httpError: return "HTTP_ERROR"
         case .invalidResponse: return "INVALID_RESPONSE"
-        case .unknown:       return "UNKNOWN"
+        case .unknown: return "UNKNOWN"
         }
     }
 
@@ -300,9 +276,7 @@ extension MusicCloudAPI {
 
     /// Hands an event to ``TelemetryClient`` without waiting for it, so a
     /// failing conversion is reported to the user first.
-    private static func report(_ event: TelemetryEvent) {
-        Task { await TelemetryClient.shared.report(event) }
-    }
+    private static func report(_ event: TelemetryEvent) { Task { await TelemetryClient.shared.report(event) } }
 
     /// Downloads artwork image data from a URL.
     ///
@@ -340,8 +314,7 @@ extension MusicCloudAPI {
     ///
     /// Runs on the concurrent pool, because the body is read byte by byte to
     /// enforce the limit, and that loop must not run on the main actor.
-    @concurrent
-    static func downloadArtwork(from urlString: String) async -> Data? {
+    @concurrent static func downloadArtwork(from urlString: String) async -> Data? {
         guard let url = StreamingServices.webURL(urlString) else {
             AppLogger.api.error("Refused artwork address that is not a web URL")
             return nil
@@ -353,18 +326,16 @@ extension MusicCloudAPI {
             request.timeoutInterval = 10
             let (bytes, response) = try await URLSession.shared.bytes(for: request)
 
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode),
-                  httpResponse.mimeType?.lowercased().hasPrefix("image/") == true,
-                  httpResponse.expectedContentLength <= Int64(maximumArtworkBytes) else {
+            guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode),
+                httpResponse.mimeType?.lowercased().hasPrefix("image/") == true,
+                httpResponse.expectedContentLength <= Int64(maximumArtworkBytes)
+            else {
                 AppLogger.api.error("Failed to download artwork: unacceptable response")
                 return nil
             }
 
             var data = Data()
-            if httpResponse.expectedContentLength > 0 {
-                data.reserveCapacity(Int(httpResponse.expectedContentLength))
-            }
+            if httpResponse.expectedContentLength > 0 { data.reserveCapacity(Int(httpResponse.expectedContentLength)) }
             for try await byte in bytes {
                 guard data.count < maximumArtworkBytes else {
                     AppLogger.api.error("Failed to download artwork: larger than \(maximumArtworkBytes) bytes")
@@ -411,18 +382,16 @@ private extension MusicCloudAPI {
     /// - Decode failure → `.httpError(statusCode)`
     static func resolveError(from data: Data, statusCode: Int) -> ResolveError {
         let apiError: APIError
-        do {
-            apiError = try JSONDecoder().decode(APIError.self, from: data)
-        } catch {
+        do { apiError = try JSONDecoder().decode(APIError.self, from: data) } catch {
             AppLogger.api.debug("Failed to decode API error response: \(error)")
             return .httpError(statusCode)
         }
         switch apiError.error {
-        case "INVALID_URL":   return .invalidURL
+        case "INVALID_URL": return .invalidURL
         case "NETWORK_ERROR": return .networkError
-        case "SERVICE_DOWN":  return .serviceDown
-        case "RATE_LIMITED":  return .rateLimited
-        default:              return .unknown(apiError.message)
+        case "SERVICE_DOWN": return .serviceDown
+        case "RATE_LIMITED": return .rateLimited
+        default: return .unknown(apiError.message)
         }
     }
 }

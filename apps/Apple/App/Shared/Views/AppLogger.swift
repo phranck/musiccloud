@@ -33,7 +33,7 @@ enum AppLogger {
     private static let subsystem = "io.musiccloud.app"
 
     /// Logger for UI-related events and interactions
-    static let ui = Logger(subsystem: subsystem, category: "UI") // swiftlint:disable:this identifier_name
+    static let ui = Logger(subsystem: subsystem, category: "UI")  // swiftlint:disable:this identifier_name
 
     /// Logger for clipboard monitoring and URL detection
     static let clipboard = Logger(subsystem: subsystem, category: "ClipboardMonitor")

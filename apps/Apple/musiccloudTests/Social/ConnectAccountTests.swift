@@ -5,26 +5,28 @@ import Testing
 // MARK: - SocialServiceTests
 
 struct SocialServiceTests {
-    @Test(arguments: ["", "name", "@name"])
-    func aBareBlueskyNameShowsTheDefaultDomain(input: String) {
+    @Test(arguments: ["", "name", "@name"]) func aBareBlueskyNameShowsTheDefaultDomain(input: String) {
         #expect(SocialService.bluesky.fixedSuffix(for: input) == ".bsky.social")
     }
 
-    @Test(arguments: ["name.bsky.social", "musiccloud.io", "name."])
-    func aBlueskyHandleWithADomainShowsNoSuffix(input: String) {
+    @Test(arguments: ["name.bsky.social", "musiccloud.io", "name."]) func aBlueskyHandleWithADomainShowsNoSuffix(input: String) {
         #expect(SocialService.bluesky.fixedSuffix(for: input) == nil)
     }
 
-    @Test(arguments: ["", "mastodon.social", "phranck"])
-    func aMastodonServerShowsNoSuffix(input: String) {
+    @Test(arguments: ["", "mastodon.social", "phranck"]) func aMastodonServerShowsNoSuffix(input: String) {
         #expect(SocialService.mastodon.fixedSuffix(for: input) == nil)
     }
 
-    @MainActor
-    @Test func eachServiceListsOnlyItsOwnAccounts() {
+    @MainActor @Test func eachServiceListsOnlyItsOwnAccounts() {
         let store = SocialAccountStore(directory: nil, keychain: nil)
-        let mastodon = MastodonAccount(instance: URL(string: "https://oldbytes.space")!, accountID: "1", username: "musiccloud",
-                                       displayName: "musiccloud", avatarURL: nil, characterLimit: 5000)
+        let mastodon = MastodonAccount(
+            instance: URL(string: "https://oldbytes.space")!,
+            accountID: "1",
+            username: "musiccloud",
+            displayName: "musiccloud",
+            avatarURL: nil,
+            characterLimit: 5000
+        )
         store.add(mastodon, token: "token")
         #expect(SocialService.mastodon.accounts(in: store) == [.mastodon(mastodon)])
         #expect(SocialService.bluesky.accounts(in: store).isEmpty)
@@ -47,11 +49,8 @@ struct SocialAccountStoreLocationTests {
 
 // MARK: - ConnectAccountModelTests
 
-@MainActor
-struct ConnectAccountModelTests {
-    private struct Refusal: LocalizedError {
-        var errorDescription: String? { "Refused" }
-    }
+@MainActor struct ConnectAccountModelTests {
+    private struct Refusal: LocalizedError { var errorDescription: String? { "Refused" } }
 
     @Test func blankInputCannotConnect() {
         let model = ConnectAccountModel(service: .mastodon) { _ in }

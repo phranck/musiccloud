@@ -20,7 +20,13 @@ struct SocialMediaPane: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                SettingsCard(tint: nil, footer: String(localized: "Each account below says whether it takes part. It posts with its default template. A link that is already in the history is not posted again.")) {
+                SettingsCard(
+                    tint: nil,
+                    footer: String(
+                        localized:
+                            "Each account below says whether it takes part. It posts with its default template. A link that is already in the history is not posted again."
+                    )
+                ) {
                     // Label left and switch at the trailing edge, as in a Form row.
                     HStack {
                         Text("Post new conversions automatically")
@@ -31,23 +37,16 @@ struct SocialMediaPane: View {
                 }
                 accountSection(.mastodon)
                 accountSection(.bluesky)
-            }
-            .padding(20)
-            // Outside a Form a toggle is a checkbox; the other panes show switches.
-            .toggleStyle(.switch)
-        }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .sheet(item: $serviceToConnect) { service in
+            }.padding(20)  // Outside a Form a toggle is a checkbox; the other panes show switches.
+                .toggleStyle(.switch)
+        }.background(Color(nsColor: .windowBackgroundColor)).sheet(item: $serviceToConnect) { service in
             ConnectAccountSheet(service: service)
-        }
-        .confirmationDialog(
+        }.confirmationDialog(
             String(localized: "Disconnect \(accountToDisconnect?.handle ?? "")?"),
             isPresented: Binding(get: { accountToDisconnect != nil }, set: { if !$0 { accountToDisconnect = nil } }),
             presenting: accountToDisconnect
         ) { account in
-            Button(String(localized: "Disconnect"), role: .destructive) {
-                Task { await account.disconnect() }
-            }
+            Button(String(localized: "Disconnect"), role: .destructive) { Task { await account.disconnect() } }
         } message: { _ in
             Text("musiccloud signs out of the account and can no longer post to it.")
         }
@@ -59,29 +58,21 @@ struct SocialMediaPane: View {
         let accounts = service.accounts(in: store)
         return SettingsCard(tint: service.brandColor, footer: service.footer) {
             if accounts.isEmpty {
-                Text("No accounts connected.")
-                    .foregroundStyle(.secondary)
+                Text("No accounts connected.").foregroundStyle(.secondary)
             } else {
                 ForEach(Array(accounts.enumerated()), id: \.element.id) { index, account in
-                    if index > 0 {
-                        Divider()
-                    }
-                    ConnectedAccountRow(account: account) {
-                        accountToDisconnect = account
-                    }
+                    if index > 0 { Divider() }
+                    ConnectedAccountRow(account: account) { accountToDisconnect = account }
                 }
             }
         } header: {
             Label {
-                Text(verbatim: service.name)
-                    .font(.headline)
+                Text(verbatim: service.name).font(.headline)
             } icon: {
                 PostTemplateIconImage(icon: service.icon)
             }
             Spacer()
-            Button(String(localized: "Add Account…")) {
-                serviceToConnect = service
-            }
+            Button(String(localized: "Add Account…")) { serviceToConnect = service }
         }
     }
 }
@@ -104,33 +95,23 @@ private struct SettingsCard<Content: View, Header: View>: View {
 
     /// How strongly the tint shows. A brand color on a dark card has less
     /// contrast than on a light one, so dark mode takes more of it.
-    private var strength: (header: Double, divider: Double, border: Double) {
-        colorScheme == .dark ? (0.22, 0.55, 0.7) : (0.14, 0.4, 0.55)
-    }
+    private var strength: (header: Double, divider: Double, border: Double) { colorScheme == .dark ? (0.22, 0.55, 0.7) : (0.14, 0.4, 0.55) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             VStack(alignment: .leading, spacing: 0) {
                 if Header.self != EmptyView.self {
-                    HStack(content: header)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background((tint ?? .secondary).opacity(strength.header))
-                    Divider()
-                        .overlay((tint ?? .secondary).opacity(strength.divider))
+                    HStack(content: header).padding(.horizontal, 12).padding(.vertical, 8).background(
+                        (tint ?? .secondary).opacity(strength.header)
+                    )
+                    Divider().overlay((tint ?? .secondary).opacity(strength.divider))
                 }
-                VStack(alignment: .leading, spacing: 10, content: content)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(shape)
-            .overlay(shape.strokeBorder(tint.map { $0.opacity(strength.border) } ?? Color(nsColor: .separatorColor)))
+                VStack(alignment: .leading, spacing: 10, content: content).padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            }.background(Color(nsColor: .controlBackgroundColor)).clipShape(shape).overlay(
+                shape.strokeBorder(tint.map { $0.opacity(strength.border) } ?? Color(nsColor: .separatorColor))
+            )
 
-            Text(footer)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 4)
+            Text(footer).font(.callout).foregroundStyle(.secondary).padding(.horizontal, 4)
         }
     }
 }
@@ -161,20 +142,16 @@ private struct ConnectedAccountRow: View {
 
                 Spacer()
 
-                Button(String(localized: "Disconnect"), systemImage: "trash", action: onDisconnect)
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.borderless)
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
-                    .help(String(localized: "Disconnect \(account.handle)"))
+                Button(String(localized: "Disconnect"), systemImage: "trash", action: onDisconnect).labelStyle(.iconOnly).buttonStyle(
+                    .borderless
+                ).font(.title2).foregroundStyle(.secondary).help(String(localized: "Disconnect \(account.handle)"))
             }
 
             if autoPost.isEnabled {
                 HStack {
                     Toggle(String(localized: "Post automatically"), isOn: autoPost.binding(\.isEnabled, for: account.id))
                     Spacer()
-                }
-                .controlSize(.small)
+                }.controlSize(.small)
             }
         }
     }
@@ -189,73 +166,52 @@ private struct ConnectAccountSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model: ConnectAccountModel
 
-    init(service: SocialService) {
-        _model = State(initialValue: ConnectAccountModel(service: service))
-    }
+    init(service: SocialService) { _model = State(initialValue: ConnectAccountModel(service: service)) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(model.service.sheetTitle)
-                .font(.headline)
-            Text(model.service.sheetExplanation)
-                .foregroundStyle(.secondary)
+            Text(model.service.sheetTitle).font(.headline)
+            Text(model.service.sheetExplanation).foregroundStyle(.secondary)
 
             HStack(spacing: 6) {
                 // A Bluesky handle is written with an `@`, so the field shows it rather than asking for it.
-                if model.service == .bluesky {
-                    Text(verbatim: "@")
-                        .foregroundStyle(.secondary)
-                }
-                TextField(model.service.fieldLabel, text: $model.input, prompt: Text(verbatim: model.service.placeholder))
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(model.isWorking)
-                    .onSubmit(connect)
-                if let suffix = model.fixedSuffix {
-                    Text(verbatim: suffix)
-                        .foregroundStyle(.secondary)
-                }
+                if model.service == .bluesky { Text(verbatim: "@").foregroundStyle(.secondary) }
+                TextField(model.service.fieldLabel, text: $model.input, prompt: Text(verbatim: model.service.placeholder)).textFieldStyle(
+                    .roundedBorder
+                ).disabled(model.isWorking).onSubmit(connect)
+                if let suffix = model.fixedSuffix { Text(verbatim: suffix).foregroundStyle(.secondary) }
             }
 
-            if let errorMessage = model.errorMessage {
-                Text(errorMessage)
-                    .font(.callout)
-                    .foregroundStyle(.red)
-            }
+            if let errorMessage = model.errorMessage { Text(errorMessage).font(.callout).foregroundStyle(.red) }
 
             HStack {
-                if model.isWorking {
-                    ProgressView()
-                        .controlSize(.small)
-                }
+                if model.isWorking { ProgressView().controlSize(.small) }
                 Spacer()
-                Button(String(localized: "Cancel"), role: .cancel) { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button(String(localized: "Connect"), action: connect)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!model.canConnect)
+                Button(String(localized: "Cancel"), role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(String(localized: "Connect"), action: connect).keyboardShortcut(.defaultAction).disabled(!model.canConnect)
             }
-        }
-        .padding(20)
-        .frame(width: 380)
+        }.padding(20).frame(width: 380)
     }
 
-    private func connect() {
-        Task {
-            if await model.connect() {
-                dismiss()
-            }
-        }
-    }
+    private func connect() { Task { if await model.connect() { dismiss() } } }
 }
 
 #Preview {
     let store = SocialAccountStore(directory: nil, keychain: nil)
-    store.add(MastodonAccount(instance: URL(string: "https://oldbytes.space")!, accountID: "1", username: "musiccloud",
-                              displayName: "musiccloud", avatarURL: nil, characterLimit: 5000), token: "preview")
-    return SocialMediaPane()
-        .environment(store)
-        .environment(AutoPostSettings(defaults: UserDefaults(suiteName: "SocialMediaPanePreview") ?? .standard))
-        .frame(width: 520, height: 440)
+    store.add(
+        MastodonAccount(
+            instance: URL(string: "https://oldbytes.space")!,
+            accountID: "1",
+            username: "musiccloud",
+            displayName: "musiccloud",
+            avatarURL: nil,
+            characterLimit: 5000
+        ),
+        token: "preview"
+    )
+    return SocialMediaPane().environment(store).environment(
+        AutoPostSettings(defaults: UserDefaults(suiteName: "SocialMediaPanePreview") ?? .standard)
+    ).frame(width: 520, height: 440)
 }
 
 #endif

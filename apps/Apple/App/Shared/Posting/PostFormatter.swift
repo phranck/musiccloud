@@ -17,9 +17,7 @@ import Foundation
 enum PostFormatter {
     /// The Markdown without its formatting characters, for a Mastodon server that does not render Markdown.
     static func mastodonPlainText(fromMarkdown markdown: String) -> String {
-        removingLinks(from: removingEmphasis(from: markdown)) { label, url in
-            label == url ? url : "\(label) \(url)"
-        }.0
+        removingLinks(from: removingEmphasis(from: markdown)) { label, url in label == url ? url : "\(label) \(url)" }.0
     }
 
     /// The text and facets of a Bluesky post written from `markdown`.
@@ -31,15 +29,11 @@ enum PostFormatter {
         for match in MarkdownSyntax.bareURL.matches(in: text, range: whole)
         where !markdownLinks.contains(where: { NSIntersectionRange($0.range, match.range).length > 0 }) {
             let url = (text as NSString).substring(with: match.range)
-            if let facet = BlueskyFacet(range: match.range, in: text, feature: .link(url)) {
-                facets.append(facet)
-            }
+            if let facet = BlueskyFacet(range: match.range, in: text, feature: .link(url)) { facets.append(facet) }
         }
         for match in MarkdownSyntax.hashtag.matches(in: text, range: whole) {
             let tag = (text as NSString).substring(with: match.range(at: 1))
-            if let facet = BlueskyFacet(range: match.range, in: text, feature: .tag(tag)) {
-                facets.append(facet)
-            }
+            if let facet = BlueskyFacet(range: match.range, in: text, feature: .tag(tag)) { facets.append(facet) }
         }
         return BlueskyPostText(text: text, facets: facets.sorted { $0.byteStart < $1.byteStart })
     }
@@ -64,8 +58,9 @@ extension PostFormatter {
     ///
     /// - Returns: The index of the first character past the limit, or `nil` when the text fits.
     static func mastodonOverflowStart(in text: String, limit: Int, urlLength: Int = mastodonCharactersPerURL) -> String.Index? {
-        let urls = MarkdownSyntax.bareURL.matches(in: text, range: NSRange(text.startIndex..., in: text))
-            .compactMap { Range($0.range, in: text) }
+        let urls = MarkdownSyntax.bareURL.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap {
+            Range($0.range, in: text)
+        }
         var count = 0
         var index = text.startIndex
         while index < text.endIndex {
@@ -95,10 +90,7 @@ private extension PostFormatter {
     /// The text of headings, bold, italic and code spans without their markers.
     static func removingEmphasis(from markdown: String) -> String {
         let steps: [(NSRegularExpression, String)] = [
-            (MarkdownSyntax.heading, "$1"),
-            (MarkdownSyntax.bold, "$2"),
-            (MarkdownSyntax.italic, "$2"),
-            (MarkdownSyntax.code, "$1"),
+            (MarkdownSyntax.heading, "$1"), (MarkdownSyntax.bold, "$2"), (MarkdownSyntax.italic, "$2"), (MarkdownSyntax.code, "$1"),
         ]
         return steps.reduce(markdown) { text, step in
             step.0.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: step.1)

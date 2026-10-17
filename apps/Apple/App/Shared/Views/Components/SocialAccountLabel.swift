@@ -17,18 +17,12 @@ struct SocialAccountLabel: View {
             AsyncImage(url: account.avatarURL) { image in
                 image.resizable().scaledToFill()
             } placeholder: {
-                Image(systemName: "person.crop.circle.fill")
-                    .resizable()
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 32, height: 32)
-            .clipShape(.circle)
+                Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary)
+            }.frame(width: 32, height: 32).clipShape(.circle)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(account.name)
-                Text(account.handle)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                Text(account.handle).font(.callout).foregroundStyle(.secondary)
             }
         }
     }

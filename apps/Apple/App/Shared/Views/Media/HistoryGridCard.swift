@@ -11,12 +11,10 @@ struct HistoryGridCard: View {
     let entry: MediaEntry
 
     var body: some View {
-        GridCardArtwork(entry: entry)
-            .overlay(alignment: .bottom) { GridCardInfo(entry: entry) }
-            .aspectRatio(1, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(entry.contentType.title), \(entry.contentType.subtitle)")
+        GridCardArtwork(entry: entry).overlay(alignment: .bottom) { GridCardInfo(entry: entry) }.aspectRatio(1, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 12)).accessibilityElement(children: .combine).accessibilityLabel(
+                "\(entry.contentType.title), \(entry.contentType.subtitle)"
+            )
     }
 }
 
@@ -26,13 +24,9 @@ private struct GridCardArtwork: View {
     let entry: MediaEntry
 
     var body: some View {
-        Color.clear
-            .overlay {
-                CachedAsyncImage(entry: entry) {
-                    ArtworkPlaceholder(icon: entry.contentType.placeholderIcon, symbolFont: .system(size: 40))
-                }
-            }
-            .clipped()
+        Color.clear.overlay {
+            CachedAsyncImage(entry: entry) { ArtworkPlaceholder(icon: entry.contentType.placeholderIcon, symbolFont: .system(size: 40)) }
+        }.clipped()
     }
 }
 
@@ -43,18 +37,9 @@ private struct GridCardInfo: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(entry.contentType.subtitle)
-                .font(Self.subtitleFont)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-            Text(entry.contentType.title)
-                .font(Self.titleFont)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(.regularMaterial)
+            Text(entry.contentType.subtitle).font(Self.subtitleFont).foregroundStyle(.primary).lineLimit(1)
+            Text(entry.contentType.title).font(Self.titleFont).foregroundStyle(.secondary).lineLimit(1)
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(10).background(.regularMaterial)
     }
 
     // On iOS the caption is a step smaller than on the Mac.

@@ -21,10 +21,7 @@ struct GeneralPane: View {
 
     var body: some View {
         Form {
-            Section {
-                Toggle(String(localized: "Launch at Login"), isOn: $launchAtLogin)
-            }
-            .onChange(of: launchAtLogin) {
+            Section { Toggle(String(localized: "Launch at Login"), isOn: $launchAtLogin) }.onChange(of: launchAtLogin) {
                 updateLaunchAtLogin()
             }
 
@@ -32,16 +29,10 @@ struct GeneralPane: View {
                 Toggle(String(localized: "Clipboard Monitoring"), isOn: $clipboardMonitoringEnabled)
             } footer: {
                 Text("Automatically detects streaming URLs in your clipboard and converts them.")
+            }.onChange(of: clipboardMonitoringEnabled) {
+                if clipboardMonitoringEnabled { monitor.startMonitoring() } else { monitor.stopMonitoring() }
             }
-            .onChange(of: clipboardMonitoringEnabled) {
-                if clipboardMonitoringEnabled {
-                    monitor.startMonitoring()
-                } else {
-                    monitor.stopMonitoring()
-                }
-            }
-        }
-        .formStyle(.grouped)
+        }.formStyle(.grouped)
     }
 }
 
@@ -49,13 +40,7 @@ private extension GeneralPane {
     /// Registers or unregisters the app as a login item, and shows the
     /// system's actual state again when that fails.
     func updateLaunchAtLogin() {
-        do {
-            if launchAtLogin {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
-        } catch {
+        do { if launchAtLogin { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() } } catch {
             AppLogger.ui.error("Launch at login failed: \(error.localizedDescription)")
             launchAtLogin = SMAppService.mainApp.status == .enabled
         }

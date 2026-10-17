@@ -7,18 +7,13 @@ import SwiftData
 /// Grid-based history view with search, filter, and context menus.
 struct HistoryView: View {
     @Environment(HistoryManager.self) private var historyManager
-    @Query(sort: \MediaEntry.date, order: .reverse, animation: .default)
-    private var allEntries: [MediaEntry]
+    @Query(sort: \MediaEntry.date, order: .reverse, animation: .default) private var allEntries: [MediaEntry]
     @State private var searchText = ""
     private let filter: MediaFilter
 
-    init(initialFilter: MediaFilter = .all) {
-        filter = initialFilter
-    }
+    init(initialFilter: MediaFilter = .all) { filter = initialFilter }
 
-    private var filteredEntries: [MediaEntry] {
-        filter.filtered(allEntries, searchText: searchText)
-    }
+    private var filteredEntries: [MediaEntry] { filter.filtered(allEntries, searchText: searchText) }
 
     var body: some View {
         Group {
@@ -27,15 +22,9 @@ struct HistoryView: View {
             } else {
                 HistoryGrid(entries: filteredEntries, historyManager: historyManager)
             }
-        }
-        .animation(.smooth, value: allEntries.count)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                OutlinedLogoText(size: 25)
-            }
-        }
-        .searchable(text: $searchText, prompt: "Search conversions")
+        }.animation(.smooth, value: allEntries.count).navigationBarTitleDisplayMode(.inline).toolbar {
+            ToolbarItem(placement: .principal) { OutlinedLogoText(size: 25) }
+        }.searchable(text: $searchText, prompt: "Search conversions")
     }
 }
 
@@ -49,12 +38,12 @@ private struct HistoryGrid: View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
                 ForEach(entries) { entry in
-                    HistoryGridCard(entry: entry)
-                        .contentShape(RoundedRectangle(cornerRadius: 12))
-                        .entryActions(entry: entry, onDelete: { historyManager.remove(entry) })
+                    HistoryGridCard(entry: entry).contentShape(RoundedRectangle(cornerRadius: 12)).entryActions(
+                        entry: entry,
+                        onDelete: { historyManager.remove(entry) }
+                    )
                 }
-            }
-            .padding()
+            }.padding()
         }
     }
 }

@@ -96,8 +96,7 @@ struct ClipboardMonitorTests {
     // MARK: Private Content
 
     #if os(macOS)
-    @MainActor
-    @Test func passwordManagerContentIsSkipped() {
+    @MainActor @Test func passwordManagerContentIsSkipped() {
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("io.musiccloud.tests.\(UUID().uuidString)"))
         defer { pasteboard.releaseGlobally() }
 
@@ -113,13 +112,9 @@ struct ClipboardMonitorTests {
 
     // MARK: Error mapping
 
-    @Test func transportFailureBecomesNetworkError() {
-        #expect(ResolveError(URLError(.notConnectedToInternet)) == .networkError)
-    }
+    @Test func transportFailureBecomesNetworkError() { #expect(ResolveError(URLError(.notConnectedToInternet)) == .networkError) }
 
-    @Test func resolveErrorPassesThrough() {
-        #expect(ResolveError(ResolveError.rateLimited) == .rateLimited)
-    }
+    @Test func resolveErrorPassesThrough() { #expect(ResolveError(ResolveError.rateLimited) == .rateLimited) }
 
     @Test func statusKeepsTheRateLimitCase() {
         let status = ClipboardMonitor.Status.error(.rateLimited)
@@ -138,8 +133,7 @@ struct ClipboardMonitorTests {
 
     // MARK: Single conversion
 
-    @MainActor
-    @Test func secondConversionWaitsForTheFirst() throws {
+    @MainActor @Test func secondConversionWaitsForTheFirst() throws {
         let container = try SharedStoreConfiguration.makeContainer()
         let monitor = ClipboardMonitor(historyManager: HistoryManager(modelContext: container.mainContext))
         monitor.status = .processing(url: "https://open.spotify.com/track/first")
@@ -149,8 +143,7 @@ struct ClipboardMonitorTests {
         #expect(monitor.status == .processing(url: "https://open.spotify.com/track/first"))
     }
 
-    @MainActor
-    @Test func refusedConversionNeitherStartsNorTakesOverTheOrigin() throws {
+    @MainActor @Test func refusedConversionNeitherStartsNorTakesOverTheOrigin() throws {
         let container = try SharedStoreConfiguration.makeContainer()
         let monitor = ClipboardMonitor(historyManager: HistoryManager(modelContext: container.mainContext))
         monitor.status = .processing(url: "https://open.spotify.com/track/first")
@@ -167,9 +160,7 @@ struct ClipboardMonitorTests {
 #if os(iOS)
 /// Exercises clipboard-sheet presentation and audio responsiveness on iOS.
 /// The store and clipboard sink are isolated from the user's data.
-@Suite(.serialized)
-@MainActor
-struct ClipboardConversionSheetTests {
+@Suite(.serialized) @MainActor struct ClipboardConversionSheetTests {
     /// Exercises the real audio factory so a main-actor dispatch cannot reintroduce the freeze.
     @Test func audioPlayerIsCreatedOffTheMainThread() async throws {
         let url = try #require(Bundle.main.url(forResource: NotificationSound.default.rawValue, withExtension: "mp3"))
@@ -209,8 +200,7 @@ struct ClipboardConversionSheetTests {
 
     /// A cached answer finishes synchronously, including when monitoring starts
     /// before the root view mounts. Both timings must present the result sheet.
-    @Test(arguments: [true, false])
-    func cachedClipboardConversionKeepsItsSheet(startBeforeMount: Bool) async throws {
+    @Test(arguments: [true, false]) func cachedClipboardConversionKeepsItsSheet(startBeforeMount: Bool) async throws {
         let container = try SharedStoreConfiguration.makeContainer()
         let history = HistoryManager(modelContext: container.mainContext)
         let entry = MediaEntry(
@@ -221,18 +211,15 @@ struct ClipboardConversionSheetTests {
         )
         history.add(entry)
         let monitor = ClipboardMonitor(historyManager: history, copyToPasteboard: { _ in })
-        if startBeforeMount {
-            monitor.convert(url: entry.originalUrl, origin: .clipboard)
-        }
+        if startBeforeMount { monitor.convert(url: entry.originalUrl, origin: .clipboard) }
 
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
         var didAppear = false
-        let host = UIHostingController(rootView:
-            Text("Clipboard sheet host")
-                .clipboardConversionSheet(monitor: monitor, historyManager: history)
-                .modelContainer(container)
-                .onAppear { didAppear = true }
+        let host = UIHostingController(
+            rootView: Text("Clipboard sheet host").clipboardConversionSheet(monitor: monitor, historyManager: history).modelContainer(
+                container
+            ).onAppear { didAppear = true }
         )
         window.rootViewController = host
         window.isHidden = false
@@ -247,9 +234,7 @@ struct ClipboardConversionSheetTests {
             try await Task.sleep(for: .milliseconds(20))
         }
         #expect(didAppear, "The host must mount before a later conversion starts")
-        if !startBeforeMount {
-            monitor.convert(url: entry.originalUrl, origin: .clipboard)
-        }
+        if !startBeforeMount { monitor.convert(url: entry.originalUrl, origin: .clipboard) }
 
         for _ in 0..<100 {
             if host.presentedViewController != nil { break }
@@ -263,15 +248,12 @@ struct ClipboardConversionSheetTests {
 
 /// Polls real, isolated native pasteboards through the production monitor.
 /// Cached fixtures prevent network, notifications, and writes to the general clipboard.
-@Suite(.serialized)
-@MainActor
-struct ClipboardOriginTests {
+@Suite(.serialized) @MainActor struct ClipboardOriginTests {
     private static let sourceURL = "https://open.spotify.com/track/clipboard-origin-fixture"
     private static let shortURL = "https://musiccloud.io/clipboard-origin-fixture"
 
     /// Local copies still convert; the observed Universal Clipboard marker suppresses automatic conversion.
-    @Test(arguments: [false, true])
-    func automaticConversionUsesOnlyLocalCopies(remote: Bool) async throws {
+    @Test(arguments: [false, true]) func automaticConversionUsesOnlyLocalCopies(remote: Bool) async throws {
         let fixture = try cachedFixture(remote: remote)
         defer { release(fixture.pasteboard, retaining: fixture.container) }
         await fixture.monitor.checkClipboard()
@@ -318,9 +300,10 @@ struct ClipboardOriginTests {
         let history = HistoryManager(modelContext: container.mainContext)
         let pasteboard = makePasteboard(remote: false)
         defer { release(pasteboard, retaining: container) }
-        let response = try JSONDecoder().decode(ResolveResponse.self, from: Data(
-            #"{"shortUrl":"https://musiccloud.io/clipboard-origin-fixture","links":[]}"#.utf8
-        ))
+        let response = try JSONDecoder().decode(
+            ResolveResponse.self,
+            from: Data(#"{"shortUrl":"https://musiccloud.io/clipboard-origin-fixture","links":[]}"#.utf8)
+        )
         let arrivingID = UUID()
         var notificationCount = 0
         var newEntryCount = 0
@@ -329,12 +312,14 @@ struct ClipboardOriginTests {
             pasteboard: pasteboard,
             resolveURL: { _ in
                 await MainActor.run {
-                    history.add(MediaEntry(
-                        id: arrivingID,
-                        originalUrl: "https://music.apple.com/album/arrival-fixture/1",
-                        shortUrl: response.shortUrl,
-                        mediaType: .track
-                    ))
+                    history.add(
+                        MediaEntry(
+                            id: arrivingID,
+                            originalUrl: "https://music.apple.com/album/arrival-fixture/1",
+                            shortUrl: response.shortUrl,
+                            mediaType: .track
+                        )
+                    )
                 }
                 return Conversion(response: response, artworkData: nil)
             },
@@ -343,9 +328,7 @@ struct ClipboardOriginTests {
         monitor.onNewEntry = { _ in newEntryCount += 1 }
         monitor.convert(url: Self.sourceURL)
         let deadline = ContinuousClock.now.advanced(by: .seconds(2))
-        while monitor.status.isProcessing, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        while monitor.status.isProcessing, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
         let entries = try container.mainContext.fetch(FetchDescriptor<MediaEntry>())
         #expect(monitor.status == .success(shortUrl: Self.shortURL, mediaType: .track))
         #expect(entries.count == 1)
@@ -359,14 +342,20 @@ struct ClipboardOriginTests {
 
 private extension ClipboardOriginTests {
     /// Builds an in-memory history hit so polling cannot contact the production backend.
-    func cachedFixture(remote: Bool, defaults: UserDefaults = DefaultsKey.shared) throws -> (container: ModelContainer, pasteboard: SystemPasteboard, monitor: ClipboardMonitor) {
+    func cachedFixture(
+        remote: Bool,
+        defaults: UserDefaults = DefaultsKey.shared
+    ) throws -> (container: ModelContainer, pasteboard: SystemPasteboard, monitor: ClipboardMonitor) {
         let container = try SharedStoreConfiguration.makeContainer()
         let history = HistoryManager(modelContext: container.mainContext)
         history.add(MediaEntry(originalUrl: Self.sourceURL, shortUrl: Self.shortURL, mediaType: .track))
         let pasteboard = makePasteboard(remote: remote)
-        let monitor = ClipboardMonitor(historyManager: history, pasteboard: pasteboard, streamingDefaults: defaults, notifySuccess: { _ in
-            Issue.record("A cached conversion must not send a notification")
-        })
+        let monitor = ClipboardMonitor(
+            historyManager: history,
+            pasteboard: pasteboard,
+            streamingDefaults: defaults,
+            notifySuccess: { _ in Issue.record("A cached conversion must not send a notification") }
+        )
         return (container, pasteboard, monitor)
     }
 
@@ -401,4 +390,3 @@ private extension ClipboardOriginTests {
         }
     }
 }
-

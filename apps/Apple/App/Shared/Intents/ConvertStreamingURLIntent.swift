@@ -8,26 +8,19 @@ struct ConvertStreamingURLIntent: AppIntent {
     static let title: LocalizedStringResource = "Convert Streaming URL"
     static let description: IntentDescription = "Converts a streaming service URL to a universal musiccloud.io link"
 
-    @Parameter(title: "URL")
-    var url: URL
+    @Parameter(title: "URL") var url: URL
 
-    static var parameterSummary: some ParameterSummary {
-        Summary("Convert \(\.$url)")
-    }
+    static var parameterSummary: some ParameterSummary { Summary("Convert \(\.$url)") }
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let urlString = url.absoluteString
 
-        guard StreamingServices.isStreamingURL(urlString) else {
-            throw ConvertStreamingURLError.invalidURL
-        }
+        guard StreamingServices.isStreamingURL(urlString) else { throw ConvertStreamingURLError.invalidURL }
 
         do {
             let response = try await MusicCloudAPI.resolve(url: urlString)
             return .result(value: response.shortUrl)
-        } catch {
-            throw ConvertStreamingURLError.conversionFailed(error.localizedDescription)
-        }
+        } catch { throw ConvertStreamingURLError.conversionFailed(error.localizedDescription) }
     }
 }
 
@@ -39,10 +32,8 @@ enum ConvertStreamingURLError: Swift.Error, CustomLocalizedStringResourceConvert
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
-        case .invalidURL:
-            "This URL is not from a supported streaming service"
-        case .conversionFailed(let message):
-            "Conversion failed: \(message)"
+        case .invalidURL: "This URL is not from a supported streaming service"
+        case .conversionFailed(let message): "Conversion failed: \(message)"
         }
     }
 }

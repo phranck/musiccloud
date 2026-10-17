@@ -25,15 +25,12 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView {
-            SettingsSidebar(selection: $selectedPane)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
-                .toolbar(removing: .sidebarToggle)
+            SettingsSidebar(selection: $selectedPane).navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240).toolbar(
+                removing: .sidebarToggle
+            )
         } detail: {
-            SettingsPaneView(pane: selectedPane)
-                .navigationTitle(selectedPane.title)
-        }
-        .background(WindowKeyMonitor())
-        .frame(minWidth: Self.contentSize.width, minHeight: Self.contentSize.height)
+            SettingsPaneView(pane: selectedPane).navigationTitle(selectedPane.title)
+        }.background(WindowKeyMonitor()).frame(minWidth: Self.contentSize.width, minHeight: Self.contentSize.height)
     }
 }
 
@@ -44,13 +41,13 @@ private struct SettingsPaneView: View {
 
     var body: some View {
         switch pane {
-        case .general:           GeneralPane()
-        case .notifications:     NotificationsPane()
-        case .history:           HistoryPane()
-        case .socialMedia:       SocialMediaPane()
+        case .general: GeneralPane()
+        case .notifications: NotificationsPane()
+        case .history: HistoryPane()
+        case .socialMedia: SocialMediaPane()
         case .streamingServices: StreamingServicesPane()
-        case .templates:         TemplatesPane()
-        case .about:             AboutView()
+        case .templates: TemplatesPane()
+        case .about: AboutView()
         }
     }
 }

@@ -6,8 +6,15 @@ import Testing
 
 struct TemplatePostLimitTests {
     private func mastodon(limit: Int, markdown: Bool) -> MastodonAccount {
-        MastodonAccount(instance: URL(string: "https://a.example")!, accountID: UUID().uuidString, username: "u", displayName: "",
-                        avatarURL: nil, characterLimit: limit, supportsMarkdown: markdown)
+        MastodonAccount(
+            instance: URL(string: "https://a.example")!,
+            accountID: UUID().uuidString,
+            username: "u",
+            displayName: "",
+            avatarURL: nil,
+            characterLimit: limit,
+            supportsMarkdown: markdown
+        )
     }
 
     @Test func overflowStartsAtTheFirstCharacterPastTheLimit() throws {
@@ -43,7 +50,10 @@ struct TemplatePostLimitTests {
 
     /// With several Mastodon accounts the template has to fit the smallest, and stays Markdown only if all render it.
     @Test func severalMastodonAccountsGiveTheStrictestLimit() {
-        let limit = TemplatePostLimit(icon: .mastodon, mastodonAccounts: [mastodon(limit: 5000, markdown: true), mastodon(limit: 500, markdown: false)])
+        let limit = TemplatePostLimit(
+            icon: .mastodon,
+            mastodonAccounts: [mastodon(limit: 5000, markdown: true), mastodon(limit: 500, markdown: false)]
+        )
         #expect(limit?.limit == 500)
         #expect(limit?.service == .mastodon(markdown: false))
         let markdown = TemplatePostLimit(icon: .mastodon, mastodonAccounts: [mastodon(limit: 5000, markdown: true)])

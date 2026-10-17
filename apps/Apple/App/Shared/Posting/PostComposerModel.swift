@@ -19,9 +19,7 @@ import Observation
 ///
 /// The Mac's composer and the iOS Share Extension both post through it, so
 /// both count, check and send a post alike.
-@MainActor
-@Observable
-final class PostComposerModel {
+@MainActor @Observable final class PostComposerModel {
     /// How posting went for one account.
     enum PostState: Equatable, Sendable {
         case idle
@@ -41,9 +39,7 @@ final class PostComposerModel {
 
     /// The template every text comes from, or `nil` for each account's own
     /// default. Choosing one fills every text again.
-    var templateID: PostTemplate.ID? {
-        didSet { fillDrafts() }
-    }
+    var templateID: PostTemplate.ID? { didSet { fillDrafts() } }
 
     /// The default template the user chose per account; see ``PostTemplate/defaultTemplate(for:chosenID:among:)``.
     private let defaultTemplateIDs: [SocialAccount.ID: PostTemplate.ID]
@@ -55,8 +51,12 @@ final class PostComposerModel {
     ///   - templates: The templates to choose from.
     ///   - accounts: The connected accounts, all of them chosen.
     ///   - defaultTemplateIDs: The default template the user chose per account; an account without one starts from its system template.
-    init(context: PostContext, templates: [PostTemplate], accounts: [SocialAccount],
-         defaultTemplateIDs: [SocialAccount.ID: PostTemplate.ID] = [:]) {
+    init(
+        context: PostContext,
+        templates: [PostTemplate],
+        accounts: [SocialAccount],
+        defaultTemplateIDs: [SocialAccount.ID: PostTemplate.ID] = [:]
+    ) {
         self.context = context
         self.templates = templates
         self.accounts = accounts
@@ -84,14 +84,10 @@ final class PostComposerModel {
     var title: String { context.title }
 
     /// The chosen accounts in the order they are listed.
-    var selectedAccounts: [SocialAccount] {
-        accounts.filter { selectedAccountIDs.contains($0.id) }
-    }
+    var selectedAccounts: [SocialAccount] { accounts.filter { selectedAccountIDs.contains($0.id) } }
 
     /// The length `account` counts for its text.
-    func length(for account: SocialAccount) -> Int {
-        account.length(ofMarkdown: drafts[account.id] ?? "")
-    }
+    func length(for account: SocialAccount) -> Int { account.length(ofMarkdown: drafts[account.id] ?? "") }
 
     /// Whether the text for `account` is empty or longer than it allows.
     func isOutOfBounds(_ account: SocialAccount) -> Bool {
@@ -102,9 +98,7 @@ final class PostComposerModel {
     var isPosting: Bool { states.values.contains(.posting) }
 
     /// Whether every chosen account has posted.
-    var isDone: Bool {
-        !selectedAccounts.isEmpty && selectedAccounts.allSatisfy { states[$0.id] == .posted }
-    }
+    var isDone: Bool { !selectedAccounts.isEmpty && selectedAccounts.allSatisfy { states[$0.id] == .posted } }
 
     /// Whether Post can be pressed: something is chosen, every text fits, nothing is on its way.
     var canPost: Bool {
@@ -123,9 +117,7 @@ final class PostComposerModel {
     /// after one failed only retries that one.
     func post(using send: @escaping @MainActor @Sendable (SocialAccount, String) async throws -> Void) async {
         let pending = selectedAccounts.filter { states[$0.id] != .posted }
-        for account in pending {
-            states[account.id] = .posting
-        }
+        for account in pending { states[account.id] = .posting }
         await withTaskGroup(of: (SocialAccount.ID, PostState).self) { group in
             for account in pending {
                 let text = drafts[account.id] ?? ""
@@ -133,14 +125,10 @@ final class PostComposerModel {
                     do {
                         try await send(account, text)
                         return (account.id, .posted)
-                    } catch {
-                        return (account.id, .failed(error.localizedDescription))
-                    }
+                    } catch { return (account.id, .failed(error.localizedDescription)) }
                 }
             }
-            for await (id, state) in group {
-                states[id] = state
-            }
+            for await (id, state) in group { states[id] = state }
         }
     }
 }

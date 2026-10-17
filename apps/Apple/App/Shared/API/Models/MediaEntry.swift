@@ -13,8 +13,7 @@ import SwiftData
 /// Metadata structs (TrackInfo, AlbumInfo, ArtistInfo, [ServiceLink]) are stored
 /// as opaque JSON Data blobs to avoid CloudKit compatibility issues with
 /// SwiftData's Codable decomposition of `[String]` arrays.
-@Model
-final class MediaEntry {
+@Model final class MediaEntry {
     var id: UUID = UUID()
     var originalUrl: String = ""
     var shortUrl: String = ""

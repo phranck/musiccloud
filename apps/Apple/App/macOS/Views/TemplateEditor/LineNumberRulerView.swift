@@ -29,15 +29,10 @@ final class LineNumberRulerView: NSRulerView {
         ruleThickness = 36
     }
 
-    @available(*, unavailable)
-    required init(coder: NSCoder) {
-        fatalError("init(coder:) is not supported")
-    }
+    @available(*, unavailable) required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
-        guard let textView,
-              let layoutManager = textView.layoutManager,
-              let textContainer = textView.textContainer else { return }
+        guard let textView, let layoutManager = textView.layoutManager, let textContainer = textView.textContainer else { return }
 
         NSColor.textBackgroundColor.setFill()
         bounds.fill()
@@ -53,8 +48,11 @@ final class LineNumberRulerView: NSRulerView {
 
         // The number of the first visible line is one more than the line breaks before it.
         var lineNumber = 1
-        text.enumerateSubstrings(in: NSRange(location: 0, length: visible.location), options: [.byLines, .substringNotRequired]) { _, _, _, _ in
-            lineNumber += 1
+        text.enumerateSubstrings(in: NSRange(location: 0, length: visible.location), options: [.byLines, .substringNotRequired]) {
+            _,
+            _,
+            _,
+            _ in lineNumber += 1
         }
 
         var index = visible.location

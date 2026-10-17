@@ -11,13 +11,7 @@ import SwiftUI
 /// The `info.app` symbol ships with macOS 27, so earlier systems show
 /// `info.circle`, the symbol of the About pane in the Settings sidebar.
 struct AboutItem: View {
-    private var icon: String {
-        if #available(macOS 27.0, *) {
-            "info.app"
-        } else {
-            "info.circle"
-        }
-    }
+    private var icon: String { if #available(macOS 27.0, *) { "info.app" } else { "info.circle" } }
 
     var body: some View {
         PanelActionItem(icon: icon, title: "About") {

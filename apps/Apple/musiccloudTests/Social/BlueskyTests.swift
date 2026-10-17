@@ -7,39 +7,30 @@ import Testing
 // MARK: - BlueskyDiscoveryTests
 
 struct BlueskyDiscoveryTests {
-    @Test(arguments: ["name.bsky.social", "@Name.Bsky.Social", "  name.bsky.social\n"])
-    func handleIsNormalized(input: String) {
+    @Test(arguments: ["name.bsky.social", "@Name.Bsky.Social", "  name.bsky.social\n"]) func handleIsNormalized(input: String) {
         #expect(BlueskyAPI.handle(from: input) == "name.bsky.social")
     }
 
     /// Text copied from a web page carries invisible direction marks and
     /// zero-width characters around the handle; a profile link names it too.
     @Test(arguments: [
-        "\u{2066}@name.bsky.social\u{2069}",
-        "\u{202A}name.bsky.social\u{202C}",
-        "name\u{200B}.bsky.social",
-        "\u{FEFF}name.bsky.social",
-        "https://bsky.app/profile/name.bsky.social",
-        "bsky.app/profile/@name.bsky.social/",
-    ])
-    func handleIsFoundInPastedText(input: String) {
-        #expect(BlueskyAPI.handle(from: input) == "name.bsky.social")
-    }
+        "\u{2066}@name.bsky.social\u{2069}", "\u{202A}name.bsky.social\u{202C}", "name\u{200B}.bsky.social", "\u{FEFF}name.bsky.social",
+        "https://bsky.app/profile/name.bsky.social", "bsky.app/profile/@name.bsky.social/",
+    ]) func handleIsFoundInPastedText(input: String) { #expect(BlueskyAPI.handle(from: input) == "name.bsky.social") }
 
     /// A bare name is a handle on bsky.social, which the field shows beside it.
-    @Test(arguments: ["phranck", "@Phranck", "\u{2066}phranck\u{2069}"])
-    func bareNameGetsBlueskysDomain(input: String) {
+    @Test(arguments: ["phranck", "@Phranck", "\u{2066}phranck\u{2069}"]) func bareNameGetsBlueskysDomain(input: String) {
         #expect(BlueskyAPI.handle(from: input) == "phranck.bsky.social")
     }
 
     @Test(arguments: ["", "@", ".bsky.social", "name.", "na me.bsky.social", "na me", "https://bsky.app"])
-    func inputThatCannotBeAHandleIsRejected(input: String) {
-        #expect(BlueskyAPI.handle(from: input) == nil)
-    }
+    func inputThatCannotBeAHandleIsRejected(input: String) { #expect(BlueskyAPI.handle(from: input) == nil) }
 
     @Test func didDocumentsAreFoundForPLCAndWeb() {
-        #expect(BlueskyAPI.didDocumentURL(did: "did:plc:z72i7hdynmk6r22z27h6tvur")?.absoluteString
-            == "https://plc.directory/did:plc:z72i7hdynmk6r22z27h6tvur")
+        #expect(
+            BlueskyAPI.didDocumentURL(did: "did:plc:z72i7hdynmk6r22z27h6tvur")?.absoluteString
+                == "https://plc.directory/did:plc:z72i7hdynmk6r22z27h6tvur"
+        )
         #expect(BlueskyAPI.didDocumentURL(did: "did:web:example.com")?.absoluteString == "https://example.com/.well-known/did.json")
         #expect(BlueskyAPI.didDocumentURL(did: "did:web:example.com:user") == nil)
         #expect(BlueskyAPI.didDocumentURL(did: "did:key:abc") == nil)
@@ -47,9 +38,9 @@ struct BlueskyDiscoveryTests {
 
     @Test func documentNamesThePDSAndConfirmsTheHandle() throws {
         let json = #"""
-        {"id":"did:plc:abc","alsoKnownAs":["at://name.bsky.social"],
-         "service":[{"id":"#atproto_pds","type":"AtprotoPersonalDataServer","serviceEndpoint":"https://pds.example"}]}
-        """#
+            {"id":"did:plc:abc","alsoKnownAs":["at://name.bsky.social"],
+             "service":[{"id":"#atproto_pds","type":"AtprotoPersonalDataServer","serviceEndpoint":"https://pds.example"}]}
+            """#
         let document = try JSONDecoder().decode(BlueskyDIDDocument.self, from: Data(json.utf8))
         #expect(document.pdsEndpoint == URL(string: "https://pds.example"))
         #expect(document.confirms(handle: "name.bsky.social"))
@@ -58,7 +49,8 @@ struct BlueskyDiscoveryTests {
 
     /// A PDS reached over plain HTTP would carry the tokens in the clear.
     @Test func pdsWithoutHTTPSIsIgnored() throws {
-        let json = ##"{"id":"did:plc:abc","service":[{"id":"#atproto_pds","type":"AtprotoPersonalDataServer","serviceEndpoint":"http://pds.example"}]}"##
+        let json =
+            ##"{"id":"did:plc:abc","service":[{"id":"#atproto_pds","type":"AtprotoPersonalDataServer","serviceEndpoint":"http://pds.example"}]}"##
         #expect(try JSONDecoder().decode(BlueskyDIDDocument.self, from: Data(json.utf8)).pdsEndpoint == nil)
     }
 }
@@ -70,10 +62,12 @@ struct BlueskyRequestTests {
 
     private func fields(_ request: URLRequest) throws -> [String: String] {
         let body = try #require(request.httpBody.flatMap { String(data: $0, encoding: .utf8) })
-        return Dictionary(uniqueKeysWithValues: body.split(separator: "&").map { pair in
-            let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
-            return (parts[0], parts.count > 1 ? (parts[1].removingPercentEncoding ?? "") : "")
-        })
+        return Dictionary(
+            uniqueKeysWithValues: body.split(separator: "&").map { pair in
+                let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
+                return (parts[0], parts.count > 1 ? (parts[1].removingPercentEncoding ?? "") : "")
+            }
+        )
     }
 
     @Test func pushedRequestCarriesEverythingTheProfileRequires() throws {
@@ -110,10 +104,10 @@ struct BlueskyRequestTests {
 
     @Test func authorizationServerMetadataDecodes() throws {
         let json = #"""
-        {"issuer":"https://bsky.social","authorization_endpoint":"https://bsky.social/oauth/authorize",
-         "token_endpoint":"https://bsky.social/oauth/token","pushed_authorization_request_endpoint":"https://bsky.social/oauth/par",
-         "revocation_endpoint":"https://bsky.social/oauth/revoke"}
-        """#
+            {"issuer":"https://bsky.social","authorization_endpoint":"https://bsky.social/oauth/authorize",
+             "token_endpoint":"https://bsky.social/oauth/token","pushed_authorization_request_endpoint":"https://bsky.social/oauth/par",
+             "revocation_endpoint":"https://bsky.social/oauth/revoke"}
+            """#
         let server = try BlueskyAPI.decoder.decode(BlueskyAuthorizationServer.self, from: Data(json.utf8))
         #expect(server.pushedAuthorizationRequestEndpoint.path == "/oauth/par")
         #expect(server.revocationEndpoint?.path == "/oauth/revoke")
@@ -132,8 +126,12 @@ struct DPoPKeyTests {
 
     @Test func proofIsASignedES256JWTForTheRequest() throws {
         let key = DPoPKey()
-        let proof = try key.proof(method: "POST", url: URL(string: "https://bsky.social/oauth/token?x=1#y")!, nonce: "n1",
-                                  now: Date(timeIntervalSince1970: 1_700_000_000))
+        let proof = try key.proof(
+            method: "POST",
+            url: URL(string: "https://bsky.social/oauth/token?x=1#y")!,
+            nonce: "n1",
+            now: Date(timeIntervalSince1970: 1_700_000_000)
+        )
         let parts = proof.split(separator: ".")
         #expect(parts.count == 3)
 
@@ -170,8 +168,15 @@ struct DPoPKeyTests {
 
     @Test func sessionExpiryUsesTheMargin() {
         let now = Date(timeIntervalSince1970: 1_000)
-        var session = BlueskySession(accessToken: "a", refreshToken: nil, expiresAt: now.addingTimeInterval(30), dpopKey: Data(),
-                                     issuer: "i", tokenEndpoint: URL(string: "https://x")!, revocationEndpoint: nil)
+        var session = BlueskySession(
+            accessToken: "a",
+            refreshToken: nil,
+            expiresAt: now.addingTimeInterval(30),
+            dpopKey: Data(),
+            issuer: "i",
+            tokenEndpoint: URL(string: "https://x")!,
+            revocationEndpoint: nil
+        )
         #expect(session.expires(within: 60, from: now))
         session.expiresAt = now.addingTimeInterval(600)
         #expect(!session.expires(within: 60, from: now))
@@ -189,10 +194,14 @@ struct DPoPKeyTests {
 /// container. Two connectors over one store stand for the two processes:
 /// their in-process refresh tasks are separate, so only the file lock keeps
 /// them from presenting the same refresh token twice.
-@MainActor
-struct BlueskySessionRenewalTests {
-    private let account = BlueskyAccount(did: TokenEndpointProtocol.accountDID, handle: "name.bsky.social", displayName: "",
-                                         avatarURL: nil, pds: URL(string: "https://pds.example")!)
+@MainActor struct BlueskySessionRenewalTests {
+    private let account = BlueskyAccount(
+        did: TokenEndpointProtocol.accountDID,
+        handle: "name.bsky.social",
+        displayName: "",
+        avatarURL: nil,
+        pds: URL(string: "https://pds.example")!
+    )
     /// The fake token endpoint's host, unique to each test, so tests running in parallel count apart.
     private let tokenHost = "\(UUID().uuidString.lowercased()).token.test"
     /// The folder of the store's files and its lock file.
@@ -200,9 +209,15 @@ struct BlueskySessionRenewalTests {
 
     /// A session whose access token has ended, holding the refresh token the fake endpoint accepts first.
     private var expiredSession: BlueskySession {
-        BlueskySession(accessToken: "expired", refreshToken: "refresh-0", expiresAt: .now.addingTimeInterval(-10),
-                       dpopKey: DPoPKey().rawRepresentation, issuer: "https://\(tokenHost)",
-                       tokenEndpoint: URL(string: "https://\(tokenHost)/oauth/token")!, revocationEndpoint: nil)
+        BlueskySession(
+            accessToken: "expired",
+            refreshToken: "refresh-0",
+            expiresAt: .now.addingTimeInterval(-10),
+            dpopKey: DPoPKey().rawRepresentation,
+            issuer: "https://\(tokenHost)",
+            tokenEndpoint: URL(string: "https://\(tokenHost)/oauth/token")!,
+            revocationEndpoint: nil
+        )
     }
 
     /// A store in ``folder`` holding ``expiredSession`` for ``account``.
@@ -278,9 +293,7 @@ struct SessionFileLockTests {
         }
 
         let started = ContinuousClock.now
-        await #expect(throws: CancellationError.self) {
-            try await lock.withLock { try await Task.sleep(for: .seconds(5)) }
-        }
+        await #expect(throws: CancellationError.self) { try await lock.withLock { try await Task.sleep(for: .seconds(5)) } }
         #expect(ContinuousClock.now - started < .seconds(2))
         #expect(isUnlocked(url))
     }
@@ -315,9 +328,7 @@ private final class TokenEndpointProtocol: URLProtocol {
     private static let counts = Mutex<[String: Counts]>([:])
 
     /// How many refresh requests reached `host`, accepted or refused.
-    static func requests(to host: String) -> Int {
-        counts.withLock { $0[host]?.requests ?? 0 }
-    }
+    static func requests(to host: String) -> Int { counts.withLock { $0[host]?.requests ?? 0 } }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -337,13 +348,20 @@ private final class TokenEndpointProtocol: URLProtocol {
         let json: String
         if let issued {
             status = 200
-            json = #"{"access_token":"access-\#(issued)","refresh_token":"refresh-\#(issued)","expires_in":3600,"sub":"\#(Self.accountDID)","token_type":"DPoP"}"#
+            json =
+                #"{"access_token":"access-\#(issued)","refresh_token":"refresh-\#(issued)","expires_in":3600,"sub":"\#(Self.accountDID)","token_type":"DPoP"}"#
         } else {
             status = 400
             json = #"{"error":"invalid_grant"}"#
         }
-        guard let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil,
-                                             headerFields: ["Content-Type": "application/json"]) else { return }
+        guard
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: status,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )
+        else { return }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(json.utf8))
         client?.urlProtocolDidFinishLoading(self)
@@ -367,9 +385,7 @@ private final class TokenEndpointProtocol: URLProtocol {
         let form = String(data: body, encoding: .utf8) ?? ""
         for pair in form.split(separator: "&") {
             let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
-            if parts.first == name {
-                return parts.count > 1 ? parts[1].removingPercentEncoding : ""
-            }
+            if parts.first == name { return parts.count > 1 ? parts[1].removingPercentEncoding : "" }
         }
         return nil
     }

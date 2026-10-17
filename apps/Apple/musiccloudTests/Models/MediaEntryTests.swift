@@ -55,11 +55,7 @@ struct MediaEntryTests {
     }
 
     @Test func contentTypeFallsBackToEmptyTrack() {
-        let entry = MediaEntry(
-            originalUrl: "https://example.com",
-            shortUrl: "https://musiccloud.io/abc",
-            mediaType: .track
-        )
+        let entry = MediaEntry(originalUrl: "https://example.com", shortUrl: "https://musiccloud.io/abc", mediaType: .track)
         if case .track(let info) = entry.contentType {
             #expect(info.title == "")
             #expect(info.artists.isEmpty)
@@ -88,11 +84,7 @@ struct MediaEntryTests {
     // MARK: Default values
 
     @Test func defaultValuesAreCorrect() {
-        let entry = MediaEntry(
-            originalUrl: "https://test.com",
-            shortUrl: "https://musiccloud.io/x",
-            mediaType: .track
-        )
+        let entry = MediaEntry(originalUrl: "https://test.com", shortUrl: "https://musiccloud.io/x", mediaType: .track)
         #expect(entry.originalUrl == "https://test.com")
         #expect(entry.shortUrl == "https://musiccloud.io/x")
         #expect(entry.mediaType == .track)
@@ -205,10 +197,17 @@ struct ArtworkThumbnailCacheTests {
 
     /// Encodes a solid square of the given edge length as PNG.
     private func pngData(edge: Int) throws -> Data {
-        let context = try #require(CGContext(
-            data: nil, width: edge, height: edge, bitsPerComponent: 8, bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ))
+        let context = try #require(
+            CGContext(
+                data: nil,
+                width: edge,
+                height: edge,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            )
+        )
         context.setFillColor(red: 1, green: 0, blue: 0, alpha: 1)
         context.fill(CGRect(x: 0, y: 0, width: edge, height: edge))
         let image = try #require(context.makeImage())
@@ -238,7 +237,6 @@ struct ArtworkThumbnailCacheTests {
     }
 }
 
-
 // MARK: - MediaFilterTests
 
 struct MediaFilterTests {
@@ -250,8 +248,7 @@ struct MediaFilterTests {
         #expect(MediaFilter(commandNumber: 4) == .artists)
     }
 
-    @Test(arguments: [0, 5, 9])
-    func commandNumbersWithoutATabSelectNothing(_ number: Int) {
+    @Test(arguments: [0, 5, 9]) func commandNumbersWithoutATabSelectNothing(_ number: Int) {
         #expect(MediaFilter(commandNumber: number) == nil)
     }
 }

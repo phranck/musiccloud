@@ -73,9 +73,7 @@ extension DefaultsKey {
         guard source !== target else { return }
         for key in sharedKeys {
             guard let value = source.object(forKey: key) else { continue }
-            if target.object(forKey: key) == nil {
-                target.set(value, forKey: key)
-            }
+            if target.object(forKey: key) == nil { target.set(value, forKey: key) }
             source.removeObject(forKey: key)
         }
     }
