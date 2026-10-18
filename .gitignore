@@ -82,6 +82,7 @@ WHATS-NEXT.md
 !/docs/backend-error-observability.md
 !/docs/crawler-architecture.md
 !/docs/postgres-migration-safety.md
+!/docs/service-brand-assets.md
 !/docs/resolve-flow/
 !/docs/resolve-flow/**
 mockups/

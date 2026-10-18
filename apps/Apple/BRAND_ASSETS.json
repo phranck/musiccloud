@@ -1,51 +1,41 @@
 {
+  "generatedFrom": "assets/service-brands/manifest.json",
   "notice": "Brand assets remain the property of their respective owners and are not covered by the repository code license. Brandfetch does not grant rights in third-party brand assets.",
   "brandfetchTerms": "https://brandfetch.com/terms",
   "assets": [
-    {
-      "service": "spotify",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/spotify.com",
-      "sourcePath": "https://cdn.brandfetch.io/id20mQyGeY/theme/dark/symbol.svg",
-      "sourceSHA256": "729a1f07709d005f83513dde503d4046777907d9b8b395643d655805a88fa9d8",
-      "bundledSHA256": "729a1f07709d005f83513dde503d4046777907d9b8b395643d655805a88fa9d8",
-      "transformation": null
-    },
     {
       "service": "apple-music",
       "provider": "Brandfetch",
       "profile": "https://brandfetch.com/applemusic.com",
       "sourcePath": "https://cdn.brandfetch.io/id_yBTuraI/theme/light/symbol.svg",
       "sourceSHA256": "7e18cfb9968dd2f04aaf9c0f0164efaf5726ef8a8c7d97793d76ed8a72891cfb",
-      "bundledSHA256": "7e18cfb9968dd2f04aaf9c0f0164efaf5726ef8a8c7d97793d76ed8a72891cfb",
-      "transformation": null
+      "transformation": null,
+      "glyph": {
+        "provider": "react-icons / Simple Icons",
+        "package": "react-icons@5.6.0",
+        "export": "SiApplemusic",
+        "source": "https://github.com/react-icons/react-icons",
+        "pathLicense": "CC0-1.0; no trademark rights granted",
+        "transformation": "Export the existing website glyph as SVG without changing its paths."
+      },
+      "bundledSHA256": "7e18cfb9968dd2f04aaf9c0f0164efaf5726ef8a8c7d97793d76ed8a72891cfb"
     },
     {
-      "service": "youtube",
+      "service": "audiomack",
       "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/youtube.com",
-      "sourcePath": "https://cdn.brandfetch.io/idVfYwcuQz/theme/dark/symbol.svg",
-      "sourceSHA256": "89a24ea7e431567e483c3c36093d4ebcf755f5afd035c1e6cf02895613d4ac81",
-      "bundledSHA256": "89a24ea7e431567e483c3c36093d4ebcf755f5afd035c1e6cf02895613d4ac81",
-      "transformation": null
-    },
-    {
-      "service": "soundcloud",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/soundcloud.com",
-      "sourcePath": "https://cdn.brandfetch.io/id3ytDFop3/theme/dark/symbol.svg",
-      "sourceSHA256": "037e86d534f7dd1815923922cbf97cff1b7a013415494ef788d2a6977d9a2424",
-      "bundledSHA256": "e00e361ad6c45b9e742a15a5b54f58cdee6a313b5bc8a7f1d3dbabab9cf468a3",
-      "transformation": "Resolve the source SVG currentColor slot to the SoundCloud accent; path geometry unchanged."
-    },
-    {
-      "service": "deezer",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/deezer.com",
-      "sourcePath": "https://cdn.brandfetch.io/idEUKgCNtu/theme/dark/symbol.svg",
-      "sourceSHA256": "5fca323e2e9b64648eb29a1f22400363a575511f9701bf77b3650b0dd58031b6",
-      "bundledSHA256": "5fca323e2e9b64648eb29a1f22400363a575511f9701bf77b3650b0dd58031b6",
-      "transformation": null
+      "profile": "https://brandfetch.com/audiomack.com",
+      "sourcePath": "https://cdn.brandfetch.io/ids9PJxow1/theme/dark/symbol.svg",
+      "sourceSHA256": "f465428f65078f5383d0d751ef3a1820e6a574d2bd962a9b382013044992ebb6",
+      "transformation": null,
+      "glyph": {
+        "provider": "react-icons / Simple Icons",
+        "package": "react-icons@5.6.0",
+        "export": "SiAudiomack",
+        "source": "https://github.com/react-icons/react-icons",
+        "pathLicense": "CC0-1.0; no trademark rights granted",
+        "transformation": "Export the existing website glyph as SVG without changing its paths."
+      },
+      "bundledSHA256": "f465428f65078f5383d0d751ef3a1820e6a574d2bd962a9b382013044992ebb6"
     },
     {
       "service": "audius",
@@ -53,8 +43,77 @@
       "source": "https://github.com/AudiusProject/audius-protocol/blob/main/packages/harmony/src/assets/icons/AudiusLogoColor.svg",
       "sourceSHA256": "4b1cc219c02f9121f1250885d891ac9c150f31026874eda6c6f7c9b605e94503",
       "embeddedPNGSourceSHA256": "0cefeca23bee84fc4f506866e478eb0303ce9991f160addfe2bfa73567dd8015",
-      "bundledSHA256": "ce6660222091c7e8399523df62841bb5d687f08f7b7845a6d7e86e892ba3c2d1",
-      "transformation": "Extract the original embedded PNG and trim transparent padding; no tracing, recoloring or redrawing."
+      "transformation": "Extract the original embedded PNG and trim transparent padding; no tracing, recoloring or redrawing.",
+      "bundledSHA256": "ce6660222091c7e8399523df62841bb5d687f08f7b7845a6d7e86e892ba3c2d1"
+    },
+    {
+      "service": "bandcamp",
+      "provider": "Simple Icons",
+      "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/bandcamp.svg",
+      "pathLicense": "CC0-1.0; no trademark rights granted",
+      "transformation": "Set brand fill; path geometry unchanged.",
+      "bundledSHA256": "f774532437f2348444024a7bef7132aeaf0e28dbac7e3c90e2e8fe25b7206644"
+    },
+    {
+      "service": "beatport",
+      "provider": "Simple Icons",
+      "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/beatport.svg",
+      "pathLicense": "CC0-1.0; no trademark rights granted",
+      "transformation": "Set brand fill; path geometry unchanged.",
+      "bundledSHA256": "c35aa64603891b446887e7e322924e860431893e97bdde83d619f98e145d2c63"
+    },
+    {
+      "service": "boomplay",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/boomplay.com",
+      "sourcePath": "https://cdn.brandfetch.io/iduFCCNnH6/w/400/h/400/theme/dark/icon.jpeg",
+      "sourceSHA256": "bde1479778fd7cf02936964b12f95c90390f09ea08292392549780d425d51362",
+      "transformation": "Use the compact icon without a wordmark. Remove the external white matte, preserving the original black carrier circle for cyan glyph contrast; no tracing or redrawing.",
+      "bundledSHA256": "3b4b4e136c4a75d9f44bd55dc24aace6758de970d71d83bf5dca697ea8c5330f"
+    },
+    {
+      "service": "bugs",
+      "provider": "Official website",
+      "source": "https://file.bugsm.co.kr/wbugs/common/faviconBugs.ico",
+      "sourceSHA256": "d7ae9293acdba3c4dacc9d05aa657b30d326b9b505d9f6068d25a52f1e7f0ca1",
+      "transformation": "Decode the original 256-pixel icon frame as PNG; no tracing or redrawing.",
+      "bundledSHA256": "3d22103c785b5ed675c258170dbcd4393480f4ed4d6a2189e8300ccd066fb58f"
+    },
+    {
+      "service": "deezer",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/deezer.com",
+      "sourcePath": "https://cdn.brandfetch.io/idEUKgCNtu/theme/dark/symbol.svg",
+      "sourceSHA256": "5fca323e2e9b64648eb29a1f22400363a575511f9701bf77b3650b0dd58031b6",
+      "transformation": null,
+      "bundledSHA256": "5fca323e2e9b64648eb29a1f22400363a575511f9701bf77b3650b0dd58031b6"
+    },
+    {
+      "service": "jiosaavn",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/jiosaavn.com",
+      "sourcePath": "https://cdn.brandfetch.io/idmI9lAKkj/w/383/h/383/theme/dark/icon.jpeg",
+      "sourceSHA256": "aa7763c96ad53e921ef4e9bb2bfc84e87620bb2c14d70a0513fc94186f94ad41",
+      "transformation": null,
+      "bundledSHA256": "aa7763c96ad53e921ef4e9bb2bfc84e87620bb2c14d70a0513fc94186f94ad41"
+    },
+    {
+      "service": "kkbox",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/kkbox.com",
+      "sourcePath": "https://cdn.brandfetch.io/idceQCFZ7m/theme/dark/logo.svg",
+      "sourceSHA256": "ff76b5232ee4f438e37db913d7c4df949703c8345059cc48916dfa119b891ac6",
+      "transformation": null,
+      "bundledSHA256": "ff76b5232ee4f438e37db913d7c4df949703c8345059cc48916dfa119b891ac6"
+    },
+    {
+      "service": "melon",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/melon.com",
+      "sourcePath": "https://cdn.brandfetch.io/id1HpzLV0U/w/474/h/148/theme/dark/logo.png",
+      "sourceSHA256": "a83bea35da8b323718b928136d1cb3494e97ae18fdea0f80e7e72b1e84ef2376",
+      "transformation": null,
+      "bundledSHA256": "a83bea35da8b323718b928136d1cb3494e97ae18fdea0f80e7e72b1e84ef2376"
     },
     {
       "service": "napster",
@@ -62,8 +121,23 @@
       "profile": "https://brandfetch.com/napster.com",
       "sourcePath": "https://cdn.brandfetch.io/idSrCdsGeU/theme/dark/symbol.svg",
       "sourceSHA256": "298015d12f2c9742ab09a355d949549b513af13683637e03b84dfffac81a0f7c",
-      "bundledSHA256": "298015d12f2c9742ab09a355d949549b513af13683637e03b84dfffac81a0f7c",
-      "transformation": null
+      "transformation": null,
+      "glyph": {
+        "provider": "react-icons / Simple Icons",
+        "package": "react-icons@5.6.0",
+        "export": "SiNapster",
+        "source": "https://github.com/react-icons/react-icons",
+        "pathLicense": "CC0-1.0; no trademark rights granted",
+        "transformation": "Export the existing website glyph as SVG without changing its paths."
+      },
+      "bundledSHA256": "298015d12f2c9742ab09a355d949549b513af13683637e03b84dfffac81a0f7c"
+    },
+    {
+      "service": "netease",
+      "provider": "Official website",
+      "source": "https://s1.music.126.net/style/favicon.ico?v20180823",
+      "transformation": "Decode the original 32-pixel ICO image as PNG; no tracing or redrawing.",
+      "bundledSHA256": "06821023a92fba46acb2977622aeb53f6c8324cd83b4fff871d03c1683d9b66b"
     },
     {
       "service": "pandora",
@@ -72,68 +146,66 @@
       "brandReference": "https://www.pandoraforbrands.com",
       "sourceSHA256": "e41b7f4c02a46676971ede09cc827a8909e194b41f2c79f25b048f98dda38cae",
       "pathLicense": "CC0-1.0; no trademark rights granted",
-      "transformation": "Set the published brand fill #224099 and a white dark-appearance variant; path geometry unchanged."
+      "transformation": "Set the published brand fill #224099 and a white dark-appearance variant; path geometry unchanged.",
+      "bundledSHA256": "cbe49c2f7527229e726addd7290781b6112506cf9b3c1246b9696d0990b2e950"
     },
     {
       "service": "qobuz",
       "provider": "Official website",
       "source": "https://static.qobuz.com/images/favicon/favicon.svg",
       "sourceSHA256": "59f10306a0b221bb0ab7dc6e6972426ddfdbe8ca536b8860fd62c31de6926837",
-      "bundledSHA256": "59f10306a0b221bb0ab7dc6e6972426ddfdbe8ca536b8860fd62c31de6926837",
-      "transformation": null
+      "transformation": null,
+      "bundledSHA256": "59f10306a0b221bb0ab7dc6e6972426ddfdbe8ca536b8860fd62c31de6926837"
     },
     {
-      "service": "boomplay",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/boomplay.com",
-      "sourcePath": "https://cdn.brandfetch.io/iduFCCNnH6/w/400/h/400/theme/dark/icon.jpeg",
-      "sourceSHA256": "bde1479778fd7cf02936964b12f95c90390f09ea08292392549780d425d51362",
-      "bundledSHA256": "3b4b4e136c4a75d9f44bd55dc24aace6758de970d71d83bf5dca697ea8c5330f",
-      "transformation": "Use the compact icon without a wordmark. Remove the external white matte, preserving the original black carrier circle for cyan glyph contrast; no tracing or redrawing."
-    },
-    {
-      "service": "kkbox",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/kkbox.com",
-      "sourcePath": "https://cdn.brandfetch.io/idceQCFZ7m/theme/dark/logo.svg",
-      "sourceSHA256": "ff76b5232ee4f438e37db913d7c4df949703c8345059cc48916dfa119b891ac6",
-      "bundledSHA256": "ff76b5232ee4f438e37db913d7c4df949703c8345059cc48916dfa119b891ac6",
-      "transformation": null
-    },
-    {
-      "service": "audiomack",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/audiomack.com",
-      "sourcePath": "https://cdn.brandfetch.io/ids9PJxow1/theme/dark/symbol.svg",
-      "sourceSHA256": "f465428f65078f5383d0d751ef3a1820e6a574d2bd962a9b382013044992ebb6",
-      "bundledSHA256": "f465428f65078f5383d0d751ef3a1820e6a574d2bd962a9b382013044992ebb6",
-      "transformation": null
-    },
-    {
-      "service": "melon",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/melon.com",
-      "sourcePath": "https://cdn.brandfetch.io/id1HpzLV0U/w/474/h/148/theme/dark/logo.png",
-      "sourceSHA256": "a83bea35da8b323718b928136d1cb3494e97ae18fdea0f80e7e72b1e84ef2376",
-      "bundledSHA256": "a83bea35da8b323718b928136d1cb3494e97ae18fdea0f80e7e72b1e84ef2376",
-      "transformation": null
-    },
-    {
-      "service": "bugs",
+      "service": "qqmusic",
       "provider": "Official website",
-      "source": "https://file.bugsm.co.kr/wbugs/common/faviconBugs.ico",
-      "sourceSHA256": "d7ae9293acdba3c4dacc9d05aa657b30d326b9b505d9f6068d25a52f1e7f0ca1",
-      "bundledSHA256": "3d22103c785b5ed675c258170dbcd4393480f4ed4d6a2189e8300ccd066fb58f",
-      "transformation": "Decode the original 256-pixel icon frame as PNG; no tracing or redrawing."
+      "source": "https://y.qq.com/favicon.ico",
+      "transformation": "Decode the original 32-pixel ICO image as PNG; no tracing or redrawing.",
+      "bundledSHA256": "6845e8c3b4d7b52cd582d35e6bb2261de9ac86bcdad94720baffd411f161e537"
     },
     {
-      "service": "jiosaavn",
+      "service": "soundcloud",
       "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/jiosaavn.com",
-      "sourcePath": "https://cdn.brandfetch.io/idmI9lAKkj/w/383/h/383/theme/dark/icon.jpeg",
-      "sourceSHA256": "aa7763c96ad53e921ef4e9bb2bfc84e87620bb2c14d70a0513fc94186f94ad41",
-      "bundledSHA256": "aa7763c96ad53e921ef4e9bb2bfc84e87620bb2c14d70a0513fc94186f94ad41",
-      "transformation": null
+      "profile": "https://brandfetch.com/soundcloud.com",
+      "sourcePath": "https://cdn.brandfetch.io/id3ytDFop3/theme/dark/symbol.svg",
+      "sourceSHA256": "037e86d534f7dd1815923922cbf97cff1b7a013415494ef788d2a6977d9a2424",
+      "transformation": "Resolve the source SVG currentColor slot to the SoundCloud accent; path geometry unchanged.",
+      "bundledSHA256": "e00e361ad6c45b9e742a15a5b54f58cdee6a313b5bc8a7f1d3dbabab9cf468a3"
+    },
+    {
+      "service": "spotify",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/spotify.com",
+      "sourcePath": "https://cdn.brandfetch.io/id20mQyGeY/theme/dark/symbol.svg",
+      "sourceSHA256": "729a1f07709d005f83513dde503d4046777907d9b8b395643d655805a88fa9d8",
+      "transformation": null,
+      "bundledSHA256": "729a1f07709d005f83513dde503d4046777907d9b8b395643d655805a88fa9d8"
+    },
+    {
+      "service": "tidal",
+      "provider": "Simple Icons",
+      "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/tidal.svg",
+      "pathLicense": "CC0-1.0; no trademark rights granted",
+      "transformation": "Set brand fill; path geometry unchanged. Tidal has a white dark-appearance variant.",
+      "bundledSHA256": "b54eaafe772db4f6036cff6f80ba01812133e9801d9f9109d7736aba480ffbbb"
+    },
+    {
+      "service": "youtube",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/youtube.com",
+      "sourcePath": "https://cdn.brandfetch.io/idVfYwcuQz/theme/dark/symbol.svg",
+      "sourceSHA256": "89a24ea7e431567e483c3c36093d4ebcf755f5afd035c1e6cf02895613d4ac81",
+      "transformation": null,
+      "glyph": {
+        "provider": "react-icons / Simple Icons",
+        "package": "react-icons@5.6.0",
+        "export": "SiYoutube",
+        "source": "https://github.com/react-icons/react-icons",
+        "pathLicense": "CC0-1.0; no trademark rights granted",
+        "transformation": "Export the existing website glyph as SVG without changing its paths."
+      },
+      "bundledSHA256": "89a24ea7e431567e483c3c36093d4ebcf755f5afd035c1e6cf02895613d4ac81"
     },
     {
       "service": "youtube-music",
@@ -141,41 +213,16 @@
       "profile": "https://brandfetch.com/artists.youtube",
       "sourcePath": "https://cdn.brandfetch.io/id1T1Nlfsw/w/400/h/400/theme/dark/icon.jpeg",
       "sourceSHA256": "03133943a8b0f327c1c48562c8de44f17543bb1029b61612952abafa52bda901",
-      "bundledSHA256": "03133943a8b0f327c1c48562c8de44f17543bb1029b61612952abafa52bda901",
-      "transformation": null
-    },
-    {
-      "service": "tidal",
-      "provider": "Simple Icons",
-      "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/tidal.svg",
-      "pathLicense": "CC0-1.0; no trademark rights granted",
-      "transformation": "Set brand fill; path geometry unchanged. Tidal has a white dark-appearance variant."
-    },
-    {
-      "service": "beatport",
-      "provider": "Simple Icons",
-      "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/beatport.svg",
-      "pathLicense": "CC0-1.0; no trademark rights granted",
-      "transformation": "Set brand fill; path geometry unchanged. Tidal has a white dark-appearance variant."
-    },
-    {
-      "service": "bandcamp",
-      "provider": "Simple Icons",
-      "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/bandcamp.svg",
-      "pathLicense": "CC0-1.0; no trademark rights granted",
-      "transformation": "Set brand fill; path geometry unchanged. Tidal has a white dark-appearance variant."
-    },
-    {
-      "service": "netease",
-      "provider": "Official website",
-      "source": "https://s1.music.126.net/style/favicon.ico?v20180823",
-      "transformation": "Decode the original 32-pixel ICO image as PNG; no tracing or redrawing."
-    },
-    {
-      "service": "qqmusic",
-      "provider": "Official website",
-      "source": "https://y.qq.com/favicon.ico",
-      "transformation": "Decode the original 32-pixel ICO image as PNG; no tracing or redrawing."
+      "transformation": null,
+      "glyph": {
+        "provider": "react-icons / Simple Icons",
+        "package": "react-icons@5.6.0",
+        "export": "SiYoutubemusic",
+        "source": "https://github.com/react-icons/react-icons",
+        "pathLicense": "CC0-1.0; no trademark rights granted",
+        "transformation": "Export the existing website glyph as SVG without changing its paths."
+      },
+      "bundledSHA256": "03133943a8b0f327c1c48562c8de44f17543bb1029b61612952abafa52bda901"
     }
   ]
 }
