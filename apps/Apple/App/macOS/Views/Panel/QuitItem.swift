@@ -8,12 +8,6 @@
 
 import SwiftUI
 
-struct QuitItem: View {
-    var body: some View {
-        PanelActionItem(icon: "power", title: "Quit") {
-            NSApplication.shared.terminate(nil)
-        }
-    }
-}
+struct QuitItem: View { var body: some View { PanelActionItem(icon: "power", title: "Quit") { NSApplication.shared.terminate(nil) } } }
 
 #endif

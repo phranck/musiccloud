@@ -63,21 +63,14 @@ struct PanelSection<Content: View>: View {
                 isHighlighted: isHovered,
                 // The hosting view inside the glass hosts its own SwiftUI
                 // hierarchy, so it is given the panel's rendering mode here.
-                content: paddedContent
-                    .onHover { isHovered = $0 }
-                    .symbolRenderingMode(.hierarchical)
+                content: paddedContent.onHover { isHovered = $0 }.symbolRenderingMode(.hierarchical)
             )
         } else {
-            paddedContent
-                .background(GlassCardBackground(cornerRadius: PanelMetrics.cornerRadius))
+            paddedContent.background(GlassCardBackground(cornerRadius: PanelMetrics.cornerRadius))
         }
     }
 
-    private var paddedContent: some View {
-        content
-            .padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
+    private var paddedContent: some View { content.padding(padding).frame(maxWidth: .infinity, alignment: .leading) }
 }
 
 // MARK: - GlassCardBackground
@@ -92,9 +85,7 @@ private struct GlassCardBackground: NSViewRepresentable {
         return glass
     }
 
-    func updateNSView(_ glass: NSGlassEffectView, context: Context) {
-        glass.cornerRadius = cornerRadius
-    }
+    func updateNSView(_ glass: NSGlassEffectView, context: Context) { glass.cornerRadius = cornerRadius }
 }
 
 // MARK: - GlassContentCard
@@ -125,7 +116,10 @@ private struct GlassContentCard<Content: View>: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView glass: NSGlassEffectView, context: Context) -> CGSize? {
-        guard let host = glass.contentView as? NSHostingView<Content> else { return nil }
+        guard let host = glass.contentView as? NSHostingView<Content>
+        else {
+            return nil
+        }
         let fitting = host.fittingSize
         return CGSize(width: proposal.width ?? fitting.width, height: fitting.height)
     }
@@ -133,9 +127,7 @@ private struct GlassContentCard<Content: View>: NSViewRepresentable {
     private func configure(_ glass: NSGlassEffectView) {
         glass.cornerRadius = cornerRadius
         glass.tintColor = isHighlighted ? PanelMetrics.hoverFill : nil
-        if #available(macOS 27.0, *) {
-            glass.effectIsInteractive = true
-        }
+        if #available(macOS 27.0, *) { glass.effectIsInteractive = true }
     }
 }
 

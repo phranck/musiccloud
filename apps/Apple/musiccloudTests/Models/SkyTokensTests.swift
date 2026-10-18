@@ -25,9 +25,7 @@ struct SkyTokensTests {
     }
     """
 
-    private func decode(_ json: String) throws -> SkyTokens {
-        try JSONDecoder().decode(SkyTokens.self, from: Data(json.utf8))
-    }
+    private func decode(_ json: String) throws -> SkyTokens { try JSONDecoder().decode(SkyTokens.self, from: Data(json.utf8)) }
 
     @Test func aFullShaderObjectSetsEveryField() throws {
         let tokens = try decode(Self.fullShader)
@@ -50,19 +48,19 @@ struct SkyTokensTests {
     }
 
     @Test func missingAndInvalidFieldsKeepTheirDefaults() throws {
-        let tokens = try decode("""
-        { "windSpeed": 0.03, "cloudCoverage": "much", "skyTop": "#123", "skyBottom": "12345678",
-          "skyTopDay": "#+12345", "cloudColor": "#abcdef" }
-        """)
+        let tokens = try decode(
+            """
+            { "windSpeed": 0.03, "cloudCoverage": "much", "skyTop": "#123", "skyBottom": "12345678",
+              "skyTopDay": "#+12345", "cloudColor": "#abcdef" }
+            """
+        )
         var expected = SkyTokens()
         expected.windSpeed = 0.03
         expected.cloudColor = SkyColor(0xabcdef)
         #expect(tokens == expected)
     }
 
-    @Test func anEmptyObjectIsTheDefaults() throws {
-        #expect(try decode("{}") == SkyTokens())
-    }
+    @Test func anEmptyObjectIsTheDefaults() throws { #expect(try decode("{}") == SkyTokens()) }
 
     @Test func theDesignTokenResponseReadsItsShaderObject() throws {
         let json = #"{ "cardRadius": 28, "shader": \#(Self.fullShader) }"#
@@ -78,21 +76,17 @@ struct SkyTokensTests {
     }
 
     @Test(arguments: [
-        ("#000000", [Float(0), 0, 0]),
-        ("#ffffff", [Float(1), 1, 1]),
-        ("#FF8000", [Float(1), Float(128) / 255, 0]),
+        ("#000000", [Float(0), 0, 0]), ("#ffffff", [Float(1), 1, 1]), ("#FF8000", [Float(1), Float(128) / 255, 0]),
         ("#0a1116", [Float(10) / 255, Float(17) / 255, Float(22) / 255]),
-    ])
-    func hexColorsBecomeComponents(_ hex: String, _ components: [Float]) throws {
+    ]) func hexColorsBecomeComponents(_ hex: String, _ components: [Float]) throws {
         let color = try #require(SkyColor(hex: hex))
         #expect(color.components == components)
         #expect(color.hex == hex.lowercased())
     }
 
-    @Test(arguments: ["", "#", "0a1116", "#0a111", "#0a11166", "#0a11g6", "#-12345", "#+12345", "red"])
-    func otherTextIsNoColor(_ text: String) {
-        #expect(SkyColor(hex: text) == nil)
-    }
+    @Test(arguments: ["", "#", "0a1116", "#0a111", "#0a11166", "#0a11g6", "#-12345", "#+12345", "red"]) func otherTextIsNoColor(
+        _ text: String
+    ) { #expect(SkyColor(hex: text) == nil) }
 
     /// `NightSky.metal` reads the colors from position 32 on and needs
     /// `slot::count`, 50 values.

@@ -73,15 +73,9 @@ struct AppAccessTests {
     // MARK: Answers
 
     @Test(arguments: [
-        ("MC-AUTH-0005", AppAccessClient.Failure.sessionInvalid),
-        ("MC-AUTH-0006", .challengeRejected),
-        ("MC-AUTH-0007", .proofRejected),
-        ("MC-AUTH-0008", .keyUnknown),
-        ("MC-REQ-0009", .keyAlreadyAttested),
-        ("MC-API-0003", .unavailable),
-        ("", .unavailable),
-    ])
-    func backendCodesMapOntoFailures(_ code: String, _ failure: AppAccessClient.Failure) {
+        ("MC-AUTH-0005", AppAccessClient.Failure.sessionInvalid), ("MC-AUTH-0006", .challengeRejected), ("MC-AUTH-0007", .proofRejected),
+        ("MC-AUTH-0008", .keyUnknown), ("MC-REQ-0009", .keyAlreadyAttested), ("MC-API-0003", .unavailable), ("", .unavailable),
+    ]) func backendCodesMapOntoFailures(_ code: String, _ failure: AppAccessClient.Failure) {
         #expect(AppAccessClient.failure(forCode: code) == failure)
     }
 
@@ -128,7 +122,10 @@ struct AppAccessTests {
     /// ``MusicCloudAPI/baseURL``.
     @Test func debugAppAccessURLFallsBackToProduction() {
         #if DEBUG
-        guard ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"] == nil else { return }
+        guard ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"] == nil
+        else {
+            return
+        }
         #expect(MusicCloudAPI.appAccessURL == MusicCloudAPI.productionAppAccessURL)
         #endif
     }

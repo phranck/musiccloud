@@ -10,13 +10,6 @@ import SwiftUI
 
 /// The History pane of the Settings window, holding the section that clears
 /// the conversion history.
-struct HistoryPane: View {
-    var body: some View {
-        Form {
-            DangerZoneSection()
-        }
-        .formStyle(.grouped)
-    }
-}
+struct HistoryPane: View { var body: some View { Form { DangerZoneSection() }.formStyle(.grouped) } }
 
 #endif

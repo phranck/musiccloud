@@ -22,32 +22,17 @@ struct ArtistItem: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Image(systemName: MediaType.artist.icon)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                    Text(artist.name)
-                        .font(.system(size: 14))
-                }
-                .lineLimit(1)
-                if let genres = artist.genresString {
-                    Text(genres)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
+                    Image(systemName: MediaType.artist.icon).font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text(artist.name).font(.system(size: 14))
+                }.lineLimit(1)
+                if let genres = artist.genresString { Text(genres).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1) }
             }
 
             Spacer(minLength: 8)
 
-            if let followers = artist.formattedFollowers {
-                Text(followers)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            }
+            if let followers = artist.formattedFollowers { Text(followers).font(.system(size: 12)).foregroundStyle(.secondary) }
 
             ShareButton(shortUrl: entry.shortUrl)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        }.padding(.horizontal, 10).padding(.vertical, 5)
     }
 }

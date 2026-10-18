@@ -12,18 +12,10 @@ struct DangerZoneSection: View {
             Button(role: .destructive) {
                 showConfirmation = true
             } label: {
-                Label("Delete All Data", systemImage: "trash")
-                    .foregroundStyle(.red)
+                Label("Delete All Data", systemImage: "trash").foregroundStyle(.red)
             }
-        }
-        .confirmationDialog(
-            "Delete All Data?",
-            isPresented: $showConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Delete All", role: .destructive) {
-                historyManager.clear()
-            }
+        }.confirmationDialog("Delete All Data?", isPresented: $showConfirmation, titleVisibility: .visible) {
+            Button("Delete All", role: .destructive) { historyManager.clear() }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will permanently delete all conversion history from this device and iCloud. This cannot be undone.")

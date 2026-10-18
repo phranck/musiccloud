@@ -24,8 +24,15 @@ struct MastodonAccount: Codable, Identifiable, Hashable, Sendable {
     /// Whether the instance renders Markdown in posts, which upstream Mastodon does not.
     var supportsMarkdown: Bool
 
-    init(instance: URL, accountID: String, username: String, displayName: String, avatarURL: URL?,
-         characterLimit: Int, supportsMarkdown: Bool = false) {
+    init(
+        instance: URL,
+        accountID: String,
+        username: String,
+        displayName: String,
+        avatarURL: URL?,
+        characterLimit: Int,
+        supportsMarkdown: Bool = false
+    ) {
         self.instance = instance
         self.accountID = accountID
         self.username = username

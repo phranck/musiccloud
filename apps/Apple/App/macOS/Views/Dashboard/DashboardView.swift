@@ -18,11 +18,8 @@ struct DashboardView: View {
     @State private var filter: MediaFilter = .all
 
     var body: some View {
-        NavigationStack {
-            HistoryView(filter: $filter)
-        }
-        .frame(minWidth: 800, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
-        .followsConversions(of: monitor, filter: $filter)
+        NavigationStack { HistoryView(filter: $filter) }.frame(minWidth: 800, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
+            .followsConversions(of: monitor, filter: $filter)
     }
 }
 

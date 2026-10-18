@@ -6,18 +6,28 @@ import Testing
 
 struct PostTemplateRendererTests {
     private let track = PostContext(
-        track: TrackInfo(title: "MoonDial", artists: ["Pat Metheny"], albumName: "MoonDial", durationMs: 383_000, releaseDate: "2024-07-26"),
+        track: TrackInfo(
+            title: "MoonDial",
+            artists: ["Pat Metheny"],
+            albumName: "MoonDial",
+            durationMs: 383_000,
+            releaseDate: "2024-07-26"
+        ),
         album: nil,
         artist: nil,
         shareURL: "https://musiccloud.io/3CCvY3vW",
         originalURL: "https://open.spotify.com/track/3sn5gqosgrs0y1ljACKUCt",
-        serviceLinks: [ServiceLink(service: "spotify", displayName: "Spotify", url: "https://open.spotify.com/track/3sn5gqosgrs0y1ljACKUCt")]
+        serviceLinks: [
+            ServiceLink(service: "spotify", displayName: "Spotify", url: "https://open.spotify.com/track/3sn5gqosgrs0y1ljACKUCt")
+        ]
     )
 
     @Test func variablesAreFilled() {
         let body = "Now playing: {song_name} by {artist} ({release_year}, {duration})\n{share_url}"
-        #expect(PostTemplateRenderer.render(body, with: track)
-            == "Now playing: MoonDial by Pat Metheny (2024, 6:23)\nhttps://musiccloud.io/3CCvY3vW")
+        #expect(
+            PostTemplateRenderer.render(body, with: track)
+                == "Now playing: MoonDial by Pat Metheny (2024, 6:23)\nhttps://musiccloud.io/3CCvY3vW"
+        )
     }
 
     @Test func serviceLinksResolveFromTheEntry() {
@@ -52,8 +62,10 @@ struct PostTemplateRendererTests {
             originalURL: "",
             serviceLinks: []
         )
-        #expect(PostTemplateRenderer.render("{album_name} by {artist}, {track_count} tracks, {release_year}", with: album)
-            == "Night Drive by A, B, 11 tracks, 2023")
+        #expect(
+            PostTemplateRenderer.render("{album_name} by {artist}, {track_count} tracks, {release_year}", with: album)
+                == "Night Drive by A, B, 11 tracks, 2023"
+        )
     }
 }
 
@@ -80,8 +92,7 @@ struct SystemTemplateTests {
 
 // MARK: - PostTemplateStoreTests
 
-@MainActor
-struct PostTemplateStoreTests {
+@MainActor struct PostTemplateStoreTests {
     /// A file in a folder whose name has a space, like "Application Support",
     /// so a path that is percent-encoded by mistake fails here as it does there.
     private func temporaryFile() -> URL {

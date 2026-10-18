@@ -14,58 +14,40 @@ import SwiftUI
 
 struct MenuBarView: View {
     @Environment(ClipboardMonitor.self) private var monitor
-    @Query(sort: \MediaEntry.date, order: .reverse)
-    private var entries: [MediaEntry]
+    @Query(sort: \MediaEntry.date, order: .reverse) private var entries: [MediaEntry]
 
     @State private var selectedFilter: MediaFilter = .all
 
     var body: some View {
         // Every card renders its own glass, like the tiles in Control Center.
         VStack(spacing: PanelMetrics.spacing) {
-            PanelSection {
-                HeaderRow(status: monitor.status)
-            }
+            PanelSection { HeaderRow(status: monitor.status) }
 
-            if let error = monitor.status.errorMessage {
-                PanelSection(padding: 12) {
-                    ErrorRow(message: error)
-                }
-            }
+            if let error = monitor.status.errorMessage { PanelSection(padding: 12) { ErrorRow(message: error) } }
 
             PanelSection {
                 VStack(spacing: 0) {
                     FilterPicker(selection: $selectedFilter)
-                    FilteredHistory(entries: entries, filter: selectedFilter)
-                        .frame(minHeight: 250, alignment: .top)
-                }
-                // One animation for every way the filter changes: the
+                    FilteredHistory(entries: entries, filter: selectedFilter).frame(minHeight: 250, alignment: .top)
+                }  // One animation for every way the filter changes: the
                 // segments, Cmd plus a digit, and a conversion.
                 .animation(.smooth, value: selectedFilter)
             }
 
             HStack(spacing: PanelMetrics.spacing) {
-                PanelSection(interactive: true) {
-                    DashboardItem()
-                }
-                PanelSection(interactive: true) {
-                    SettingsItem()
-                }
-                PanelSection(interactive: true) {
-                    AboutItem()
-                }
-                PanelSection(interactive: true) {
-                    QuitItem()
-                }
+                PanelSection(interactive: true) { DashboardItem() }
+                PanelSection(interactive: true) { SettingsItem() }
+                PanelSection(interactive: true) { AboutItem() }
+                PanelSection(interactive: true) { QuitItem() }
             }
-        }
-        .padding(PanelMetrics.spacing)
-        .frame(width: PanelMetrics.panelWidth)
-        .padding(PanelMetrics.shadowMargin)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .followsConversions(of: monitor, filter: $selectedFilter)
-        .background(WindowKeyMonitor(closesOnEscape: false) { number in
-            if let filter = MediaFilter(commandNumber: number) { selectedFilter = filter }
-        })
+        }.padding(PanelMetrics.spacing).frame(width: PanelMetrics.panelWidth).padding(PanelMetrics.shadowMargin).frame(
+            maxHeight: .infinity,
+            alignment: .top
+        ).followsConversions(of: monitor, filter: $selectedFilter).background(
+            WindowKeyMonitor(closesOnEscape: false) { number in
+                if let filter = MediaFilter(commandNumber: number) { selectedFilter = filter }
+            }
+        )
     }
 }
 
@@ -76,18 +58,10 @@ private struct FilterPicker: View {
 
     var body: some View {
         Picker(String(localized: "Filter"), selection: $selection) {
-            ForEach(MediaFilter.allCases) { item in
-                Label(item.title, systemImage: item.icon)
-                    .tag(item)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelStyle(.titleAndIcon)
-        .labelsHidden()
-        .frame(maxWidth: .infinity)
-        .help(String(localized: "Switch with ⌘1 to ⌘4"))
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+            ForEach(MediaFilter.allCases) { item in Label(item.title, systemImage: item.icon).tag(item) }
+        }.pickerStyle(.segmented).labelStyle(.titleAndIcon).labelsHidden().frame(maxWidth: .infinity).help(
+            String(localized: "Switch with ⌘1 to ⌘4")
+        ).padding(.horizontal, 12).padding(.vertical, 10)
     }
 }
 
@@ -102,15 +76,10 @@ private struct FilteredHistory: View {
         if filtered.isEmpty {
             VStack(spacing: PanelMetrics.spacing) {
                 Spacer()
-                Image(systemName: filter.icon)
-                    .font(.system(size: 28))
-                    .foregroundStyle(.secondary)
-                Text(filter.emptyPanelTitle)
-                    .font(.title3)
-                    .foregroundStyle(.primary)
+                Image(systemName: filter.icon).font(.system(size: 28)).foregroundStyle(.secondary)
+                Text(filter.emptyPanelTitle).font(.title3).foregroundStyle(.primary)
                 Spacer()
-            }
-            .frame(maxWidth: .infinity, minHeight: 120)
+            }.frame(maxWidth: .infinity, minHeight: 120)
         } else {
             MediaSection(history: Array(filtered.prefix(8)))
         }

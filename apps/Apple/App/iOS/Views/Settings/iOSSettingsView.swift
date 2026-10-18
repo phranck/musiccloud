@@ -1,134 +1,38 @@
 #if os(iOS)
 import SwiftUI
 
-// MARK: - SettingsView
-
-/// iOS settings screen with notification toggle, the Social Media accounts and about section.
+/// A grouped navigation overview; each destination owns its controls and transient state.
 struct SettingsView: View {
-    @Environment(ClipboardMonitor.self) private var monitor
-    @AppStorage(DefaultsKey.clipboardMonitoringEnabled) private var clipboardMonitoringEnabled = true
-    @AppStorage(DefaultsKey.playNotificationSound, store: DefaultsKey.shared) private var playNotificationSound = true
-
-    @State private var exportedLogURL: URL?
-    @State private var isExporting = false
-    @State private var exportError: String?
-
     var body: some View {
         Form {
-            Section {
-                Toggle("Clipboard Monitoring", isOn: $clipboardMonitoringEnabled)
-            } footer: {
-                Text("Automatically detects streaming URLs in your clipboard and converts them.")
-            }
-            .onChange(of: clipboardMonitoringEnabled) {
-                if clipboardMonitoringEnabled {
-                    monitor.startMonitoring()
-                } else {
-                    monitor.stopMonitoring()
-                }
-            }
-
-            Section("Notifications") {
-                Toggle("Sound on conversion", isOn: $playNotificationSound)
-            }
-
-            Section {
-                NavigationLink {
-                    SocialMediaSettingsView()
-                } label: {
-                    Label(String(localized: "Social Media"), systemImage: "person.2")
-                }
-            }
-
-            if BuildChannel.diagnosticsEnabled {
-                diagnosticsSection
-            }
-
-            Section("About") {
-                LabeledContent("Version", value: Bundle.main.appVersion)
-                Link(destination: MusicCloudAPI.productionURL) {
-                    HStack {
-                        Text("musiccloud.io")
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            ForEach(IOSSettingsGroup.allCases) { group in
+                Section(group.title) {
+                    ForEach(group.destinations(diagnosticsEnabled: BuildChannel.diagnosticsEnabled)) { destination in
+                        NavigationLink(value: destination) { Label(destination.title, systemImage: destination.symbol) }
                     }
                 }
             }
-
-            // Last, so the destructive actions sit below everything else.
-            DangerZoneSection()
+        }.navigationTitle("Settings").navigationDestination(for: IOSSettingsDestination.self) { destination in
+            IOSSettingsDestinationView(destination: destination)
         }
-        .navigationTitle("Settings")
     }
+}
 
-    @ViewBuilder
-    private var diagnosticsSection: some View {
-        Section {
-            Button {
-                Task { await exportLogs() }
-            } label: {
-                HStack {
-                    Label("Export Diagnostics", systemImage: "square.and.arrow.up")
-                    Spacer()
-                    if isExporting {
-                        ProgressView().controlSize(.small)
-                    }
-                }
+/// Keeps destination construction in one place without instantiating unrelated settings screens.
+private struct IOSSettingsDestinationView: View {
+    let destination: IOSSettingsDestination
+
+    var body: some View {
+        Group {
+            switch destination {
+            case .general: GeneralSettingsView()
+            case .streamingServices: StreamingServicesSettingsView()
+            case .socialMedia: SocialMediaSettingsView()
+            case .diagnostics: DiagnosticsSettingsView()
+            case .about: AboutSettingsView()
+            case .dataManagement: DataManagementSettingsView()
             }
-            .disabled(isExporting)
-
-            if let exportError {
-                Text(exportError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-        } header: {
-            Text("Diagnostics")
-        } footer: {
-            Text("Writes the last 6 hours of app logs to a file you can share. Only visible in Testflight builds.")
-        }
-        .sheet(item: exportedLogBinding) { wrapper in
-            ShareSheet(activityItems: [wrapper.url])
-        }
-    }
-
-    private var exportedLogBinding: Binding<ExportedLog?> {
-        Binding(
-            get: { exportedLogURL.map(ExportedLog.init) },
-            set: { value in exportedLogURL = value?.url }
-        )
-    }
-
-    private func exportLogs() async {
-        isExporting = true
-        exportError = nil
-        defer { isExporting = false }
-        do {
-            exportedLogURL = try await DiagnosticsExporter.exportLogs()
-        } catch {
-            exportError = String(localized: "Log export failed: \(error.localizedDescription)",
-                                 comment: "Shown below Export Diagnostics; the argument is the system's error message")
-        }
+        }.navigationTitle(destination.title).navigationBarTitleDisplayMode(.inline)
     }
 }
-
-// MARK: - Share sheet wrappers
-
-private struct ExportedLog: Identifiable {
-    let url: URL
-    var id: URL { url }
-}
-
-private struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
-
 #endif

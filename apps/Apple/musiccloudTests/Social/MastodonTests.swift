@@ -7,21 +7,15 @@ import Testing
 
 struct MastodonInstanceURLTests {
     @Test(arguments: [
-        "mastodon.social",
-        "  Mastodon.Social \n",
-        "https://mastodon.social/about",
-        "http://mastodon.social",
-        "@phranck@mastodon.social",
+        "mastodon.social", "  Mastodon.Social \n", "https://mastodon.social/about", "http://mastodon.social", "@phranck@mastodon.social",
         "phranck@mastodon.social",
-    ])
-    func everyFormNamesTheSameInstance(input: String) {
+    ]) func everyFormNamesTheSameInstance(input: String) {
         #expect(MastodonAPI.instanceURL(from: input) == URL(string: "https://mastodon.social"))
     }
 
-    @Test(arguments: ["", "   ", "mastodon", "@phranck", "https://", ".social", "mastodon."])
-    func inputWithoutAHostIsRejected(input: String) {
-        #expect(MastodonAPI.instanceURL(from: input) == nil)
-    }
+    @Test(arguments: ["", "   ", "mastodon", "@phranck", "https://", ".social", "mastodon."]) func inputWithoutAHostIsRejected(
+        input: String
+    ) { #expect(MastodonAPI.instanceURL(from: input) == nil) }
 }
 
 // MARK: - MastodonRequestTests
@@ -63,8 +57,10 @@ struct MastodonRequestTests {
         #expect(request.url?.path == "/oauth/token")
         #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/x-www-form-urlencoded")
         let body = try #require(request.httpBody.flatMap { String(data: $0, encoding: .utf8) })
-        #expect(body == "grant_type=authorization_code&code=c%3D1&client_id=client%20id&client_secret=se%2Bcr%26et"
-            + "&redirect_uri=musiccloud%3A%2F%2Foauth%2Fmastodon&code_verifier=verifier")
+        #expect(
+            body == "grant_type=authorization_code&code=c%3D1&client_id=client%20id&client_secret=se%2Bcr%26et"
+                + "&redirect_uri=musiccloud%3A%2F%2Foauth%2Fmastodon&code_verifier=verifier"
+        )
     }
 
     @Test func revokeSendsTheTokenWithTheClient() throws {
@@ -84,8 +80,8 @@ struct MastodonRequestTests {
         let verifier = OAuthSupport.makeCodeVerifier()
         #expect(verifier.count == 43)
         #expect(verifier.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" })
-        let expected = Data(SHA256.hash(data: Data(verifier.utf8))).base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+        let expected = Data(SHA256.hash(data: Data(verifier.utf8))).base64EncodedString().replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
         #expect(OAuthSupport.codeChallenge(for: verifier) == expected)
     }
 }
@@ -100,34 +96,51 @@ struct MastodonAnswerTests {
     }
 
     @Test func accountAndCharacterLimitDecode() throws {
-        let account = try MastodonAPI.decoder.decode(MastodonCredentialAccount.self, from: Data(
-            #"{"id":"42","username":"musiccloud","acct":"musiccloud","display_name":"musiccloud","avatar":"https://oldbytes.space/a.png"}"#.utf8))
+        let account = try MastodonAPI.decoder.decode(
+            MastodonCredentialAccount.self,
+            from: Data(
+                #"{"id":"42","username":"musiccloud","acct":"musiccloud","display_name":"musiccloud","avatar":"https://oldbytes.space/a.png"}"#
+                    .utf8
+            )
+        )
         #expect(account.id == "42")
         #expect(account.displayName == "musiccloud")
-        let instance = try MastodonAPI.decoder.decode(MastodonInstanceDescription.self, from: Data(
-            #"{"configuration":{"statuses":{"max_characters":5000}}}"#.utf8))
+        let instance = try MastodonAPI.decoder.decode(
+            MastodonInstanceDescription.self,
+            from: Data(#"{"configuration":{"statuses":{"max_characters":5000}}}"#.utf8)
+        )
         #expect(instance.configuration?.statuses?.maxCharacters == 5000)
     }
 }
 
 // MARK: - SocialAccountStoreTests
 
-@MainActor
-struct SocialAccountStoreTests {
+@MainActor struct SocialAccountStoreTests {
     private func account(_ id: String, host: String = "oldbytes.space") -> MastodonAccount {
-        MastodonAccount(instance: URL(string: "https://\(host)")!, accountID: id, username: "user\(id)",
-                        displayName: "", avatarURL: nil, characterLimit: 500)
+        MastodonAccount(
+            instance: URL(string: "https://\(host)")!,
+            accountID: id,
+            username: "user\(id)",
+            displayName: "",
+            avatarURL: nil,
+            characterLimit: 500
+        )
     }
 
     private func bluesky(_ did: String) -> BlueskyAccount {
-        BlueskyAccount(did: did, handle: "name.bsky.social", displayName: "", avatarURL: nil,
-                       pds: URL(string: "https://pds.example")!)
+        BlueskyAccount(did: did, handle: "name.bsky.social", displayName: "", avatarURL: nil, pds: URL(string: "https://pds.example")!)
     }
 
     private func session(_ token: String) -> BlueskySession {
-        BlueskySession(accessToken: token, refreshToken: "refresh-\(token)", expiresAt: nil, dpopKey: DPoPKey().rawRepresentation,
-                       issuer: "https://bsky.social", tokenEndpoint: URL(string: "https://bsky.social/oauth/token")!,
-                       revocationEndpoint: nil)
+        BlueskySession(
+            accessToken: token,
+            refreshToken: "refresh-\(token)",
+            expiresAt: nil,
+            dpopKey: DPoPKey().rawRepresentation,
+            issuer: "https://bsky.social",
+            tokenEndpoint: URL(string: "https://bsky.social/oauth/token")!,
+            revocationEndpoint: nil
+        )
     }
 
     /// A folder whose name contains a space, like "Application Support".

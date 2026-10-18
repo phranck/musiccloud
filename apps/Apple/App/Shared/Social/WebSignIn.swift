@@ -14,8 +14,7 @@ import Foundation
 /// The page belongs to the service, so the app never sees the password.
 /// The sheet shares the browser's cookies, so a user already signed in
 /// there only confirms.
-@MainActor
-final class WebSignIn: NSObject {
+@MainActor final class WebSignIn: NSObject {
     /// Kept alive while the sheet is open; the system releases it otherwise.
     private var session: ASWebAuthenticationSession?
 
@@ -39,7 +38,8 @@ final class WebSignIn: NSObject {
     ///   the error the system reports for a sheet that has nowhere to appear.
     func signIn(at url: URL, callbackScheme: String) async throws -> URL {
         #if os(iOS)
-        guard Self.presentationScene != nil else {
+        guard Self.presentationScene != nil
+        else {
             throw ASWebAuthenticationSessionError(.presentationContextInvalid)
         }
         #endif
@@ -81,7 +81,8 @@ extension WebSignIn: ASWebAuthenticationPresentationContextProviding {
             #else
             // signIn(at:callbackScheme:) throws before it starts a session
             // when the app has no window scene, so one is here.
-            guard let scene = Self.presentationScene else {
+            guard let scene = Self.presentationScene
+            else {
                 preconditionFailure("A sign-in session started without a window scene")
             }
             return scene.keyWindow ?? UIWindow(windowScene: scene)

@@ -30,11 +30,7 @@ struct VariableLegend: View {
         List {
             Section(String(localized: "Variables")) {
                 ForEach(PostVariable.allCases) { variable in
-                    LegendRow(
-                        token: variable.token,
-                        title: variable.title,
-                        value: context.flatMap(variable.value(in:))
-                    )
+                    LegendRow(token: variable.token, title: variable.title, value: context.flatMap(variable.value(in:)))
                 }
             }
             if let links = context?.serviceLinks, !links.isEmpty {
@@ -48,8 +44,7 @@ struct VariableLegend: View {
                     }
                 }
             }
-        }
-        .listStyle(.sidebar)
+        }.listStyle(.sidebar)
     }
 }
 
@@ -63,17 +58,12 @@ private struct LegendRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(verbatim: token)
-                .font(.body.monospaced())
-                .foregroundStyle(Color(nsColor: TemplateSyntaxColors.variable))
-                .textSelection(.enabled)
+            Text(verbatim: token).font(.body.monospaced()).foregroundStyle(Color(nsColor: TemplateSyntaxColors.variable)).textSelection(
+                .enabled
+            )
             Text(title)
-            Text(value ?? String(localized: "No value"))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-        }
-        .padding(.vertical, 2)
+            Text(value ?? String(localized: "No value")).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+        }.padding(.vertical, 2)
     }
 }
 

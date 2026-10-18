@@ -13,9 +13,7 @@ struct DefaultsKeyTests {
         return (source, target, names)
     }
 
-    private func remove(_ names: [String]) {
-        names.forEach { UserDefaults.standard.removePersistentDomain(forName: $0) }
-    }
+    private func remove(_ names: [String]) { names.forEach { UserDefaults.standard.removePersistentDomain(forName: $0) } }
 
     @Test func movesAnEarlierChoice() throws {
         let (source, target, names) = try makeSuites()

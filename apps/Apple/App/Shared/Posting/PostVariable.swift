@@ -34,14 +34,10 @@ extension PostContext {
     }
 
     /// What the entry is called: its song, else its album, else its artist.
-    var title: String {
-        [PostVariable.songName, .albumName, .artist].lazy.compactMap { $0.value(in: self) }.first ?? ""
-    }
+    var title: String { [PostVariable.songName, .albumName, .artist].lazy.compactMap { $0.value(in: self) }.first ?? "" }
 
     /// The entry's artists one by one: a track's or an album's, else the artist itself.
-    var artistNames: [String] {
-        track?.artists ?? album?.artists ?? artist.map { [$0.name] } ?? []
-    }
+    var artistNames: [String] { track?.artists ?? album?.artists ?? artist.map { [$0.name] } ?? [] }
 }
 
 // MARK: - PostVariable
@@ -73,36 +69,42 @@ enum PostVariable: String, CaseIterable, Identifiable, Sendable {
     /// The name shown in the variable menu.
     var title: String {
         switch self {
-        case .songName:      String(localized: "Song Name")
-        case .albumName:     String(localized: "Album Name")
-        case .artist:        String(localized: "Artist")
+        case .songName: String(localized: "Song Name")
+        case .albumName: String(localized: "Album Name")
+        case .artist: String(localized: "Artist")
         case .artistHashtag: String(localized: "Artist Hashtag")
-        case .releaseDate:   String(localized: "Release Date")
-        case .releaseYear:   String(localized: "Release Year")
-        case .duration:      String(localized: "Duration")
-        case .trackCount:    String(localized: "Track Count")
-        case .genres:        String(localized: "Genres")
-        case .shareURL:      String(localized: "Share Link")
-        case .originalURL:   String(localized: "Original Link")
+        case .releaseDate: String(localized: "Release Date")
+        case .releaseYear: String(localized: "Release Year")
+        case .duration: String(localized: "Duration")
+        case .trackCount: String(localized: "Track Count")
+        case .genres: String(localized: "Genres")
+        case .shareURL: String(localized: "Share Link")
+        case .originalURL: String(localized: "Original Link")
         }
     }
 
     /// The value for `context`, or `nil` when the entry has none.
     func value(in context: PostContext) -> String? {
-        let text: String? = switch self {
-        case .songName:      context.track?.title
-        case .albumName:     context.track?.albumName ?? context.album?.title
-        case .artist:        context.track?.artistsString ?? context.album?.artistsString ?? context.artist?.name
-        case .artistHashtag: context.artistNames.compactMap { Self.hashtag(for: $0) }.joined(separator: " ")
-        case .releaseDate:   context.track?.releaseDate ?? context.album?.releaseDate
-        case .releaseYear:   (context.track?.releaseDate ?? context.album?.releaseDate).map { String($0.prefix(4)) }
-        case .duration:      context.track?.formattedDuration
-        case .trackCount:    context.album?.totalTracks.map(String.init)
-        case .genres:        context.artist?.genresString
-        case .shareURL:      context.shareURL
-        case .originalURL:   context.originalURL
+        let text: String? =
+            switch self {
+            case .songName: context.track?.title
+            case .albumName: context.track?.albumName ?? context.album?.title
+            case .artist: context.track?.artistsString ?? context.album?.artistsString ?? context.artist?.name
+            case .artistHashtag: context.artistNames.compactMap { Self.hashtag(for: $0) }.joined(separator: " ")
+            case .releaseDate: context.track?.releaseDate ?? context.album?.releaseDate
+            case .releaseYear: (context.track?.releaseDate ?? context.album?.releaseDate).map { String($0.prefix(4)) }
+            case .duration: context.track?.formattedDuration
+            case .trackCount: context.album?.totalTracks.map(String.init)
+            case .genres: context.artist?.genresString
+            case .shareURL: context.shareURL
+            case .originalURL: context.originalURL
+            }
+        guard
+            let text,
+            !text.isEmpty
+        else {
+            return nil
         }
-        guard let text, !text.isEmpty else { return nil }
         return text
     }
 
@@ -117,7 +119,10 @@ enum PostVariable: String, CaseIterable, Identifiable, Sendable {
             String(word.unicodeScalars.filter { CharacterSet.letters.contains($0) || CharacterSet.decimalDigits.contains($0) || $0 == "_" })
         }
         let tag = words.map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined()
-        guard tag.unicodeScalars.contains(where: CharacterSet.letters.contains) else { return nil }
+        guard tag.unicodeScalars.contains(where: CharacterSet.letters.contains)
+        else {
+            return nil
+        }
         return "#" + tag
     }
 }

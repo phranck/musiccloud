@@ -7,10 +7,7 @@ struct MusicCloudShortcutsProvider: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: ConvertStreamingURLIntent(),
-            phrases: [
-                "Convert a streaming link with \(.applicationName)",
-                "Convert streaming URL with \(.applicationName)",
-            ],
+            phrases: ["Convert a streaming link with \(.applicationName)", "Convert streaming URL with \(.applicationName)"],
             shortTitle: "Convert Streaming URL",
             systemImageName: "link"
         )

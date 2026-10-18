@@ -17,6 +17,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case notifications
     case history
     case socialMedia
+    case streamingServices
     case templates
     case about
 
@@ -35,24 +36,26 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     /// The name shown in the sidebar and as the window title.
     var title: String {
         switch self {
-        case .general:       String(localized: "General")
+        case .general: String(localized: "General")
         case .notifications: String(localized: "Notifications")
-        case .history:       String(localized: "History")
-        case .socialMedia:   String(localized: "Social Media")
-        case .templates:     String(localized: "Templates")
-        case .about:         String(localized: "About")
+        case .history: String(localized: "History")
+        case .socialMedia: String(localized: "Social Media")
+        case .streamingServices: String(localized: "Streaming Services")
+        case .templates: String(localized: "Templates")
+        case .about: String(localized: "About")
         }
     }
 
     /// The SF Symbol shown beside the title in the sidebar.
     var icon: String {
         switch self {
-        case .general:       "gearshape"
+        case .general: "gearshape"
         case .notifications: "bell.badge"
-        case .history:       "clock.arrow.circlepath"
-        case .socialMedia:   "person.2"
-        case .templates:     "text.bubble"
-        case .about:         "info.circle"
+        case .history: "clock.arrow.circlepath"
+        case .socialMedia: "person.2"
+        case .streamingServices: "music.note.list"
+        case .templates: "text.bubble"
+        case .about: "info.circle"
         }
     }
 }

@@ -13,7 +13,7 @@ extension PostTemplateIcon {
     /// ignores SwiftUI frames, so logos are drawn at menu size first.
     var menuImage: Image {
         switch source {
-        case .asset(let name):  Image(nsImage: .menuIcon(named: name))
+        case .asset(let name): Image(nsImage: .menuIcon(named: name))
         case .symbol(let name): Image(systemName: name)
         }
     }
@@ -34,12 +34,9 @@ struct PostTemplateIconPicker: View {
                     Text(choice.title)
                 } icon: {
                     choice.menuImage
-                }
-                .tag(Optional(choice))
+                }.tag(Optional(choice))
             }
-        }
-        .labelsHidden()
-        .fixedSize()
+        }.labelsHidden().fixedSize()
     }
 }
 
@@ -92,35 +89,26 @@ struct DefaultTemplateSeal: View {
     var body: some View {
         let accounts = SocialAccount.all(in: accountStore)
         let defaultFor = defaultTemplates.accounts(using: template, of: accounts, among: store.allTemplates)
-        let help = defaultFor.isEmpty
-            ? String(localized: "Use as Default for")
-            : String(localized: "Default for \(defaultFor.map(\.handle).formatted(.list(type: .and)))")
+        let help =
+            defaultFor.isEmpty
+                ? String(localized: "Use as Default for")
+                : String(localized: "Default for \(defaultFor.map(\.handle).formatted(.list(type: .and)))")
         if !accounts.isEmpty {
             if isMenu {
                 Menu {
                     DefaultTemplateAccountToggles(template: template)
                 } label: {
                     seal(isDefault: !defaultFor.isEmpty)
-                }
-                // Only the seal shows: no button chrome and no menu arrow.
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help(help)
-                .accessibilityLabel(help)
+                }  // Only the seal shows: no button chrome and no menu arrow.
+                .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize().help(help).accessibilityLabel(help)
             } else if !defaultFor.isEmpty {
-                seal(isDefault: true)
-                    .help(help)
-                    .accessibilityLabel(help)
+                seal(isDefault: true).help(help).accessibilityLabel(help)
             }
         }
     }
 
     private func seal(isDefault: Bool) -> some View {
-        Image(systemName: isDefault ? "checkmark.seal.fill" : "checkmark.seal")
-            .font(.title3)
-            .symbolRenderingMode(.hierarchical)
+        Image(systemName: isDefault ? "checkmark.seal.fill" : "checkmark.seal").font(.title3).symbolRenderingMode(.hierarchical)
             .foregroundStyle(isDefault ? AnyShapeStyle(.green.opacity(Self.defaultOpacity)) : AnyShapeStyle(.tertiary))
     }
 }

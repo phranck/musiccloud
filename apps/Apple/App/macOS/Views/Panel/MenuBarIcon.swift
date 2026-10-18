@@ -25,21 +25,15 @@ struct MenuBarIcon: View {
         Group {
             if isProcessing {
                 TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-                    Image(systemName: "music.note.list")
-                        .font(.system(size: 16))
-                        // From bottom to top, so the palette's shift runs upward.
-                        .foregroundStyle(LinearGradient(
-                            colors: RainbowPalette.shiftedColors(for: timeline.date),
-                            startPoint: .bottom,
-                            endPoint: .top
-                        ))
+                    Image(systemName: "music.note.list").font(.system(size: 16))  // From bottom to top, so the palette's shift runs upward.
+                        .foregroundStyle(
+                            LinearGradient(colors: RainbowPalette.shiftedColors(for: timeline.date), startPoint: .bottom, endPoint: .top)
+                        )
                 }
             } else {
-                Image(systemName: "music.note.list")
-                    .font(.system(size: 16))
+                Image(systemName: "music.note.list").font(.system(size: 16))
             }
-        }
-        .symbolRenderingMode(.hierarchical)
+        }.symbolRenderingMode(.hierarchical)
     }
 }
 

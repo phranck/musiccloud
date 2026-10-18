@@ -17,12 +17,11 @@ enum NotificationSound: String, CaseIterable, Identifiable {
     case sound1, sound2, sound3, sound4, sound5, sound6
     case sound7, sound8, sound9, sound10, sound11
 
+    #if os(macOS)
     /// The sound that is playing. Held so it is not released halfway
     /// through, and only touched on the main actor.
-    #if os(macOS)
+
     @MainActor private static var currentSound: NSSound?
-    #else
-    @MainActor private static var audioPlayer: AVAudioPlayer?
     #endif
 
     var id: String { rawValue }
@@ -33,15 +32,15 @@ enum NotificationSound: String, CaseIterable, Identifiable {
     /// the file names.
     var displayName: String {
         switch self {
-        case .sound1:  String(localized: "Bell", comment: "Notification sound: a single high, softly struck tone")
-        case .sound2:  String(localized: "Dip", comment: "Notification sound: two quick notes stepping down")
-        case .sound3:  String(localized: "Ascend", comment: "Notification sound: three notes rising to the octave")
-        case .sound4:  String(localized: "Lift", comment: "Notification sound: two soft notes rising a fifth")
-        case .sound5:  String(localized: "Glide", comment: "Notification sound: a warm tone sliding upward")
-        case .sound6:  String(localized: "Sparkle", comment: "Notification sound: a bright jump up an octave")
-        case .sound7:  String(localized: "Blip", comment: "Notification sound: a very short, bright step down")
-        case .sound8:  String(localized: "Tap", comment: "Notification sound: a single short click")
-        case .sound9:  String(localized: "Fanfare", comment: "Notification sound: a rising major chord, the longest sound")
+        case .sound1: String(localized: "Bell", comment: "Notification sound: a single high, softly struck tone")
+        case .sound2: String(localized: "Dip", comment: "Notification sound: two quick notes stepping down")
+        case .sound3: String(localized: "Ascend", comment: "Notification sound: three notes rising to the octave")
+        case .sound4: String(localized: "Lift", comment: "Notification sound: two soft notes rising a fifth")
+        case .sound5: String(localized: "Glide", comment: "Notification sound: a warm tone sliding upward")
+        case .sound6: String(localized: "Sparkle", comment: "Notification sound: a bright jump up an octave")
+        case .sound7: String(localized: "Blip", comment: "Notification sound: a very short, bright step down")
+        case .sound8: String(localized: "Tap", comment: "Notification sound: a single short click")
+        case .sound9: String(localized: "Fanfare", comment: "Notification sound: a rising major chord, the longest sound")
         case .sound10: String(localized: "Ping", comment: "Notification sound: a short leap up an octave")
         case .sound11: String(localized: "Mellow", comment: "Notification sound: a single warm, round tone")
         }
@@ -49,33 +48,60 @@ enum NotificationSound: String, CaseIterable, Identifiable {
 
     static let `default`: NotificationSound = .sound6
 
-    /// Plays this sound once.
-    @MainActor
-    func play() {
-        guard let url = Bundle.main.url(
-            forResource: rawValue,
-            withExtension: "mp3"
-        ) else {
+    /// Plays this sound once. On iOS, audio hardware startup is queued off
+    /// the main actor so conversion and Settings animations remain responsive.
+    @MainActor func play() {
+        guard let url = Bundle.main.url(forResource: rawValue, withExtension: "mp3")
+        else {
             AppLogger.ui.error("Notification sound file not found: \(rawValue)")
             return
         }
         #if os(macOS)
-        guard let sound = NSSound(contentsOf: url, byReference: true) else {
+        guard let sound = NSSound(contentsOf: url, byReference: true)
+        else {
             AppLogger.ui.error("Failed to load notification sound: \(rawValue)")
             return
         }
         Self.currentSound = sound
         sound.play()
         #else
-        do {
-            Self.audioPlayer = try AVAudioPlayer(contentsOf: url)
-            Self.audioPlayer?.play()
-        } catch {
-            AppLogger.ui.error("Failed to play notification sound: \(error.localizedDescription)")
-        }
+        Task { await NotificationSoundPlayback.shared.play(url: url) }
         #endif
     }
 }
+
+#if os(iOS)
+// MARK: - Sound Playback
+
+/// Owns the iOS audio player away from the UI executor.
+///
+/// AVAudioPlayer starts the audio hardware synchronously in play(). Keeping
+/// construction, playback, and replacement on this actor prevents that work
+/// and the previous player's teardown from blocking conversion animations.
+actor NotificationSoundPlayback {
+    static let shared = NotificationSoundPlayback()
+
+    private let makePlayer: @Sendable (URL) throws -> AVAudioPlayer
+    private var player: AVAudioPlayer?
+
+    /// Creates a serial playback owner.
+    /// - Parameter makePlayer: Opens a bundled audio file. Tests inject this
+    ///   system boundary to verify it executes outside the main thread.
+    init(makePlayer: @escaping @Sendable (URL) throws -> AVAudioPlayer = { try AVAudioPlayer(contentsOf: $0) }) {
+        self.makePlayer = makePlayer
+    }
+
+    /// Starts one bundled sound and retains its player until a later request.
+    /// - Parameter url: The bundled audio file to play once. Calls are serialized
+    ///   so an overlapping request replaces, rather than races, the current player.
+    func play(url: URL) {
+        do {
+            player = try makePlayer(url)
+            player?.play()
+        } catch { AppLogger.ui.error("Failed to play notification sound: \(error.localizedDescription)") }
+    }
+}
+#endif
 
 // MARK: - Public API
 
@@ -104,8 +130,12 @@ enum NotificationManager {
             options: [.skipsSubdirectoryDescendants]
         )
         while let fileURL = enumerator?.nextObject() as? URL {
-            guard fileURL.pathExtension == "jpg",
-                  UUID(uuidString: fileURL.deletingPathExtension().lastPathComponent) != nil else { continue }
+            guard
+                fileURL.pathExtension == "jpg",
+                UUID(uuidString: fileURL.deletingPathExtension().lastPathComponent) != nil
+            else {
+                continue
+            }
             try? FileManager.default.removeItem(at: fileURL)
         }
     }
@@ -134,25 +164,18 @@ enum NotificationManager {
         }
 
         // Attach artwork if available
-        if let imageData = entry.artworkImageData,
-           let attachment = createAttachment(from: imageData, id: entry.id.uuidString) {
+        if let imageData = entry.artworkImageData, let attachment = createAttachment(from: imageData, id: entry.id.uuidString) {
             content.attachments = [attachment]
         }
 
-        let request = UNNotificationRequest(
-            identifier: entry.id.uuidString,
-            content: content,
-            trigger: nil
-        )
+        let request = UNNotificationRequest(identifier: entry.id.uuidString, content: content, trigger: nil)
 
-        // The sound is played on the main actor, so the task runs there.
+        // Sound selection uses the main actor; iOS playback queues its own work.
         Task { @MainActor in
             do {
                 try await UNUserNotificationCenter.current().add(request)
                 playConversionSound()
-            } catch {
-                AppLogger.ui.error("Notification failed: \(error.localizedDescription)")
-            }
+            } catch { AppLogger.ui.error("Notification failed: \(error.localizedDescription)") }
         }
     }
 }
@@ -170,9 +193,7 @@ extension NotificationManager {
         content.sound = .none
         do {
             try await UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil))
-        } catch {
-            AppLogger.ui.error("Notification failed: \(error.localizedDescription)")
-        }
+        } catch { AppLogger.ui.error("Notification failed: \(error.localizedDescription)") }
     }
 }
 
@@ -182,10 +203,12 @@ extension NotificationManager {
     /// The app plays it with every conversion notification, and the share
     /// extension, which sends no notification, plays it on its own. Both read
     /// the choice from ``DefaultsKey/shared``.
-    @MainActor
-    static func playConversionSound() {
+    @MainActor static func playConversionSound() {
         let defaults = DefaultsKey.shared
-        guard defaults.object(forKey: DefaultsKey.playNotificationSound) as? Bool ?? true else { return }
+        guard defaults.object(forKey: DefaultsKey.playNotificationSound) as? Bool ?? true
+        else {
+            return
+        }
         let rawValue = defaults.string(forKey: DefaultsKey.notificationSound) ?? NotificationSound.default.rawValue
         let sound = NotificationSound(rawValue: rawValue) ?? .default
         sound.play()

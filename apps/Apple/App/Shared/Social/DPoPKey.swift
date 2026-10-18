@@ -15,17 +15,13 @@ import Foundation
 /// a new key for every sign-in, and that the key never leaves the device;
 /// it is kept in the Keychain with the session, which is not synchronized.
 struct DPoPKey: Sendable {
-    let privateKey: P256.Signing.PrivateKey // gitleaks:allow (a type, not a secret)
+    let privateKey: P256.Signing.PrivateKey  // gitleaks:allow (a type, not a secret)
 
     /// A new key for a new sign-in.
-    init() {
-        privateKey = P256.Signing.PrivateKey()
-    }
+    init() { privateKey = P256.Signing.PrivateKey() }
 
     /// The key stored as ``rawRepresentation``.
-    init(rawRepresentation: Data) throws {
-        privateKey = try P256.Signing.PrivateKey(rawRepresentation: rawRepresentation)
-    }
+    init(rawRepresentation: Data) throws { privateKey = try P256.Signing.PrivateKey(rawRepresentation: rawRepresentation) }
 
     /// The private key's bytes, for the Keychain.
     var rawRepresentation: Data { privateKey.rawRepresentation }
@@ -35,9 +31,7 @@ struct DPoPKey: Sendable {
         // The x963 form is 0x04 followed by the 32-byte x and y coordinates.
         let point = privateKey.publicKey.x963Representation
         return [
-            "kty": "EC",
-            "crv": "P-256",
-            "x": OAuthSupport.base64URL(point.subdata(in: 1..<33)),
+            "kty": "EC", "crv": "P-256", "x": OAuthSupport.base64URL(point.subdata(in: 1..<33)),
             "y": OAuthSupport.base64URL(point.subdata(in: 33..<65)),
         ]
     }
@@ -54,17 +48,10 @@ struct DPoPKey: Sendable {
     func proof(method: String, url: URL, nonce: String?, accessToken: String? = nil, now: Date = .now) throws -> String {
         let header: [String: Any] = ["typ": "dpop+jwt", "alg": "ES256", "jwk": publicJWK]
         var claims: [String: Any] = [
-            "jti": UUID().uuidString,
-            "htm": method,
-            "htu": Self.targetURI(url),
-            "iat": Int(now.timeIntervalSince1970),
+            "jti": UUID().uuidString, "htm": method, "htu": Self.targetURI(url), "iat": Int(now.timeIntervalSince1970),
         ]
-        if let nonce {
-            claims["nonce"] = nonce
-        }
-        if let accessToken {
-            claims["ath"] = OAuthSupport.base64URL(Data(SHA256.hash(data: Data(accessToken.utf8))))
-        }
+        if let nonce { claims["nonce"] = nonce }
+        if let accessToken { claims["ath"] = OAuthSupport.base64URL(Data(SHA256.hash(data: Data(accessToken.utf8)))) }
         let signingInput = try Self.segment(header) + "." + Self.segment(claims)
         // CryptoKit's raw form of an ECDSA signature is r followed by s, which is what JWS ES256 expects.
         let signature = try privateKey.signature(for: Data(signingInput.utf8))

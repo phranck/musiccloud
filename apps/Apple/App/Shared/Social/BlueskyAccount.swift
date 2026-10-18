@@ -46,7 +46,10 @@ struct BlueskySession: Codable, Sendable {
 
     /// Whether the access token ends within `margin`, so it is renewed before a request rather than after a refusal.
     func expires(within margin: TimeInterval, from now: Date = .now) -> Bool {
-        guard let expiresAt else { return false }
+        guard let expiresAt
+        else {
+            return false
+        }
         return expiresAt.timeIntervalSince(now) < margin
     }
 }

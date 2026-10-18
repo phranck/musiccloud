@@ -22,7 +22,10 @@ enum TemplateCompletion {
     /// - Returns: The range to replace, or `nil` when the cursor is not inside an unfinished placeholder.
     static func partialRange(in text: String, cursor: Int) -> NSRange? {
         let string = text as NSString
-        guard cursor <= string.length else { return nil }
+        guard cursor <= string.length
+        else {
+            return nil
+        }
         var index = cursor
         while index > 0 {
             let character = string.character(at: index - 1)
@@ -34,7 +37,10 @@ enum TemplateCompletion {
                 }
                 return range
             }
-            guard isNameCharacter(character) else { return nil }
+            guard isNameCharacter(character)
+            else {
+                return nil
+            }
             index -= 1
         }
         return nil
@@ -47,14 +53,16 @@ enum TemplateCompletion {
     ///   - tokens: Every placeholder offered, such as `{song_name}`.
     static func candidates(for partial: String, from tokens: [String]) -> [String] {
         let typed = partial.drop { $0 == "{" }.prefix { $0 != "}" }
-        guard !typed.isEmpty else { return tokens }
+        guard !typed.isEmpty
+        else {
+            return tokens
+        }
         return tokens.filter { $0.dropFirst().hasPrefix(typed) }
     }
 
     /// Every placeholder for the editor: the variables, then one per service link.
     static func tokens(serviceLinks: [ServiceLink]) -> [String] {
-        PostVariable.allCases.map(\.token)
-            + serviceLinks.map { "{\($0.service)\(PostTemplateRenderer.serviceLinkSuffix)}" }
+        PostVariable.allCases.map(\.token) + serviceLinks.map { "{\($0.service)\(PostTemplateRenderer.serviceLinkSuffix)}" }
     }
 }
 
@@ -65,12 +73,10 @@ private extension TemplateCompletion {
     /// Lowercase ASCII letters, digits and the underscore, as in `{song_name}`.
     static func isNameCharacter(_ character: unichar) -> Bool {
         switch character {
-        case unichar(UInt8(ascii: "a"))...unichar(UInt8(ascii: "z")),
-             unichar(UInt8(ascii: "0"))...unichar(UInt8(ascii: "9")),
+        case unichar(UInt8(ascii: "a"))...unichar(UInt8(ascii: "z")), unichar(UInt8(ascii: "0"))...unichar(UInt8(ascii: "9")),
              unichar(UInt8(ascii: "_")):
             true
-        default:
-            false
+        default: false
         }
     }
 }

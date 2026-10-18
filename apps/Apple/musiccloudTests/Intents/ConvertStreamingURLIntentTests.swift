@@ -7,9 +7,7 @@ struct ConvertStreamingURLIntentTests {
 
     // MARK: Intent Configuration
 
-    @Test func intentHasTitle() {
-        #expect(ConvertStreamingURLIntent.title == "Convert Streaming URL")
-    }
+    @Test func intentHasTitle() { #expect(ConvertStreamingURLIntent.title == "Convert Streaming URL") }
 
     // MARK: Error Messages
 
@@ -37,7 +35,5 @@ struct ConvertStreamingURLIntentTests {
         #expect(!StreamingServices.isStreamingURL(url))
     }
 
-    @Test func emptyURLWouldFailValidation() {
-        #expect(!StreamingServices.isStreamingURL(""))
-    }
+    @Test func emptyURLWouldFailValidation() { #expect(!StreamingServices.isStreamingURL("")) }
 }

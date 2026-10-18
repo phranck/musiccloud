@@ -20,15 +20,8 @@ struct SocialMediaSettingsView: View {
     @State private var serviceToConnect: SocialService?
 
     var body: some View {
-        Form {
-            ForEach(SocialService.allCases) { service in
-                accountSection(service)
-            }
-        }
-        .navigationTitle(String(localized: "Social Media"))
-        .sheet(item: $serviceToConnect) { service in
-            ConnectAccountSheet(service: service)
-        }
+        Form { ForEach(SocialService.allCases) { service in accountSection(service) } }.navigationTitle(String(localized: "Social Media"))
+            .sheet(item: $serviceToConnect) { service in ConnectAccountSheet(service: service) }
     }
 
     /// One service: its logo and name as the header, the connected accounts,
@@ -36,29 +29,22 @@ struct SocialMediaSettingsView: View {
     private func accountSection(_ service: SocialService) -> some View {
         let accounts = service.accounts(in: store)
         return Section {
-            if accounts.isEmpty {
-                Text("No accounts connected.")
-                    .foregroundStyle(.secondary)
-            }
+            if accounts.isEmpty { Text("No accounts connected.").foregroundStyle(.secondary) }
             ForEach(accounts) { account in
-                SocialAccountLabel(account: account)
-                    // A full swipe would sign out at once; the button asks for a second tap.
+                SocialAccountLabel(account: account)  // A full swipe would sign out at once; the button asks for a second tap.
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(String(localized: "Disconnect"), systemImage: "trash", role: .destructive) {
                             Task { await account.disconnect() }
                         }
                     }
             }
-            Button(String(localized: "Add Account…"), systemImage: "plus") {
-                serviceToConnect = service
-            }
+            Button(String(localized: "Add Account…"), systemImage: "plus") { serviceToConnect = service }
         } header: {
             Label {
                 Text(verbatim: service.name)
             } icon: {
                 PostTemplateIconImage(icon: service.icon)
-            }
-            // The name is a brand and keeps its spelling.
+            }  // The name is a brand and keeps its spelling.
             .textCase(nil)
         } footer: {
             Text(service.footer)
@@ -76,9 +62,7 @@ private struct ConnectAccountSheet: View {
     @State private var model: ConnectAccountModel
     @FocusState private var isFieldFocused: Bool
 
-    init(service: SocialService) {
-        _model = State(initialValue: ConnectAccountModel(service: service))
-    }
+    init(service: SocialService) { _model = State(initialValue: ConnectAccountModel(service: service)) }
 
     var body: some View {
         NavigationStack {
@@ -86,71 +70,50 @@ private struct ConnectAccountSheet: View {
                 Section {
                     HStack(spacing: 4) {
                         // A Bluesky handle is written with an `@`, so the field shows it rather than asking for it.
-                        if model.service == .bluesky {
-                            Text(verbatim: "@")
-                                .foregroundStyle(.secondary)
-                        }
+                        if model.service == .bluesky { Text(verbatim: "@").foregroundStyle(.secondary) }
                         TextField(model.service.fieldLabel, text: $model.input, prompt: Text(verbatim: model.service.placeholder))
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .submitLabel(.go)
-                            .focused($isFieldFocused)
-                            .disabled(model.isWorking)
-                            .onSubmit(connect)
-                        if let suffix = model.fixedSuffix {
-                            Text(verbatim: suffix)
-                                .foregroundStyle(.secondary)
-                        }
+                            .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled().submitLabel(.go).focused(
+                                $isFieldFocused
+                            ).disabled(model.isWorking).onSubmit(connect)
+                        if let suffix = model.fixedSuffix { Text(verbatim: suffix).foregroundStyle(.secondary) }
                     }
                 } footer: {
                     VStack(alignment: .leading, spacing: 8) {
-                        if let errorMessage = model.errorMessage {
-                            Text(errorMessage)
-                                .foregroundStyle(.red)
-                        }
+                        if let errorMessage = model.errorMessage { Text(errorMessage).foregroundStyle(.red) }
                         Text(model.service.sheetExplanation)
                     }
                 }
-            }
-            .navigationTitle(model.service.sheetTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "Cancel"), role: .cancel) { dismiss() }
-                }
+            }.navigationTitle(model.service.sheetTitle).navigationBarTitleDisplayMode(.inline).toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: "Cancel"), role: .cancel) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     if model.isWorking {
                         ProgressView()
                     } else {
-                        Button(String(localized: "Connect"), action: connect)
-                            .disabled(!model.canConnect)
+                        Button(String(localized: "Connect"), action: connect).disabled(!model.canConnect)
                     }
                 }
-            }
-            .onAppear { isFieldFocused = true }
-        }
-        // Closing the sheet mid sign-in would leave the browser sheet without the view that waits for it.
+            }.onAppear { isFieldFocused = true }
+        }  // Closing the sheet mid sign-in would leave the browser sheet without the view that waits for it.
         .interactiveDismissDisabled(model.isWorking)
     }
 
-    private func connect() {
-        Task {
-            if await model.connect() {
-                dismiss()
-            }
-        }
-    }
+    private func connect() { Task { if await model.connect() { dismiss() } } }
 }
 
 #Preview {
     let store = SocialAccountStore(directory: nil, keychain: nil)
-    store.add(MastodonAccount(instance: URL(string: "https://oldbytes.space")!, accountID: "1", username: "musiccloud",
-                              displayName: "musiccloud", avatarURL: nil, characterLimit: 5000), token: "preview")
-    return NavigationStack {
-        SocialMediaSettingsView()
-    }
-    .environment(store)
+    store.add(
+        MastodonAccount(
+            instance: URL(string: "https://oldbytes.space")!,
+            accountID: "1",
+            username: "musiccloud",
+            displayName: "musiccloud",
+            avatarURL: nil,
+            characterLimit: 5000
+        ),
+        token: "preview"
+    )
+    return NavigationStack { SocialMediaSettingsView() }.environment(store)
 }
 
 #endif

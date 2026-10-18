@@ -7,9 +7,7 @@ import Testing
 struct PlainTextItemTests {
     private let link = "https://open.spotify.com/track/3bEoJn1bacU7dhpcjmWw72?si=abc"
 
-    @Test func readsUTF8Text() {
-        #expect(PlainTextItem.text(from: Data(link.utf8)) == link)
-    }
+    @Test func readsUTF8Text() { #expect(PlainTextItem.text(from: Data(link.utf8)) == link) }
 
     @Test func readsAnArchivedString() throws {
         let data = try NSKeyedArchiver.archivedData(withRootObject: link as NSString, requiringSecureCoding: true)

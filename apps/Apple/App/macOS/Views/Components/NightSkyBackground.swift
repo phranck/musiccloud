@@ -39,36 +39,26 @@ struct NightSkyBackground: View {
         TimelineView(.animation(minimumInterval: 1 / Double(tokens.fpsCap), paused: reduceMotion)) { timeline in
             let time = reduceMotion ? 0 : timeline.date.timeIntervalSince(startDate)
             GeometryReader { proxy in
-                Rectangle()
-                    .colorEffect(ShaderLibrary.nightSkyColor(
+                Rectangle().colorEffect(
+                    ShaderLibrary.nightSkyColor(
                         .float2(proxy.size),
                         .float(time),
                         .float(dayness),
                         .float(displayScale),
                         .floatArray(values)
-                    ))
+                    )
+                )
             }
-        }
-        .accessibilityHidden(true)
+        }.accessibilityHidden(true)
     }
 
     /// 0 shows the night sky, 1 the day sky. Dark mode is night, as in the
     /// website's System mode.
-    private var dayness: Float {
-        colorScheme == .dark ? 0 : 1
-    }
+    private var dayness: Float { colorScheme == .dark ? 0 : 1 }
 }
 
-#Preview("Night") {
-    NightSkyBackground()
-        .frame(width: 400, height: 440)
-        .environment(\.colorScheme, .dark)
-}
+#Preview("Night") { NightSkyBackground().frame(width: 400, height: 440).environment(\.colorScheme, .dark) }
 
-#Preview("Day") {
-    NightSkyBackground()
-        .frame(width: 400, height: 440)
-        .environment(\.colorScheme, .light)
-}
+#Preview("Day") { NightSkyBackground().frame(width: 400, height: 440).environment(\.colorScheme, .light) }
 
 #endif

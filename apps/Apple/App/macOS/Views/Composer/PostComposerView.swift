@@ -29,20 +29,13 @@ struct PostComposerView: View {
                 } description: {
                     Text("Create a template first. The post is written from it.")
                 } actions: {
-                    Button(String(localized: "Edit Templates…")) {
-                        AppDelegate.shared?.openTemplateEditor()
-                    }
+                    Button(String(localized: "Edit Templates…")) { AppDelegate.shared?.openTemplateEditor() }
                 }
             } else {
                 composer
             }
-        }
-        .frame(minWidth: 480, minHeight: 420)
-        .navigationTitle(String(localized: "Post \(model.title)"))
-        .task {
-            for account in model.accounts {
-                model.replace(await account.refreshed())
-            }
+        }.frame(minWidth: 480, minHeight: 420).navigationTitle(String(localized: "Post \(model.title)")).task {
+            for account in model.accounts { model.replace(await account.refreshed()) }
         }
     }
 
@@ -54,9 +47,7 @@ struct PostComposerView: View {
                 Picker(String(localized: "Template"), selection: $model.templateID) {
                     Text("Default of Each Account").tag(PostTemplate.ID?.none)
                     Divider()
-                    ForEach(model.templates) { template in
-                        Text(template.name).tag(Optional(template.id))
-                    }
+                    ForEach(model.templates) { template in Text(template.name).tag(Optional(template.id)) }
                 }
             }
 
@@ -67,39 +58,23 @@ struct PostComposerView: View {
                             PostTemplateIconImage(icon: account.icon)
                             SocialAccountLabel(account: account)
                         }
-                    }
-                    .disabled(model.isPosting)
+                    }.disabled(model.isPosting)
                 }
             }
 
-            ForEach(model.selectedAccounts) { account in
-                DraftSection(model: model, account: account)
-            }
-        }
-        .formStyle(.grouped)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+            ForEach(model.selectedAccounts) { account in DraftSection(model: model, account: account) }
+        }.formStyle(.grouped).safeAreaInset(edge: .bottom, spacing: 0) {
             HStack {
-                if model.isPosting {
-                    ProgressView()
-                        .controlSize(.small)
-                }
+                if model.isPosting { ProgressView().controlSize(.small) }
                 Spacer()
-                Button(String(localized: "Cancel"), role: .cancel) {
-                    AppDelegate.shared?.closeComposer()
-                }
-                .keyboardShortcut(.cancelAction)
+                Button(String(localized: "Cancel"), role: .cancel) { AppDelegate.shared?.closeComposer() }.keyboardShortcut(.cancelAction)
                 Button(String(localized: "Post")) {
                     Task {
                         await model.post { account, text in try await account.post(text) }
-                        if model.isDone {
-                            AppDelegate.shared?.closeComposer()
-                        }
+                        if model.isDone { AppDelegate.shared?.closeComposer() }
                     }
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!model.canPost)
-            }
-            .padding(20)
+                }.keyboardShortcut(.defaultAction).disabled(!model.canPost)
+            }.padding(20)
         }
     }
 
@@ -107,11 +82,7 @@ struct PostComposerView: View {
         Binding {
             model.selectedAccountIDs.contains(account.id)
         } set: { isOn in
-            if isOn {
-                model.selectedAccountIDs.insert(account.id)
-            } else {
-                model.selectedAccountIDs.remove(account.id)
-            }
+            if isOn { model.selectedAccountIDs.insert(account.id) } else { model.selectedAccountIDs.remove(account.id) }
         }
     }
 }
@@ -125,14 +96,13 @@ private struct DraftSection: View {
 
     var body: some View {
         Section {
-            TextEditor(text: Binding {
-                model.drafts[account.id] ?? ""
-            } set: {
-                model.drafts[account.id] = $0
-            })
-            .font(.body)
-            .frame(minHeight: 110)
-            .disabled(model.isPosting || model.states[account.id] == .posted)
+            TextEditor(
+                text: Binding {
+                    model.drafts[account.id] ?? ""
+                } set: {
+                    model.drafts[account.id] = $0
+                }
+            ).font(.body).frame(minHeight: 110).disabled(model.isPosting || model.states[account.id] == .posted)
         } header: {
             HStack {
                 Label {
@@ -141,9 +111,9 @@ private struct DraftSection: View {
                     PostTemplateIconImage(icon: account.icon)
                 }
                 Spacer()
-                Text(verbatim: "\(model.length(for: account)) / \(account.limit)")
-                    .monospacedDigit()
-                    .foregroundStyle(model.length(for: account) > account.limit ? .red : .secondary)
+                Text(verbatim: "\(model.length(for: account)) / \(account.limit)").monospacedDigit().foregroundStyle(
+                    model.length(for: account) > account.limit ? .red : .secondary
+                )
             }
         } footer: {
             footer
@@ -153,28 +123,18 @@ private struct DraftSection: View {
     /// What the reader gets from the Markdown on this account's service.
     private var formatNote: String {
         switch account {
-        case .mastodon where account.keepsMarkdown:
-            String(localized: "This server shows Markdown formatted.")
-        case .mastodon:
-            String(localized: "This server shows plain text, so the Markdown characters are removed.")
-        case .bluesky:
-            String(localized: "Bluesky shows plain text. Links and hashtags stay clickable.")
+        case .mastodon where account.keepsMarkdown: String(localized: "This server shows Markdown formatted.")
+        case .mastodon: String(localized: "This server shows plain text, so the Markdown characters are removed.")
+        case .bluesky: String(localized: "Bluesky shows plain text. Links and hashtags stay clickable.")
         }
     }
 
-    @ViewBuilder
-    private var footer: some View {
+    @ViewBuilder private var footer: some View {
         switch model.states[account.id] ?? .idle {
-        case .idle:
-            Text(formatNote)
-        case .posting:
-            Text("Posting…")
-        case .posted:
-            Label(String(localized: "Posted"), systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        case .failed(let message):
-            Label(message, systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
+        case .idle: Text(formatNote)
+        case .posting: Text("Posting…")
+        case .posted: Label(String(localized: "Posted"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+        case .failed(let message): Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
         }
     }
 }

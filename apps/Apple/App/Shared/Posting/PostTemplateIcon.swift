@@ -27,13 +27,13 @@ enum PostTemplateIcon: String, Codable, CaseIterable, Identifiable, Sendable {
     /// The name shown in the icon picker.
     var title: String {
         switch self {
-        case .mastodon:  "Mastodon"
-        case .bluesky:   "Bluesky"
-        case .note:      String(localized: "Note")
-        case .album:     String(localized: "Album")
+        case .mastodon: "Mastodon"
+        case .bluesky: "Bluesky"
+        case .note: String(localized: "Note")
+        case .album: String(localized: "Album")
         case .megaphone: String(localized: "Megaphone")
-        case .star:      String(localized: "Star")
-        case .heart:     String(localized: "Heart")
+        case .star: String(localized: "Star")
+        case .heart: String(localized: "Heart")
         }
     }
 
@@ -45,13 +45,13 @@ enum PostTemplateIcon: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var source: Source {
         switch self {
-        case .mastodon:  .asset("SocialIcons/mastodon")
-        case .bluesky:   .asset("SocialIcons/bluesky")
-        case .note:      .symbol("music.note")
-        case .album:     .symbol("square.stack")
+        case .mastodon: .asset("SocialIcons/mastodon")
+        case .bluesky: .asset("SocialIcons/bluesky")
+        case .note: .symbol("music.note")
+        case .album: .symbol("square.stack")
         case .megaphone: .symbol("megaphone")
-        case .star:      .symbol("star")
-        case .heart:     .symbol("heart")
+        case .star: .symbol("star")
+        case .heart: .symbol("heart")
         }
     }
 
@@ -62,8 +62,8 @@ enum PostTemplateIcon: String, Codable, CaseIterable, Identifiable, Sendable {
     var brandColor: Color? {
         switch self {
         case .mastodon: Color(red: 0x63 / 255, green: 0x64 / 255, blue: 0xFF / 255)
-        case .bluesky:  Color(red: 0x11 / 255, green: 0x85 / 255, blue: 0xFE / 255)
-        default:        nil
+        case .bluesky: Color(red: 0x11 / 255, green: 0x85 / 255, blue: 0xFE / 255)
+        default: nil
         }
     }
 }
@@ -81,14 +81,8 @@ struct PostTemplateIconImage: View {
     var body: some View {
         switch icon.source {
         case .asset(let name):
-            Image(name)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 16, height: 16)
-                .foregroundStyle(icon.brandColor ?? .primary)
-        case .symbol(let name):
-            Image(systemName: name)
-                .frame(width: 16, height: 16)
+            Image(name).resizable().scaledToFit().frame(width: 16, height: 16).foregroundStyle(icon.brandColor ?? .primary)
+        case .symbol(let name): Image(systemName: name).frame(width: 16, height: 16)
         }
     }
 }

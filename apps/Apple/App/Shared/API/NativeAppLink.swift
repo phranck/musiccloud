@@ -27,9 +27,12 @@ enum NativeAppLink {
     /// The URL to open for a service link: the app link when an installed
     /// app answers its scheme, otherwise the web link.
     static func preferredURL(for webURL: URL) -> URL {
-        guard let appURL = appURL(for: webURL),
-              NSWorkspace.shared.urlForApplication(toOpen: appURL) != nil
-        else { return webURL }
+        guard
+            let appURL = appURL(for: webURL),
+            NSWorkspace.shared.urlForApplication(toOpen: appURL) != nil
+        else {
+            return webURL
+        }
         return appURL
     }
 }
@@ -43,17 +46,23 @@ private extension NativeAppLink {
     /// do not belong to the item.
     static func spotifyURI(for webURL: URL) -> URL? {
         let parts = webURL.pathComponents.filter { $0 != "/" && !$0.hasPrefix("intl-") }
-        guard parts.count >= 2,
-              spotifyKinds.contains(parts[0]),
-              parts[1].allSatisfy({ $0.isLetter || $0.isNumber })
-        else { return nil }
+        guard
+            parts.count >= 2,
+            spotifyKinds.contains(parts[0]),
+            parts[1].allSatisfy({ $0.isLetter || $0.isNumber })
+        else {
+            return nil
+        }
         return URL(string: "spotify:\(parts[0]):\(parts[1])")
     }
 
     /// `https://music.apple.com/...` becomes `music://music.apple.com/...`,
     /// which Music opens at the same item.
     static func appleMusicURL(for webURL: URL) -> URL? {
-        guard var components = URLComponents(url: webURL, resolvingAgainstBaseURL: false) else { return nil }
+        guard var components = URLComponents(url: webURL, resolvingAgainstBaseURL: false)
+        else {
+            return nil
+        }
         components.scheme = "music"
         return components.url
     }

@@ -11,7 +11,8 @@ import SwiftUI
 struct SettingsItem: View {
     var body: some View {
         PanelActionItem(icon: "gearshape", title: "Settings") {
-            guard let delegate = AppDelegate.shared else {
+            guard let delegate = AppDelegate.shared
+            else {
                 AppLogger.ui.error("AppDelegate not initialized")
                 return
             }

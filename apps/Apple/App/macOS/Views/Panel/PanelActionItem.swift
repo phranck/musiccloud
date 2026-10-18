@@ -24,17 +24,10 @@ struct PanelActionItem: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                Text(title)
-                    .font(.caption)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .contentShape(.rect(cornerRadius: PanelMetrics.cornerRadius))
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
+                Image(systemName: icon).font(.system(size: 20))
+                Text(title).font(.caption)
+            }.frame(maxWidth: .infinity).padding(.vertical, 12).contentShape(.rect(cornerRadius: PanelMetrics.cornerRadius))
+        }.buttonStyle(.plain).foregroundStyle(.secondary)
     }
 }
 

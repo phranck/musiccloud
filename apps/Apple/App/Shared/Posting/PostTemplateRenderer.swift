@@ -19,17 +19,14 @@ enum PostTemplateRenderer {
 
     /// The template body with every `{variable}` replaced.
     static func render(_ body: String, with context: PostContext) -> String {
-        body
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .compactMap { renderLine(String($0), with: context) }
-            .joined(separator: "\n")
+        body.split(separator: "\n", omittingEmptySubsequences: false).compactMap { renderLine(String($0), with: context) }.joined(
+            separator: "\n"
+        )
     }
 
     /// The value of one placeholder name, without braces.
     static func value(of name: String, in context: PostContext) -> String? {
-        if let variable = PostVariable(rawValue: name) {
-            return variable.value(in: context)
-        }
+        if let variable = PostVariable(rawValue: name) { return variable.value(in: context) }
         if name.hasSuffix(serviceLinkSuffix) {
             let service = String(name.dropLast(serviceLinkSuffix.count))
             return context.serviceLinks.first { $0.service == service }?.url
@@ -50,9 +47,7 @@ private extension PostTemplateRenderer {
             hadPlaceholder = true
             return value(of: String(match.1), in: context) ?? ""
         }
-        if hadPlaceholder, rendered.allSatisfy(\.isWhitespace) {
-            return nil
-        }
+        if hadPlaceholder, rendered.allSatisfy(\.isWhitespace) { return nil }
         return rendered
     }
 }

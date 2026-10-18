@@ -16,9 +16,7 @@ import Synchronization
 /// client each Mastodon instance issued live in the Keychain, never in a
 /// file. Like ``PostTemplateStore``, every change starts from the file, so a
 /// second copy of the app does not lose the accounts the other one added.
-@MainActor
-@Observable
-final class SocialAccountStore {
+@MainActor @Observable final class SocialAccountStore {
     /// The connected Mastodon accounts, in the order they were connected.
     private(set) var mastodonAccounts: [MastodonAccount] = []
     /// The connected Bluesky accounts, in the order they were connected.
@@ -46,8 +44,10 @@ final class SocialAccountStore {
     /// On iOS they belong to the app group, so the Share Extension reads the
     /// same tokens and sessions. An app group is a valid access group there
     /// without a Keychain Sharing entitlement.
-    nonisolated static let defaultKeychain = KeychainItems(service: "io.musiccloud.social-accounts",
-                                                           accessGroup: SharedStoreConfiguration.appGroupIdentifier)
+    nonisolated static let defaultKeychain = KeychainItems(
+        service: "io.musiccloud.social-accounts",
+        accessGroup: SharedStoreConfiguration.appGroupIdentifier
+    )
     #else
     /// The Keychain items of the app's social media accounts.
     ///
@@ -65,8 +65,10 @@ final class SocialAccountStore {
     nonisolated static func defaultDirectory() -> URL? {
         #if os(iOS)
         let fileManager = FileManager.default
-        guard let container = fileManager.containerURL(
-            forSecurityApplicationGroupIdentifier: SharedStoreConfiguration.appGroupIdentifier) else { return nil }
+        guard let container = fileManager.containerURL(forSecurityApplicationGroupIdentifier: SharedStoreConfiguration.appGroupIdentifier)
+        else {
+            return nil
+        }
         let directory = container.appending(path: "Library/Application Support/musiccloud", directoryHint: .isDirectory)
         try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
@@ -81,8 +83,7 @@ final class SocialAccountStore {
     ///   - directory: The folder of `social-accounts.json` (Mastodon), `bluesky-accounts.json`,
     ///     and `bluesky-session.lock`, see ``blueskySessionLock``.
     ///   - keychain: Where tokens and sessions are kept, or `nil` to keep them in memory.
-    init(directory: URL? = SocialAccountStore.defaultDirectory(),
-         keychain: KeychainItems? = SocialAccountStore.defaultKeychain) {
+    init(directory: URL? = SocialAccountStore.defaultDirectory(), keychain: KeychainItems? = SocialAccountStore.defaultKeychain) {
         mastodonFile = directory.map { JSONFile(url: $0.appending(path: "social-accounts.json"), label: "Mastodon accounts") }
         blueskyFile = directory.map { JSONFile(url: $0.appending(path: "bluesky-accounts.json"), label: "Bluesky accounts") }
         blueskySessionLock = directory.map { SessionFileLock(url: $0.appending(path: "bluesky-session.lock")) }
@@ -99,9 +100,7 @@ final class SocialAccountStore {
     }
 
     /// Replaces the stored copy of `account`, keeping its token, as when its instance changed its limit.
-    func update(_ account: MastodonAccount) {
-        change { $0.mastodonAccounts.upsert(account) }
-    }
+    func update(_ account: MastodonAccount) { change { $0.mastodonAccounts.upsert(account) } }
 
     /// Removes `account` and forgets its token.
     func remove(_ account: MastodonAccount) {
@@ -157,16 +156,10 @@ private extension SocialAccountStore {
     func mastodonAppKey(_ host: String) -> String { "mastodon-app:\(host)" }
     func blueskySessionKey(_ did: String) -> String { "bluesky-session:\(did)" }
 
-    func secret(for key: String) -> Data? {
-        keychain.map { $0.data(for: key) } ?? secretsInMemory[key]
-    }
+    func secret(for key: String) -> Data? { keychain.map { $0.data(for: key) } ?? secretsInMemory[key] }
 
     func setSecret(_ data: Data?, for key: String) {
-        if let keychain {
-            keychain.setData(data, for: key)
-        } else {
-            secretsInMemory[key] = data
-        }
+        if let keychain { keychain.setData(data, for: key) } else { secretsInMemory[key] = data }
     }
 
     func change(_ edit: (SocialAccountStore) -> Void) {
@@ -177,23 +170,15 @@ private extension SocialAccountStore {
     }
 
     func load() {
-        if let stored = mastodonFile?.load() {
-            mastodonAccounts = stored
-        }
-        if let stored = blueskyFile?.load() {
-            blueskyAccounts = stored
-        }
+        if let stored = mastodonFile?.load() { mastodonAccounts = stored }
+        if let stored = blueskyFile?.load() { blueskyAccounts = stored }
     }
 }
 
 private extension Array where Element: Identifiable {
     /// Replaces the element with the same id, or appends `element`.
     mutating func upsert(_ element: Element) {
-        if let index = firstIndex(where: { $0.id == element.id }) {
-            self[index] = element
-        } else {
-            append(element)
-        }
+        if let index = firstIndex(where: { $0.id == element.id }) { self[index] = element } else { append(element) }
     }
 }
 
@@ -242,9 +227,7 @@ struct SessionFileLock: Sendable {
     #if os(macOS)
     /// The Mac does not suspend a process holding a file lock, so the activity
     /// starts at once on a dispatch thread and never expires.
-    static let systemActivity: ExpiringActivityRunner = { _, block in
-        DispatchQueue.global(qos: .userInitiated).async { block(false) }
-    }
+    static let systemActivity: ExpiringActivityRunner = { _, block in DispatchQueue.global(qos: .userInitiated).async { block(false) } }
     #else
     /// `ProcessInfo.performExpiringActivity(withReason:using:)`, which holds a
     /// background task assertion in the app and in app extensions alike.
@@ -268,7 +251,8 @@ struct SessionFileLock: Sendable {
         let activity = try await LockActivity.begin(reason: "Holding \(url.lastPathComponent)", using: runActivity)
         defer { activity.end() }
         let descriptor = try await Self.acquire(at: url.path(percentEncoded: false))
-        guard activity.hold(descriptor) else {
+        guard activity.hold(descriptor)
+        else {
             Self.release(descriptor)
             throw CancellationError()
         }
@@ -296,16 +280,16 @@ struct SessionFileLock: Sendable {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let descriptor = open(path, O_RDWR | O_CREAT | O_CLOEXEC, 0o600)
-                guard descriptor >= 0 else {
+                guard descriptor >= 0
+                else {
                     continuation.resume(throwing: lastError())
                     return
                 }
                 var status = flock(descriptor, LOCK_EX)
                 // A signal interrupts the wait without the lock being taken.
-                while status != 0 && errno == EINTR {
-                    status = flock(descriptor, LOCK_EX)
-                }
-                guard status == 0 else {
+                while status != 0 && errno == EINTR { status = flock(descriptor, LOCK_EX) }
+                guard status == 0
+                else {
                     let error = lastError()
                     close(descriptor)
                     continuation.resume(throwing: error)
@@ -323,9 +307,7 @@ struct SessionFileLock: Sendable {
     }
 
     /// The error `errno` names after a failed system call.
-    private static func lastError() -> POSIXError {
-        POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
-    }
+    private static func lastError() -> POSIXError { POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
 }
 
 // MARK: - LockActivity
@@ -378,7 +360,10 @@ private final class LockActivity: Sendable {
     /// Records `descriptor` as held, or returns `false` when the activity expired while the lock was awaited.
     func hold(_ descriptor: Int32) -> Bool {
         state.withLock { state in
-            guard !state.isExpired else { return false }
+            guard !state.isExpired
+            else {
+                return false
+            }
             state.descriptor = descriptor
             return true
         }
@@ -387,7 +372,10 @@ private final class LockActivity: Sendable {
     /// Calls `handler` when the activity expires, or at once when it has expired already.
     func whenExpired(_ handler: @escaping @Sendable () -> Void) {
         let expiredAlready = state.withLock { state in
-            guard !state.isExpired else { return true }
+            guard !state.isExpired
+            else {
+                return true
+            }
             state.onExpiry = handler
             return false
         }
@@ -405,9 +393,7 @@ private final class LockActivity: Sendable {
     }
 
     /// Ends the activity once the hold is over.
-    func end() {
-        finished.signal()
-    }
+    func end() { finished.signal() }
 
     /// Handles the system ending the activity: the lock is released, the work cancelled, and the activity let go.
     ///
@@ -415,9 +401,7 @@ private final class LockActivity: Sendable {
     private func expire() {
         let (started, onExpiry) = state.withLock { state in
             state.isExpired = true
-            if let descriptor = state.descriptor {
-                flock(descriptor, LOCK_UN)
-            }
+            if let descriptor = state.descriptor { flock(descriptor, LOCK_UN) }
             defer {
                 state.started = nil
                 state.onExpiry = nil

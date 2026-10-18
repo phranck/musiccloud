@@ -20,24 +20,15 @@ struct TrackItem: View {
         HStack(spacing: 12) {
             MediaArtwork(entry: entry)
             VStack(alignment: .leading, spacing: 2) {
-                Text(track.title)
-                    .font(.system(size: 14))
-                    .lineLimit(1)
-                Text(track.artistsString)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                Text(track.title).font(.system(size: 14)).lineLimit(1)
+                Text(track.artistsString).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             if let duration = track.formattedDuration {
-                Text(duration)
-                    .font(.system(size: 12).monospacedDigit())
-                    .foregroundStyle(.secondary)
+                Text(duration).font(.system(size: 12).monospacedDigit()).foregroundStyle(.secondary)
             }
 
             ShareButton(shortUrl: entry.shortUrl)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        }.padding(.horizontal, 10).padding(.vertical, 6)
     }
 }
