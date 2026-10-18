@@ -76,11 +76,10 @@
     },
     {
       "service": "qobuz",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/qobuz.com",
-      "sourcePath": "https://cdn.brandfetch.io/idUlFfVdYr/w/125/h/125/theme/dark/logo.png",
-      "sourceSHA256": "f9e366b1c7d5eecc1b3c2d9e07e4a919321946fed7dc9d26b0443a55cf881e2c",
-      "bundledSHA256": "f9e366b1c7d5eecc1b3c2d9e07e4a919321946fed7dc9d26b0443a55cf881e2c",
+      "provider": "Official website",
+      "source": "https://static.qobuz.com/images/favicon/favicon.svg",
+      "sourceSHA256": "59f10306a0b221bb0ab7dc6e6972426ddfdbe8ca536b8860fd62c31de6926837",
+      "bundledSHA256": "59f10306a0b221bb0ab7dc6e6972426ddfdbe8ca536b8860fd62c31de6926837",
       "transformation": null
     },
     {
