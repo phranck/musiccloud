@@ -1,15 +1,7 @@
 {
   "images": [
-    {
-      "filename": "icon.jpeg",
-      "idiom": "universal"
-    }
+    { "filename": "icon.png", "idiom": "universal" }
   ],
-  "info": {
-    "author": "xcode",
-    "version": 1
-  },
-  "properties": {
-    "template-rendering-intent": "original"
-  }
+  "info": { "author": "xcode", "version": 1 },
+  "properties": { "template-rendering-intent": "original" }
 }

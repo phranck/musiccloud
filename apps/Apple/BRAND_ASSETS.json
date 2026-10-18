@@ -49,12 +49,12 @@
     },
     {
       "service": "audius",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/audius.co",
-      "sourcePath": "https://cdn.brandfetch.io/idP9P-p_cv/w/180/h/180/theme/dark/logo.png",
-      "sourceSHA256": "7d57e92788f6705db4cec45effebf40d6a0dd919c73ef63cbb999138074899ac",
-      "bundledSHA256": "7d57e92788f6705db4cec45effebf40d6a0dd919c73ef63cbb999138074899ac",
-      "transformation": null
+      "provider": "Official Audius repository",
+      "source": "https://github.com/AudiusProject/audius-protocol/blob/main/packages/harmony/src/assets/icons/AudiusLogoColor.svg",
+      "sourceSHA256": "4b1cc219c02f9121f1250885d891ac9c150f31026874eda6c6f7c9b605e94503",
+      "embeddedPNGSourceSHA256": "0cefeca23bee84fc4f506866e478eb0303ce9991f160addfe2bfa73567dd8015",
+      "bundledSHA256": "ce6660222091c7e8399523df62841bb5d687f08f7b7845a6d7e86e892ba3c2d1",
+      "transformation": "Extract the original embedded PNG and trim transparent padding; no tracing, recoloring or redrawing."
     },
     {
       "service": "napster",
@@ -67,12 +67,12 @@
     },
     {
       "service": "pandora",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/pandora.com",
-      "sourcePath": "https://cdn.brandfetch.io/idL-UAvQjy/w/400/h/400/theme/dark/icon.jpeg",
-      "sourceSHA256": "19be9cc32749cde04c5d3d65eede2ec311baf5b7361dbe46694846f724fee4e8",
-      "bundledSHA256": "19be9cc32749cde04c5d3d65eede2ec311baf5b7361dbe46694846f724fee4e8",
-      "transformation": null
+      "provider": "Simple Icons",
+      "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/pandora.svg",
+      "brandReference": "https://www.pandoraforbrands.com",
+      "sourceSHA256": "e41b7f4c02a46676971ede09cc827a8909e194b41f2c79f25b048f98dda38cae",
+      "pathLicense": "CC0-1.0; no trademark rights granted",
+      "transformation": "Set the published brand fill #224099 and a white dark-appearance variant; path geometry unchanged."
     },
     {
       "service": "qobuz",
@@ -86,10 +86,10 @@
       "service": "boomplay",
       "provider": "Brandfetch",
       "profile": "https://brandfetch.com/boomplay.com",
-      "sourcePath": "https://cdn.brandfetch.io/iduFCCNnH6/w/3240/h/2742/theme/dark/logo.png",
-      "sourceSHA256": "6229749cf70f9409f74ff623ea8555be6ee8c5c18cbc283cf7e72b7e82f58be5",
-      "bundledSHA256": "6229749cf70f9409f74ff623ea8555be6ee8c5c18cbc283cf7e72b7e82f58be5",
-      "transformation": null
+      "sourcePath": "https://cdn.brandfetch.io/iduFCCNnH6/w/400/h/400/theme/dark/icon.jpeg",
+      "sourceSHA256": "bde1479778fd7cf02936964b12f95c90390f09ea08292392549780d425d51362",
+      "bundledSHA256": "3b4b4e136c4a75d9f44bd55dc24aace6758de970d71d83bf5dca697ea8c5330f",
+      "transformation": "Use the compact icon without a wordmark. Remove the external white matte, preserving the original black carrier circle for cyan glyph contrast; no tracing or redrawing."
     },
     {
       "service": "kkbox",
@@ -120,12 +120,11 @@
     },
     {
       "service": "bugs",
-      "provider": "Brandfetch",
-      "profile": "https://brandfetch.com/bugs.co.kr",
-      "sourcePath": "https://cdn.brandfetch.io/idMgUUserG/w/1080/h/1080/theme/dark/icon.jpeg",
-      "sourceSHA256": "cb2eea4b66fee8617a02c953def7b152cdcc580cddd92fa39bfd3b6cbe0315df",
-      "bundledSHA256": "cb2eea4b66fee8617a02c953def7b152cdcc580cddd92fa39bfd3b6cbe0315df",
-      "transformation": null
+      "provider": "Official website",
+      "source": "https://file.bugsm.co.kr/wbugs/common/faviconBugs.ico",
+      "sourceSHA256": "d7ae9293acdba3c4dacc9d05aa657b30d326b9b505d9f6068d25a52f1e7f0ca1",
+      "bundledSHA256": "3d22103c785b5ed675c258170dbcd4393480f4ed4d6a2189e8300ccd066fb58f",
+      "transformation": "Decode the original 256-pixel icon frame as PNG; no tracing or redrawing."
     },
     {
       "service": "jiosaavn",

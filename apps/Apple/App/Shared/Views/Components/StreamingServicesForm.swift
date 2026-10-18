@@ -71,8 +71,7 @@ struct StreamingServiceBrandIcon: View {
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 20
 
     var body: some View {
-        Image(service.iconAssetName).resizable().renderingMode(.original).scaledToFit().frame(width: iconSize, height: iconSize).clipShape(
-            RoundedRectangle(cornerRadius: iconSize * 0.2, style: .continuous)
-        ).accessibilityHidden(true)
+        Image(service.iconAssetName).resizable().renderingMode(.original).scaledToFit().frame(width: iconSize, height: iconSize)
+            .accessibilityHidden(true)
     }
 }
