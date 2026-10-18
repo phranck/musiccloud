@@ -23,9 +23,8 @@
    - spin/lp-coast:  trivial compositor-only spinners (loading indicator,
                      CD/LP artwork) and the finite LP coast-down, which need
                      no JS.
-   - mc-playback-bar: the bars under the duration of a playing track row
-                     (PlaybackBars). A compositor-only loop like the spinners,
-                     started and paused by the row's `data-playback`. */
+   - mc-playback-pulse: the inset frame of a playing artist track row.
+                     Only its opacity changes, driven by `data-playback`. */
 
 /* 1. Row entrance - gentle reveal with subtle scale */
 @keyframes slide-up {
@@ -506,74 +505,21 @@ html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-s
   opacity: 1;
 }
 
-/* Four bars that rise and fall out of step while the track plays and hold
-   their position while it is paused. They show no audio data. The resting
-   scales are the pose the bars keep when motion is reduced. */
-.mc-playback-bars {
-  --mc-playback-bar-width: 2px;
-  --mc-playback-bar-gap: 2px;
-  --mc-playback-bars-height: 10px;
-  display: flex;
-  align-items: flex-end;
-  gap: var(--mc-playback-bar-gap);
-  height: var(--mc-playback-bars-height);
-  opacity: 0;
-  transition: opacity var(--mc-focus-fade-duration) ease;
-}
-
-.mc-playback-row[data-playback] .mc-playback-bars {
-  opacity: 1;
-}
-
-.mc-playback-bar {
-  width: var(--mc-playback-bar-width);
-  height: 100%;
-  background: var(--color-accent);
-  transform-origin: bottom;
-  transform: scaleY(0.45);
-}
-
-.mc-playback-bar:nth-child(2) {
-  transform: scaleY(0.9);
-}
-
-.mc-playback-bar:nth-child(3) {
-  transform: scaleY(0.6);
-}
-
-.mc-playback-bar:nth-child(4) {
-  transform: scaleY(0.75);
-}
-
-.mc-playback-row[data-playback] .mc-playback-bar {
-  animation: mc-playback-bar 820ms ease-in-out infinite alternate;
-}
-
-.mc-playback-row[data-playback] .mc-playback-bar:nth-child(2) {
-  animation-duration: 610ms;
-  animation-delay: -240ms;
-}
-
-.mc-playback-row[data-playback] .mc-playback-bar:nth-child(3) {
-  animation-duration: 940ms;
-  animation-delay: -520ms;
-}
-
-.mc-playback-row[data-playback] .mc-playback-bar:nth-child(4) {
-  animation-duration: 700ms;
-  animation-delay: -130ms;
-}
-
-.mc-playback-row[data-playback="paused"] .mc-playback-bar {
-  animation-play-state: paused;
-}
-
-@keyframes mc-playback-bar {
-  from {
-    transform: scaleY(0.2);
+/* Paused and reduced-motion rows keep the static frame above. Only the
+   frame breathes, so the artwork, text, and row geometry remain unchanged. */
+@media (prefers-reduced-motion: no-preference) {
+  .mc-playback-row[data-playback="playing"]::before {
+    animation: mc-playback-pulse 3s ease-in-out infinite;
   }
-  to {
-    transform: scaleY(1);
+}
+
+@keyframes mc-playback-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
   }
 }
 
