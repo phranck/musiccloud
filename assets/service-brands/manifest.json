@@ -1,0 +1,374 @@
+{
+  "schemaVersion": 1,
+  "notice": "Brand assets remain the property of their respective owners and are not covered by the repository code license. Brandfetch does not grant rights in third-party brand assets.",
+  "brandfetchTerms": "https://brandfetch.com/terms",
+  "services": [
+    {
+      "id": "apple-music",
+      "apple": true,
+      "variants": {
+        "default": "apple-music/icon.svg",
+        "glyph": "apple-music/glyph.svg"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/applemusic.com",
+        "sourcePath": "https://cdn.brandfetch.io/id_yBTuraI/theme/light/symbol.svg",
+        "sourceSHA256": "7e18cfb9968dd2f04aaf9c0f0164efaf5726ef8a8c7d97793d76ed8a72891cfb",
+        "transformation": null,
+        "glyph": {
+          "provider": "react-icons / Simple Icons",
+          "package": "react-icons@5.6.0",
+          "export": "SiApplemusic",
+          "source": "https://github.com/react-icons/react-icons",
+          "pathLicense": "CC0-1.0; no trademark rights granted",
+          "transformation": "Export the existing website glyph as SVG without changing its paths."
+        }
+      }
+    },
+    {
+      "id": "audiomack",
+      "apple": true,
+      "variants": {
+        "default": "audiomack/icon.svg",
+        "glyph": "audiomack/glyph.svg"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/audiomack.com",
+        "sourcePath": "https://cdn.brandfetch.io/ids9PJxow1/theme/dark/symbol.svg",
+        "sourceSHA256": "f465428f65078f5383d0d751ef3a1820e6a574d2bd962a9b382013044992ebb6",
+        "transformation": null,
+        "glyph": {
+          "provider": "react-icons / Simple Icons",
+          "package": "react-icons@5.6.0",
+          "export": "SiAudiomack",
+          "source": "https://github.com/react-icons/react-icons",
+          "pathLicense": "CC0-1.0; no trademark rights granted",
+          "transformation": "Export the existing website glyph as SVG without changing its paths."
+        }
+      }
+    },
+    {
+      "id": "audius",
+      "apple": true,
+      "variants": {
+        "default": "audius/icon.png"
+      },
+      "provenance": {
+        "provider": "Official Audius repository",
+        "source": "https://github.com/AudiusProject/audius-protocol/blob/main/packages/harmony/src/assets/icons/AudiusLogoColor.svg",
+        "sourceSHA256": "4b1cc219c02f9121f1250885d891ac9c150f31026874eda6c6f7c9b605e94503",
+        "embeddedPNGSourceSHA256": "0cefeca23bee84fc4f506866e478eb0303ce9991f160addfe2bfa73567dd8015",
+        "transformation": "Extract the original embedded PNG and trim transparent padding; no tracing, recoloring or redrawing."
+      }
+    },
+    {
+      "id": "bandcamp",
+      "apple": true,
+      "variants": {
+        "default": "bandcamp/icon.svg",
+        "glyph": "bandcamp/icon.svg"
+      },
+      "provenance": {
+        "provider": "Simple Icons",
+        "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/bandcamp.svg",
+        "pathLicense": "CC0-1.0; no trademark rights granted",
+        "transformation": "Set brand fill; path geometry unchanged."
+      }
+    },
+    {
+      "id": "beatport",
+      "apple": true,
+      "variants": {
+        "default": "beatport/icon.svg",
+        "glyph": "beatport/icon.svg"
+      },
+      "provenance": {
+        "provider": "Simple Icons",
+        "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/beatport.svg",
+        "pathLicense": "CC0-1.0; no trademark rights granted",
+        "transformation": "Set brand fill; path geometry unchanged."
+      }
+    },
+    {
+      "id": "boomplay",
+      "apple": true,
+      "variants": {
+        "default": "boomplay/icon.png"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/boomplay.com",
+        "sourcePath": "https://cdn.brandfetch.io/iduFCCNnH6/w/400/h/400/theme/dark/icon.jpeg",
+        "sourceSHA256": "bde1479778fd7cf02936964b12f95c90390f09ea08292392549780d425d51362",
+        "transformation": "Use the compact icon without a wordmark. Remove the external white matte, preserving the original black carrier circle for cyan glyph contrast; no tracing or redrawing."
+      }
+    },
+    {
+      "id": "bugs",
+      "apple": true,
+      "variants": {
+        "default": "bugs/icon.png"
+      },
+      "provenance": {
+        "provider": "Official website",
+        "source": "https://file.bugsm.co.kr/wbugs/common/faviconBugs.ico",
+        "sourceSHA256": "d7ae9293acdba3c4dacc9d05aa657b30d326b9b505d9f6068d25a52f1e7f0ca1",
+        "transformation": "Decode the original 256-pixel icon frame as PNG; no tracing or redrawing."
+      }
+    },
+    {
+      "id": "deezer",
+      "apple": true,
+      "variants": {
+        "default": "deezer/icon.svg"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/deezer.com",
+        "sourcePath": "https://cdn.brandfetch.io/idEUKgCNtu/theme/dark/symbol.svg",
+        "sourceSHA256": "5fca323e2e9b64648eb29a1f22400363a575511f9701bf77b3650b0dd58031b6",
+        "transformation": null
+      }
+    },
+    {
+      "id": "jamendo",
+      "apple": false,
+      "variants": {
+        "default": "jamendo/icon.svg"
+      },
+      "provenance": {
+        "provider": "Existing website asset",
+        "source": "https://github.com/phranck/musiccloud/blob/14bc5b2ca9ce709592b6894b9aa1d1f9783b1fe0/apps/frontend/public/icons/jamendo.svg",
+        "transformation": null,
+        "notice": "The original upstream attribution was not recorded with this existing repository asset; no new rights clearance is asserted."
+      }
+    },
+    {
+      "id": "jiosaavn",
+      "apple": true,
+      "variants": {
+        "default": "jiosaavn/icon.jpeg"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/jiosaavn.com",
+        "sourcePath": "https://cdn.brandfetch.io/idmI9lAKkj/w/383/h/383/theme/dark/icon.jpeg",
+        "sourceSHA256": "aa7763c96ad53e921ef4e9bb2bfc84e87620bb2c14d70a0513fc94186f94ad41",
+        "transformation": null
+      }
+    },
+    {
+      "id": "kkbox",
+      "apple": true,
+      "variants": {
+        "default": "kkbox/icon.svg"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/kkbox.com",
+        "sourcePath": "https://cdn.brandfetch.io/idceQCFZ7m/theme/dark/logo.svg",
+        "sourceSHA256": "ff76b5232ee4f438e37db913d7c4df949703c8345059cc48916dfa119b891ac6",
+        "transformation": null
+      }
+    },
+    {
+      "id": "melon",
+      "apple": true,
+      "variants": {
+        "default": "melon/icon.png"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/melon.com",
+        "sourcePath": "https://cdn.brandfetch.io/id1HpzLV0U/w/474/h/148/theme/dark/logo.png",
+        "sourceSHA256": "a83bea35da8b323718b928136d1cb3494e97ae18fdea0f80e7e72b1e84ef2376",
+        "transformation": null
+      }
+    },
+    {
+      "id": "musicbrainz",
+      "apple": false,
+      "variants": {
+        "default": "musicbrainz/icon.svg",
+        "glyph": "musicbrainz/icon.svg"
+      },
+      "provenance": {
+        "provider": "react-icons / Simple Icons",
+        "package": "react-icons@5.6.0",
+        "export": "SiMusicbrainz",
+        "source": "https://github.com/react-icons/react-icons",
+        "pathLicense": "CC0-1.0; no trademark rights granted",
+        "transformation": "Export the existing website glyph as SVG without changing its paths."
+      }
+    },
+    {
+      "id": "napster",
+      "apple": true,
+      "variants": {
+        "default": "napster/icon.svg",
+        "glyph": "napster/glyph.svg"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/napster.com",
+        "sourcePath": "https://cdn.brandfetch.io/idSrCdsGeU/theme/dark/symbol.svg",
+        "sourceSHA256": "298015d12f2c9742ab09a355d949549b513af13683637e03b84dfffac81a0f7c",
+        "transformation": null,
+        "glyph": {
+          "provider": "react-icons / Simple Icons",
+          "package": "react-icons@5.6.0",
+          "export": "SiNapster",
+          "source": "https://github.com/react-icons/react-icons",
+          "pathLicense": "CC0-1.0; no trademark rights granted",
+          "transformation": "Export the existing website glyph as SVG without changing its paths."
+        }
+      }
+    },
+    {
+      "id": "netease",
+      "apple": true,
+      "variants": {
+        "default": "netease/icon.png"
+      },
+      "provenance": {
+        "provider": "Official website",
+        "source": "https://s1.music.126.net/style/favicon.ico?v20180823",
+        "transformation": "Decode the original 32-pixel ICO image as PNG; no tracing or redrawing."
+      }
+    },
+    {
+      "id": "pandora",
+      "apple": true,
+      "variants": {
+        "default": "pandora/icon.svg",
+        "dark": "pandora/icon-dark.svg",
+        "glyph": "pandora/icon.svg"
+      },
+      "provenance": {
+        "provider": "Simple Icons",
+        "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/pandora.svg",
+        "brandReference": "https://www.pandoraforbrands.com",
+        "sourceSHA256": "e41b7f4c02a46676971ede09cc827a8909e194b41f2c79f25b048f98dda38cae",
+        "pathLicense": "CC0-1.0; no trademark rights granted",
+        "transformation": "Set the published brand fill #224099 and a white dark-appearance variant; path geometry unchanged."
+      }
+    },
+    {
+      "id": "qobuz",
+      "apple": true,
+      "variants": {
+        "default": "qobuz/icon.svg"
+      },
+      "provenance": {
+        "provider": "Official website",
+        "source": "https://static.qobuz.com/images/favicon/favicon.svg",
+        "sourceSHA256": "59f10306a0b221bb0ab7dc6e6972426ddfdbe8ca536b8860fd62c31de6926837",
+        "transformation": null
+      }
+    },
+    {
+      "id": "qqmusic",
+      "apple": true,
+      "variants": {
+        "default": "qqmusic/icon.png"
+      },
+      "provenance": {
+        "provider": "Official website",
+        "source": "https://y.qq.com/favicon.ico",
+        "transformation": "Decode the original 32-pixel ICO image as PNG; no tracing or redrawing."
+      }
+    },
+    {
+      "id": "soundcloud",
+      "apple": true,
+      "variants": {
+        "default": "soundcloud/icon.svg"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/soundcloud.com",
+        "sourcePath": "https://cdn.brandfetch.io/id3ytDFop3/theme/dark/symbol.svg",
+        "sourceSHA256": "037e86d534f7dd1815923922cbf97cff1b7a013415494ef788d2a6977d9a2424",
+        "transformation": "Resolve the source SVG currentColor slot to the SoundCloud accent; path geometry unchanged."
+      }
+    },
+    {
+      "id": "spotify",
+      "apple": true,
+      "variants": {
+        "default": "spotify/icon.svg"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/spotify.com",
+        "sourcePath": "https://cdn.brandfetch.io/id20mQyGeY/theme/dark/symbol.svg",
+        "sourceSHA256": "729a1f07709d005f83513dde503d4046777907d9b8b395643d655805a88fa9d8",
+        "transformation": null
+      }
+    },
+    {
+      "id": "tidal",
+      "apple": true,
+      "variants": {
+        "default": "tidal/icon.svg",
+        "dark": "tidal/icon-dark.svg",
+        "glyph": "tidal/icon.svg"
+      },
+      "provenance": {
+        "provider": "Simple Icons",
+        "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/tidal.svg",
+        "pathLicense": "CC0-1.0; no trademark rights granted",
+        "transformation": "Set brand fill; path geometry unchanged. Tidal has a white dark-appearance variant."
+      },
+      "webVariant": "dark"
+    },
+    {
+      "id": "youtube",
+      "apple": true,
+      "variants": {
+        "default": "youtube/icon.svg",
+        "glyph": "youtube/glyph.svg"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/youtube.com",
+        "sourcePath": "https://cdn.brandfetch.io/idVfYwcuQz/theme/dark/symbol.svg",
+        "sourceSHA256": "89a24ea7e431567e483c3c36093d4ebcf755f5afd035c1e6cf02895613d4ac81",
+        "transformation": null,
+        "glyph": {
+          "provider": "react-icons / Simple Icons",
+          "package": "react-icons@5.6.0",
+          "export": "SiYoutube",
+          "source": "https://github.com/react-icons/react-icons",
+          "pathLicense": "CC0-1.0; no trademark rights granted",
+          "transformation": "Export the existing website glyph as SVG without changing its paths."
+        }
+      }
+    },
+    {
+      "id": "youtube-music",
+      "apple": true,
+      "variants": {
+        "default": "youtube-music/icon.jpeg",
+        "glyph": "youtube-music/glyph.svg"
+      },
+      "provenance": {
+        "provider": "Brandfetch",
+        "profile": "https://brandfetch.com/artists.youtube",
+        "sourcePath": "https://cdn.brandfetch.io/id1T1Nlfsw/w/400/h/400/theme/dark/icon.jpeg",
+        "sourceSHA256": "03133943a8b0f327c1c48562c8de44f17543bb1029b61612952abafa52bda901",
+        "transformation": null,
+        "glyph": {
+          "provider": "react-icons / Simple Icons",
+          "package": "react-icons@5.6.0",
+          "export": "SiYoutubemusic",
+          "source": "https://github.com/react-icons/react-icons",
+          "pathLicense": "CC0-1.0; no trademark rights granted",
+          "transformation": "Export the existing website glyph as SVG without changing its paths."
+        }
+      }
+    }
+  ]
+}

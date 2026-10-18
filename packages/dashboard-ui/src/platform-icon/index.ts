@@ -1,7 +1,7 @@
 /**
- * The mark of a streaming service. A separate entry point, because it brings
- * `react-icons`, which the rest of the package does not need, and because the
- * site renders it without loading the dashboard components.
+ * Curated streaming-service artwork and its generated asset map.
+ * The separate entry point lets the site render marks without loading dashboard
+ * components or an additional icon library.
  */
 export * from "./PlatformIcon.js";
 export * from "./platformIconFiles.js";

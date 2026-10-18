@@ -15,6 +15,36 @@ describe("PlatformIcon", () => {
 
     expect(container.firstElementChild).not.toBeNull();
   });
+
+  it.each([
+    [Service.Audius, "audius.png"],
+    [Service.Bugs, "bugs.png"],
+    [Service.KKBox, "kkbox.svg"],
+    [Service.Melon, "melon.png"],
+    [Service.JioSaavn, "jiosaavn.jpeg"],
+    [Service.QQMusic, "qqmusic.png"],
+  ] as const)("uses the curated original mark for %s instead of a generic glyph", (platform, filename) => {
+    const { container } = render(<PlatformIcon platform={platform} colored />);
+    const image = container.querySelector("img");
+
+    expect(image?.getAttribute("src")).toBe(`/icons/service-brands/${filename}`);
+    expect(container.querySelector("svg")).toBeNull();
+  });
+
+  it.each([
+    [Service.AppleMusic, "Apple Music", "apple-music-glyph.svg"],
+    [Service.Napster, "Napster", "napster-glyph.svg"],
+    [Service.Pandora, "Pandora", "pandora.svg"],
+    [Service.Tidal, "Tidal", "tidal.svg"],
+  ] as const)("uses the shared transparent glyph for text-color %s", (platform, label, filename) => {
+    const { container } = render(<PlatformIcon platform={platform} />);
+    const glyph = container.querySelector<HTMLElement>('[role="img"]');
+
+    expect(glyph?.getAttribute("aria-label")).toBe(label);
+    expect(glyph?.style.maskImage).toContain(`/icons/service-brands/${filename}`);
+    expect(glyph?.style.backgroundColor.toLowerCase()).toBe("currentcolor");
+    expect(container.querySelector("svg")).toBeNull();
+  });
 });
 
 /**
