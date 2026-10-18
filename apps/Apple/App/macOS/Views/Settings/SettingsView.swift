@@ -19,7 +19,7 @@ import SwiftUI
 struct SettingsView: View {
     /// The size of the window's content. The window does not resize, so
     /// `AppDelegate.openSettings()` opens it at exactly this size.
-    static let contentSize = CGSize(width: 600, height: 440)
+    static let contentSize = CGSize(width: 600, height: 520)
 
     @AppStorage(DefaultsKey.settingsPane) private var selectedPane: SettingsPane = .general
 
