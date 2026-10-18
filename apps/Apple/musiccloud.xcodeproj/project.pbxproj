@@ -68,6 +68,12 @@
 		FD0C899A2F81B1FD00AE61FB /* RainbowPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */; };
 		FD0C899C2F81B50F00AE61FB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */; };
 		FD1437752F81964000A5B46D /* ShareButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD1437742F81964000A5B46D /* ShareButton.swift */; };
+		FD204B3E3084D1360044C00E /* IOSSettingsNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B3D3084D1360044C00E /* IOSSettingsNavigation.swift */; };
+		FD204B403084D1360044C00E /* IOSSettingsNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B3F3084D1360044C00E /* IOSSettingsNavigationTests.swift */; };
+		FD204B423084D1CA0044C00E /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B413084D1CA0044C00E /* GeneralSettingsView.swift */; };
+		FD204B443084D1CA0044C00E /* AboutSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B433084D1CA0044C00E /* AboutSettingsView.swift */; };
+		FD204B463084D1CA0044C00E /* DataManagementSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B453084D1CA0044C00E /* DataManagementSettingsView.swift */; };
+		FD204B483084D1CA0044C00E /* DiagnosticsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B473084D1CA0044C00E /* DiagnosticsSettingsView.swift */; };
 		FD2197D22F80996F00F4AD7D /* DashboardItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2197D12F80996F00F4AD7D /* DashboardItem.swift */; };
 		FD2748DF34499A932431649A /* PanelSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD70F1B3AEE2E43BDEE0DC9D /* PanelSection.swift */; };
 		FD3BDBC130846A7900A4F443 /* SettingsSidebarPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD3BDBC030846A7900A4F443 /* SettingsSidebarPersistence.swift */; };
@@ -349,6 +355,12 @@
 		FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RainbowPalette.swift; sourceTree = "<group>"; };
 		FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FD1437742F81964000A5B46D /* ShareButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareButton.swift; sourceTree = "<group>"; };
+		FD204B3D3084D1360044C00E /* IOSSettingsNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSettingsNavigation.swift; sourceTree = "<group>"; };
+		FD204B3F3084D1360044C00E /* IOSSettingsNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSettingsNavigationTests.swift; sourceTree = "<group>"; };
+		FD204B413084D1CA0044C00E /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
+		FD204B433084D1CA0044C00E /* AboutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSettingsView.swift; sourceTree = "<group>"; };
+		FD204B453084D1CA0044C00E /* DataManagementSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManagementSettingsView.swift; sourceTree = "<group>"; };
+		FD204B473084D1CA0044C00E /* DiagnosticsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsSettingsView.swift; sourceTree = "<group>"; };
 		FD2197D12F80996F00F4AD7D /* DashboardItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardItem.swift; sourceTree = "<group>"; };
 		FD3BDBC030846A7900A4F443 /* SettingsSidebarPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSidebarPersistence.swift; sourceTree = "<group>"; };
 		FD3BDBC230846A7900A4F443 /* SettingsSidebarPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSidebarPersistenceTests.swift; sourceTree = "<group>"; };
@@ -795,6 +807,11 @@
 				DD00000000000014 /* iOSSettingsView.swift */,
 				FDB800A730814E7C00AC2DA7 /* SocialMediaSettingsView.swift */,
 				FD094D7A30838BCA00D317E2 /* StreamingServicesSettingsView.swift */,
+				FD204B3D3084D1360044C00E /* IOSSettingsNavigation.swift */,
+				FD204B413084D1CA0044C00E /* GeneralSettingsView.swift */,
+				FD204B433084D1CA0044C00E /* AboutSettingsView.swift */,
+				FD204B453084D1CA0044C00E /* DataManagementSettingsView.swift */,
+				FD204B473084D1CA0044C00E /* DiagnosticsSettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -1012,6 +1029,7 @@
 				FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */,
 				FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */,
 				FD3BDBC230846A7900A4F443 /* SettingsSidebarPersistenceTests.swift */,
+				FD204B3F3084D1360044C00E /* IOSSettingsNavigationTests.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -1252,6 +1270,7 @@
 				FDB800D83082A7B100AC2DA7 /* PlainTextItem.swift in Sources */,
 				FDB8000A307F9E7A00AC2DA7 /* HistoryPane.swift in Sources */,
 				FDB8006030802F0800AC2DA7 /* MastodonConnector.swift in Sources */,
+				FD204B3E3084D1360044C00E /* IOSSettingsNavigation.swift in Sources */,
 				FDB800D430828AB900AC2DA7 /* ConversionSheet.swift in Sources */,
 				FD05A10C2F83900100000001 /* ContentType.swift in Sources */,
 				FD05A10E2F83900100000002 /* APIError.swift in Sources */,
@@ -1280,9 +1299,11 @@
 				FDF0E95A2F81C6D8004DEFCE /* HistoryView.swift in Sources */,
 				FDB8003A307FF00900AC2DA7 /* PostTemplateIcon.swift in Sources */,
 				FDDC7E2B2F805F03005D779F /* MediaRow.swift in Sources */,
+				FD204B423084D1CA0044C00E /* GeneralSettingsView.swift in Sources */,
 				FDB8003E307FF05400AC2DA7 /* NSImage+MenuIcon.swift in Sources */,
 				FDB800CD3081A35600AC2DA7 /* SkyTokens.swift in Sources */,
 				FDB80004307F9E6F00AC2DA7 /* SettingsSidebar.swift in Sources */,
+				FD204B483084D1CA0044C00E /* DiagnosticsSettingsView.swift in Sources */,
 				FDB80037307FE6D400AC2DA7 /* TemplatesPane.swift in Sources */,
 				FD2748DF34499A932431649A /* PanelSection.swift in Sources */,
 				FDB8007D3080E90700AC2DA7 /* MarkdownSyntax.swift in Sources */,
@@ -1324,6 +1345,7 @@
 				FDB8007030803A4400AC2DA7 /* BlueskyAPI.swift in Sources */,
 				FDB80041307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift in Sources */,
 				DD00000000000002 /* PasteCTAView.swift in Sources */,
+				FD204B443084D1CA0044C00E /* AboutSettingsView.swift in Sources */,
 				DD00000000000003 /* iOSHistoryView.swift in Sources */,
 				DD00000000000004 /* iOSSettingsView.swift in Sources */,
 				DD00000000000005 /* ResultCardView.swift in Sources */,
@@ -1348,6 +1370,7 @@
 				FD094D7930838BC000D317E2 /* StreamingServicesPane.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
 				FDB800A630814E2700AC2DA7 /* ConnectAccountModel.swift in Sources */,
+				FD204B463084D1CA0044C00E /* DataManagementSettingsView.swift in Sources */,
 				EF00000000000101 /* BuildChannel.swift in Sources */,
 				DC0000000000002B1 /* Pasteboard.swift in Sources */,
 				DC0000000000000B1 /* DefaultsKey.swift in Sources */,
@@ -1378,6 +1401,7 @@
 				DC0000000000001B1 /* TelemetryClientTests.swift in Sources */,
 				BB00000000000003 /* ClipboardMonitorTests.swift in Sources */,
 				FDB8006630802F7B00AC2DA7 /* MastodonTests.swift in Sources */,
+				FD204B403084D1360044C00E /* IOSSettingsNavigationTests.swift in Sources */,
 				FDB800AA30814E9B00AC2DA7 /* ConnectAccountTests.swift in Sources */,
 				FDB8009C3081068000AC2DA7 /* TemplatePostLimitTests.swift in Sources */,
 				BB00000000000004 /* MediaEntryTests.swift in Sources */,
