@@ -443,11 +443,50 @@ a.mc-cardlink {
    3. Shared surface recipe — flat tint + float drop-shadow.
    ═════════════════════════════════════════════════════════════════════════ */
 .embossed-gradient-border,
-.recessed-gradient-border {
+.recessed-gradient-border,
+.mc-card-shadow {
   position: relative;
   background: var(--_t);
   box-shadow: var(--mc-shadow-x, 0px) var(--mc-shadow-y, 15px) var(--mc-shadow-blur, 21px)
     rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh));
+}
+
+/* A card's empty material plate paints the rounded tint and shadow without
+   clipping composited descendants. Its sibling alone clips content, keeping
+   the shadow mask independent of that content's compositing boundaries. */
+.embossed-gradient-border.mc-glass-card {
+  --mc-card-clip-radius: initial;
+  isolation: isolate;
+  overflow: visible;
+  background: none;
+  box-shadow: none;
+}
+
+.mc-card-shadow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.mc-card-content {
+  position: relative;
+  display: inherit;
+  flex-direction: inherit;
+  align-items: inherit;
+  justify-content: inherit;
+  gap: inherit;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--mc-card-clip-radius, inherit);
+}
+
+.mc-glass-card.overflow-visible > .mc-card-content {
+  overflow: visible;
 }
 
 /* Raised button hover/active: ONLY the background lightens (HSL-lifted tint) — NEVER
