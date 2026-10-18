@@ -14,9 +14,10 @@ struct ConvertStreamingURLIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let urlString = url.absoluteString
-
-        guard StreamingServices.isStreamingURL(urlString) else { throw ConvertStreamingURLError.invalidURL }
-
+        guard StreamingServices.isStreamingURL(urlString)
+        else {
+            throw ConvertStreamingURLError.invalidURL
+        }
         do {
             let response = try await MusicCloudAPI.resolve(url: urlString)
             return .result(value: response.shortUrl)

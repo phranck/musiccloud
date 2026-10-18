@@ -38,9 +38,9 @@ struct BlueskyDiscoveryTests {
 
     @Test func documentNamesThePDSAndConfirmsTheHandle() throws {
         let json = #"""
-            {"id":"did:plc:abc","alsoKnownAs":["at://name.bsky.social"],
-             "service":[{"id":"#atproto_pds","type":"AtprotoPersonalDataServer","serviceEndpoint":"https://pds.example"}]}
-            """#
+        {"id":"did:plc:abc","alsoKnownAs":["at://name.bsky.social"],
+         "service":[{"id":"#atproto_pds","type":"AtprotoPersonalDataServer","serviceEndpoint":"https://pds.example"}]}
+        """#
         let document = try JSONDecoder().decode(BlueskyDIDDocument.self, from: Data(json.utf8))
         #expect(document.pdsEndpoint == URL(string: "https://pds.example"))
         #expect(document.confirms(handle: "name.bsky.social"))
@@ -104,10 +104,10 @@ struct BlueskyRequestTests {
 
     @Test func authorizationServerMetadataDecodes() throws {
         let json = #"""
-            {"issuer":"https://bsky.social","authorization_endpoint":"https://bsky.social/oauth/authorize",
-             "token_endpoint":"https://bsky.social/oauth/token","pushed_authorization_request_endpoint":"https://bsky.social/oauth/par",
-             "revocation_endpoint":"https://bsky.social/oauth/revoke"}
-            """#
+        {"issuer":"https://bsky.social","authorization_endpoint":"https://bsky.social/oauth/authorize",
+         "token_endpoint":"https://bsky.social/oauth/token","pushed_authorization_request_endpoint":"https://bsky.social/oauth/par",
+         "revocation_endpoint":"https://bsky.social/oauth/revoke"}
+        """#
         let server = try BlueskyAPI.decoder.decode(BlueskyAuthorizationServer.self, from: Data(json.utf8))
         #expect(server.pushedAuthorizationRequestEndpoint.path == "/oauth/par")
         #expect(server.revocationEndpoint?.path == "/oauth/revoke")
@@ -301,7 +301,10 @@ struct SessionFileLockTests {
     /// Whether another holder could take the lock on `url` right now.
     private func isUnlocked(_ url: URL) -> Bool {
         let descriptor = open(url.path(percentEncoded: false), O_RDWR)
-        guard descriptor >= 0 else { return false }
+        guard descriptor >= 0
+        else {
+            return false
+        }
         defer { close(descriptor) }
         return flock(descriptor, LOCK_EX | LOCK_NB) == 0
     }
@@ -334,13 +337,21 @@ private final class TokenEndpointProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        guard let url = request.url, let host = url.host() else { return }
+        guard
+            let url = request.url,
+            let host = url.host()
+        else {
+            return
+        }
         let presented = Self.formValue("refresh_token", in: request)
         let issued: Int? = Self.counts.withLock { counts in
             var current = counts[host, default: Counts()]
             current.requests += 1
             defer { counts[host] = current }
-            guard presented == "refresh-\(current.renewals)" else { return nil }
+            guard presented == "refresh-\(current.renewals)"
+            else {
+                return nil
+            }
             current.renewals += 1
             return current.renewals
         }
@@ -354,14 +365,15 @@ private final class TokenEndpointProtocol: URLProtocol {
             status = 400
             json = #"{"error":"invalid_grant"}"#
         }
-        guard
-            let response = HTTPURLResponse(
-                url: url,
-                statusCode: status,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
-            )
-        else { return }
+        guard let response = HTTPURLResponse(
+            url: url,
+            statusCode: status,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )
+        else {
+            return
+        }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(json.utf8))
         client?.urlProtocolDidFinishLoading(self)
@@ -378,7 +390,10 @@ private final class TokenEndpointProtocol: URLProtocol {
             var buffer = [UInt8](repeating: 0, count: 4096)
             while stream.hasBytesAvailable {
                 let count = stream.read(&buffer, maxLength: buffer.count)
-                guard count > 0 else { break }
+                guard count > 0
+                else {
+                    break
+                }
                 body.append(buffer, count: count)
             }
         }

@@ -148,7 +148,10 @@ extension MusicCloudAPI {
         let appAccess = appAccessURL(forSite: base)
 
         for _ in 1...2 {
-            guard let token = await AppSession.shared.currentToken(for: appAccess) else { break }
+            guard let token = await AppSession.shared.currentToken(for: appAccess)
+            else {
+                break
+            }
             do {
                 let request = try AppAccessClient.resolveRequest(base: appAccess, query: url, token: token)
                 return try await send(request, sourceUrl: url, linkBase: base)
@@ -213,14 +216,13 @@ extension MusicCloudAPI {
             reportResolveError(url: url, kind: "RATE_LIMITED", status: statusCode, body: bodyString)
             throw ResolveError.rateLimited
         }
-
-        guard (200..<300).contains(statusCode) else {
+        guard (200..<300).contains(statusCode)
+        else {
             let error = resolveError(from: data, statusCode: statusCode)
             AppLogger.api.error("  mapped error: \(String(describing: error))")
             reportResolveError(url: url, kind: Self.errorKind(for: error), status: statusCode, body: bodyString)
             throw error
         }
-
         let decoded: ResolveResponse
         do { decoded = try JSONDecoder().decode(ResolveResponse.self, from: data) } catch {
             AppLogger.api.error("  decode failed: \(error)")
@@ -315,29 +317,30 @@ extension MusicCloudAPI {
     /// Runs on the concurrent pool, because the body is read byte by byte to
     /// enforce the limit, and that loop must not run on the main actor.
     @concurrent static func downloadArtwork(from urlString: String) async -> Data? {
-        guard let url = StreamingServices.webURL(urlString) else {
+        guard let url = StreamingServices.webURL(urlString)
+        else {
             AppLogger.api.error("Refused artwork address that is not a web URL")
             return nil
         }
-
         do {
             AppLogger.api.debug("→ Downloading artwork from \(url.absoluteString)")
             var request = URLRequest(url: url)
             request.timeoutInterval = 10
             let (bytes, response) = try await URLSession.shared.bytes(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode),
+            guard
+                let httpResponse = response as? HTTPURLResponse,
+                (200..<300).contains(httpResponse.statusCode),
                 httpResponse.mimeType?.lowercased().hasPrefix("image/") == true,
                 httpResponse.expectedContentLength <= Int64(maximumArtworkBytes)
             else {
                 AppLogger.api.error("Failed to download artwork: unacceptable response")
                 return nil
             }
-
             var data = Data()
             if httpResponse.expectedContentLength > 0 { data.reserveCapacity(Int(httpResponse.expectedContentLength)) }
             for try await byte in bytes {
-                guard data.count < maximumArtworkBytes else {
+                guard data.count < maximumArtworkBytes
+                else {
                     AppLogger.api.error("Failed to download artwork: larger than \(maximumArtworkBytes) bytes")
                     return nil
                 }

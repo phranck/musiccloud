@@ -117,7 +117,10 @@ private struct EqualizerBars: View {
 
     /// The height of bar `index` at `date`, as a fraction of the full height.
     private func level(of index: Int, at date: Date) -> Double {
-        guard !reduceMotion else { return Self.restingLevels[index] }
+        guard !reduceMotion
+        else {
+            return Self.restingLevels[index]
+        }
         let beats = date.timeIntervalSinceReferenceDate / Self.beatSeconds
         let bounce = abs(sin(.pi * (beats * Self.bouncesPerBeat[index] + Self.beatOffsets[index])))
         return Self.minimumLevel + (1 - Self.minimumLevel) * bounce

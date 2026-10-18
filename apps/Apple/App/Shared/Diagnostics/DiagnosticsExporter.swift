@@ -38,7 +38,10 @@ enum DiagnosticsExporter {
     /// Reading the log store blocks for as long as it takes, so this runs on
     /// the concurrent pool rather than on the caller's actor.
     @concurrent static func exportLogs() async throws -> URL {
-        guard let store = try? OSLogStore(scope: .currentProcessIdentifier) else { throw ExportError.unavailable }
+        guard let store = try? OSLogStore(scope: .currentProcessIdentifier)
+        else {
+            throw ExportError.unavailable
+        }
         let start = store.position(date: Date(timeIntervalSinceNow: -lookBack))
         let predicate = NSPredicate(format: "subsystem == %@", "io.musiccloud.app")
         let entries = try store.getEntries(at: start, matching: predicate)
@@ -49,7 +52,10 @@ enum DiagnosticsExporter {
 
         var count = 0
         for entry in entries {
-            guard let log = entry as? OSLogEntryLog else { continue }
+            guard let log = entry as? OSLogEntryLog
+            else {
+                continue
+            }
             if count >= maxEntries { break }
             let record = LogRecord(
                 timestamp: log.date,

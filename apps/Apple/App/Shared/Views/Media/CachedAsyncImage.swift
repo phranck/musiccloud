@@ -36,7 +36,10 @@ struct CachedAsyncImage<Placeholder: View>: View {
             } action: { newValue in
                 pointSize = newValue
             }.task(id: cacheKey) {
-                guard pixelSize > 0 else { return }
+                guard pixelSize > 0
+                else {
+                    return
+                }
                 image = await loadImage()
             }
     }
@@ -60,9 +63,16 @@ private extension CachedAsyncImage {
 
         var data = entry.artworkImageData
         if data == nil, let artworkUrl = entry.contentType.artworkUrl { data = await MusicCloudAPI.downloadArtwork(from: artworkUrl) }
-        guard let data, !Task.isCancelled else { return nil }
-
-        guard let thumbnail = await ArtworkThumbnailCache.thumbnail(from: data, maxPixelSize: pixelSize) else { return nil }
+        guard
+            let data,
+            !Task.isCancelled
+        else {
+            return nil
+        }
+        guard let thumbnail = await ArtworkThumbnailCache.thumbnail(from: data, maxPixelSize: pixelSize)
+        else {
+            return nil
+        }
         ArtworkThumbnailCache.shared.store(thumbnail, forKey: key)
         return thumbnail
     }
@@ -104,7 +114,10 @@ final class ArtworkThumbnailCache: @unchecked Sendable {
     ///   - maxPixelSize: The longest edge of the result, in pixels.
     /// - Returns: The decoded thumbnail, or `nil` when the data is not an image.
     @concurrent static func thumbnail(from data: Data, maxPixelSize: Int) async -> CGImage? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil)
+        else {
+            return nil
+        }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true, kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,

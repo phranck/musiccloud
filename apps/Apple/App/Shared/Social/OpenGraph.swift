@@ -25,9 +25,13 @@ struct OpenGraph: Equatable, Sendable {
         let whole = NSRange(html.startIndex..., in: html)
         for match in Self.metaTag.matches(in: html, range: whole) {
             let tag = (html as NSString).substring(with: match.range)
-            guard let key = Self.attribute("property", in: tag) ?? Self.attribute("name", in: tag),
-                let content = Self.attribute("content", in: tag), values[key.lowercased()] == nil
-            else { continue }
+            guard
+                let key = Self.attribute("property", in: tag) ?? Self.attribute("name", in: tag),
+                let content = Self.attribute("content", in: tag),
+                values[key.lowercased()] == nil
+            else {
+                continue
+            }
             values[key.lowercased()] = Self.decodingEntities(content)
         }
         title = values["og:title"]
@@ -45,9 +49,12 @@ private extension OpenGraph {
     /// The value of `name="…"` or `name='…'` in `tag`.
     static func attribute(_ name: String, in tag: String) -> String? {
         let pattern = #"\b"# + name + #"\s*=\s*("([^"]*)"|'([^']*)')"#
-        guard let expression = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+        guard
+            let expression = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
             let match = expression.firstMatch(in: tag, range: NSRange(tag.startIndex..., in: tag))
-        else { return nil }
+        else {
+            return nil
+        }
         let source = tag as NSString
         let group = match.range(at: 2).location != NSNotFound ? 2 : 3
         return source.substring(with: match.range(at: group))

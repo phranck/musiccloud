@@ -112,7 +112,10 @@ import UIKit
     /// developer's clipboard is not converted into their history.
     static var isEnabled: Bool {
         get {
-            guard !SharedStoreConfiguration.isHostingTests else { return false }
+            guard !SharedStoreConfiguration.isHostingTests
+            else {
+                return false
+            }
             return UserDefaults.standard.object(forKey: DefaultsKey.clipboardMonitoringEnabled) as? Bool ?? true
         }
         set { UserDefaults.standard.set(newValue, forKey: DefaultsKey.clipboardMonitoringEnabled) }
@@ -203,7 +206,10 @@ extension ClipboardMonitor {
     ///   - url: A URL that passed ``StreamingServices/isStreamingURL(_:defaults:)``.
     ///   - origin: Where the URL came from; ``Origin/request`` unless the clipboard check found it.
     func convert(url: String, origin: Origin = .request) {
-        guard !status.isProcessing else { return }
+        guard !status.isProcessing
+        else {
+            return
+        }
         self.origin = origin
         conversionCount += 1
 
@@ -296,10 +302,16 @@ extension ClipboardMonitor {
     /// The loop runs on the main actor, like everything that reads the
     /// pasteboard, and holds the monitor only weakly, so it ends with it.
     func startMonitoring() {
-        guard pollTask == nil else { return }
+        guard pollTask == nil
+        else {
+            return
+        }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self else { return }
+                guard let self
+                else {
+                    return
+                }
                 await self.checkClipboard()
                 try? await Task.sleep(for: Self.pollInterval)
             }
@@ -330,26 +342,30 @@ extension ClipboardMonitor {
     func checkClipboard() async {
         // A URL copied while a conversion runs is picked up afterwards: the
         // change count is only consumed once nothing is converting.
-        guard !status.isProcessing else { return }
-
+        guard !status.isProcessing
+        else {
+            return
+        }
         // The change count is read without touching the content, so the
         // clipboard is only read after it changed. On iOS that also keeps the
         // paste banner from appearing once a second.
         let currentCount = pasteboard.changeCount
-        guard currentCount != lastChangeCount else { return }
+        guard currentCount != lastChangeCount
+        else {
+            return
+        }
         lastChangeCount = currentCount
         // Only the change count and the type identifiers are logged here.
         // Whatever was copied stays out of the log unless it is a streaming
         // URL: it can be a password, a message or anything else in hand.
         let log = AppLogger.clipboard
-
         // Continuous monitoring handles local copies only. Inspect origin metadata
         // before pattern detection or text access can start processing another device's item.
-        guard !Pasteboard.isRemote(pasteboard) else {
+        guard !Pasteboard.isRemote(pasteboard)
+        else {
             log.info("skipped: clipboard received from another device")
             return
         }
-
         #if os(iOS)
         log.info(
             "change \(currentCount), hasURLs \(self.pasteboard.hasURLs), hasStrings \(self.pasteboard.hasStrings), types \(self.pasteboard.types.joined(separator: ", "), privacy: .public)"
@@ -359,35 +375,45 @@ extension ClipboardMonitor {
         // link in text as well and, unlike reading the string, raises no
         // paste prompt; the prompt comes only for a clipboard that holds one.
         let patterns = (try? await pasteboard.detectedPatterns(for: [\UIPasteboard.DetectedValues.probableWebURL])) ?? []
-        guard patterns.contains(\UIPasteboard.DetectedValues.probableWebURL) else {
+        guard patterns.contains(\UIPasteboard.DetectedValues.probableWebURL)
+        else {
             log.info("skipped: no web URL on the clipboard")
             return
         }
         // Detection yields. A new conversion or clipboard item invalidates its answer.
-        guard !status.isProcessing, currentCount == pasteboard.changeCount, !Pasteboard.isRemote(pasteboard) else { return }
+        guard
+            !status.isProcessing,
+            currentCount == pasteboard.changeCount,
+            !Pasteboard.isRemote(pasteboard)
+        else {
+            return
+        }
         #else
         log.info("change \(currentCount), types \((self.pasteboard.types ?? []).map(\.rawValue).joined(separator: ", "), privacy: .public)")
-        guard !Self.holdsConcealedContent(pasteboard) else {
+        guard !Self.holdsConcealedContent(pasteboard)
+        else {
             log.info("skipped: concealed content")
             return
         }
         #endif
-
-        guard let raw = Pasteboard.string(from: pasteboard) else {
+        guard let raw = Pasteboard.string(from: pasteboard)
+        else {
             log.info("skipped: no string on the clipboard")
             return
         }
         let content = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else {
+        guard !content.isEmpty
+        else {
             log.info("skipped: empty string")
             return
         }
-        guard content != lastSeenContent else {
+        guard content != lastSeenContent
+        else {
             log.info("skipped: same content as last time")
             return
         }
-
-        guard StreamingServices.isStreamingURL(content, defaults: streamingDefaults) else {
+        guard StreamingServices.isStreamingURL(content, defaults: streamingDefaults)
+        else {
             log.info("skipped: not a streaming URL")
             return
         }

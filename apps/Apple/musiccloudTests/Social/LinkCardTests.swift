@@ -9,13 +9,13 @@ struct LinkCardTests {
 
     @Test func openGraphTagsAreReadInEitherAttributeOrder() {
         let html = """
-            <head>
-            <meta property="og:title" content="MoonDial - Pat Metheny">
-            <meta content='Listen on Spotify &amp; more' property='og:description'>
-            <meta property="og:image" content="https://i.scdn.co/image/abc">
-            <meta property="og:image:width" content="1200">
-            </head>
-            """
+        <head>
+        <meta property="og:title" content="MoonDial - Pat Metheny">
+        <meta content='Listen on Spotify &amp; more' property='og:description'>
+        <meta property="og:image" content="https://i.scdn.co/image/abc">
+        <meta property="og:image:width" content="1200">
+        </head>
+        """
         let graph = OpenGraph(html: html, page: page)
         #expect(graph.title == "MoonDial - Pat Metheny")
         #expect(graph.description == "Listen on Spotify & more")

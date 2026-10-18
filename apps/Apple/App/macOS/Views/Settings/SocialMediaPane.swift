@@ -24,7 +24,7 @@ struct SocialMediaPane: View {
                     tint: nil,
                     footer: String(
                         localized:
-                            "Each account below says whether it takes part. It posts with its default template. A link that is already in the history is not posted again."
+                        "Each account below says whether it takes part. It posts with its default template. A link that is already in the history is not posted again."
                     )
                 ) {
                     // Label left and switch at the trailing edge, as in a Form row.

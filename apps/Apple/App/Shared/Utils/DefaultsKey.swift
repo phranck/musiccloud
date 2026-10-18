@@ -70,9 +70,15 @@ extension DefaultsKey {
     ///   - source: The defaults an earlier version wrote. The app's own by default.
     ///   - target: The defaults the settings live in now. ``shared`` by default.
     static func moveSharedSettings(from source: UserDefaults = .standard, to target: UserDefaults = shared) {
-        guard source !== target else { return }
+        guard source !== target
+        else {
+            return
+        }
         for key in sharedKeys {
-            guard let value = source.object(forKey: key) else { continue }
+            guard let value = source.object(forKey: key)
+            else {
+                continue
+            }
             if target.object(forKey: key) == nil { target.set(value, forKey: key) }
             source.removeObject(forKey: key)
         }

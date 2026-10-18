@@ -75,7 +75,10 @@ private struct ClipboardConversionSheetContent: View {
         switch monitor.status {
         case .idle, .processing: return .converting
         case .success(let shortUrl, _):
-            guard let entry = historyManager.entry(forShortUrl: shortUrl) else { return .failed(message: nil) }
+            guard let entry = historyManager.entry(forShortUrl: shortUrl)
+            else {
+                return .failed(message: nil)
+            }
             return .finished(entry)
         case .error(let error): return .failed(message: error.errorDescription)
         }
@@ -147,7 +150,12 @@ private struct IPadSplitView: View {
     }
 
     private func handleDrop(_ urlString: String?) -> Bool {
-        guard let urlString, StreamingServices.isStreamingURL(urlString) else { return false }
+        guard
+            let urlString,
+            StreamingServices.isStreamingURL(urlString)
+        else {
+            return false
+        }
         monitor.convert(url: urlString)
         selection = .home
         return true

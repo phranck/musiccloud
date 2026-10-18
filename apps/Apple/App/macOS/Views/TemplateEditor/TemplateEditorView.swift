@@ -83,7 +83,12 @@ private extension TemplateEditorView {
 
     /// Deletes the selected template unless it ships with the app.
     func deleteSelected() {
-        guard let id = selectedTemplate?.id, !store.isSystem(id) else { return }
+        guard
+            let id = selectedTemplate?.id,
+            !store.isSystem(id)
+        else {
+            return
+        }
         store.delete(id: id)
         selectedID = store.allTemplates.first?.id
     }

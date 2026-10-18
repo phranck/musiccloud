@@ -60,8 +60,8 @@ private extension MediaRow {
     func copyToClipboardAndOpen() {
         #if os(macOS)
         Pasteboard.copy(entry.shortUrl)
-
-        guard let url = StreamingServices.webURL(entry.shortUrl) else {
+        guard let url = StreamingServices.webURL(entry.shortUrl)
+        else {
             AppLogger.ui.error("Invalid short URL: \(entry.shortUrl)")
             return
         }

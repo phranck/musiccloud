@@ -65,7 +65,10 @@ private extension View {
             AppDelegate.shared?.openTemplateEditor(selecting: template.id)
         }.contextMenu {
             Button(String(localized: "Duplicate")) {
-                guard let delegate = AppDelegate.shared else { return }
+                guard let delegate = AppDelegate.shared
+                else {
+                    return
+                }
                 delegate.openTemplateEditor(selecting: delegate.templateStore.duplicate(template).id)
             }
         }

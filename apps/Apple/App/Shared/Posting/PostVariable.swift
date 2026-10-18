@@ -99,7 +99,12 @@ enum PostVariable: String, CaseIterable, Identifiable, Sendable {
             case .shareURL: context.shareURL
             case .originalURL: context.originalURL
             }
-        guard let text, !text.isEmpty else { return nil }
+        guard
+            let text,
+            !text.isEmpty
+        else {
+            return nil
+        }
         return text
     }
 
@@ -114,7 +119,10 @@ enum PostVariable: String, CaseIterable, Identifiable, Sendable {
             String(word.unicodeScalars.filter { CharacterSet.letters.contains($0) || CharacterSet.decimalDigits.contains($0) || $0 == "_" })
         }
         let tag = words.map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined()
-        guard tag.unicodeScalars.contains(where: CharacterSet.letters.contains) else { return nil }
+        guard tag.unicodeScalars.contains(where: CharacterSet.letters.contains)
+        else {
+            return nil
+        }
         return "#" + tag
     }
 }

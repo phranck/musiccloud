@@ -38,8 +38,14 @@ extension URLSession {
     /// Sends `request` and fails with ``SocialServiceError/refused(status:)`` on any status outside 2xx.
     func checkedData(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (body, response) = try await data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw SocialServiceError.unexpectedAnswer }
-        guard (200..<300).contains(http.statusCode) else { throw SocialServiceError.refused(status: http.statusCode) }
+        guard let http = response as? HTTPURLResponse
+        else {
+            throw SocialServiceError.unexpectedAnswer
+        }
+        guard (200..<300).contains(http.statusCode)
+        else {
+            throw SocialServiceError.refused(status: http.statusCode)
+        }
         return (body, http)
     }
 
@@ -50,7 +56,10 @@ extension URLSession {
         decoder: JSONDecoder = JSONDecoder()
     ) async throws -> Answer {
         let (body, _) = try await checkedData(for: request)
-        guard let answer = try? decoder.decode(type, from: body) else { throw SocialServiceError.unexpectedAnswer }
+        guard let answer = try? decoder.decode(type, from: body)
+        else {
+            throw SocialServiceError.unexpectedAnswer
+        }
         return answer
     }
 }

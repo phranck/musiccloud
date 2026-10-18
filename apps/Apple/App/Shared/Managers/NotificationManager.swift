@@ -51,12 +51,14 @@ enum NotificationSound: String, CaseIterable, Identifiable {
     /// Plays this sound once. On iOS, audio hardware startup is queued off
     /// the main actor so conversion and Settings animations remain responsive.
     @MainActor func play() {
-        guard let url = Bundle.main.url(forResource: rawValue, withExtension: "mp3") else {
+        guard let url = Bundle.main.url(forResource: rawValue, withExtension: "mp3")
+        else {
             AppLogger.ui.error("Notification sound file not found: \(rawValue)")
             return
         }
         #if os(macOS)
-        guard let sound = NSSound(contentsOf: url, byReference: true) else {
+        guard let sound = NSSound(contentsOf: url, byReference: true)
+        else {
             AppLogger.ui.error("Failed to load notification sound: \(rawValue)")
             return
         }
@@ -128,7 +130,10 @@ enum NotificationManager {
             options: [.skipsSubdirectoryDescendants]
         )
         while let fileURL = enumerator?.nextObject() as? URL {
-            guard fileURL.pathExtension == "jpg", UUID(uuidString: fileURL.deletingPathExtension().lastPathComponent) != nil else {
+            guard
+                fileURL.pathExtension == "jpg",
+                UUID(uuidString: fileURL.deletingPathExtension().lastPathComponent) != nil
+            else {
                 continue
             }
             try? FileManager.default.removeItem(at: fileURL)
@@ -200,7 +205,10 @@ extension NotificationManager {
     /// the choice from ``DefaultsKey/shared``.
     @MainActor static func playConversionSound() {
         let defaults = DefaultsKey.shared
-        guard defaults.object(forKey: DefaultsKey.playNotificationSound) as? Bool ?? true else { return }
+        guard defaults.object(forKey: DefaultsKey.playNotificationSound) as? Bool ?? true
+        else {
+            return
+        }
         let rawValue = defaults.string(forKey: DefaultsKey.notificationSound) ?? NotificationSound.default.rawValue
         let sound = NotificationSound(rawValue: rawValue) ?? .default
         sound.play()

@@ -15,7 +15,8 @@ struct AboutItem: View {
 
     var body: some View {
         PanelActionItem(icon: icon, title: "About") {
-            guard let delegate = AppDelegate.shared else {
+            guard let delegate = AppDelegate.shared
+            else {
                 AppLogger.ui.error("AppDelegate not initialized")
                 return
             }

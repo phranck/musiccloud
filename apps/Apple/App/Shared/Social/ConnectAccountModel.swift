@@ -60,7 +60,10 @@ import Observation
     ///
     /// - Returns: Whether the account is connected, so the sheet can close.
     func connect() async -> Bool {
-        guard !isWorking else { return false }
+        guard !isWorking
+        else {
+            return false
+        }
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }

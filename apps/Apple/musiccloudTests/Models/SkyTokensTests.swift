@@ -9,21 +9,21 @@ struct SkyTokensTests {
     /// The `shader` object as the backend serves it, with every value moved
     /// off its default so a field read from the wrong key shows.
     private static let fullShader = """
-        {
-          "vignette": 0.2, "skyWidth": 6000, "skyHeight": 3000, "skyFov": 90,
-          "polarisX": 0.4, "polarisY": 0.7, "rotationPeriod": 900,
-          "catalogSize": 2, "catalogBrightness": 1.2, "starDensity": 200, "starSize": 1.3,
-          "starBrightness": 0.8, "twinkleAmount": 0.5, "twinkleSpeed": 2,
-          "cloudScale": 8, "cloudCoverage": 0.4, "cloudSoftness": 0.2, "cloudOpacity": 0.9,
-          "cloudNightBrightness": 1.5, "cloudDayBrightness": 1.1, "cloudDetail": 5,
-          "clearZones": 0.3, "warpStrength": 0.25, "windSpeed": 0.02, "windAngle": 90,
-          "evolveSpeed": 0.05, "moonIntensity": 0.3, "moonAngle": 100,
-          "sunIntensity": 0.8, "sunAngle": 140, "starOcclusion": 0.2, "renderScale": 0.8,
-          "fpsCap": 12, "dayness": 1, "animate": 1,
-          "skyTop": "#010203", "skyBottom": "#040506", "skyTopDay": "#070809",
-          "skyBottomDay": "#0a0b0c", "cloudColor": "#0d0e0f", "cloudColorDay": "#FFEEDD"
-        }
-        """
+    {
+      "vignette": 0.2, "skyWidth": 6000, "skyHeight": 3000, "skyFov": 90,
+      "polarisX": 0.4, "polarisY": 0.7, "rotationPeriod": 900,
+      "catalogSize": 2, "catalogBrightness": 1.2, "starDensity": 200, "starSize": 1.3,
+      "starBrightness": 0.8, "twinkleAmount": 0.5, "twinkleSpeed": 2,
+      "cloudScale": 8, "cloudCoverage": 0.4, "cloudSoftness": 0.2, "cloudOpacity": 0.9,
+      "cloudNightBrightness": 1.5, "cloudDayBrightness": 1.1, "cloudDetail": 5,
+      "clearZones": 0.3, "warpStrength": 0.25, "windSpeed": 0.02, "windAngle": 90,
+      "evolveSpeed": 0.05, "moonIntensity": 0.3, "moonAngle": 100,
+      "sunIntensity": 0.8, "sunAngle": 140, "starOcclusion": 0.2, "renderScale": 0.8,
+      "fpsCap": 12, "dayness": 1, "animate": 1,
+      "skyTop": "#010203", "skyBottom": "#040506", "skyTopDay": "#070809",
+      "skyBottomDay": "#0a0b0c", "cloudColor": "#0d0e0f", "cloudColorDay": "#FFEEDD"
+    }
+    """
 
     private func decode(_ json: String) throws -> SkyTokens { try JSONDecoder().decode(SkyTokens.self, from: Data(json.utf8)) }
 

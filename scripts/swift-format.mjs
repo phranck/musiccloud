@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Checks native Swift formatting, or applies it through Xcode's MCP tools.
- * The selected Xcode build is the formatter-version pin; never edit Swift files directly.
+ * Compiler and formatter distributions are pinned; application source writes use Xcode tools only.
  */
 import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -9,11 +9,11 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
+import { formatSource } from "./swift-format/format-source.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const configuration = resolve(root, ".swift-format");
 
-/** Rejects a different compiler distribution before it can produce a divergent formatting baseline. */
+/** Rejects a different compiler/Syntax distribution before it can produce divergent source layout. */
 function verifyToolchain() {
     const expected = readFileSync(resolve(root, ".xcode-build-version"), "utf8").trim();
     const actual = execFileSync("xcodebuild", ["-version"], { encoding: "utf8" });
@@ -103,14 +103,8 @@ async function applyUsingXcode() {
             const file = await tools.call("XcodeRead", { workspaceIdentifier, filePath, limit: 10000 });
             if (file.linesRead < file.totalLines) throw new Error(`Incomplete source read: ${filePath}`);
             const original = file.content.replace(/^\s*\d+\t/gm, "");
-            const formatted = execFileSync("xcrun", ["swift-format", "format", "--configuration", configuration, "-"], {
-                input: original,
-                encoding: "utf8",
-                maxBuffer: 16 * 1024 * 1024,
-            });
-            const repeated = execFileSync("xcrun", ["swift-format", "format", "--configuration", configuration, "-"], {
-                input: formatted, encoding: "utf8", maxBuffer: 16 * 1024 * 1024,
-            });
+            const formatted = formatSource(original);
+            const repeated = formatSource(formatted);
             if (repeated !== formatted) throw new Error(`Formatter output is not idempotent: ${filePath}`);
             execFileSync("xcrun", ["swiftc", "-frontend", "-parse", "-enable-bare-slash-regex", "-"], { input: formatted, stdio: ["pipe", "ignore", "pipe"] });
             if (original === formatted) continue;
@@ -152,7 +146,12 @@ function projectSources() {
 
 /** Runs the non-mutating gate over compiled project sources, not abandoned files outside target membership. */
 function check() {
-    execFileSync("xcrun", ["swift-format", "lint", "--strict", "--configuration", configuration, ...projectSources()], { stdio: "inherit" });
+    const failures = [];
+    for (const file of projectSources()) {
+        const original = readFileSync(file, "utf8");
+        if (formatSource(original) !== original) failures.push(file);
+    }
+    if (failures.length) throw new Error(`Swift formatting drift:\n${failures.join("\n")}`);
 }
 
 try {

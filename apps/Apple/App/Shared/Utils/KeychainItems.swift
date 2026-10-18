@@ -25,7 +25,10 @@ struct KeychainItems: Sendable {
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess
+        else {
+            return nil
+        }
         return result as? Data
     }
 
@@ -33,7 +36,10 @@ struct KeychainItems: Sendable {
     func setData(_ data: Data?, for account: String) {
         let query = baseQuery(account: account)
         SecItemDelete(query as CFDictionary)
-        guard let data else { return }
+        guard let data
+        else {
+            return
+        }
         var item = query
         item[kSecValueData as String] = data
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock

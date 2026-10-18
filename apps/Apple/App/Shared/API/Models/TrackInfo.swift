@@ -21,7 +21,10 @@ extension TrackInfo {
     var artistsString: String { artists.joined(separator: ", ") }
 
     var formattedDuration: String? {
-        guard let millis = durationMs else { return nil }
+        guard let millis = durationMs
+        else {
+            return nil
+        }
         let total = millis / 1000
         return String(format: "%d:%02d", total / 60, total % 60)
     }

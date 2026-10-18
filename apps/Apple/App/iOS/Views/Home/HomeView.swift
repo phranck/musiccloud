@@ -53,7 +53,10 @@ private struct RecentSection: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
                     ForEach(entries.prefix(6)) { entry in
                         HistoryGridCard(entry: entry).contentShape(RoundedRectangle(cornerRadius: 12)).onTapGesture {
-                            guard let url = StreamingServices.webURL(entry.shortUrl) else { return }
+                            guard let url = StreamingServices.webURL(entry.shortUrl)
+                            else {
+                                return
+                            }
                             openURL(url)
                         }
                     }

@@ -39,8 +39,10 @@ import Foundation
             settings: settings,
             defaultTemplates: defaultTemplates
         )
-        guard !plan.posts.isEmpty || !plan.skipped.isEmpty else { return }
-
+        guard !plan.posts.isEmpty || !plan.skipped.isEmpty
+        else {
+            return
+        }
         var posted: [SocialAccount] = []
         var failed: [(SocialAccount, String)] = []
         for (account, markdown) in plan.posts {

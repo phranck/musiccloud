@@ -122,7 +122,10 @@ struct AppAccessTests {
     /// ``MusicCloudAPI/baseURL``.
     @Test func debugAppAccessURLFallsBackToProduction() {
         #if DEBUG
-        guard ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"] == nil else { return }
+        guard ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"] == nil
+        else {
+            return
+        }
         #expect(MusicCloudAPI.appAccessURL == MusicCloudAPI.productionAppAccessURL)
         #endif
     }

@@ -90,7 +90,10 @@ struct TelemetryEvent: Codable {
     /// Spotify's `si=`, that identify who shared the link. The path is all
     /// a failure report needs.
     static func withoutQuery(_ urlString: String) -> String {
-        guard var components = URLComponents(string: urlString) else { return urlString }
+        guard var components = URLComponents(string: urlString)
+        else {
+            return urlString
+        }
         components.query = nil
         components.fragment = nil
         return components.string ?? urlString

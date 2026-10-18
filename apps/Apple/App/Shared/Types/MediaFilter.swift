@@ -25,7 +25,10 @@ enum MediaFilter: String, Hashable, CaseIterable, Identifiable {
     /// - Returns: The filter, or `nil` when there is none at that position.
     init?(commandNumber number: Int) {
         let index = number - 1
-        guard Self.allCases.indices.contains(index) else { return nil }
+        guard Self.allCases.indices.contains(index)
+        else {
+            return nil
+        }
         self = Self.allCases[index]
     }
 
@@ -93,7 +96,10 @@ extension MediaFilter {
     func filtered(_ entries: [MediaEntry], searchText: String) -> [MediaEntry] {
         let byType: [MediaEntry]
         if let mediaType { byType = entries.filter { $0.mediaType == mediaType } } else { byType = entries }
-        guard !searchText.isEmpty else { return byType }
+        guard !searchText.isEmpty
+        else {
+            return byType
+        }
         return byType.filter { entry in
             entry.contentType.title.localizedCaseInsensitiveContains(searchText)
                 || entry.contentType.subtitle.localizedCaseInsensitiveContains(searchText)

@@ -91,8 +91,8 @@ struct DefaultTemplateSeal: View {
         let defaultFor = defaultTemplates.accounts(using: template, of: accounts, among: store.allTemplates)
         let help =
             defaultFor.isEmpty
-            ? String(localized: "Use as Default for")
-            : String(localized: "Default for \(defaultFor.map(\.handle).formatted(.list(type: .and)))")
+                ? String(localized: "Use as Default for")
+                : String(localized: "Default for \(defaultFor.map(\.handle).formatted(.list(type: .and)))")
         if !accounts.isEmpty {
             if isMenu {
                 Menu {

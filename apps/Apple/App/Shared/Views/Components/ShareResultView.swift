@@ -110,7 +110,10 @@ struct ShareResultView: View {
         }.buttonStyle(.borderedProminent).controlSize(.large).sensoryFeedback(.success, trigger: didCopyLink) { _, copied in copied }.task(
             id: didCopyLink
         ) {
-            guard didCopyLink else { return }
+            guard didCopyLink
+            else {
+                return
+            }
             try? await Task.sleep(for: Self.copyConfirmation)
             didCopyLink = false
         }
@@ -131,7 +134,10 @@ struct ShareResultView: View {
     /// and the post tried again.
     private func post() async {
         await model.post { account, text in try await account.post(text) }
-        guard model.selectedAccounts.allSatisfy({ model.states[$0.id] == .posted }) else { return }
+        guard model.selectedAccounts.allSatisfy({ model.states[$0.id] == .posted })
+        else {
+            return
+        }
         try? await Task.sleep(for: Self.closeDelay)
         onDone()
     }

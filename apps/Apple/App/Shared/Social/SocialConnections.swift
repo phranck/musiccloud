@@ -66,7 +66,10 @@ extension SocialAccount {
 
     /// The account with what its server currently says about limits and formats.
     @MainActor func refreshed() async -> SocialAccount {
-        guard case .mastodon(let account) = self else { return self }
+        guard case .mastodon(let account) = self
+        else {
+            return self
+        }
         return .mastodon(await SocialConnections.shared.mastodon.refreshServerInfo(of: account))
     }
 }

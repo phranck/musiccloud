@@ -43,12 +43,17 @@ actor AppSession {
     /// - Returns: The bearer token, or `nil` when this process has none and cannot get one.
     func currentToken(for backend: URL = MusicCloudAPI.appAccessURL, now: Date = .now) async -> String? {
         // A test run shares the app's Keychain and must not reach Apple or the backend.
-        guard !SharedStoreConfiguration.isHostingTests else { return nil }
+        guard !SharedStoreConfiguration.isHostingTests
+        else {
+            return nil
+        }
         let stored = AppSessionStore.token(for: backend)
         if let stored, !Self.needsRenewal(stored, now: now) { return stored.value }
         let stillValid = stored.flatMap { $0.expiresAt > now ? $0.value : nil }
-        guard Self.canAttest else { return stillValid }
-
+        guard Self.canAttest
+        else {
+            return stillValid
+        }
         let key = AppSessionStore.account("session", backend)
         if let running = pending[key] { return await running.value?.value ?? stillValid }
         let task = Task { await establish(with: backend) }

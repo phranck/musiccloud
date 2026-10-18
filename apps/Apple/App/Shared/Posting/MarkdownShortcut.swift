@@ -69,7 +69,7 @@ private extension MarkdownShortcut {
 
         // The markers are part of the selection.
         if selectedLength >= 2 * width, selected.hasPrefix(marker), selected.hasSuffix(marker),
-            !isPartOfLongerMarker(marker, at: selection.location, in: source)
+           !isPartOfLongerMarker(marker, at: selection.location, in: source)
         {
             let inner = (selected as NSString).substring(with: NSRange(location: width, length: selectedLength - 2 * width))
             return Edit(
@@ -83,7 +83,7 @@ private extension MarkdownShortcut {
         let before = NSRange(location: selection.location - width, length: width)
         let after = NSRange(location: NSMaxRange(selection), length: width)
         if before.location >= 0, NSMaxRange(after) <= source.length, source.substring(with: before) == marker,
-            source.substring(with: after) == marker, !isPartOfLongerMarker(marker, at: before.location, in: source)
+           source.substring(with: after) == marker, !isPartOfLongerMarker(marker, at: before.location, in: source)
         {
             return Edit(
                 range: NSRange(location: before.location, length: selectedLength + 2 * width),
@@ -101,7 +101,10 @@ private extension MarkdownShortcut {
 
     /// Whether the `*` at `location` belongs to a `**`, so italic leaves bold alone.
     static func isPartOfLongerMarker(_ marker: String, at location: Int, in source: NSString) -> Bool {
-        guard marker == "*" else { return false }
+        guard marker == "*"
+        else {
+            return false
+        }
         let neighbours = [location - 1, location + 1].filter { $0 >= 0 && $0 < source.length }
         return neighbours.contains { source.substring(with: NSRange(location: $0, length: 1)) == "*" }
     }
@@ -115,7 +118,10 @@ private extension MarkdownShortcut {
         let lines = block.components(separatedBy: "\n")
         let isQuoted = lines.allSatisfy { $0.hasPrefix(">") }
         let changed = lines.map { line -> String in
-            guard isQuoted else { return "> " + line }
+            guard isQuoted
+            else {
+                return "> " + line
+            }
             return line.hasPrefix("> ") ? String(line.dropFirst(2)) : String(line.dropFirst())
         }.joined(separator: "\n")
         return Edit(
@@ -143,9 +149,15 @@ private extension MarkdownShortcut {
     /// `text` when it is one `http` or `https` URL with a host, without surrounding whitespace.
     static func webURL(_ text: String) -> String? {
         let candidate = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !candidate.contains(where: \.isWhitespace), let url = URL(string: candidate), let scheme = url.scheme?.lowercased(),
-            scheme == "http" || scheme == "https", url.host() != nil
-        else { return nil }
+        guard
+            !candidate.contains(where: \.isWhitespace),
+            let url = URL(string: candidate),
+            let scheme = url.scheme?.lowercased(),
+            scheme == "http" || scheme == "https",
+            url.host() != nil
+        else {
+            return nil
+        }
         return candidate
     }
 }

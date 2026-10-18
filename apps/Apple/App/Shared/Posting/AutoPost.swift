@@ -70,9 +70,12 @@ import SwiftUI
 
     /// The templates the old automatic posting rules in `defaults` chose, per account.
     private static func legacyAutoPostTemplateIDs(in defaults: UserDefaults) -> [SocialAccount.ID: PostTemplate.ID] {
-        guard let data = defaults.data(forKey: DefaultsKey.autoPost),
+        guard
+            let data = defaults.data(forKey: DefaultsKey.autoPost),
             let legacy = try? JSONDecoder().decode(LegacyAutoPost.self, from: data)
-        else { return [:] }
+        else {
+            return [:]
+        }
         return legacy.rules.compactMapValues(\.templateID)
     }
 }
@@ -185,10 +188,17 @@ struct AutoPostPlan: Equatable {
         defaultTemplates: DefaultTemplates
     ) -> AutoPostPlan {
         var plan = AutoPostPlan()
-        guard settings.isEnabled else { return plan }
+        guard settings.isEnabled
+        else {
+            return plan
+        }
         for account in accounts {
-            guard settings.rule(for: account.id).isEnabled else { continue }
-            guard let template = defaultTemplates.template(for: account, among: templates) else {
+            guard settings.rule(for: account.id).isEnabled
+            else {
+                continue
+            }
+            guard let template = defaultTemplates.template(for: account, among: templates)
+            else {
                 plan.skipped.append((account, .missingTemplate))
                 continue
             }

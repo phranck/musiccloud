@@ -116,7 +116,10 @@ private struct GlassContentCard<Content: View>: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView glass: NSGlassEffectView, context: Context) -> CGSize? {
-        guard let host = glass.contentView as? NSHostingView<Content> else { return nil }
+        guard let host = glass.contentView as? NSHostingView<Content>
+        else {
+            return nil
+        }
         let fitting = host.fittingSize
         return CGSize(width: proposal.width ?? fitting.width, height: fitting.height)
     }

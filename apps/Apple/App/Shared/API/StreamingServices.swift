@@ -203,8 +203,12 @@ extension StreamingServices {
     ///
     /// - Note: Returns `false` for malformed URLs, excessively long strings, URLs without a valid host, or a host whose service is disabled.
     static func isStreamingURL(_ urlString: String, defaults: UserDefaults = DefaultsKey.shared) -> Bool {
-        guard urlString.count <= 500, let host = webURL(urlString)?.host?.lowercased() else { return false }
-
+        guard
+            urlString.count <= 500,
+            let host = webURL(urlString)?.host?.lowercased()
+        else {
+            return false
+        }
         return all.contains { isEnabled($0, defaults: defaults) && $0.matches(host: host) }
     }
 
@@ -219,9 +223,15 @@ extension StreamingServices {
     ///   - defaults: The same service choices used by direct URL detection.
     /// - Returns: The streaming URL to resolve, or `nil` when the link is anything else.
     static func streamingURL(fromDeepLink url: URL, defaults: UserDefaults = DefaultsKey.shared) -> String? {
-        guard url.scheme == "musiccloud", url.host == "resolve", let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-            let parameter = components.queryItems?.first(where: { $0.name == "url" })?.value, isStreamingURL(parameter, defaults: defaults)
-        else { return nil }
+        guard
+            url.scheme == "musiccloud",
+            url.host == "resolve",
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            let parameter = components.queryItems?.first(where: { $0.name == "url" })?.value,
+            isStreamingURL(parameter, defaults: defaults)
+        else {
+            return nil
+        }
         return parameter
     }
 
@@ -236,9 +246,14 @@ extension StreamingServices {
     /// - Parameter string: The address to parse.
     /// - Returns: The URL, or `nil` when the string is not an `http` or `https` address with a host.
     static func webURL(_ string: String) -> URL? {
-        guard let url = URL(string: string), let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http",
+        guard
+            let url = URL(string: string),
+            let scheme = url.scheme?.lowercased(),
+            scheme == "https" || scheme == "http",
             url.host?.isEmpty == false
-        else { return nil }
+        else {
+            return nil
+        }
         return url
     }
 }

@@ -173,7 +173,8 @@ private extension ShareViewController {
             log.info("Attachment \(index): loading plain text data")
             return await withCheckedContinuation { continuation in
                 _ = provider.loadDataRepresentation(forTypeIdentifier: UTType.plainText.identifier) { data, error in
-                    guard let data else {
+                    guard let data
+                    else {
                         log.error("Attachment \(index): plain text data load failed: \(String(describing: error), privacy: .public)")
                         continuation.resume(returning: nil)
                         return
@@ -195,12 +196,12 @@ private extension ShareViewController {
 
 private extension ShareViewController {
     @MainActor func processURL(_ urlString: String) {
-        guard StreamingServices.isStreamingURL(urlString) else {
+        guard StreamingServices.isStreamingURL(urlString)
+        else {
             log.error("Not a streaming URL: \(urlString, privacy: .public)")
             show(.failed(message: String(localized: "This URL is not from a supported streaming service")))
             return
         }
-
         Task { @MainActor in
             do {
                 // The extension has no local network access, so it always

@@ -13,9 +13,15 @@ struct PasteCTAView: View {
             Image(systemName: "music.note.list").font(.system(size: 40)).foregroundStyle(.tint)
             Text("Share a link from any streaming service").font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
             PasteButton(payloadType: String.self) { strings in
-                guard let urlString = strings.first else { return }
+                guard let urlString = strings.first
+                else {
+                    return
+                }
                 let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard StreamingServices.isStreamingURL(trimmed) else { return }
+                guard StreamingServices.isStreamingURL(trimmed)
+                else {
+                    return
+                }
                 monitor.convert(url: trimmed)
             }.buttonBorderShape(.capsule)
         }.padding(24).frame(maxWidth: .infinity).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))

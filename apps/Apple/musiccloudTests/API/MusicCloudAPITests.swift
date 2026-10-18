@@ -18,7 +18,10 @@ struct MusicCloudAPITests {
     /// build on a device, where `localhost` is the device itself, works.
     @Test func debugBaseURLFallsBackToProduction() {
         #if DEBUG
-        guard ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"] == nil else { return }
+        guard ProcessInfo.processInfo.environment["MUSICCLOUD_BASE_URL"] == nil
+        else {
+            return
+        }
         #expect(MusicCloudAPI.baseURL == MusicCloudAPI.productionURL)
         #endif
     }

@@ -142,7 +142,12 @@ private extension DiagnosticsSection {
 
     func presentSharePicker(for url: URL) {
         let picker = NSSharingServicePicker(items: [url])
-        guard let window = NSApp.keyWindow, let contentView = window.contentView else { return }
+        guard
+            let window = NSApp.keyWindow,
+            let contentView = window.contentView
+        else {
+            return
+        }
         picker.show(relativeTo: .zero, of: contentView, preferredEdge: .minY)
     }
 }

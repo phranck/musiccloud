@@ -5,6 +5,8 @@ on:
     paths:
       - 'apps/Apple/**'
       - '.swift-format'
+      - '.swiftformat-*'
+      - 'scripts/install-swift-format.sh'
       - '.xcode-version'
       - '.xcode-build-version'
       - 'scripts/swift-format*'
@@ -15,6 +17,8 @@ on:
     paths:
       - 'apps/Apple/**'
       - '.swift-format'
+      - '.swiftformat-*'
+      - 'scripts/install-swift-format.sh'
       - '.xcode-version'
       - '.xcode-build-version'
       - 'scripts/swift-format*'
@@ -42,7 +46,9 @@ jobs:
         run: |
           version="$(tr -d '\n' < .xcode-version)"
           echo "DEVELOPER_DIR=/Applications/Xcode_${version}.app/Contents/Developer" >> "$GITHUB_ENV"
-      - name: Verify argument-layout regressions
+      - name: Install pinned SwiftFormat
+        run: bash scripts/install-swift-format.sh
+      - name: Verify argument and guard layout regressions
         run: node --test scripts/swift-format/fixtures.test.mjs
       - name: Check native source formatting
         run: node scripts/swift-format.mjs

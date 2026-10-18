@@ -80,7 +80,10 @@ import SwiftUI
     }
 
     private func handleIncomingURL(_ url: URL) {
-        guard let streamingURL = StreamingServices.streamingURL(fromDeepLink: url) else { return }
+        guard let streamingURL = StreamingServices.streamingURL(fromDeepLink: url)
+        else {
+            return
+        }
         monitor?.convert(url: streamingURL)
     }
 

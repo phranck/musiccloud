@@ -131,7 +131,8 @@ extension AppAccessClient {
             throw .unavailable
         }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status) else {
+        guard (200..<300).contains(status)
+        else {
             let code = (try? JSONDecoder().decode(APIError.self, from: data))?.error ?? ""
             AppLogger.api.error("App access: HTTP \(status) \(code)")
             throw failure(forCode: code)

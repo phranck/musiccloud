@@ -63,7 +63,12 @@ enum BlueskyAPI {
         if text.hasPrefix("@") { text.removeFirst() }
         // A bare name is a handle on Bluesky's own domain, as the field shows beside it.
         if !text.isEmpty, !text.contains(".") { text += "." + defaultHandleDomain }
-        guard text.contains("."), !text.hasPrefix("."), !text.hasSuffix("."), text.unicodeScalars.allSatisfy(isHandleCharacter) else {
+        guard
+            text.contains("."),
+            !text.hasPrefix("."),
+            !text.hasSuffix("."),
+            text.unicodeScalars.allSatisfy(isHandleCharacter)
+        else {
             return nil
         }
         return text
@@ -87,7 +92,10 @@ enum BlueskyAPI {
         if did.hasPrefix("did:plc:") { return URL(string: "https://plc.directory/\(did)") }
         if did.hasPrefix("did:web:") {
             let host = String(did.dropFirst("did:web:".count))
-            guard !host.contains(":") else { return nil }
+            guard !host.contains(":")
+            else {
+                return nil
+            }
             return URL(string: "https://\(host)/.well-known/did.json")
         }
         return nil
@@ -224,9 +232,13 @@ struct BlueskyDIDDocument: Decodable {
 
     /// The account's PDS: the service whose id ends in `#atproto_pds`, reached over HTTPS.
     var pdsEndpoint: URL? {
-        guard let entry = service?.first(where: { $0.id.hasSuffix("#atproto_pds") && $0.type == "AtprotoPersonalDataServer" }),
-            let url = URL(string: entry.serviceEndpoint), url.scheme == "https"
-        else { return nil }
+        guard
+            let entry = service?.first(where: { $0.id.hasSuffix("#atproto_pds") && $0.type == "AtprotoPersonalDataServer" }),
+            let url = URL(string: entry.serviceEndpoint),
+            url.scheme == "https"
+        else {
+            return nil
+        }
         return url
     }
 

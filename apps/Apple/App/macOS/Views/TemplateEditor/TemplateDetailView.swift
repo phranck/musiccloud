@@ -73,7 +73,10 @@ struct TemplateDetailView: View {
                 TemplatePreview(filledText: filledText, postLimit: postLimit).frame(minHeight: 100)
             }
         }.onChange(of: draft) {
-            guard !isReadOnly else { return }
+            guard !isReadOnly
+            else {
+                return
+            }
             onChange(draft)
         }
     }
@@ -183,7 +186,10 @@ private struct TemplatePreview: View {
         case .mastodon(markdown: true), nil:
             let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
             shown = (try? AttributedString(markdown: markdown, options: options)) ?? AttributedString(markdown)
-            guard let limit else { return shown }
+            guard let limit
+            else {
+                return shown
+            }
             // The overflow is found in the rendered characters, which is
             // where the reader sees the post end.
             let visible = String(shown.characters)
@@ -193,7 +199,10 @@ private struct TemplatePreview: View {
 
     /// `text` with the part from `overflow` on tinted and dimmed; `plain` is its characters.
     static func marked(_ text: AttributedString, plain: String, from overflow: String.Index?) -> AttributedString {
-        guard let overflow else { return text }
+        guard let overflow
+        else {
+            return text
+        }
         var marked = text
         let offset = plain.distance(from: plain.startIndex, to: overflow)
         let start = marked.index(marked.startIndex, offsetByCharacters: offset)

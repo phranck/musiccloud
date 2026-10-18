@@ -66,7 +66,9 @@ import Synchronization
         #if os(iOS)
         let fileManager = FileManager.default
         guard let container = fileManager.containerURL(forSecurityApplicationGroupIdentifier: SharedStoreConfiguration.appGroupIdentifier)
-        else { return nil }
+        else {
+            return nil
+        }
         let directory = container.appending(path: "Library/Application Support/musiccloud", directoryHint: .isDirectory)
         try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
@@ -249,7 +251,8 @@ struct SessionFileLock: Sendable {
         let activity = try await LockActivity.begin(reason: "Holding \(url.lastPathComponent)", using: runActivity)
         defer { activity.end() }
         let descriptor = try await Self.acquire(at: url.path(percentEncoded: false))
-        guard activity.hold(descriptor) else {
+        guard activity.hold(descriptor)
+        else {
             Self.release(descriptor)
             throw CancellationError()
         }
@@ -277,14 +280,16 @@ struct SessionFileLock: Sendable {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let descriptor = open(path, O_RDWR | O_CREAT | O_CLOEXEC, 0o600)
-                guard descriptor >= 0 else {
+                guard descriptor >= 0
+                else {
                     continuation.resume(throwing: lastError())
                     return
                 }
                 var status = flock(descriptor, LOCK_EX)
                 // A signal interrupts the wait without the lock being taken.
                 while status != 0 && errno == EINTR { status = flock(descriptor, LOCK_EX) }
-                guard status == 0 else {
+                guard status == 0
+                else {
                     let error = lastError()
                     close(descriptor)
                     continuation.resume(throwing: error)
@@ -355,7 +360,10 @@ private final class LockActivity: Sendable {
     /// Records `descriptor` as held, or returns `false` when the activity expired while the lock was awaited.
     func hold(_ descriptor: Int32) -> Bool {
         state.withLock { state in
-            guard !state.isExpired else { return false }
+            guard !state.isExpired
+            else {
+                return false
+            }
             state.descriptor = descriptor
             return true
         }
@@ -364,7 +372,10 @@ private final class LockActivity: Sendable {
     /// Calls `handler` when the activity expires, or at once when it has expired already.
     func whenExpired(_ handler: @escaping @Sendable () -> Void) {
         let expiredAlready = state.withLock { state in
-            guard !state.isExpired else { return true }
+            guard !state.isExpired
+            else {
+                return true
+            }
             state.onExpiry = handler
             return false
         }

@@ -57,8 +57,14 @@ enum MastodonAPI {
         var text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         if !text.contains("://"), let atSign = text.lastIndex(of: "@") { text = String(text[text.index(after: atSign)...]) }
         if !text.contains("://") { text = "https://" + text }
-        guard let host = URLComponents(string: text)?.host?.lowercased(), host.contains("."), !host.hasPrefix("."), !host.hasSuffix(".")
-        else { return nil }
+        guard
+            let host = URLComponents(string: text)?.host?.lowercased(),
+            host.contains("."),
+            !host.hasPrefix("."),
+            !host.hasSuffix(".")
+        else {
+            return nil
+        }
         return URL(string: "https://\(host)")
     }
 

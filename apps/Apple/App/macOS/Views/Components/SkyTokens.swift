@@ -205,7 +205,8 @@ extension SkyTokens {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard (200..<300).contains(statusCode) else {
+            guard (200..<300).contains(statusCode)
+            else {
                 AppLogger.api.error("Design tokens answered HTTP \(statusCode)")
                 return nil
             }
@@ -238,9 +239,19 @@ struct SkyColor: Equatable, Sendable {
     /// The color `#rrggbb`, or `nil` for any other text, which is the only
     /// form the backend serves.
     init?(hex: String) {
-        guard hex.count == 7, hex.first == "#" else { return nil }
+        guard
+            hex.count == 7,
+            hex.first == "#"
+        else {
+            return nil
+        }
         let digits = hex.dropFirst()
-        guard digits.allSatisfy(\.isHexDigit), let rgb = UInt32(digits, radix: 16) else { return nil }
+        guard
+            digits.allSatisfy(\.isHexDigit),
+            let rgb = UInt32(digits, radix: 16)
+        else {
+            return nil
+        }
         self.init(rgb)
     }
 

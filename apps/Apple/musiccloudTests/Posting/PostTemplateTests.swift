@@ -158,12 +158,12 @@ struct SystemTemplateTests {
     /// added, load without an icon instead of failing the whole file.
     @Test func templatesWithoutOrWithUnknownIconsLoad() throws {
         let json = #"""
-            [
-              {"id":"6C1E5C32-6F5B-4D7B-9C4E-1A2B3C4D5E6F","name":"Old","body":"{song_name}"},
-              {"id":"7D2F6D43-7A6C-4E8C-AD5F-2B3C4D5E6F70","name":"Future","body":"x","icon":"threads"},
-              {"id":"8E307E54-8B7D-4F9D-BE60-3C4D5E6F7081","name":"Toot","body":"y","icon":"mastodon"}
-            ]
-            """#
+        [
+          {"id":"6C1E5C32-6F5B-4D7B-9C4E-1A2B3C4D5E6F","name":"Old","body":"{song_name}"},
+          {"id":"7D2F6D43-7A6C-4E8C-AD5F-2B3C4D5E6F70","name":"Future","body":"x","icon":"threads"},
+          {"id":"8E307E54-8B7D-4F9D-BE60-3C4D5E6F7081","name":"Toot","body":"y","icon":"mastodon"}
+        ]
+        """#
         let templates = try JSONDecoder().decode([PostTemplate].self, from: Data(json.utf8))
         #expect(templates.map(\.icon) == [nil, nil, .mastodon])
     }

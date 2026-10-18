@@ -64,7 +64,10 @@ actor TelemetryClient {
     /// otherwise queues the event and sends everything that is queued.
     func report(_ event: TelemetryEvent) async {
         await BuildChannel.resolve()
-        guard BuildChannel.diagnosticsEnabled else { return }
+        guard BuildChannel.diagnosticsEnabled
+        else {
+            return
+        }
         await enqueue(event)
         await flushPending()
     }
@@ -72,7 +75,10 @@ actor TelemetryClient {
     /// Sends the queued events. Safe to call at app launch.
     func flushPending() async {
         await BuildChannel.resolve()
-        guard BuildChannel.diagnosticsEnabled else { return }
+        guard BuildChannel.diagnosticsEnabled
+        else {
+            return
+        }
         await flushQueue()
     }
 
@@ -134,7 +140,10 @@ actor TelemetryClient {
         request.httpMethod = "POST"
         request.timeoutInterval = 10
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        guard let body = try? encoder.encode(event) else { return .rejected }
+        guard let body = try? encoder.encode(event)
+        else {
+            return .rejected
+        }
         request.httpBody = body
 
         do {
@@ -176,7 +185,10 @@ actor TelemetryClient {
     }
 
     private func persist() {
-        guard let queueURL else { return }
+        guard let queueURL
+        else {
+            return
+        }
         let queue = pending ?? []
         if queue.isEmpty {
             try? FileManager.default.removeItem(at: queueURL)
@@ -184,7 +196,10 @@ actor TelemetryClient {
         }
         var buffer = Data()
         for queued in queue {
-            guard let line = try? encoder.encode(queued) else { continue }
+            guard let line = try? encoder.encode(queued)
+            else {
+                continue
+            }
             buffer.append(line)
             buffer.append(0x0A)
         }
@@ -195,7 +210,9 @@ actor TelemetryClient {
     static func defaultQueueURL() -> URL? {
         let fileManager = FileManager.default
         guard let base = try? fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        else { return nil }
+        else {
+            return nil
+        }
         let directory = base.appending(path: "musiccloud", directoryHint: .isDirectory)
         try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory.appending(path: "telemetry-queue.jsonl")

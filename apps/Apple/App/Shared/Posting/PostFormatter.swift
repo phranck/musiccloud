@@ -27,7 +27,7 @@ enum PostFormatter {
 
         let whole = NSRange(text.startIndex..., in: text)
         for match in MarkdownSyntax.bareURL.matches(in: text, range: whole)
-        where !markdownLinks.contains(where: { NSIntersectionRange($0.range, match.range).length > 0 }) {
+            where !markdownLinks.contains(where: { NSIntersectionRange($0.range, match.range).length > 0 }) {
             let url = (text as NSString).substring(with: match.range)
             if let facet = BlueskyFacet(range: match.range, in: text, feature: .link(url)) { facets.append(facet) }
         }
@@ -81,7 +81,10 @@ extension PostFormatter {
 
     /// Where `text` passes Bluesky's `limit` of graphemes, or `nil` when it fits.
     static func graphemeOverflowStart(in text: String, limit: Int) -> String.Index? {
-        guard text.count > limit else { return nil }
+        guard text.count > limit
+        else {
+            return nil
+        }
         return text.index(text.startIndex, offsetBy: limit)
     }
 }
@@ -146,7 +149,10 @@ struct BlueskyFacet: Equatable, Sendable, Encodable {
 
     /// The facet for `range`, a UTF-16 range of `text`, or `nil` when it lies outside it.
     init?(range: NSRange, in text: String, feature: Feature) {
-        guard let bounds = Range(range, in: text) else { return nil }
+        guard let bounds = Range(range, in: text)
+        else {
+            return nil
+        }
         byteStart = text[..<bounds.lowerBound].utf8.count
         byteEnd = text[..<bounds.upperBound].utf8.count
         self.feature = feature

@@ -38,7 +38,10 @@ import Foundation
     ///   the error the system reports for a sheet that has nowhere to appear.
     func signIn(at url: URL, callbackScheme: String) async throws -> URL {
         #if os(iOS)
-        guard Self.presentationScene != nil else { throw ASWebAuthenticationSessionError(.presentationContextInvalid) }
+        guard Self.presentationScene != nil
+        else {
+            throw ASWebAuthenticationSessionError(.presentationContextInvalid)
+        }
         #endif
         return try await withCheckedThrowingContinuation { continuation in
             let completion: ASWebAuthenticationSession.CompletionHandler = { [weak self] callback, error in
@@ -78,7 +81,10 @@ extension WebSignIn: ASWebAuthenticationPresentationContextProviding {
             #else
             // signIn(at:callbackScheme:) throws before it starts a session
             // when the app has no window scene, so one is here.
-            guard let scene = Self.presentationScene else { preconditionFailure("A sign-in session started without a window scene") }
+            guard let scene = Self.presentationScene
+            else {
+                preconditionFailure("A sign-in session started without a window scene")
+            }
             return scene.keyWindow ?? UIWindow(windowScene: scene)
             #endif
         }

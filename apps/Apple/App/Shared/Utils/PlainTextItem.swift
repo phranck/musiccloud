@@ -15,7 +15,10 @@ nonisolated enum PlainTextItem {
     /// - Parameter data: The data representation of a `public.plain-text` item.
     /// - Returns: The text, with a URL as its absolute string.
     static func text(from data: Data) -> String? {
-        guard data.starts(with: Array("bplist".utf8)) else { return String(data: data, encoding: .utf8) }
+        guard data.starts(with: Array("bplist".utf8))
+        else {
+            return String(data: data, encoding: .utf8)
+        }
         let object = try? NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSString.self, NSURL.self, NSAttributedString.self], from: data)
         switch object {
         case let url as URL: return url.absoluteString

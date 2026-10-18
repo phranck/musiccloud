@@ -65,7 +65,10 @@ import SwiftUI
         historyManager = HistoryManager(modelContext: mainContext)
         monitor = ClipboardMonitor(historyManager: historyManager)
         monitor.onNewEntry = { [weak self] entry in
-            guard let self else { return }
+            guard let self
+            else {
+                return
+            }
             Task { await self.autoPoster.post(entry) }
         }
         setupStatusItem()
@@ -92,9 +95,10 @@ import SwiftUI
 private extension AppDelegate {
     func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-
-        guard let button = statusItem.button else { return }
-
+        guard let button = statusItem.button
+        else {
+            return
+        }
         iconHostingView = NSHostingView(rootView: MenuBarIcon(isProcessing: false))
         iconHostingView.frame = button.bounds
         iconHostingView.autoresizingMask = [.width, .height]
@@ -148,8 +152,10 @@ private extension AppDelegate {
     @objc func togglePanel() { if panel.isVisible { closePanel() } else { openPanel() } }
 
     func openPanel() {
-        guard let buttonFrame = statusItem.button?.window?.frame else { return }
-
+        guard let buttonFrame = statusItem.button?.window?.frame
+        else {
+            return
+        }
         // The window is larger than the cards by `shadowMargin` on every side,
         // so it is shifted up by that margin to keep the cards right below
         // the menu bar. The transparent margin lets clicks through.
@@ -378,7 +384,10 @@ extension AppDelegate: NSWindowDelegate {
     /// the artwork it has decoded. Opening the window again builds a new one,
     /// and the autosave name puts it back where it was.
     func windowWillClose(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow else { return }
+        guard let window = notification.object as? NSWindow
+        else {
+            return
+        }
         if window === dashboardWindow { dashboardWindow = nil }
         if window === settingsWindow { settingsWindow = nil }
         if window === templateEditorWindow { templateEditorWindow = nil }
@@ -392,8 +401,12 @@ extension AppDelegate: NSWindowDelegate {
 private extension AppDelegate {
     func setupEventMonitor() {
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            guard let self, self.panel.isVisible else { return }
-
+            guard
+                let self,
+                self.panel.isVisible
+            else {
+                return
+            }
             // Ignore clicks on the status item button (togglePanel handles those)
             if let buttonWindow = self.statusItem.button?.window, buttonWindow == event.window { return }
 

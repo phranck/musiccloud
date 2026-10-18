@@ -19,7 +19,8 @@ extension NSImage {
     ///   - fallbackSymbol: The SF Symbol used when no such asset exists.
     static func menuIcon(named name: String, fallbackSymbol: String = "music.note") -> NSImage {
         let canvasSize = NSSize(width: 16, height: 16)
-        guard let original = NSImage(named: name) else {
+        guard let original = NSImage(named: name)
+        else {
             return NSImage(systemSymbolName: fallbackSymbol, accessibilityDescription: name)?.withSymbolConfiguration(
                 .preferringHierarchical()
             ) ?? NSImage()

@@ -194,9 +194,9 @@ import Testing
     @Test func anOldAutoPostRuleHandsItsTemplateToTheDefault() throws {
         let defaults = makeDefaults()
         let legacy = """
-            {"isEnabled":true,"rules":{"\(mastodon.id)":{"isEnabled":true,"templateID":"\(mine.id.uuidString)"},\
-            "\(bluesky.id)":{"isEnabled":false}}}
-            """
+        {"isEnabled":true,"rules":{"\(mastodon.id)":{"isEnabled":true,"templateID":"\(mine.id.uuidString)"},\
+        "\(bluesky.id)":{"isEnabled":false}}}
+        """
         defaults.set(Data(legacy.utf8), forKey: DefaultsKey.autoPost)
 
         let defaultTemplates = DefaultTemplates(defaults: defaults)

@@ -44,19 +44,22 @@ struct ResolveResponse: Decodable, Sendable {
     /// - Returns: A copy whose `shortUrl` starts with `baseURL`.
     /// - Throws: ``ResolveError/invalidResponse`` when the short link is on another origin.
     func pointing(at baseURL: URL) throws -> ResolveResponse {
-        guard let link = URLComponents(string: shortUrl), let base = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
+        guard
+            let link = URLComponents(string: shortUrl),
+            let base = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
             Self.hasSameOrigin(link, base) || Self.productionOrigin.map({ Self.hasSameOrigin(link, $0) }) == true
         else {
             AppLogger.api.error("Refused short link outside the musiccloud origin")
             throw ResolveError.invalidResponse
         }
-
         var moved = base
         moved.percentEncodedPath = link.percentEncodedPath
         moved.percentEncodedQuery = link.percentEncodedQuery
         moved.percentEncodedFragment = nil
-        guard let movedString = moved.string else { throw ResolveError.invalidResponse }
-
+        guard let movedString = moved.string
+        else {
+            throw ResolveError.invalidResponse
+        }
         var copy = self
         copy.shortUrl = movedString
         return copy

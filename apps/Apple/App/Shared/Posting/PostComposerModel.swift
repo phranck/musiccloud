@@ -107,7 +107,10 @@ import Observation
 
     /// Replaces an account with what its server now says, such as a new limit.
     func replace(_ account: SocialAccount) {
-        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
+        guard let index = accounts.firstIndex(where: { $0.id == account.id })
+        else {
+            return
+        }
         accounts[index] = account
     }
 

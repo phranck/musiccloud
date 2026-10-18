@@ -25,7 +25,12 @@ struct ArtistInfo: Codable, Equatable {
 
 extension ArtistInfo {
     var genresString: String? {
-        guard let genres = genres, !genres.isEmpty else { return nil }
+        guard
+            let genres = genres,
+            !genres.isEmpty
+        else {
+            return nil
+        }
         return genres.joined(separator: ", ")
     }
 
@@ -39,7 +44,10 @@ extension ArtistInfo {
     /// - Parameter locale: The locale that decides the abbreviations and
     ///   separators. German, for example, shortens only from a million on.
     func formattedFollowers(locale: Locale) -> String? {
-        guard let count = followerCount else { return nil }
+        guard let count = followerCount
+        else {
+            return nil
+        }
         return count.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)).locale(locale))
     }
 }

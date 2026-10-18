@@ -65,7 +65,10 @@ import Observation
     /// Replaces the stored template that has the same id.
     func update(_ template: PostTemplate) {
         change { templates in
-            guard let index = templates.firstIndex(where: { $0.id == template.id }) else { return }
+            guard let index = templates.firstIndex(where: { $0.id == template.id })
+            else {
+                return
+            }
             templates[index] = template
         }
     }

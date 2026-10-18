@@ -1,17 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
-
-const configuration = fileURLToPath(new URL("../../.swift-format", import.meta.url));
-
-/** Formats an isolated Swift fragment without writing a source file or launching an application. */
-function format(source) {
-    return execFileSync("xcrun", ["swift-format", "format", "--configuration", configuration, "-"], {
-        input: source,
-        encoding: "utf8",
-    });
-}
+import { formatSource as format } from "./format-source.mjs";
 
 /** Builds a two-argument expression at an exact physical line length. */
 function boundaryCall(length) {
@@ -19,6 +9,58 @@ function boundaryCall(length) {
     const suffix = '", second: "b")';
     return `${prefix}${"x".repeat(length - prefix.length - suffix.length)}${suffix}\n`;
 }
+
+test("the reported deep-link guard uses one condition per line and an expanded exit block", () => {
+    const source = `enum Samples {
+    static func streamingURL(fromDeepLink url: URL, defaults: UserDefaults = DefaultsKey.shared) -> String? {
+        guard url.scheme == "musiccloud", url.host == "resolve", let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            let parameter = components.queryItems?.first(where: { $0.name == "url" })?.value, isStreamingURL(parameter, defaults: defaults)
+        else { return nil }
+        return parameter
+    }
+}
+`;
+    const expected = `enum Samples {
+    static func streamingURL(fromDeepLink url: URL, defaults: UserDefaults = DefaultsKey.shared) -> String? {
+        guard
+            url.scheme == "musiccloud",
+            url.host == "resolve",
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            let parameter = components.queryItems?.first(where: { $0.name == "url" })?.value,
+            isStreamingURL(parameter, defaults: defaults)
+        else {
+            return nil
+        }
+        return parameter
+    }
+}
+`;
+    assert.equal(format(source), expected);
+});
+
+test("guard layout preserves comments, Unicode, literals, and commas inside expressions", () => {
+    const source = `func sample() -> String? {
+    let note = "Künstler 🎵 guard first, second else"
+    guard let value = make(first: 1, second: 2), /* précondition */ accepts(value, matching: "a,b") else { return nil }
+    return note
+}
+`;
+    const output = format(source);
+    assert.match(output, /let value = make\(first: 1, second: 2\),/);
+    assert.match(output, /accepts\(value, matching: "a,b"\)/);
+    assert.ok(output.includes('"Künstler 🎵 guard first, second else"'));
+    assert.ok(output.includes("/* précondition */"));
+    assert.equal(format(output), output);
+    execFileSync("xcrun", ["swiftc", "-frontend", "-parse", "-enable-bare-slash-regex", "-"], { input: output });
+});
+
+test("nested and single-condition guards keep expanded exit blocks and valid syntax", () => {
+    const output = format("func sample() {\n guard first else { guard second, third else { return }; return }\n}\n");
+    assert.match(output, /guard first\n/);
+    assert.match(output, /guard\n\s+second,\n\s+third\n/);
+    assert.equal(format(output), output);
+    execFileSync("xcrun", ["swiftc", "-frontend", "-parse", "-enable-bare-slash-regex", "-"], { input: output });
+});
 
 test("short argument lists collapse to a single line", () => {
     assert.equal(format("let value = construct(\n    first: 1,\n    second: 2\n)\n"), "let value = construct(first: 1, second: 2)\n");

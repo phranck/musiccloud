@@ -29,7 +29,8 @@ import Foundation
     /// - Returns: The connected account.
     /// - Throws: ``SocialServiceError``, `CancellationError` when the user closes the sheet, or a network error.
     @discardableResult func connect(instanceInput: String) async throws -> MastodonAccount {
-        guard let instance = MastodonAPI.instanceURL(from: instanceInput) else {
+        guard let instance = MastodonAPI.instanceURL(from: instanceInput)
+        else {
             throw SocialServiceError.invalidInput(String(localized: "Enter the address of a Mastodon server, such as mastodon.social."))
         }
         let app = try await appCredentials(for: instance)
@@ -42,8 +43,12 @@ import Foundation
             codeChallenge: OAuthSupport.codeChallenge(for: verifier)
         )
         let callback = try await webSignIn.signIn(at: authorizeURL, callbackScheme: MastodonAPI.callbackScheme)
-        guard callback.queryValue("state") == state, let code = callback.queryValue("code") else { throw SocialServiceError.missingCode }
-
+        guard
+            callback.queryValue("state") == state,
+            let code = callback.queryValue("code")
+        else {
+            throw SocialServiceError.missingCode
+        }
         let token = try await session.decoded(
             MastodonTokenResponse.self,
             for: MastodonAPI.tokenRequest(instance: instance, app: app, code: code, codeVerifier: verifier),
@@ -73,7 +78,10 @@ import Foundation
     /// An instance can change both, so the composer asks before it counts.
     /// When the instance does not answer, the stored values stay.
     func refreshServerInfo(of account: MastodonAccount) async -> MastodonAccount {
-        guard let description = try? await instanceDescription(of: account.instance) else { return account }
+        guard let description = try? await instanceDescription(of: account.instance)
+        else {
+            return account
+        }
         var refreshed = account
         refreshed.characterLimit = description.characterLimit
         refreshed.supportsMarkdown = description.supportsMarkdown
@@ -83,7 +91,10 @@ import Foundation
 
     /// Posts `markdown` from `account`: as Markdown where the instance renders it, as plain text everywhere else.
     func post(_ markdown: String, from account: MastodonAccount) async throws {
-        guard let token = store.token(for: account) else { throw SocialServiceError.signedOut }
+        guard let token = store.token(for: account)
+        else {
+            throw SocialServiceError.signedOut
+        }
         let text = account.supportsMarkdown ? markdown : PostFormatter.mastodonPlainText(fromMarkdown: markdown)
         _ = try await session.checkedData(
             for: MastodonAPI.postStatusRequest(

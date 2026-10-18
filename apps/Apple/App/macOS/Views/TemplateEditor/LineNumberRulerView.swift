@@ -32,8 +32,13 @@ final class LineNumberRulerView: NSRulerView {
     @available(*, unavailable) required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
-        guard let textView, let layoutManager = textView.layoutManager, let textContainer = textView.textContainer else { return }
-
+        guard
+            let textView,
+            let layoutManager = textView.layoutManager,
+            let textContainer = textView.textContainer
+        else {
+            return
+        }
         NSColor.textBackgroundColor.setFill()
         bounds.fill()
 
