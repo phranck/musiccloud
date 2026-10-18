@@ -39,8 +39,8 @@ interface ArtistTrackCellProps {
  * The row that shows the track the share page's player holds carries
  * `data-playback` and `aria-current`: the stylesheet draws a ring inside its
  * contour. The ring pulses while playing and stays static while paused or when
- * reduced motion is requested. It stays inside the row because the list's scroll
- * viewport clips anything outside it.
+ * reduced motion is requested. Its outer halo extends into the row gaps while
+ * the list's scroll viewport bounds the glow.
  *
  * Reuses {@link SlideArtwork} (cover frame + CD-slot resolve animation) and
  * {@link useTrackResolve} (busy state, analytics, failure toast).
