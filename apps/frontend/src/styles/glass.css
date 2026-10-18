@@ -19,8 +19,9 @@
  * - A per-control resolver blends day↔night into the `--_*` intermediates
  *   (`color-mix()` for colours, `calc()` for numbers, both weighted by
  *   `--g-dayness`).
- * - The shared recipe reads the `--_*` intermediates into `background` +
- *   `box-shadow`.
+ * - Controls read the `--_*` intermediates into `background` and `box-shadow`.
+ *   Cards paint tint and shadow on empty surfaces independently of their clipped
+ *   content. Their static shadow silhouette never filters animated descendants.
  *
  * The radius cascade further down is unchanged from the previous system — it is
  * orthogonal to the material and every consumer still depends on it.
@@ -448,6 +449,79 @@ a.mc-cardlink {
   background: var(--_t);
   box-shadow: var(--mc-shadow-x, 0px) var(--mc-shadow-y, 15px) var(--mc-shadow-blur, 21px)
     rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh));
+}
+
+/* Material, shadow, and clipped content have independent paint surfaces.
+   Safari's native box-shadow can briefly use square corners after reload, so
+   the shadow blurs an empty rounded silhouette and masks out the card interior.
+   Its blur is static and never filters the animated card content. */
+.embossed-gradient-border.mc-glass-card {
+  --mc-card-clip-radius: initial;
+  isolation: isolate;
+  overflow: visible;
+  background: none;
+  box-shadow: none;
+}
+
+.mc-card-material {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--_t);
+  pointer-events: none;
+}
+
+.mc-card-shadow {
+  --mc-card-shadow-gutter: calc(
+    2 * var(--mc-shadow-blur) +
+    max(
+      var(--mc-shadow-x),
+      calc(-1 * var(--mc-shadow-x)),
+      var(--mc-shadow-y),
+      calc(-1 * var(--mc-shadow-y))
+    )
+  );
+  position: absolute;
+  inset: calc(-1 * var(--mc-card-shadow-gutter));
+  z-index: -2;
+  padding: var(--mc-card-shadow-gutter);
+  border-radius: calc(var(--emb-radius) + var(--mc-card-shadow-gutter));
+  pointer-events: none;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.mc-card-shadow::before {
+  content: "";
+  position: absolute;
+  inset: var(--mc-card-shadow-gutter);
+  border-radius: var(--emb-radius);
+  background: rgba(var(--mc-shadow-rgb), var(--_sh));
+  /* Match https://drafts.csswg.org/css-backgrounds-3/#shadow-blur. */
+  filter: blur(calc(var(--mc-shadow-blur) / 2));
+  transform: translate(var(--mc-shadow-x), var(--mc-shadow-y));
+}
+
+.mc-card-content {
+  position: relative;
+  display: inherit;
+  flex-direction: inherit;
+  align-items: inherit;
+  justify-content: inherit;
+  gap: inherit;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--mc-card-clip-radius, inherit);
+}
+
+.mc-glass-card.overflow-visible > .mc-card-content {
+  overflow: visible;
 }
 
 /* Raised button hover/active: ONLY the background lightens (HSL-lifted tint) — NEVER

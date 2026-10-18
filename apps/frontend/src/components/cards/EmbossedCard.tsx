@@ -177,6 +177,12 @@ const ROUNDED_CLASS_RE = /(^|\s)rounded(\s|-|$)/;
  * automatically picks up the geometry and the inner card is inscribed
  * correctly inside the rounded outer frame.
  *
+ * Empty material and shadow plates paint independently of the clipping content
+ * surface. The shadow blurs a rounded silhouette instead of Safari's native
+ * box-shadow mask. The content surface inherits the root's
+ * flex layout and derives its clipping radius from the authored padding.
+ * An explicit `overflow-visible` class also opens the content surface.
+ *
  * ## Compound API
  *
  * ```tsx
@@ -256,41 +262,40 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
           "--neu-radius-base": radiusBase,
           "--neu-radius-sm": activeRadiusSm,
           borderRadius: "var(--emb-radius)",
+          "--mc-card-clip-radius": `max(0px, calc(var(--emb-radius) - ${effectivePadding ?? "0px"}))`,
         }
       : {}),
     ...style,
   } as React.CSSProperties;
 
-  // `mc-glass-card` carries the `backdrop-filter` frost. `overflow-hidden` clips
-  // child content to the rounded corners, but in Firefox a clipped backdrop-filter
-  // element renders a lighter tile-edge artifact in the frost (see the "Firefox
-  // clip rule" in glass.css). Consumers that frost over an animated backdrop and
-  // whose children are inset can override with `overflow-visible` via className
-  // (twMerge drops the default); the hero pill (`HeroInput`) does exactly that.
   return (
-    <div className={cn("embossed-gradient-border mc-glass-card overflow-hidden", className)} style={mergedStyle}>
-      {isCompound ? (
-        <>
-          {hasAddOns ? (
-            <div className="relative flex-shrink-0">
-              {headerChild && <div className="text-center">{headerChild}</div>}
-              {leadingAddOns.length > 0 && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10">{leadingAddOns}</div>
-              )}
-              {trailingAddOns.length > 0 && (
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10">{trailingAddOns}</div>
-              )}
-            </div>
-          ) : (
-            headerChild
-          )}
-          {segmentsChild}
-          {bodyChild}
-          {footerChild}
-        </>
-      ) : (
-        children
-      )}
+    <div className={cn("embossed-gradient-border mc-glass-card", className)} style={mergedStyle}>
+      <div className="mc-card-shadow" aria-hidden="true" />
+      <div className="mc-card-material" aria-hidden="true" />
+      <div className="mc-card-content">
+        {isCompound ? (
+          <>
+            {hasAddOns ? (
+              <div className="relative flex-shrink-0">
+                {headerChild && <div className="text-center">{headerChild}</div>}
+                {leadingAddOns.length > 0 && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10">{leadingAddOns}</div>
+                )}
+                {trailingAddOns.length > 0 && (
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10">{trailingAddOns}</div>
+                )}
+              </div>
+            ) : (
+              headerChild
+            )}
+            {segmentsChild}
+            {bodyChild}
+            {footerChild}
+          </>
+        ) : (
+          children
+        )}
+      </div>
     </div>
   );
 }
