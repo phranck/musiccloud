@@ -41,6 +41,19 @@ describe("track preview frame motion", () => {
     expect(new Set(frames.map((frame) => frame.style.opacity)).size).toBeGreaterThan(1);
   });
 
+  it("lets the token-derived halo extend outside the row with the pulsing frame", () => {
+    const rules = Array.from(stylesheet.sheet?.cssRules ?? []).filter(
+      (rule): rule is CSSStyleRule => rule instanceof CSSStyleRule,
+    );
+    const row = rules.find((rule) => rule.selectorText === ".mc-playback-row");
+    const frame = rules.find((rule) => rule.selectorText === ".mc-playback-row::before");
+
+    expect(row?.style.overflow).toBe("visible");
+    expect(frame?.style.boxShadow).toMatch(
+      /(?:^|,)\s*0 0 var\(--mc-focus-halo-blur\) var\(--color-accent-glow\)/,
+    );
+  });
+
   it("keeps paused and reduced-motion frames static", () => {
     const rules = Array.from(stylesheet.sheet?.cssRules ?? []).filter(
       (rule): rule is CSSStyleRule => rule instanceof CSSStyleRule,
