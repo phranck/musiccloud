@@ -57,18 +57,24 @@ enum StreamingServices {
         /// Domain suffixes that match any subdomain, such as `artist.bandcamp.com`.
         let suffixDomains: [String]
 
-        /// The bundled brand mark, shared across Settings and native platform menus.
+        /// The shared platform identifier used by bundled brand metadata.
+        var brandingID: String {
+            switch id {
+            case "appleMusic": "apple-music"
+            case "neteaseCloudMusic": "netease"
+            case "qqMusic": "qqmusic"
+            default: id
+            }
+        }
+
+        /// The bundled silhouette, retaining a consistent optical frame across brands.
         var iconAssetName: String {
-            let assetID =
-                switch id {
-                case "appleMusic": "apple-music"
-                case "neteaseCloudMusic": "netease-settings"
-                case "boomplay": "boomplay-settings"
-                case "qqMusic": "qqmusic"
-                default: id
-                }
+            let assetID = ["netease", "boomplay"].contains(brandingID) ? "\(brandingID)-settings" : brandingID
             return "ServiceIcons/\(assetID)"
         }
+
+        /// The color asset generated from the repository's canonical platform palette.
+        var brandColorAssetName: String { "ServiceColors/\(brandingID)" }
 
         /// Creates the stable identity and host patterns used by detection and Settings.
         /// - Parameters:

@@ -16,8 +16,10 @@ struct StreamingServicesTests {
         for service in StreamingServices.all {
             #if os(macOS)
             #expect(NSImage(named: service.iconAssetName) != nil, "Missing brand icon for \(service.displayName)")
+            #expect(NSColor(named: service.brandColorAssetName) != nil, "Missing brand color for \(service.displayName)")
             #else
             #expect(UIImage(named: service.iconAssetName) != nil, "Missing brand icon for \(service.displayName)")
+            #expect(UIColor(named: service.brandColorAssetName) != nil, "Missing brand color for \(service.displayName)")
             #endif
         }
     }

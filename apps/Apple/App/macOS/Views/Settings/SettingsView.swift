@@ -6,6 +6,7 @@
 //  Created by Frank Gregor on 05.04.26.
 //
 
+import AppKit
 import SwiftUI
 
 // MARK: - SettingsView
@@ -25,9 +26,9 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView {
-            SettingsSidebar(selection: $selectedPane).navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240).toolbar(
-                removing: .sidebarToggle
-            )
+            SettingsSidebar(selection: $selectedPane).background(
+                SettingsSidebarPersistence(autosaveName: "musiccloud.SettingsSidebar").allowsHitTesting(false)
+            ).navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240).toolbar(removing: .sidebarToggle)
         } detail: {
             SettingsPaneView(pane: selectedPane).navigationTitle(selectedPane.title)
         }.background(WindowKeyMonitor()).frame(minWidth: Self.contentSize.width, minHeight: Self.contentSize.height)

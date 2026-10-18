@@ -70,6 +70,8 @@
 		FD1437752F81964000A5B46D /* ShareButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD1437742F81964000A5B46D /* ShareButton.swift */; };
 		FD2197D22F80996F00F4AD7D /* DashboardItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2197D12F80996F00F4AD7D /* DashboardItem.swift */; };
 		FD2748DF34499A932431649A /* PanelSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD70F1B3AEE2E43BDEE0DC9D /* PanelSection.swift */; };
+		FD3BDBC130846A7900A4F443 /* SettingsSidebarPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD3BDBC030846A7900A4F443 /* SettingsSidebarPersistence.swift */; };
+		FD3BDBC330846A7900A4F443 /* SettingsSidebarPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD3BDBC230846A7900A4F443 /* SettingsSidebarPersistenceTests.swift */; };
 		FD4CFB8E2F8075F2006135A6 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */; };
 		FD8BCE6F2F85225D00EC883B /* sound3.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE652F85225D00EC883B /* sound3.mp3 */; };
 		FD8BCE702F85225D00EC883B /* sound9.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6B2F85225D00EC883B /* sound9.mp3 */; };
@@ -348,6 +350,8 @@
 		FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FD1437742F81964000A5B46D /* ShareButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareButton.swift; sourceTree = "<group>"; };
 		FD2197D12F80996F00F4AD7D /* DashboardItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardItem.swift; sourceTree = "<group>"; };
+		FD3BDBC030846A7900A4F443 /* SettingsSidebarPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSidebarPersistence.swift; sourceTree = "<group>"; };
+		FD3BDBC230846A7900A4F443 /* SettingsSidebarPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSidebarPersistenceTests.swift; sourceTree = "<group>"; };
 		FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
 		FD70F1B3AEE2E43BDEE0DC9D /* PanelSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelSection.swift; sourceTree = "<group>"; };
 		FD8BCE632F85225D00EC883B /* sound1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = sound1.mp3; sourceTree = "<group>"; };
@@ -743,6 +747,7 @@
 				FDB80036307FE6D400AC2DA7 /* TemplatesPane.swift */,
 				FDB8006230802F4200AC2DA7 /* SocialMediaPane.swift */,
 				FD094D7830838BC000D317E2 /* StreamingServicesPane.swift */,
+				FD3BDBC030846A7900A4F443 /* SettingsSidebarPersistence.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -1006,6 +1011,7 @@
 			children = (
 				FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */,
 				FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */,
+				FD3BDBC230846A7900A4F443 /* SettingsSidebarPersistenceTests.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -1267,6 +1273,7 @@
 				8B76C213DB85A0116DCD1056 /* MusicCloudAPI.swift in Sources */,
 				FDF0E9572F81C6D8004DEFCE /* AboutView.swift in Sources */,
 				FDF0E9582F81C6D8004DEFCE /* SettingsView.swift in Sources */,
+				FD3BDBC130846A7900A4F443 /* SettingsSidebarPersistence.swift in Sources */,
 				FD094D7B30838BCA00D317E2 /* StreamingServicesSettingsView.swift in Sources */,
 				FDF0E9592F81C6D8004DEFCE /* DashboardView.swift in Sources */,
 				FDB8000E307FBC9000AC2DA7 /* AppSessionStore.swift in Sources */,
@@ -1376,6 +1383,7 @@
 				BB00000000000004 /* MediaEntryTests.swift in Sources */,
 				FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */,
 				FDB8001E307FC94700AC2DA7 /* NativeAppLinkTests.swift in Sources */,
+				FD3BDBC330846A7900A4F443 /* SettingsSidebarPersistenceTests.swift in Sources */,
 				FDB8009A3080FE7600AC2DA7 /* MarkdownShortcutTests.swift in Sources */,
 				FDB800953080FCDF00AC2DA7 /* ArtistHashtagTests.swift in Sources */,
 				FDB800CF3081A3DA00AC2DA7 /* SkyTokensTests.swift in Sources */,
