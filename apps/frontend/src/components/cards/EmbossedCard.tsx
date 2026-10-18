@@ -177,9 +177,9 @@ const ROUNDED_CLASS_RE = /(^|\s)rounded(\s|-|$)/;
  * automatically picks up the geometry and the inner card is inscribed
  * correctly inside the rounded outer frame.
  *
- * The empty material plate owns tint and shadow independently of the clipping
- * content surface. This keeps Safari's rounded shadow mask independent of
- * composited descendants during reload. The content surface inherits the root's
+ * Empty material and shadow plates paint independently of the clipping content
+ * surface. The shadow blurs a rounded silhouette instead of Safari's native
+ * box-shadow mask. The content surface inherits the root's
  * flex layout and derives its clipping radius from the authored padding.
  * An explicit `overflow-visible` class also opens the content surface.
  *
@@ -271,6 +271,7 @@ export function EmbossedCard({ children, className, style, padding, radius }: Em
   return (
     <div className={cn("embossed-gradient-border mc-glass-card", className)} style={mergedStyle}>
       <div className="mc-card-shadow" aria-hidden="true" />
+      <div className="mc-card-material" aria-hidden="true" />
       <div className="mc-card-content">
         {isCompound ? (
           <>

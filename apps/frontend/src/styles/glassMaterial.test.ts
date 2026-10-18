@@ -18,12 +18,11 @@ describe("card material and content painting", () => {
     );
     const root = rules.find((rule) => rule.selectorText === ".embossed-gradient-border.mc-glass-card");
     const plate = rules.find((rule) => rule.selectorText === ".mc-card-shadow");
+    const material = rules.find((rule) => rule.selectorText === ".mc-card-material");
+    const silhouette = rules.find((rule) => rule.selectorText === ".mc-card-shadow::before");
     const content = rules.find((rule) => rule.selectorText === ".mc-card-content");
     const visibleContent = rules.find(
       (rule) => rule.selectorText === ".mc-glass-card.overflow-visible > .mc-card-content",
-    );
-    const recipe = rules.find(
-      (rule) => rule.selectorText.split(",").some((selector) => selector.trim() === ".mc-card-shadow") && rule.style.boxShadow,
     );
 
     expect(root?.style.boxShadow).toBe("none");
@@ -32,9 +31,12 @@ describe("card material and content painting", () => {
     expect(root?.style.transform).toBe("");
     expect(root?.style.willChange).toBe("");
     expect(plate?.style.position).toBe("absolute");
-    expect(plate?.style.borderRadius).toBe("inherit");
+    expect(plate?.style.maskComposite).toBe("exclude");
     expect(plate?.style.pointerEvents).toBe("none");
-    expect(recipe?.style.boxShadow).toContain("var(--mc-shadow-blur");
+    expect(material?.style.borderRadius).toBe("inherit");
+    expect(material?.style.background).toBe("var(--_t)");
+    expect(silhouette?.style.filter).toBe("blur(calc(var(--mc-shadow-blur) / 2))");
+    expect(silhouette?.style.background).toContain("var(--_sh)");
     expect(content?.style.overflow).toBe("hidden");
     expect(content?.style.display).toBe("inherit");
     expect(content?.style.flex).toBe("1 1 auto");

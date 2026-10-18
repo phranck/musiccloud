@@ -443,17 +443,17 @@ a.mc-cardlink {
    3. Shared surface recipe — flat tint + float drop-shadow.
    ═════════════════════════════════════════════════════════════════════════ */
 .embossed-gradient-border,
-.recessed-gradient-border,
-.mc-card-shadow {
+.recessed-gradient-border {
   position: relative;
   background: var(--_t);
   box-shadow: var(--mc-shadow-x, 0px) var(--mc-shadow-y, 15px) var(--mc-shadow-blur, 21px)
     rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh));
 }
 
-/* A card's empty material plate paints the rounded tint and shadow without
-   clipping composited descendants. Its sibling alone clips content, keeping
-   the shadow mask independent of that content's compositing boundaries. */
+/* Material, shadow, and clipped content have independent paint surfaces.
+   Safari's native box-shadow can briefly use square corners after reload, so
+   the shadow blurs an empty rounded silhouette and masks out the card interior.
+   Its blur is static and never filters the animated card content. */
 .embossed-gradient-border.mc-glass-card {
   --mc-card-clip-radius: initial;
   isolation: isolate;
@@ -462,12 +462,46 @@ a.mc-cardlink {
   box-shadow: none;
 }
 
-.mc-card-shadow {
+.mc-card-material {
   position: absolute;
   inset: 0;
   z-index: -1;
   border-radius: inherit;
+  background: var(--_t);
   pointer-events: none;
+}
+
+.mc-card-shadow {
+  --mc-card-shadow-gutter: calc(
+    2 * var(--mc-shadow-blur) +
+    max(
+      var(--mc-shadow-x),
+      calc(-1 * var(--mc-shadow-x)),
+      var(--mc-shadow-y),
+      calc(-1 * var(--mc-shadow-y))
+    )
+  );
+  position: absolute;
+  inset: calc(-1 * var(--mc-card-shadow-gutter));
+  z-index: -2;
+  padding: var(--mc-card-shadow-gutter);
+  border-radius: calc(var(--emb-radius) + var(--mc-card-shadow-gutter));
+  pointer-events: none;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.mc-card-shadow::before {
+  content: "";
+  position: absolute;
+  inset: var(--mc-card-shadow-gutter);
+  border-radius: var(--emb-radius);
+  background: rgba(var(--mc-shadow-rgb), var(--_sh));
+  /* A CSS box-shadow blur radius is twice the Gaussian standard deviation. */
+  filter: blur(calc(var(--mc-shadow-blur) / 2));
+  transform: translate(var(--mc-shadow-x), var(--mc-shadow-y));
 }
 
 .mc-card-content {
