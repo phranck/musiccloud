@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
 import type { NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import { AudioStatus } from "@/components/audio/AudioStatus";
@@ -82,6 +82,65 @@ describe("ArtistTrackView grouped corners", () => {
 });
 
 describe("ArtistTrackView playback mark", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("renders the halo above clipping ancestors and follows scrolling without intercepting input", () => {
+    let rowTop = 120;
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      return this.matches("button") ? new DOMRect(100, rowTop, 300, 56) : new DOMRect(100, 100, 300, 252);
+    });
+    const items = [item(0)];
+    const { container, unmount } = render(
+      <ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[0].track.deezerUrl)} />,
+    );
+    const halo = document.body.querySelector<HTMLDivElement>(".mc-playback-glow");
+
+    expect(halo).not.toBeNull();
+    expect(halo?.parentElement).toBe(document.body);
+    expect(container).not.toContainElement(halo);
+    expect(halo).toHaveAttribute("aria-hidden", "true");
+    expect(halo).toHaveAttribute("data-playback", AudioStatus.Playing);
+    expect(halo).toHaveStyle({ left: "100px", top: "120px", width: "300px", height: "56px" });
+
+    rowTop = 150;
+    fireEvent.scroll(container.firstElementChild ?? window);
+    expect(halo).toHaveStyle({ top: "150px" });
+
+    rowTop = -100;
+    fireEvent.scroll(window);
+    expect(halo).toHaveAttribute("hidden");
+
+    unmount();
+    expect(document.body.querySelector(".mc-playback-glow")).toBeNull();
+  });
+
+  it("updates the halo on track changes and resize and releases measurements on unmount", () => {
+    let width = 300;
+    const measure = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      if (!this.matches("button")) return new DOMRect(100, 100, width, 252);
+      return new DOMRect(100, this.textContent?.includes("Track 2") ? 200 : 120, width, 56);
+    });
+    const items = [item(0), item(1)];
+    const { rerender, unmount } = render(
+      <ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[0].track.deezerUrl)} />,
+    );
+    const halo = document.body.querySelector<HTMLDivElement>(".mc-playback-glow");
+
+    rerender(<ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Paused, items[1].track.deezerUrl)} />);
+    expect(halo).toHaveStyle({ top: "200px" });
+    expect(halo).toHaveAttribute("data-playback", AudioStatus.Paused);
+
+    width = 420;
+    fireEvent.resize(window);
+    expect(halo).toHaveStyle({ width: "420px" });
+
+    unmount();
+    measure.mockClear();
+    fireEvent.scroll(window);
+    fireEvent.resize(window);
+    expect(measure).not.toHaveBeenCalled();
+  });
+
   function nowPlaying(status: NowPlayingTrack["status"], trackUrl: string): NowPlayingTrack {
     return { status, trackUrls: [trackUrl], title: "", artist: "" };
   }
@@ -101,24 +160,57 @@ describe("ArtistTrackView playback mark", () => {
     }
   });
 
-  /**
-   * The ring and the bars fade through a transition on the row, which only runs
-   * when the row that is already on screen changes its attribute.
-   */
-  it("changes the mark on the same row element, which carries its bars in every state", () => {
+  it.each([
+    AudioStatus.Playing,
+    AudioStatus.Paused,
+    null,
+  ])("preserves the duration without analyzer bars when playback is %s", (status) => {
+    const timedItem = item(0);
+    const timedTrack = { ...timedItem, track: { ...timedItem.track, durationMs: 200_000 } };
+    const { container } = render(
+      <ArtistTrackView
+        items={[timedTrack]}
+        nowPlaying={status ? nowPlaying(status, timedTrack.track.deezerUrl) : null}
+      />,
+    );
+
+    expect(screen.getByText("3:20")).toBeInTheDocument();
+    expect(container.querySelector(".mc-playback-bars")).toBeNull();
+  });
+
+  it("moves playback to the new track and keeps a paused track marked", () => {
+    const items = [item(0), item(1)];
+    const { container, rerender } = render(
+      <ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[0].track.deezerUrl)} />,
+    );
+    const rows = Array.from(container.querySelectorAll("button"));
+
+    rerender(<ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[1].track.deezerUrl)} />);
+    expect(rows[0]).not.toHaveAttribute("data-playback");
+    expect(rows[0]).not.toHaveAttribute("aria-current");
+    expect(rows[1]).toHaveAttribute("data-playback", AudioStatus.Playing);
+
+    rerender(<ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Paused, items[1].track.deezerUrl)} />);
+    expect(rows[1]).toHaveAttribute("data-playback", AudioStatus.Paused);
+    expect(rows[1]).toHaveAttribute("aria-current", "true");
+    expect(container.querySelectorAll("button")[1]).toBe(rows[1]);
+  });
+
+  it("updates the frame on the same row without rendering a simulated analyzer", () => {
     const items = [item(0), item(1)];
     const { container, rerender } = render(
       <ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[0].track.deezerUrl)} />,
     );
     const markedRow = container.querySelector("button");
     expect(markedRow).toHaveAttribute("data-playback", AudioStatus.Playing);
+    expect(container.querySelector(".mc-playback-bars")).toBeNull();
 
     rerender(<ArtistTrackView items={items} nowPlaying={null} />);
 
     expect(container.querySelector("button")).toBe(markedRow);
     expect(markedRow).not.toHaveAttribute("data-playback");
     for (const row of container.querySelectorAll("button")) {
-      expect(row.querySelector(".mc-playback-bars")).toHaveAttribute("aria-hidden", "true");
+      expect(row.querySelector(".mc-playback-bars")).toBeNull();
     }
   });
 });

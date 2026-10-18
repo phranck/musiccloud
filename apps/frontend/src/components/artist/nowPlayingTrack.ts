@@ -13,7 +13,7 @@ export type NowPlayingStatus = typeof AudioStatus.Playing | typeof AudioStatus.P
  * alone.
  *
  * @property status - Whether the player runs or holds its position. Rows show
- *   the same mark for both; the indicator's bars only move while playing.
+ *   a frame for both; it pulses only while playing and when motion is allowed.
  * @property trackUrls - Exact identities a row's `deezerUrl` slot can equal: the
  *   candidate the track was resolved from by a row click, then every platform
  *   link of its share. A commercial share carries the Deezer link its row was
