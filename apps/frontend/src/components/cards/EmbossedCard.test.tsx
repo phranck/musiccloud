@@ -12,12 +12,16 @@ describe("EmbossedCard material and clipping boundaries", () => {
       </EmbossedCard>,
     );
     const card = container.querySelector(".mc-glass-card");
-    const plate = card?.querySelector(":scope > .mc-card-shadow");
+    const plate = card?.querySelector<HTMLElement>(":scope > .mc-card-shadow");
+    const material = card?.querySelector<HTMLElement>(":scope > .mc-card-material");
     const content = card?.querySelector(":scope > .mc-card-content");
 
     expect(plate).toHaveAttribute("aria-hidden", "true");
+    expect(material).toHaveAttribute("aria-hidden", "true");
     expect(plate?.childElementCount).toBe(0);
-    expect(content).not.toContainElement(plate instanceof HTMLElement ? plate : null);
+    expect(material?.childElementCount).toBe(0);
+    expect(content).not.toContainElement(plate ?? null);
+    expect(content).not.toContainElement(material ?? null);
     expect(content).toContainElement(screen.getByText("Header"));
     expect(content).toContainElement(screen.getByText("Body"));
     expect(content).toContainElement(screen.getByText("Footer"));

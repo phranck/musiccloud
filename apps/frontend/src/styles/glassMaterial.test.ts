@@ -29,6 +29,7 @@ describe("card material and content painting", () => {
     expect(root?.style.background).toBe("none");
     expect(root?.style.overflow).toBe("visible");
     expect(root?.style.transform).toBe("");
+    expect(root?.style.filter).toBe("");
     expect(root?.style.willChange).toBe("");
     expect(plate?.style.position).toBe("absolute");
     expect(plate?.style.maskComposite).toBe("exclude");
@@ -38,6 +39,7 @@ describe("card material and content painting", () => {
     expect(silhouette?.style.filter).toBe("blur(calc(var(--mc-shadow-blur) / 2))");
     expect(silhouette?.style.background).toContain("var(--_sh)");
     expect(content?.style.overflow).toBe("hidden");
+    expect(content?.style.filter).toBe("");
     expect(content?.style.display).toBe("inherit");
     expect(content?.style.flex).toBe("1 1 auto");
     expect(content?.style.minHeight).toBe("0px");

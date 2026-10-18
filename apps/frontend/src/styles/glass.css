@@ -19,8 +19,9 @@
  * - A per-control resolver blends day↔night into the `--_*` intermediates
  *   (`color-mix()` for colours, `calc()` for numbers, both weighted by
  *   `--g-dayness`).
- * - The shared recipe reads the `--_*` intermediates into `background` +
- *   `box-shadow`.
+ * - Controls read the `--_*` intermediates into `background` and `box-shadow`.
+ *   Cards paint tint and shadow on empty surfaces independently of their clipped
+ *   content. Their static shadow silhouette never filters animated descendants.
  *
  * The radius cascade further down is unchanged from the previous system — it is
  * orthogonal to the material and every consumer still depends on it.
@@ -499,7 +500,7 @@ a.mc-cardlink {
   inset: var(--mc-card-shadow-gutter);
   border-radius: var(--emb-radius);
   background: rgba(var(--mc-shadow-rgb), var(--_sh));
-  /* A CSS box-shadow blur radius is twice the Gaussian standard deviation. */
+  /* Match https://drafts.csswg.org/css-backgrounds-3/#shadow-blur. */
   filter: blur(calc(var(--mc-shadow-blur) / 2));
   transform: translate(var(--mc-shadow-x), var(--mc-shadow-y));
 }
