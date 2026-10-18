@@ -34,46 +34,76 @@ import UIKit
 /// ## Topics
 ///
 /// ### Initialization
-/// - ``init(historyManager:)``
+/// - ``init(historyManager:copyToPasteboard:pasteboard:streamingDefaults:resolveURL:notifySuccess:)``
 ///
 /// ### Current State
 /// - ``status``
+/// - ``origin``
+/// - ``conversionCount``
 ///
 /// ### Status Types
 /// - ``Status``
+/// - ``Origin``
 ///
 /// ### Methods
-/// - ``convert(url:)``
-@Observable
-@MainActor
-final class ClipboardMonitor {
+/// - ``convert(url:origin:)``
+@Observable @MainActor final class ClipboardMonitor {
     private let historyManager: HistoryManager
+    private let pasteboard: SystemPasteboard
+    private let streamingDefaults: UserDefaults
+    private let resolveURL: @Sendable (String) async throws -> Conversion
+    private let notifySuccess: @MainActor (MediaEntry) -> Void
+    /// Keeps hosted tests from replacing the device's actual clipboard.
+    private let copyToPasteboard: @MainActor (String) -> Void
     private var lastSeenContent: String?
-    @ObservationIgnored
-    private var pollTask: Task<Void, Never>?
-    @ObservationIgnored
-    private var resolveTask: Task<Void, Never>?
-    @ObservationIgnored
-    private var lastChangeCount: Int = -1
+    @ObservationIgnored private var pollTask: Task<Void, Never>?
+    @ObservationIgnored private var resolveTask: Task<Void, Never>?
+    @ObservationIgnored private var lastChangeCount: Int = -1
 
     var status: Status = .idle
+
+    /// Where the last conversion that started came from.
+    private(set) var origin: Origin = .request
+
+    /// How many conversions have started, so an observer sees each start.
+    ///
+    /// ``status`` alone does not show one: the same URL answered from the
+    /// history twice sets the same `.success` again, which is no change to
+    /// observe. It counts up after ``origin`` is set, so an observer of the
+    /// count reads the origin of the conversion that just started.
+    private(set) var conversionCount = 0
 
     /// Called with every entry a conversion adds to the history, after it is
     /// stored. An entry answered from the history is not new and is not passed.
     /// The macOS app posts it automatically to the accounts chosen for that.
-    @ObservationIgnored
-    var onNewEntry: (@MainActor (MediaEntry) -> Void)?
+    @ObservationIgnored var onNewEntry: (@MainActor (MediaEntry) -> Void)?
 
     /// Creates a new clipboard monitor.
     ///
     /// Starts monitoring the clipboard when monitoring is enabled.
     ///
-    /// - Parameter historyManager: The history manager to use for storing conversions
-    init(historyManager: HistoryManager) {
+    /// - Parameters:
+    ///   - historyManager: The history manager to use for storing conversions.
+    ///   - copyToPasteboard: Optional result sink. By default, writes to the supplied pasteboard.
+    ///   - pasteboard: The general clipboard in production, or an isolated named board in tests.
+    ///   - streamingDefaults: Shared service choices, or a unique preference suite owned by a test.
+    ///   - resolveURL: The network conversion boundary. Tests supply fixture answers.
+    ///   - notifySuccess: The notification boundary. Tests isolate it from system notifications.
+    init(
+        historyManager: HistoryManager,
+        copyToPasteboard: (@MainActor (String) -> Void)? = nil,
+        pasteboard: SystemPasteboard = .general,
+        streamingDefaults: UserDefaults = DefaultsKey.shared,
+        resolveURL: @escaping @Sendable (String) async throws -> Conversion = { try await MusicCloudAPI.convert(url: $0) },
+        notifySuccess: @escaping @MainActor (MediaEntry) -> Void = { NotificationManager.notifySuccess(entry: $0) }
+    ) {
         self.historyManager = historyManager
-        if Self.isEnabled {
-            startMonitoring()
-        }
+        self.pasteboard = pasteboard
+        self.streamingDefaults = streamingDefaults
+        self.resolveURL = resolveURL
+        self.notifySuccess = notifySuccess
+        self.copyToPasteboard = copyToPasteboard ?? { Pasteboard.copy($0, to: pasteboard) }
+        if Self.isEnabled { startMonitoring() }
     }
 
     /// Whether clipboard monitoring is enabled (persisted in UserDefaults).
@@ -82,7 +112,10 @@ final class ClipboardMonitor {
     /// developer's clipboard is not converted into their history.
     static var isEnabled: Bool {
         get {
-            guard !SharedStoreConfiguration.isHostingTests else { return false }
+            guard !SharedStoreConfiguration.isHostingTests
+            else {
+                return false
+            }
             return UserDefaults.standard.object(forKey: DefaultsKey.clipboardMonitoringEnabled) as? Bool ?? true
         }
         set { UserDefaults.standard.set(newValue, forKey: DefaultsKey.clipboardMonitoringEnabled) }
@@ -143,6 +176,18 @@ extension ClipboardMonitor {
             return nil
         }
     }
+
+    /// Where a conversion was started.
+    ///
+    /// The iOS app opens its conversion sheet only for a URL it found on the
+    /// clipboard by itself. A link the user handed over through the paste
+    /// button, a drop or a `musiccloud://` link shows its result in place.
+    enum Origin: Equatable {
+        /// The clipboard check found the URL.
+        case clipboard
+        /// The user handed the URL over: the paste button, a dropped link or a `musiccloud://` link.
+        case request
+    }
 }
 
 // MARK: - Public API
@@ -154,16 +199,22 @@ extension ClipboardMonitor {
     /// dropped link and the `musiccloud://` link. One conversion runs at a
     /// time, because they all write the same ``status`` and the clipboard. A
     /// URL that is already in the history is answered from there instead of
-    /// asking the backend again.
+    /// asking the backend again. The canonical short link is checked again
+    /// after resolving, so an entry synced during the request is reused.
     ///
-    /// - Parameter url: A URL that passed ``StreamingServices/isStreamingURL(_:)``.
-    func convert(url: String) {
-        guard !status.isProcessing else { return }
+    /// - Parameters:
+    ///   - url: A URL that passed ``StreamingServices/isStreamingURL(_:defaults:)``.
+    ///   - origin: Where the URL came from; ``Origin/request`` unless the clipboard check found it.
+    func convert(url: String, origin: Origin = .request) {
+        guard !status.isProcessing
+        else {
+            return
+        }
+        self.origin = origin
+        conversionCount += 1
 
         if let existing = historyManager.entry(forOriginalUrl: url) {
-            Pasteboard.copy(existing.shortUrl)
-            lastSeenContent = existing.shortUrl
-            status = .success(shortUrl: existing.shortUrl, mediaType: existing.mediaType)
+            completeConversion(with: existing)
             AppLogger.clipboard.debug("already resolved → \(existing.shortUrl)")
             return
         }
@@ -186,6 +237,16 @@ extension ClipboardMonitor {
 // MARK: - Resolving
 
 private extension ClipboardMonitor {
+    /// Presents a result in monitor state and copies it to this monitor's pasteboard.
+    /// Both history hits and new conversions use this path; only the caller that
+    /// inserted a new entry emits notifications and new-entry callbacks.
+    /// - Parameter entry: The stored entry whose canonical URL is the conversion result.
+    func completeConversion(with entry: MediaEntry) {
+        copyToPasteboard(entry.shortUrl)
+        lastSeenContent = entry.shortUrl
+        status = .success(shortUrl: entry.shortUrl, mediaType: entry.mediaType)
+    }
+
     /// Resolves a streaming service URL to a musiccloud.io short link.
     ///
     /// Asks the backend, downloads the artwork, stores the entry in the
@@ -199,22 +260,26 @@ private extension ClipboardMonitor {
     /// - Parameter url: The streaming service URL to resolve
     func resolve(url: String) async {
         do {
-            let conversion = try await MusicCloudAPI.convert(url: url)
+            let conversion = try await resolveURL(url)
             try Task.checkCancellation()
 
-            let entry = conversion.makeEntry(originalUrl: url)
             let shortUrl = conversion.response.shortUrl
+            // A synced entry may arrive while the network request is pending.
+            // Reuse its canonical identity without another insert or notification.
+            if let existing = historyManager.entry(forShortUrl: shortUrl) {
+                completeConversion(with: existing)
+                return
+            }
+            let entry = conversion.makeEntry(originalUrl: url)
             historyManager.add(entry)
-            Pasteboard.copy(shortUrl)
-            lastSeenContent = shortUrl
-            status = .success(shortUrl: shortUrl, mediaType: entry.mediaType)
+            completeConversion(with: entry)
             #if os(iOS)
             HapticFeedback.success()
             #endif
-            NotificationManager.notifySuccess(entry: entry)
+            notifySuccess(entry)
             onNewEntry?(entry)
             AppLogger.clipboard.debug("resolve succeeded → \(shortUrl)")
-        } catch where Self.isCancellation(error) {
+        } catch  where Self.isCancellation(error) {
             status = .idle
             lastSeenContent = nil
             lastChangeCount = -1
@@ -237,11 +302,17 @@ extension ClipboardMonitor {
     /// The loop runs on the main actor, like everything that reads the
     /// pasteboard, and holds the monitor only weakly, so it ends with it.
     func startMonitoring() {
-        guard pollTask == nil else { return }
+        guard pollTask == nil
+        else {
+            return
+        }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self else { return }
-                self.checkClipboard()
+                guard let self
+                else {
+                    return
+                }
+                await self.checkClipboard()
                 try? await Task.sleep(for: Self.pollInterval)
             }
         }
@@ -258,50 +329,100 @@ extension ClipboardMonitor {
 
 // MARK: - Clipboard Checking
 
-private extension ClipboardMonitor {
+extension ClipboardMonitor {
     /// Checks the clipboard for new streaming service URLs.
     ///
     /// This method is called every ``pollInterval`` while monitoring. It:
-    /// 1. Reads the current clipboard content
-    /// 2. Compares it to the last seen content to avoid duplicates
+    /// 1. Checks change count and rejects remote-origin metadata without reading text
+    /// 2. Checks the remaining content against the last seen value
     /// 3. Checks if it's a streaming service URL using ``StreamingServices``
-    /// 4. Hands a new streaming URL to ``convert(url:)``
+    /// 4. Hands a new locally copied streaming URL to ``convert(url:origin:)``
     ///
     /// - Note: This method must be called from the main actor
-    func checkClipboard() {
+    func checkClipboard() async {
         // A URL copied while a conversion runs is picked up afterwards: the
         // change count is only consumed once nothing is converting.
-        guard !status.isProcessing else { return }
-
+        guard !status.isProcessing
+        else {
+            return
+        }
         // The change count is read without touching the content, so the
         // clipboard is only read after it changed. On iOS that also keeps the
         // paste banner from appearing once a second.
-        #if os(iOS)
-        let currentCount = UIPasteboard.general.changeCount
-        #else
-        let currentCount = NSPasteboard.general.changeCount
-        #endif
-        guard currentCount != lastChangeCount else { return }
+        let currentCount = pasteboard.changeCount
+        guard currentCount != lastChangeCount
+        else {
+            return
+        }
         lastChangeCount = currentCount
-
+        // Only the change count and the type identifiers are logged here.
+        // Whatever was copied stays out of the log unless it is a streaming
+        // URL: it can be a password, a message or anything else in hand.
+        let log = AppLogger.clipboard
+        // Continuous monitoring handles local copies only. Inspect origin metadata
+        // before pattern detection or text access can start processing another device's item.
+        guard !Pasteboard.isRemote(pasteboard)
+        else {
+            log.info("skipped: clipboard received from another device")
+            return
+        }
         #if os(iOS)
-        guard UIPasteboard.general.hasURLs else { return }
+        log.info(
+            "change \(currentCount), hasURLs \(self.pasteboard.hasURLs), hasStrings \(self.pasteboard.hasStrings), types \(self.pasteboard.types.joined(separator: ", "), privacy: .public)"
+        )
+        // `hasURLs` only sees a `public.url` item, so a link copied as text,
+        // such as from Notes, would pass unseen. Pattern detection finds a
+        // link in text as well and, unlike reading the string, raises no
+        // paste prompt; the prompt comes only for a clipboard that holds one.
+        let patterns = (try? await pasteboard.detectedPatterns(for: [\UIPasteboard.DetectedValues.probableWebURL])) ?? []
+        guard patterns.contains(\UIPasteboard.DetectedValues.probableWebURL)
+        else {
+            log.info("skipped: no web URL on the clipboard")
+            return
+        }
+        // Detection yields. A new conversion or clipboard item invalidates its answer.
+        guard
+            !status.isProcessing,
+            currentCount == pasteboard.changeCount,
+            !Pasteboard.isRemote(pasteboard)
+        else {
+            return
+        }
         #else
-        guard !Self.holdsConcealedContent(NSPasteboard.general) else { return }
+        log.info("change \(currentCount), types \((self.pasteboard.types ?? []).map(\.rawValue).joined(separator: ", "), privacy: .public)")
+        guard !Self.holdsConcealedContent(pasteboard)
+        else {
+            log.info("skipped: concealed content")
+            return
+        }
         #endif
-
-        guard let raw = Pasteboard.string else { return }
+        guard let raw = Pasteboard.string(from: pasteboard)
+        else {
+            log.info("skipped: no string on the clipboard")
+            return
+        }
         let content = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return }
-        guard content != lastSeenContent else { return }
-
+        guard !content.isEmpty
+        else {
+            log.info("skipped: empty string")
+            return
+        }
+        guard content != lastSeenContent
+        else {
+            log.info("skipped: same content as last time")
+            return
+        }
+        guard StreamingServices.isStreamingURL(content, defaults: streamingDefaults)
+        else {
+            log.info("skipped: not a streaming URL")
+            return
+        }
         lastSeenContent = content
-        // Whatever else was copied stays out of the log: it can be a
-        // password, a message or anything else the user had in hand.
-        guard StreamingServices.isStreamingURL(content) else { return }
-        AppLogger.clipboard.debug("clipboard holds a streaming URL")
+        log.info(
+            "clipboard holds a streaming URL: \(content, privacy: .public), status \(String(describing: self.status), privacy: .public)"
+        )
 
-        convert(url: content)
+        convert(url: content, origin: .clipboard)
     }
 }
 
@@ -315,8 +436,7 @@ extension ClipboardMonitor {
     /// types from nspasteboard.org, so clipboard tools leave them alone.
     static func holdsConcealedContent(_ pasteboard: NSPasteboard) -> Bool {
         let privateTypes: Set<NSPasteboard.PasteboardType> = [
-            NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"),
-            NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
+            NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"), NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
             NSPasteboard.PasteboardType("org.nspasteboard.AutoGeneratedType"),
         ]
         return pasteboard.types?.contains(where: privateTypes.contains) == true

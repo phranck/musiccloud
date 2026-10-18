@@ -39,13 +39,8 @@ struct HeaderRow: View {
             Spacer()
             LogoText(isAnimating: status.isProcessing)
             Spacer()
-            Circle()
-                .fill(indicatorColor)
-                .frame(width: 8, height: 8)
-                .accessibilityLabel(indicatorLabel)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+            Circle().fill(indicatorColor).frame(width: 8, height: 8).accessibilityLabel(indicatorLabel)
+        }.padding(.horizontal, 16).padding(.vertical, 12)
     }
 }
 
@@ -54,36 +49,30 @@ struct HeaderRow: View {
 private extension HeaderRow {
     var indicatorColor: Color {
         switch status {
-        case .idle:       .green
+        case .idle: .green
         case .processing: .yellow
-        case .success:    .green
-        case .error:      .red
+        case .success: .green
+        case .error: .red
         }
     }
 
     /// What the status circle means, read by VoiceOver in the user's language.
     var indicatorLabel: String {
         switch status {
-        case .idle:       String(localized: "Monitoring active", comment: "Accessibility label of the status circle: the clipboard is watched")
+        case .idle: String(localized: "Monitoring active", comment: "Accessibility label of the status circle: the clipboard is watched")
         case .processing: String(localized: "Processing", comment: "Accessibility label of the status circle: a link is being converted")
-        case .success:    String(localized: "Success", comment: "Accessibility label of the status circle: the last conversion succeeded")
-        case .error:      String(localized: "Error", comment: "Accessibility label of the status circle: the last conversion failed")
+        case .success: String(localized: "Success", comment: "Accessibility label of the status circle: the last conversion succeeded")
+        case .error: String(localized: "Error", comment: "Accessibility label of the status circle: the last conversion failed")
         }
     }
 }
 
 // MARK: - Previews
 
-#Preview("Idle") {
-    HeaderRow(status: .idle)
-}
+#Preview("Idle") { HeaderRow(status: .idle) }
 
-#Preview("Processing") {
-    HeaderRow(status: .processing(url: "https://open.spotify.com/track/..."))
-}
+#Preview("Processing") { HeaderRow(status: .processing(url: "https://open.spotify.com/track/...")) }
 
-#Preview("Error") {
-    HeaderRow(status: .error(.networkError))
-}
+#Preview("Error") { HeaderRow(status: .error(.networkError)) }
 
 #endif

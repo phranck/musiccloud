@@ -62,12 +62,22 @@
 		FD05A10C2F83900100000001 /* ContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10B2F83900100000001 /* ContentType.swift */; };
 		FD05A10E2F83900100000002 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10D2F83900100000002 /* APIError.swift */; };
 		FD05A1102F83900100000003 /* ResolveError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A10F2F83900100000003 /* ResolveError.swift */; };
+		FD094D7930838BC000D317E2 /* StreamingServicesPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD094D7830838BC000D317E2 /* StreamingServicesPane.swift */; };
+		FD094D7B30838BCA00D317E2 /* StreamingServicesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD094D7A30838BCA00D317E2 /* StreamingServicesSettingsView.swift */; };
 		FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */; };
 		FD0C899A2F81B1FD00AE61FB /* RainbowPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */; };
 		FD0C899C2F81B50F00AE61FB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */; };
 		FD1437752F81964000A5B46D /* ShareButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD1437742F81964000A5B46D /* ShareButton.swift */; };
+		FD204B3E3084D1360044C00E /* IOSSettingsNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B3D3084D1360044C00E /* IOSSettingsNavigation.swift */; };
+		FD204B403084D1360044C00E /* IOSSettingsNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B3F3084D1360044C00E /* IOSSettingsNavigationTests.swift */; };
+		FD204B423084D1CA0044C00E /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B413084D1CA0044C00E /* GeneralSettingsView.swift */; };
+		FD204B443084D1CA0044C00E /* AboutSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B433084D1CA0044C00E /* AboutSettingsView.swift */; };
+		FD204B463084D1CA0044C00E /* DataManagementSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B453084D1CA0044C00E /* DataManagementSettingsView.swift */; };
+		FD204B483084D1CA0044C00E /* DiagnosticsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD204B473084D1CA0044C00E /* DiagnosticsSettingsView.swift */; };
 		FD2197D22F80996F00F4AD7D /* DashboardItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2197D12F80996F00F4AD7D /* DashboardItem.swift */; };
 		FD2748DF34499A932431649A /* PanelSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD70F1B3AEE2E43BDEE0DC9D /* PanelSection.swift */; };
+		FD3BDBC130846A7900A4F443 /* SettingsSidebarPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD3BDBC030846A7900A4F443 /* SettingsSidebarPersistence.swift */; };
+		FD3BDBC330846A7900A4F443 /* SettingsSidebarPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD3BDBC230846A7900A4F443 /* SettingsSidebarPersistenceTests.swift */; };
 		FD4CFB8E2F8075F2006135A6 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */; };
 		FD8BCE6F2F85225D00EC883B /* sound3.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE652F85225D00EC883B /* sound3.mp3 */; };
 		FD8BCE702F85225D00EC883B /* sound9.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6B2F85225D00EC883B /* sound9.mp3 */; };
@@ -97,7 +107,6 @@
 		FDB80011307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8000F307FBCBC00AC2DA7 /* AppAccessClient.swift */; };
 		FDB80013307FBCDB00AC2DA7 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80012307FBCDB00AC2DA7 /* AppSession.swift */; };
 		FDB80014307FBCDB00AC2DA7 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80012307FBCDB00AC2DA7 /* AppSession.swift */; };
-		FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80016307FBED400AC2DA7 /* GratConfig.swift */; };
 		FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */; };
 		FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
 		FDB8001C307FC93900AC2DA7 /* NativeAppLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */; };
@@ -195,6 +204,28 @@
 		FDB800C7308160A900AC2DA7 /* Nasalization Rg.otf in Resources */ = {isa = PBXBuildFile; fileRef = FDDC7E2E2F80622F005D779F /* Nasalization Rg.otf */; };
 		FDB800C930817C4600AC2DA7 /* NightSky.metal in Sources */ = {isa = PBXBuildFile; fileRef = FDB800C830817C4600AC2DA7 /* NightSky.metal */; };
 		FDB800CB30817C6400AC2DA7 /* NightSkyBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CA30817C6400AC2DA7 /* NightSkyBackground.swift */; };
+		FDB800CD3081A35600AC2DA7 /* SkyTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CC3081A35600AC2DA7 /* SkyTokens.swift */; };
+		FDB800CF3081A3DA00AC2DA7 /* SkyTokensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */; };
+		FDB800D13082687B00AC2DA7 /* AboutItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D03082687B00AC2DA7 /* AboutItem.swift */; };
+		FDB800D23082898E00AC2DA7 /* ShareResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800B03081575F00AC2DA7 /* ShareResultView.swift */; };
+		FDB800D430828AB900AC2DA7 /* ConversionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */; };
+		FDB800D5308298B100AC2DA7 /* ConversionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */; };
+		FDB800D73082A7B100AC2DA7 /* PlainTextItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */; };
+		FDB800D83082A7B100AC2DA7 /* PlainTextItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */; };
+		FDB800DB3082A7D100AC2DA7 /* PlainTextItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */; };
+		FDB800DD3082AD6800AC2DA7 /* DefaultsKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */; };
+		FDB800DE3082ADB500AC2DA7 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC3A8E2F81BE7700FB68D9 /* NotificationManager.swift */; };
+		FDB800DF3082ADC800AC2DA7 /* sound6.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE682F85225D00EC883B /* sound6.mp3 */; };
+		FDB800E03082ADC800AC2DA7 /* sound10.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6C2F85225D00EC883B /* sound10.mp3 */; };
+		FDB800E13082ADC800AC2DA7 /* sound11.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6D2F85225D00EC883B /* sound11.mp3 */; };
+		FDB800E23082ADC800AC2DA7 /* sound7.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE692F85225D00EC883B /* sound7.mp3 */; };
+		FDB800E33082ADC800AC2DA7 /* sound9.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6B2F85225D00EC883B /* sound9.mp3 */; };
+		FDB800E43082ADC800AC2DA7 /* sound3.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE652F85225D00EC883B /* sound3.mp3 */; };
+		FDB800E53082ADC800AC2DA7 /* sound5.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE672F85225D00EC883B /* sound5.mp3 */; };
+		FDB800E63082ADC800AC2DA7 /* sound8.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE6A2F85225D00EC883B /* sound8.mp3 */; };
+		FDB800E73082ADC800AC2DA7 /* sound4.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE662F85225D00EC883B /* sound4.mp3 */; };
+		FDB800E83082ADC800AC2DA7 /* sound1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE632F85225D00EC883B /* sound1.mp3 */; };
+		FDB800E93082ADC800AC2DA7 /* sound2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD8BCE642F85225D00EC883B /* sound2.mp3 */; };
 		FDD516232F817EB50043E187 /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516222F817EB50043E187 /* TrackInfo.swift */; };
 		FDD516252F817ECE0043E187 /* AlbumInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516242F817ECE0043E187 /* AlbumInfo.swift */; };
 		FDD516272F817EDF0043E187 /* ArtistInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD516262F817EDF0043E187 /* ArtistInfo.swift */; };
@@ -207,6 +238,8 @@
 		FDDC7E2D2F805F1A005D779F /* QuitItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E2C2F805F1A005D779F /* QuitItem.swift */; };
 		FDDC7E2F2F80622F005D779F /* Nasalization Rg.otf in Resources */ = {isa = PBXBuildFile; fileRef = FDDC7E2E2F80622F005D779F /* Nasalization Rg.otf */; };
 		FDDC7E312F806452005D779F /* LogoText.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC7E302F806452005D779F /* LogoText.swift */; };
+		FDE7DE1E308439E500182B5A /* StreamingServicesForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE7DE1D308439E500182B5A /* StreamingServicesForm.swift */; };
+		FDE7DE1F308439E500182B5A /* StreamingServicesForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE7DE1D308439E500182B5A /* StreamingServicesForm.swift */; };
 		FDF0E9572F81C6D8004DEFCE /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF0E9522F81C6D8004DEFCE /* AboutView.swift */; };
 		FDF0E9582F81C6D8004DEFCE /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF0E9552F81C6D8004DEFCE /* SettingsView.swift */; };
 		FDF0E9592F81C6D8004DEFCE /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDF0E9532F81C6D8004DEFCE /* DashboardView.swift */; };
@@ -316,11 +349,21 @@
 		FD05A10B2F83900100000001 /* ContentType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentType.swift; sourceTree = "<group>"; };
 		FD05A10D2F83900100000002 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
 		FD05A10F2F83900100000003 /* ResolveError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveError.swift; sourceTree = "<group>"; };
+		FD094D7830838BC000D317E2 /* StreamingServicesPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServicesPane.swift; sourceTree = "<group>"; };
+		FD094D7A30838BCA00D317E2 /* StreamingServicesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServicesSettingsView.swift; sourceTree = "<group>"; };
 		FD0C89972F81B1DB00AE61FB /* MenuBarIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIcon.swift; sourceTree = "<group>"; };
 		FD0C89992F81B1FD00AE61FB /* RainbowPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RainbowPalette.swift; sourceTree = "<group>"; };
 		FD0C899B2F81B50F00AE61FB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FD1437742F81964000A5B46D /* ShareButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareButton.swift; sourceTree = "<group>"; };
+		FD204B3D3084D1360044C00E /* IOSSettingsNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSettingsNavigation.swift; sourceTree = "<group>"; };
+		FD204B3F3084D1360044C00E /* IOSSettingsNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSSettingsNavigationTests.swift; sourceTree = "<group>"; };
+		FD204B413084D1CA0044C00E /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
+		FD204B433084D1CA0044C00E /* AboutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSettingsView.swift; sourceTree = "<group>"; };
+		FD204B453084D1CA0044C00E /* DataManagementSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManagementSettingsView.swift; sourceTree = "<group>"; };
+		FD204B473084D1CA0044C00E /* DiagnosticsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsSettingsView.swift; sourceTree = "<group>"; };
 		FD2197D12F80996F00F4AD7D /* DashboardItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardItem.swift; sourceTree = "<group>"; };
+		FD3BDBC030846A7900A4F443 /* SettingsSidebarPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSidebarPersistence.swift; sourceTree = "<group>"; };
+		FD3BDBC230846A7900A4F443 /* SettingsSidebarPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSidebarPersistenceTests.swift; sourceTree = "<group>"; };
 		FD4CFB8D2F8075F2006135A6 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
 		FD70F1B3AEE2E43BDEE0DC9D /* PanelSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelSection.swift; sourceTree = "<group>"; };
 		FD8BCE632F85225D00EC883B /* sound1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = sound1.mp3; sourceTree = "<group>"; };
@@ -348,7 +391,6 @@
 		FDB8000C307FBC9000AC2DA7 /* AppSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionStore.swift; sourceTree = "<group>"; };
 		FDB8000F307FBCBC00AC2DA7 /* AppAccessClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessClient.swift; sourceTree = "<group>"; };
 		FDB80012307FBCDB00AC2DA7 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
-		FDB80016307FBED400AC2DA7 /* GratConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GratConfig.swift; sourceTree = "<group>"; };
 		FDB80018307FBEEC00AC2DA7 /* AppAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessTests.swift; sourceTree = "<group>"; };
 		FDB8001A307FC93900AC2DA7 /* NativeAppLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLink.swift; sourceTree = "<group>"; };
 		FDB8001D307FC94700AC2DA7 /* NativeAppLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppLinkTests.swift; sourceTree = "<group>"; };
@@ -410,6 +452,13 @@
 		FDB800B03081575F00AC2DA7 /* ShareResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareResultView.swift; sourceTree = "<group>"; };
 		FDB800C830817C4600AC2DA7 /* NightSky.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = NightSky.metal; sourceTree = "<group>"; };
 		FDB800CA30817C6400AC2DA7 /* NightSkyBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightSkyBackground.swift; sourceTree = "<group>"; };
+		FDB800CC3081A35600AC2DA7 /* SkyTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTokens.swift; sourceTree = "<group>"; };
+		FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTokensTests.swift; sourceTree = "<group>"; };
+		FDB800D03082687B00AC2DA7 /* AboutItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutItem.swift; sourceTree = "<group>"; };
+		FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversionSheet.swift; sourceTree = "<group>"; };
+		FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainTextItem.swift; sourceTree = "<group>"; };
+		FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainTextItemTests.swift; sourceTree = "<group>"; };
+		FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultsKeyTests.swift; sourceTree = "<group>"; };
 		FDD516222F817EB50043E187 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		FDD516242F817ECE0043E187 /* AlbumInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumInfo.swift; sourceTree = "<group>"; };
 		FDD516262F817EDF0043E187 /* ArtistInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistInfo.swift; sourceTree = "<group>"; };
@@ -422,6 +471,7 @@
 		FDDC7E2C2F805F1A005D779F /* QuitItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuitItem.swift; sourceTree = "<group>"; };
 		FDDC7E2E2F80622F005D779F /* Nasalization Rg.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nasalization Rg.otf"; sourceTree = "<group>"; };
 		FDDC7E302F806452005D779F /* LogoText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogoText.swift; sourceTree = "<group>"; };
+		FDE7DE1D308439E500182B5A /* StreamingServicesForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServicesForm.swift; sourceTree = "<group>"; };
 		FDF0E9522F81C6D8004DEFCE /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		FDF0E9532F81C6D8004DEFCE /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		FDF0E9542F81C6D8004DEFCE /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
@@ -578,6 +628,9 @@
 				FF00000000000016 /* EntryActionsModifier.swift */,
 				DC0000000000003F0 /* ConversionFilterModifier.swift */,
 				FDB800833080E9D500AC2DA7 /* SocialAccountLabel.swift */,
+				FDB800B03081575F00AC2DA7 /* ShareResultView.swift */,
+				FDB800D330828AB900AC2DA7 /* ConversionSheet.swift */,
+				FDE7DE1D308439E500182B5A /* StreamingServicesForm.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -619,6 +672,7 @@
 				FF00000000000014 /* SharedStoreConfiguration.swift */,
 				FDB8004F30802E5500AC2DA7 /* KeychainItems.swift */,
 				FDB8005230802E8800AC2DA7 /* JSONFile.swift */,
+				FDB800D63082A7B100AC2DA7 /* PlainTextItem.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -662,6 +716,7 @@
 				FD70F1B3AEE2E43BDEE0DC9D /* PanelSection.swift */,
 				FDB800C830817C4600AC2DA7 /* NightSky.metal */,
 				FDB800CA30817C6400AC2DA7 /* NightSkyBackground.swift */,
+				FDB800CC3081A35600AC2DA7 /* SkyTokens.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -687,6 +742,7 @@
 				3D07C91D3461C5C97C2F4AC0 /* MenuBarView.swift */,
 				FDDC7E2C2F805F1A005D779F /* QuitItem.swift */,
 				FDA7B3012F84200100000001 /* SettingsItem.swift */,
+				FDB800D03082687B00AC2DA7 /* AboutItem.swift */,
 			);
 			path = Panel;
 			sourceTree = "<group>";
@@ -702,6 +758,8 @@
 				FDB80009307F9E7A00AC2DA7 /* HistoryPane.swift */,
 				FDB80036307FE6D400AC2DA7 /* TemplatesPane.swift */,
 				FDB8006230802F4200AC2DA7 /* SocialMediaPane.swift */,
+				FD094D7830838BC000D317E2 /* StreamingServicesPane.swift */,
+				FD3BDBC030846A7900A4F443 /* SettingsSidebarPersistence.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -748,6 +806,12 @@
 			children = (
 				DD00000000000014 /* iOSSettingsView.swift */,
 				FDB800A730814E7C00AC2DA7 /* SocialMediaSettingsView.swift */,
+				FD094D7A30838BCA00D317E2 /* StreamingServicesSettingsView.swift */,
+				FD204B3D3084D1360044C00E /* IOSSettingsNavigation.swift */,
+				FD204B413084D1CA0044C00E /* GeneralSettingsView.swift */,
+				FD204B433084D1CA0044C00E /* AboutSettingsView.swift */,
+				FD204B453084D1CA0044C00E /* DataManagementSettingsView.swift */,
+				FD204B473084D1CA0044C00E /* DiagnosticsSettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -768,9 +832,9 @@
 				BB00000000000024 /* Intents */,
 				BB00000000000022 /* Managers */,
 				BB00000000000023 /* Models */,
-				FDB80015307FBED400AC2DA7 /* Support */,
 				FDB8002C307FDE4800AC2DA7 /* Posting */,
 				FDB8006430802F7B00AC2DA7 /* Social */,
+				FDB800D93082A7D100AC2DA7 /* Utils */,
 			);
 			path = musiccloudTests;
 			sourceTree = "<group>";
@@ -799,6 +863,7 @@
 			isa = PBXGroup;
 			children = (
 				BB00000000000014 /* MediaEntryTests.swift */,
+				FDB800CE3081A3DA00AC2DA7 /* SkyTokensTests.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -817,7 +882,6 @@
 				CC00000000000001 /* ShareViewController.swift */,
 				CC00000000000002 /* Info.plist */,
 				CC00000000000003 /* ShareExtension.entitlements */,
-				FDB800B03081575F00AC2DA7 /* ShareResultView.swift */,
 			);
 			path = ShareExtension;
 			sourceTree = "<group>";
@@ -868,14 +932,6 @@
 				FDB80012307FBCDB00AC2DA7 /* AppSession.swift */,
 			);
 			path = AppAccess;
-			sourceTree = "<group>";
-		};
-		FDB80015307FBED400AC2DA7 /* Support */ = {
-			isa = PBXGroup;
-			children = (
-				FDB80016307FBED400AC2DA7 /* GratConfig.swift */,
-			);
-			path = Support;
 			sourceTree = "<group>";
 		};
 		FDB8001F307FDA5900AC2DA7 /* Posting */ = {
@@ -965,6 +1021,17 @@
 				FDB800893080EA2E00AC2DA7 /* PostComposerView.swift */,
 			);
 			path = Composer;
+			sourceTree = "<group>";
+		};
+		FDB800D93082A7D100AC2DA7 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				FDB800DA3082A7D100AC2DA7 /* PlainTextItemTests.swift */,
+				FDB800DC3082AD6800AC2DA7 /* DefaultsKeyTests.swift */,
+				FD3BDBC230846A7900A4F443 /* SettingsSidebarPersistenceTests.swift */,
+				FD204B3F3084D1360044C00E /* IOSSettingsNavigationTests.swift */,
+			);
+			path = Utils;
 			sourceTree = "<group>";
 		};
 		FDDC7E1C2F805B3C005D779F /* Supporting Files */ = {
@@ -1110,6 +1177,17 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FDB800DF3082ADC800AC2DA7 /* sound6.mp3 in Resources */,
+				FDB800E03082ADC800AC2DA7 /* sound10.mp3 in Resources */,
+				FDB800E13082ADC800AC2DA7 /* sound11.mp3 in Resources */,
+				FDB800E23082ADC800AC2DA7 /* sound7.mp3 in Resources */,
+				FDB800E33082ADC800AC2DA7 /* sound9.mp3 in Resources */,
+				FDB800E43082ADC800AC2DA7 /* sound3.mp3 in Resources */,
+				FDB800E53082ADC800AC2DA7 /* sound5.mp3 in Resources */,
+				FDB800E63082ADC800AC2DA7 /* sound8.mp3 in Resources */,
+				FDB800E73082ADC800AC2DA7 /* sound4.mp3 in Resources */,
+				FDB800E83082ADC800AC2DA7 /* sound1.mp3 in Resources */,
+				FDB800E93082ADC800AC2DA7 /* sound2.mp3 in Resources */,
 				FDB800C7308160A900AC2DA7 /* Nasalization Rg.otf in Resources */,
 				DC000000000000000000A001 /* Localizable.xcstrings in Resources */,
 			);
@@ -1184,12 +1262,16 @@
 				FD97C3842F80948700E8D788 /* ArtistItem.swift in Sources */,
 				170DCCFF835C9EB8AE1CD81F /* MenuBarView.swift in Sources */,
 				FDB80043307FFC0D00AC2DA7 /* TemplateCompletion.swift in Sources */,
+				FDB800D13082687B00AC2DA7 /* AboutItem.swift in Sources */,
 				FDB80048307FFC3900AC2DA7 /* LineNumberRulerView.swift in Sources */,
 				FD1437752F81964000A5B46D /* ShareButton.swift in Sources */,
 				FD0C89982F81B1DB00AE61FB /* MenuBarIcon.swift in Sources */,
 				FDB800CB30817C6400AC2DA7 /* NightSkyBackground.swift in Sources */,
+				FDB800D83082A7B100AC2DA7 /* PlainTextItem.swift in Sources */,
 				FDB8000A307F9E7A00AC2DA7 /* HistoryPane.swift in Sources */,
 				FDB8006030802F0800AC2DA7 /* MastodonConnector.swift in Sources */,
+				FD204B3E3084D1360044C00E /* IOSSettingsNavigation.swift in Sources */,
+				FDB800D430828AB900AC2DA7 /* ConversionSheet.swift in Sources */,
 				FD05A10C2F83900100000001 /* ContentType.swift in Sources */,
 				FD05A10E2F83900100000002 /* APIError.swift in Sources */,
 				FD05A1102F83900100000003 /* ResolveError.swift in Sources */,
@@ -1210,13 +1292,18 @@
 				8B76C213DB85A0116DCD1056 /* MusicCloudAPI.swift in Sources */,
 				FDF0E9572F81C6D8004DEFCE /* AboutView.swift in Sources */,
 				FDF0E9582F81C6D8004DEFCE /* SettingsView.swift in Sources */,
+				FD3BDBC130846A7900A4F443 /* SettingsSidebarPersistence.swift in Sources */,
+				FD094D7B30838BCA00D317E2 /* StreamingServicesSettingsView.swift in Sources */,
 				FDF0E9592F81C6D8004DEFCE /* DashboardView.swift in Sources */,
 				FDB8000E307FBC9000AC2DA7 /* AppSessionStore.swift in Sources */,
 				FDF0E95A2F81C6D8004DEFCE /* HistoryView.swift in Sources */,
 				FDB8003A307FF00900AC2DA7 /* PostTemplateIcon.swift in Sources */,
 				FDDC7E2B2F805F03005D779F /* MediaRow.swift in Sources */,
+				FD204B423084D1CA0044C00E /* GeneralSettingsView.swift in Sources */,
 				FDB8003E307FF05400AC2DA7 /* NSImage+MenuIcon.swift in Sources */,
+				FDB800CD3081A35600AC2DA7 /* SkyTokens.swift in Sources */,
 				FDB80004307F9E6F00AC2DA7 /* SettingsSidebar.swift in Sources */,
+				FD204B483084D1CA0044C00E /* DiagnosticsSettingsView.swift in Sources */,
 				FDB80037307FE6D400AC2DA7 /* TemplatesPane.swift in Sources */,
 				FD2748DF34499A932431649A /* PanelSection.swift in Sources */,
 				FDB8007D3080E90700AC2DA7 /* MarkdownSyntax.swift in Sources */,
@@ -1224,7 +1311,9 @@
 				FDF8735C2F7EEDE600D05057 /* HistoryManager.swift in Sources */,
 				FDB8005830802EBE00AC2DA7 /* MastodonAPI.swift in Sources */,
 				DA05592DC35D842081D71462 /* NSView+Extensions.swift in Sources */,
+				FDB800D23082898E00AC2DA7 /* ShareResultView.swift in Sources */,
 				7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */,
+				FDE7DE1F308439E500182B5A /* StreamingServicesForm.swift in Sources */,
 				FDB80008307F9E7800AC2DA7 /* NotificationsPane.swift in Sources */,
 				AA00000000000060 /* CachedAsyncImage.swift in Sources */,
 				FD97C3862F80949C00E8D788 /* MediaArtwork.swift in Sources */,
@@ -1256,6 +1345,7 @@
 				FDB8007030803A4400AC2DA7 /* BlueskyAPI.swift in Sources */,
 				FDB80041307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift in Sources */,
 				DD00000000000002 /* PasteCTAView.swift in Sources */,
+				FD204B443084D1CA0044C00E /* AboutSettingsView.swift in Sources */,
 				DD00000000000003 /* iOSHistoryView.swift in Sources */,
 				DD00000000000004 /* iOSSettingsView.swift in Sources */,
 				DD00000000000005 /* ResultCardView.swift in Sources */,
@@ -1277,8 +1367,10 @@
 				FDB80021307FDA6100AC2DA7 /* PostTemplate.swift in Sources */,
 				DC0000000000003B1 /* ConversionFilterModifier.swift in Sources */,
 				AA00000000000070 /* HapticFeedback.swift in Sources */,
+				FD094D7930838BC000D317E2 /* StreamingServicesPane.swift in Sources */,
 				FF00000000000004 /* SharedStoreConfiguration.swift in Sources */,
 				FDB800A630814E2700AC2DA7 /* ConnectAccountModel.swift in Sources */,
+				FD204B463084D1CA0044C00E /* DataManagementSettingsView.swift in Sources */,
 				EF00000000000101 /* BuildChannel.swift in Sources */,
 				DC0000000000002B1 /* Pasteboard.swift in Sources */,
 				DC0000000000000B1 /* DefaultsKey.swift in Sources */,
@@ -1297,9 +1389,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FDB800DB3082A7D100AC2DA7 /* PlainTextItemTests.swift in Sources */,
 				BB00000000000001 /* StreamingServicesTests.swift in Sources */,
 				FDB800A03081276400AC2DA7 /* LinkCardTests.swift in Sources */,
 				FDB80046307FFC1700AC2DA7 /* TemplateEditingTests.swift in Sources */,
+				FDB800DD3082AD6800AC2DA7 /* DefaultsKeyTests.swift in Sources */,
 				FDB8002E307FDE4800AC2DA7 /* PostTemplateTests.swift in Sources */,
 				BB00000000000002 /* MusicCloudAPITests.swift in Sources */,
 				FDB800933080F19900AC2DA7 /* AutoPostTests.swift in Sources */,
@@ -1307,14 +1401,16 @@
 				DC0000000000001B1 /* TelemetryClientTests.swift in Sources */,
 				BB00000000000003 /* ClipboardMonitorTests.swift in Sources */,
 				FDB8006630802F7B00AC2DA7 /* MastodonTests.swift in Sources */,
+				FD204B403084D1360044C00E /* IOSSettingsNavigationTests.swift in Sources */,
 				FDB800AA30814E9B00AC2DA7 /* ConnectAccountTests.swift in Sources */,
 				FDB8009C3081068000AC2DA7 /* TemplatePostLimitTests.swift in Sources */,
 				BB00000000000004 /* MediaEntryTests.swift in Sources */,
 				FDB80019307FBEEC00AC2DA7 /* AppAccessTests.swift in Sources */,
 				FDB8001E307FC94700AC2DA7 /* NativeAppLinkTests.swift in Sources */,
+				FD3BDBC330846A7900A4F443 /* SettingsSidebarPersistenceTests.swift in Sources */,
 				FDB8009A3080FE7600AC2DA7 /* MarkdownShortcutTests.swift in Sources */,
-				FDB80017307FBED400AC2DA7 /* GratConfig.swift in Sources */,
 				FDB800953080FCDF00AC2DA7 /* ArtistHashtagTests.swift in Sources */,
+				FDB800CF3081A3DA00AC2DA7 /* SkyTokensTests.swift in Sources */,
 				BB00000000000005 /* ConvertStreamingURLIntentTests.swift in Sources */,
 				FDB8007A308042C200AC2DA7 /* BlueskyTests.swift in Sources */,
 			);
@@ -1346,6 +1442,7 @@
 				FDB80040307FFBFC00AC2DA7 /* TemplateSyntaxHighlighter.swift in Sources */,
 				FDB800873080EA1C00AC2DA7 /* PostComposerModel.swift in Sources */,
 				FDB80044307FFC0D00AC2DA7 /* TemplateCompletion.swift in Sources */,
+				FDB800D73082A7B100AC2DA7 /* PlainTextItem.swift in Sources */,
 				FF0000000000010B /* APIError.swift in Sources */,
 				FDB800B230815AED00AC2DA7 /* WebSignIn.swift in Sources */,
 				FDB800B330815AED00AC2DA7 /* OpenGraph.swift in Sources */,
@@ -1355,8 +1452,10 @@
 				FDB800B630815AED00AC2DA7 /* SocialConnections.swift in Sources */,
 				FDB800B730815AED00AC2DA7 /* SocialService.swift in Sources */,
 				FDB800B830815AED00AC2DA7 /* SocialServiceError.swift in Sources */,
+				FDB800DE3082ADB500AC2DA7 /* NotificationManager.swift in Sources */,
 				FDB800B930815AED00AC2DA7 /* MastodonConnector.swift in Sources */,
 				FDB800BA30815AED00AC2DA7 /* OAuthSupport.swift in Sources */,
+				FDB800D5308298B100AC2DA7 /* ConversionSheet.swift in Sources */,
 				FDB800BB30815AED00AC2DA7 /* DPoPKey.swift in Sources */,
 				FDB800BC30815AED00AC2DA7 /* SocialAccount.swift in Sources */,
 				FDB800BD30815AED00AC2DA7 /* SocialAccountStore.swift in Sources */,
@@ -1373,6 +1472,7 @@
 				DC0000000000002B2 /* Pasteboard.swift in Sources */,
 				DC0000000000000B2 /* DefaultsKey.swift in Sources */,
 				FDB80010307FBCBC00AC2DA7 /* AppAccessClient.swift in Sources */,
+				FDE7DE1E308439E500182B5A /* StreamingServicesForm.swift in Sources */,
 				EF00000000000202 /* TelemetryEvent.swift in Sources */,
 				FDB80027307FDA7000AC2DA7 /* PostTemplateRenderer.swift in Sources */,
 				FDB8001B307FC93900AC2DA7 /* NativeAppLink.swift in Sources */,
@@ -1479,7 +1579,7 @@
 				AUTOMATION_APPLE_EVENTS = NO;
 				CODE_SIGN_ENTITLEMENTS = "App/Supporting Files/musiccloud.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2653;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
@@ -1491,13 +1591,13 @@
 				INFOPLIST_FILE = "App/Supporting Files/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = musiccloud;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.6;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1522,13 +1622,13 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "Apple Development";
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2653;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.6;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -1546,13 +1646,13 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "Apple Development";
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2653;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.6;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloudTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -1570,18 +1670,18 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2653;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1597,18 +1697,18 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2653;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 2Z5E3BGZR8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1699,7 +1799,7 @@
 				AUTOMATION_APPLE_EVENTS = NO;
 				CODE_SIGN_ENTITLEMENTS = "App/Supporting Files/musiccloud.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2653;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
@@ -1711,13 +1811,13 @@
 				INFOPLIST_FILE = "App/Supporting Files/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = musiccloud;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.6;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.musiccloud.musiccloud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

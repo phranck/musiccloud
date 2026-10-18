@@ -14,23 +14,13 @@ struct ResultCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Converted!", systemImage: "checkmark.circle.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.green)
+            Label("Converted!", systemImage: "checkmark.circle.fill").font(.subheadline.weight(.semibold)).foregroundStyle(.green)
             HStack(spacing: 12) {
                 MediaArtwork(entry: entry)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.contentType.title)
-                        .font(.body.weight(.medium))
-                        .lineLimit(1)
-                    Text(entry.contentType.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Text(entry.shortUrl)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+                    Text(entry.contentType.title).font(.body.weight(.medium)).lineLimit(1)
+                    Text(entry.contentType.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(entry.shortUrl).font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
                 }
                 Spacer()
             }
@@ -40,11 +30,8 @@ struct ResultCardView: View {
                     copyCount += 1
                 } label: {
                     Label("Copy Link", systemImage: "doc.on.doc")
-                }
-                .sensoryFeedback(.success, trigger: copyCount)
-                ShareLink(item: entry.shortUrl) {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                }
+                }.sensoryFeedback(.success, trigger: copyCount)
+                ShareLink(item: entry.shortUrl) { Label("Share", systemImage: "square.and.arrow.up") }
                 if !entry.serviceLinks.isEmpty {
                     Button {
                         showServiceSheet = true
@@ -52,18 +39,12 @@ struct ResultCardView: View {
                         Label("Open In", systemImage: "arrow.up.right")
                     }
                 }
-            }
-            .font(.subheadline)
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-        }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .sheet(isPresented: $showServiceSheet) {
+            }.font(.subheadline).buttonStyle(.bordered).buttonBorderShape(.capsule)
+        }.padding().background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16)).sheet(isPresented: $showServiceSheet) {
             OpenInServiceSheet(links: entry.serviceLinks)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Converted: \(entry.contentType.title) by \(entry.contentType.subtitle)")
+        }.accessibilityElement(children: .contain).accessibilityLabel(
+            "Converted: \(entry.contentType.title) by \(entry.contentType.subtitle)"
+        )
     }
 }
 
@@ -76,8 +57,7 @@ struct ResultCardView: View {
         mediaType: .track,
         track: TrackInfo(title: "Bohemian Rhapsody", artists: ["Queen"], artworkUrl: nil)
     )
-    ResultCardView(entry: entry)
-        .padding()
+    ResultCardView(entry: entry).padding()
 }
 
 #endif

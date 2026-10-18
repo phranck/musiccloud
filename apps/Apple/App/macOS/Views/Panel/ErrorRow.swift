@@ -35,17 +35,9 @@ struct ErrorRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.body)
-                .foregroundStyle(.orange)
-            Text(message)
-                .font(.body)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Error: \(message)")
+            Image(systemName: "exclamationmark.triangle.fill").font(.body).foregroundStyle(.orange)
+            Text(message).font(.body).foregroundStyle(.secondary)
+        }.padding(.horizontal, 16).padding(.vertical, 14).accessibilityElement(children: .combine).accessibilityLabel("Error: \(message)")
     }
 }
 

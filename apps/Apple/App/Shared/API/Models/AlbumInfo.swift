@@ -16,8 +16,4 @@ struct AlbumInfo: Codable, Equatable {
 
 // MARK: - Public API
 
-extension AlbumInfo {
-    var artistsString: String {
-        artists.joined(separator: ", ")
-    }
-}
+extension AlbumInfo { var artistsString: String { artists.joined(separator: ", ") } }

@@ -73,15 +73,9 @@ struct AppAccessTests {
     // MARK: Answers
 
     @Test(arguments: [
-        ("MC-AUTH-0005", AppAccessClient.Failure.sessionInvalid),
-        ("MC-AUTH-0006", .challengeRejected),
-        ("MC-AUTH-0007", .proofRejected),
-        ("MC-AUTH-0008", .keyUnknown),
-        ("MC-REQ-0009", .keyAlreadyAttested),
-        ("MC-API-0003", .unavailable),
-        ("", .unavailable),
-    ])
-    func backendCodesMapOntoFailures(_ code: String, _ failure: AppAccessClient.Failure) {
+        ("MC-AUTH-0005", AppAccessClient.Failure.sessionInvalid), ("MC-AUTH-0006", .challengeRejected), ("MC-AUTH-0007", .proofRejected),
+        ("MC-AUTH-0008", .keyUnknown), ("MC-REQ-0009", .keyAlreadyAttested), ("MC-API-0003", .unavailable), ("", .unavailable),
+    ]) func backendCodesMapOntoFailures(_ code: String, _ failure: AppAccessClient.Failure) {
         #expect(AppAccessClient.failure(forCode: code) == failure)
     }
 
@@ -124,13 +118,15 @@ struct AppAccessTests {
         #expect(MusicCloudAPI.appAccessURL(forSite: MusicCloudAPI.productionURL) == MusicCloudAPI.productionAppAccessURL)
     }
 
-    /// The Debug fallback has to reach the local backend, whose port
-    /// `grat.config` at the repository root decides.
-    @Test func debugAppAccessURLIsLocalBackend() throws {
+    /// Without an override a Debug build uses the production backend, like
+    /// ``MusicCloudAPI/baseURL``.
+    @Test func debugAppAccessURLFallsBackToProduction() {
         #if DEBUG
-        guard ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"] == nil else { return }
-        #expect(MusicCloudAPI.appAccessURL.host == "localhost")
-        #expect(MusicCloudAPI.appAccessURL.port == (try GratConfig.port(ofService: "backend")))
+        guard ProcessInfo.processInfo.environment["MUSICCLOUD_API_URL"] == nil
+        else {
+            return
+        }
+        #expect(MusicCloudAPI.appAccessURL == MusicCloudAPI.productionAppAccessURL)
         #endif
     }
 }

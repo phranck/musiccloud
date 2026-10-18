@@ -41,37 +41,33 @@ enum InstallID {
     /// the meantime, that one wins, so the app and its extension agree.
     private static func createAndStore() -> String {
         let fresh = UUID().uuidString
-        if store(fresh) == errSecDuplicateItem, let existing = load() {
-            return existing
-        }
+        if store(fresh) == errSecDuplicateItem, let existing = load() { return existing }
         return fresh
     }
 
     private static func load() -> String? {
         var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account,
+            kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne,
         ]
         query[kSecAttrSynchronizable as String] = kCFBooleanFalse
 
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess, let data = item as? Data else { return nil }
+        guard
+            status == errSecSuccess,
+            let data = item as? Data
+        else {
+            return nil
+        }
         return String(data: data, encoding: .utf8)
     }
 
-    @discardableResult
-    private static func store(_ value: String) -> OSStatus {
+    @discardableResult private static func store(_ value: String) -> OSStatus {
         let data = Data(value.utf8)
         let attributes: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account,
+            kSecValueData as String: data, kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
         return SecItemAdd(attributes as CFDictionary, nil)
     }

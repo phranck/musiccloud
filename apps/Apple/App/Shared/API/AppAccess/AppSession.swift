@@ -43,18 +43,19 @@ actor AppSession {
     /// - Returns: The bearer token, or `nil` when this process has none and cannot get one.
     func currentToken(for backend: URL = MusicCloudAPI.appAccessURL, now: Date = .now) async -> String? {
         // A test run shares the app's Keychain and must not reach Apple or the backend.
-        guard !SharedStoreConfiguration.isHostingTests else { return nil }
+        guard !SharedStoreConfiguration.isHostingTests
+        else {
+            return nil
+        }
         let stored = AppSessionStore.token(for: backend)
-        if let stored, !Self.needsRenewal(stored, now: now) {
-            return stored.value
-        }
+        if let stored, !Self.needsRenewal(stored, now: now) { return stored.value }
         let stillValid = stored.flatMap { $0.expiresAt > now ? $0.value : nil }
-        guard Self.canAttest else { return stillValid }
-
-        let key = AppSessionStore.account("session", backend)
-        if let running = pending[key] {
-            return await running.value?.value ?? stillValid
+        guard Self.canAttest
+        else {
+            return stillValid
         }
+        let key = AppSessionStore.account("session", backend)
+        if let running = pending[key] { return await running.value?.value ?? stillValid }
         let task = Task { await establish(with: backend) }
         pending[key] = task
         let fresh = await task.value
@@ -64,31 +65,21 @@ actor AppSession {
 
     /// Gets a session at launch, so the first conversion does not wait for
     /// Apple's attestation, and the Share Extension finds a fresh token.
-    func prepare() async {
-        _ = await currentToken()
-    }
+    func prepare() async { _ = await currentToken() }
 
     /// Forgets the token `backend` refused, so the next call renews.
-    func invalidate(for backend: URL) {
-        AppSessionStore.setToken(nil, for: backend)
-    }
+    func invalidate(for backend: URL) { AppSessionStore.setToken(nil, for: backend) }
 
     /// Whether a token is close enough to expiry to be renewed.
-    static func needsRenewal(_ token: AppSessionToken, now: Date) -> Bool {
-        token.expiresAt.timeIntervalSince(now) < renewalMargin
-    }
+    static func needsRenewal(_ token: AppSessionToken, now: Date) -> Bool { token.expiresAt.timeIntervalSince(now) < renewalMargin }
 
     /// The hash App Attest signs: SHA-256 of the challenge's UTF-8 text,
     /// which is how the backend reconstructs it.
-    static func clientDataHash(for challenge: String) -> Data {
-        Data(SHA256.hash(data: Data(challenge.utf8)))
-    }
+    static func clientDataHash(for challenge: String) -> Data { Data(SHA256.hash(data: Data(challenge.utf8))) }
 
     /// App Attest works in the app itself, not in the Share Extension and
     /// not on hardware without a Secure Enclave.
-    private static var canAttest: Bool {
-        Bundle.main.bundleURL.pathExtension != "appex" && DCAppAttestService.shared.isSupported
-    }
+    private static var canAttest: Bool { Bundle.main.bundleURL.pathExtension != "appex" && DCAppAttestService.shared.isSupported }
 }
 
 // MARK: - Attestation and renewal
@@ -99,11 +90,8 @@ private extension AppSession {
     func establish(with backend: URL) async -> AppSessionToken? {
         do {
             if let keyId = AppSessionStore.keyId(for: backend) {
-                do {
-                    return store(try await renew(keyId: keyId, backend: backend), for: backend)
-                } catch AppAccessClient.Failure.keyUnknown {
-                    AppSessionStore.setKeyId(nil, for: backend)
-                } catch AppAccessClient.Failure.proofRejected {
+                do { return store(try await renew(keyId: keyId, backend: backend), for: backend) } catch AppAccessClient.Failure.keyUnknown
+                { AppSessionStore.setKeyId(nil, for: backend) } catch AppAccessClient.Failure.proofRejected {
                     AppSessionStore.setKeyId(nil, for: backend)
                 }
             }

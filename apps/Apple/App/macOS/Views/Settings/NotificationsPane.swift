@@ -13,19 +13,16 @@ import SwiftUI
 ///
 /// ``NotificationManager`` reads both settings when a conversion finishes.
 struct NotificationsPane: View {
-    @AppStorage(DefaultsKey.playNotificationSound) private var playNotificationSound = true
-    @AppStorage(DefaultsKey.notificationSound) private var notificationSound = NotificationSound.default.rawValue
+    @AppStorage(DefaultsKey.playNotificationSound, store: DefaultsKey.shared) private var playNotificationSound = true
+    @AppStorage(DefaultsKey.notificationSound, store: DefaultsKey.shared) private var notificationSound = NotificationSound.default.rawValue
 
     var body: some View {
         Form {
             Section {
                 Toggle(String(localized: "Play Notification Sound"), isOn: $playNotificationSound)
-                if playNotificationSound {
-                    NotificationSoundPicker(selectedSound: $notificationSound)
-                }
+                if playNotificationSound { NotificationSoundPicker(selectedSound: $notificationSound) }
             }
-        }
-        .formStyle(.grouped)
+        }.formStyle(.grouped)
     }
 }
 
@@ -37,9 +34,7 @@ private struct NotificationSoundPicker: View {
     var body: some View {
         HStack {
             Picker(String(localized: "Sound"), selection: $selectedSound) {
-                ForEach(NotificationSound.allCases) { sound in
-                    Text(sound.displayName).tag(sound.rawValue)
-                }
+                ForEach(NotificationSound.allCases) { sound in Text(sound.displayName).tag(sound.rawValue) }
             }
 
             Button {

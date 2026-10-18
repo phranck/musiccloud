@@ -52,13 +52,13 @@ extension ResolveError {
     /// Error messages are localized through the app's `Localizable.xcstrings` catalog.
     var errorDescription: String? {
         switch self {
-        case .rateLimited:       String(localized: "error.rate_limited")
-        case .invalidURL:        String(localized: "error.invalid_url")
-        case .networkError:      String(localized: "error.network")
-        case .serviceDown:       String(localized: "error.service_down")
-        case .httpError(let code):  "\(String(localized: "error.server")) (\(code))"
-        case .invalidResponse:   String(localized: "error.server")
-        case .unknown(let msg):  msg
+        case .rateLimited: String(localized: "error.rate_limited")
+        case .invalidURL: String(localized: "error.invalid_url")
+        case .networkError: String(localized: "error.network")
+        case .serviceDown: String(localized: "error.service_down")
+        case .httpError(let code): "\(String(localized: "error.server")) (\(code))"
+        case .invalidResponse: String(localized: "error.server")
+        case .unknown(let msg): msg
         }
     }
 }

@@ -54,114 +54,98 @@ enum BlueskyAPI {
         var visible = String.UnicodeScalarView()
         for scalar in input.unicodeScalars {
             let category = scalar.properties.generalCategory
-            if category != .format && category != .control {
-                visible.append(scalar)
-            }
+            if category != .format && category != .control { visible.append(scalar) }
         }
         var text = String(visible).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if let profile = text.range(of: "/profile/") {
             text = String(text[profile.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         }
-        if text.hasPrefix("@") {
-            text.removeFirst()
-        }
+        if text.hasPrefix("@") { text.removeFirst() }
         // A bare name is a handle on Bluesky's own domain, as the field shows beside it.
-        if !text.isEmpty, !text.contains(".") {
-            text += "." + defaultHandleDomain
+        if !text.isEmpty, !text.contains(".") { text += "." + defaultHandleDomain }
+        guard
+            text.contains("."),
+            !text.hasPrefix("."),
+            !text.hasSuffix("."),
+            text.unicodeScalars.allSatisfy(isHandleCharacter)
+        else {
+            return nil
         }
-        guard text.contains("."), !text.hasPrefix("."), !text.hasSuffix("."),
-              text.unicodeScalars.allSatisfy(isHandleCharacter) else { return nil }
         return text
     }
 
     // MARK: Discovery
 
     /// The handle's own answer, which a handle verified over HTTPS gives.
-    static func wellKnownDIDURL(handle: String) -> URL? {
-        URL(string: "https://\(handle)/.well-known/atproto-did")
-    }
+    static func wellKnownDIDURL(handle: String) -> URL? { URL(string: "https://\(handle)/.well-known/atproto-did") }
 
     /// The public API's lookup, which also covers handles verified by DNS.
     static func resolveHandleURL(handle: String) -> URL {
-        publicAPI.appending(path: "xrpc/com.atproto.identity.resolveHandle")
-            .appending(queryItems: [URLQueryItem(name: "handle", value: handle)])
+        publicAPI.appending(path: "xrpc/com.atproto.identity.resolveHandle").appending(queryItems: [
+            URLQueryItem(name: "handle", value: handle)
+        ])
     }
 
     /// Where the DID document of `did` is published: the PLC directory for
     /// `did:plc`, the host's well-known path for `did:web`.
     static func didDocumentURL(did: String) -> URL? {
-        if did.hasPrefix("did:plc:") {
-            return URL(string: "https://plc.directory/\(did)")
-        }
+        if did.hasPrefix("did:plc:") { return URL(string: "https://plc.directory/\(did)") }
         if did.hasPrefix("did:web:") {
             let host = String(did.dropFirst("did:web:".count))
-            guard !host.contains(":") else { return nil }
+            guard !host.contains(":")
+            else {
+                return nil
+            }
             return URL(string: "https://\(host)/.well-known/did.json")
         }
         return nil
     }
 
-    static func protectedResourceURL(pds: URL) -> URL {
-        pds.appending(path: ".well-known/oauth-protected-resource")
-    }
+    static func protectedResourceURL(pds: URL) -> URL { pds.appending(path: ".well-known/oauth-protected-resource") }
 
-    static func authorizationServerMetadataURL(issuer: URL) -> URL {
-        issuer.appending(path: ".well-known/oauth-authorization-server")
-    }
+    static func authorizationServerMetadataURL(issuer: URL) -> URL { issuer.appending(path: ".well-known/oauth-authorization-server") }
 
     /// The profile with display name and avatar.
     static func profileURL(did: String) -> URL {
-        publicAPI.appending(path: "xrpc/app.bsky.actor.getProfile")
-            .appending(queryItems: [URLQueryItem(name: "actor", value: did)])
+        publicAPI.appending(path: "xrpc/app.bsky.actor.getProfile").appending(queryItems: [URLQueryItem(name: "actor", value: did)])
     }
 
     // MARK: OAuth
 
     /// The pushed authorization request, which the authorization page then refers to.
     static func pushedAuthorizationRequest(endpoint: URL, state: String, codeChallenge: String, loginHint: String) -> URLRequest {
-        OAuthSupport.formRequest(endpoint, [
-            ("client_id", clientID),
-            ("response_type", "code"),
-            ("redirect_uri", redirectURI),
-            ("scope", scope),
-            ("state", state),
-            ("code_challenge", codeChallenge),
-            ("code_challenge_method", "S256"),
-            ("login_hint", loginHint),
-        ])
+        OAuthSupport.formRequest(
+            endpoint,
+            [
+                ("client_id", clientID), ("response_type", "code"), ("redirect_uri", redirectURI), ("scope", scope), ("state", state),
+                ("code_challenge", codeChallenge), ("code_challenge_method", "S256"), ("login_hint", loginHint),
+            ]
+        )
     }
 
     /// The page where the user signs in, which only names the pushed request.
     static func authorizeURL(endpoint: URL, requestURI: String) -> URL {
         endpoint.appending(queryItems: [
-            URLQueryItem(name: "client_id", value: clientID),
-            URLQueryItem(name: "request_uri", value: requestURI),
+            URLQueryItem(name: "client_id", value: clientID), URLQueryItem(name: "request_uri", value: requestURI),
         ])
     }
 
     static func tokenRequest(endpoint: URL, code: String, codeVerifier: String) -> URLRequest {
-        OAuthSupport.formRequest(endpoint, [
-            ("grant_type", "authorization_code"),
-            ("code", code),
-            ("redirect_uri", redirectURI),
-            ("code_verifier", codeVerifier),
-            ("client_id", clientID),
-        ])
+        OAuthSupport.formRequest(
+            endpoint,
+            [
+                ("grant_type", "authorization_code"), ("code", code), ("redirect_uri", redirectURI), ("code_verifier", codeVerifier),
+                ("client_id", clientID),
+            ]
+        )
     }
 
     static func refreshRequest(endpoint: URL, refreshToken: String) -> URLRequest {
-        OAuthSupport.formRequest(endpoint, [
-            ("grant_type", "refresh_token"),
-            ("refresh_token", refreshToken),
-            ("client_id", clientID),
-        ])
+        OAuthSupport.formRequest(endpoint, [("grant_type", "refresh_token"), ("refresh_token", refreshToken), ("client_id", clientID)])
     }
 
     static func revokeRequest(endpoint: URL, token: String) -> URLRequest {
-        OAuthSupport.formRequest(endpoint, [
-            ("token", token),
-            ("client_id", clientID),
-        ])
+        OAuthSupport.formRequest(endpoint, [("token", token), ("client_id", clientID)])
     }
 
     // MARK: Posting
@@ -172,16 +156,27 @@ enum BlueskyAPI {
     /// Writes `post` as an `app.bsky.feed.post` record into the account's repository on its PDS.
     ///
     /// - Parameter card: A link preview to show under the text, see ``BlueskyExternalEmbed``.
-    static func createPostRequest(pds: URL, did: String, post: BlueskyPostText, createdAt: Date,
-                                  card: BlueskyExternalEmbed? = nil) -> URLRequest {
+    static func createPostRequest(
+        pds: URL,
+        did: String,
+        post: BlueskyPostText,
+        createdAt: Date,
+        card: BlueskyExternalEmbed? = nil
+    ) -> URLRequest {
         var request = URLRequest(url: pds.appending(path: "xrpc/com.atproto.repo.createRecord"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONEncoder().encode(BlueskyCreateRecord(
-            repo: did,
-            record: BlueskyPostRecord(text: post.text, facets: post.facets.isEmpty ? nil : post.facets,
-                                      createdAt: createdAt.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)),
-                                      embed: card)))
+        request.httpBody = try? JSONEncoder().encode(
+            BlueskyCreateRecord(
+                repo: did,
+                record: BlueskyPostRecord(
+                    text: post.text,
+                    facets: post.facets.isEmpty ? nil : post.facets,
+                    createdAt: createdAt.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)),
+                    embed: card
+                )
+            )
+        )
         return request
     }
 
@@ -221,9 +216,7 @@ enum BlueskyAPI {
 // MARK: - Answers
 
 /// `com.atproto.identity.resolveHandle`.
-struct BlueskyResolvedHandle: Decodable {
-    let did: String
-}
+struct BlueskyResolvedHandle: Decodable { let did: String }
 
 /// The parts of a DID document that lead to the account's server and confirm its handle.
 struct BlueskyDIDDocument: Decodable {
@@ -239,20 +232,21 @@ struct BlueskyDIDDocument: Decodable {
 
     /// The account's PDS: the service whose id ends in `#atproto_pds`, reached over HTTPS.
     var pdsEndpoint: URL? {
-        guard let entry = service?.first(where: { $0.id.hasSuffix("#atproto_pds") && $0.type == "AtprotoPersonalDataServer" }),
-              let url = URL(string: entry.serviceEndpoint), url.scheme == "https" else { return nil }
+        guard
+            let entry = service?.first(where: { $0.id.hasSuffix("#atproto_pds") && $0.type == "AtprotoPersonalDataServer" }),
+            let url = URL(string: entry.serviceEndpoint),
+            url.scheme == "https"
+        else {
+            return nil
+        }
         return url
     }
 
     /// Whether the document names `handle` back, which is what makes the handle trustworthy.
-    func confirms(handle: String) -> Bool {
-        alsoKnownAs?.contains { $0.lowercased() == "at://\(handle)" } ?? false
-    }
+    func confirms(handle: String) -> Bool { alsoKnownAs?.contains { $0.lowercased() == "at://\(handle)" } ?? false }
 }
 
-struct BlueskyProtectedResource: Decodable {
-    let authorizationServers: [String]
-}
+struct BlueskyProtectedResource: Decodable { let authorizationServers: [String] }
 
 struct BlueskyAuthorizationServer: Decodable {
     let issuer: String
@@ -262,9 +256,7 @@ struct BlueskyAuthorizationServer: Decodable {
     let revocationEndpoint: URL?
 }
 
-struct BlueskyPushedRequest: Decodable {
-    let requestUri: String
-}
+struct BlueskyPushedRequest: Decodable { let requestUri: String }
 
 struct BlueskyTokenResponse: Decodable {
     let accessToken: String
@@ -302,13 +294,9 @@ struct BlueskyPostRecord: Encodable {
 struct BlueskyBlob: Codable, Equatable, Sendable {
     let json: [String: BlueskyJSONValue]
 
-    init(from decoder: Decoder) throws {
-        json = try [String: BlueskyJSONValue](from: decoder)
-    }
+    init(from decoder: Decoder) throws { json = try [String: BlueskyJSONValue](from: decoder) }
 
-    func encode(to encoder: Encoder) throws {
-        try json.encode(to: encoder)
-    }
+    func encode(to encoder: Encoder) throws { try json.encode(to: encoder) }
 }
 
 /// A JSON value, for parts of an answer that go back unchanged.
@@ -322,12 +310,19 @@ indirect enum BlueskyJSONValue: Codable, Equatable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        if container.decodeNil() { self = .null }
-        else if let value = try? container.decode(Bool.self) { self = .bool(value) }
-        else if let value = try? container.decode(Double.self) { self = .number(value) }
-        else if let value = try? container.decode(String.self) { self = .string(value) }
-        else if let value = try? container.decode([BlueskyJSONValue].self) { self = .array(value) }
-        else { self = .object(try container.decode([String: BlueskyJSONValue].self)) }
+        if container.decodeNil() {
+            self = .null
+        } else if let value = try? container.decode(Bool.self) {
+            self = .bool(value)
+        } else if let value = try? container.decode(Double.self) {
+            self = .number(value)
+        } else if let value = try? container.decode(String.self) {
+            self = .string(value)
+        } else if let value = try? container.decode([BlueskyJSONValue].self) {
+            self = .array(value)
+        } else {
+            self = .object(try container.decode([String: BlueskyJSONValue].self))
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -346,9 +341,7 @@ indirect enum BlueskyJSONValue: Codable, Equatable, Sendable {
 }
 
 /// `com.atproto.repo.uploadBlob`'s answer.
-struct BlueskyUploadedBlob: Decodable {
-    let blob: BlueskyBlob
-}
+struct BlueskyUploadedBlob: Decodable { let blob: BlueskyBlob }
 
 /// An `app.bsky.embed.external` link card: the page's address, title,
 /// description and, when it could be uploaded, a thumbnail.

@@ -17,11 +17,7 @@ struct MediaArtwork: View {
     var size: CGFloat = 40
 
     var body: some View {
-        CachedAsyncImage(entry: entry) {
-            ArtworkPlaceholder()
-        }
-        .frame(width: size, height: size)
-        .clipShape(.rect(cornerRadius: 12))
+        CachedAsyncImage(entry: entry) { ArtworkPlaceholder() }.frame(width: size, height: size).clipShape(.rect(cornerRadius: 12))
     }
 }
 
@@ -35,13 +31,5 @@ struct ArtworkPlaceholder: View {
     /// The symbol's size, which grows with the space the placeholder fills.
     var symbolFont: Font = .caption
 
-    var body: some View {
-        Rectangle()
-            .fill(.quaternary)
-            .overlay {
-                Image(systemName: icon)
-                    .font(symbolFont)
-                    .foregroundStyle(.tertiary)
-            }
-    }
+    var body: some View { Rectangle().fill(.quaternary).overlay { Image(systemName: icon).font(symbolFont).foregroundStyle(.tertiary) } }
 }

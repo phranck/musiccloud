@@ -38,8 +38,13 @@ struct LinkCardTests {
         let blobJSON = #"{"blob":{"$type":"blob","ref":{"$link":"bafkrei123"},"mimeType":"image/jpeg","size":760898}}"#
         let blob = try JSONDecoder().decode(BlueskyUploadedBlob.self, from: Data(blobJSON.utf8)).blob
         let card = BlueskyExternalEmbed(external: .init(uri: page.absoluteString, title: "MoonDial", description: "Listen", thumb: blob))
-        let request = BlueskyAPI.createPostRequest(pds: URL(string: "https://pds.example")!, did: "did:plc:abc",
-                                                   post: BlueskyPostText(text: "hi", facets: []), createdAt: .now, card: card)
+        let request = BlueskyAPI.createPostRequest(
+            pds: URL(string: "https://pds.example")!,
+            did: "did:plc:abc",
+            post: BlueskyPostText(text: "hi", facets: []),
+            createdAt: .now,
+            card: card
+        )
         let body = try #require(request.httpBody)
         let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
         let embed = try #require((json["record"] as? [String: Any])?["embed"] as? [String: Any])

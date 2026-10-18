@@ -44,9 +44,7 @@ enum TemplateSyntaxHighlighter {
         var result: [Highlight] = []
 
         for (kind, expression) in patterns {
-            for match in expression.matches(in: text, range: whole) {
-                result.append(Highlight(range: match.range, kind: kind))
-            }
+            for match in expression.matches(in: text, range: whole) { result.append(Highlight(range: match.range, kind: kind)) }
         }
 
         for match in placeholder.matches(in: text, range: whole) {
@@ -61,12 +59,7 @@ private extension TemplateSyntaxHighlighter {
     static let placeholder = MarkdownSyntax.placeholder
 
     static let patterns: [(Kind, NSRegularExpression)] = [
-        (.heading, MarkdownSyntax.heading),
-        (.quote, MarkdownSyntax.quote),
-        (.bold, MarkdownSyntax.bold),
-        (.italic, MarkdownSyntax.italic),
-        (.code, MarkdownSyntax.code),
-        (.link, MarkdownSyntax.link),
-        (.hashtag, MarkdownSyntax.hashtag),
+        (.heading, MarkdownSyntax.heading), (.quote, MarkdownSyntax.quote), (.bold, MarkdownSyntax.bold), (.italic, MarkdownSyntax.italic),
+        (.code, MarkdownSyntax.code), (.link, MarkdownSyntax.link), (.hashtag, MarkdownSyntax.hashtag),
     ]
 }

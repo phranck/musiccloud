@@ -41,9 +41,7 @@ enum BuildChannel: Sendable {
     /// True for every build except the App Store release. The flag is
     /// the single source of truth for "should we expose diagnostics UI
     /// and auto-POST error events?".
-    static var diagnosticsEnabled: Bool {
-        current != .appStore
-    }
+    static var diagnosticsEnabled: Bool { current != .appStore }
 
     /// Asks StoreKit once how the app was installed. Later calls return at once.
     ///
@@ -52,7 +50,10 @@ enum BuildChannel: Sendable {
     /// an answer.
     static func resolve() async {
         #if !DEBUG
-        guard resolved.withLock({ $0 }) == nil else { return }
+        guard resolved.withLock({ $0 }) == nil
+        else {
+            return
+        }
         let channel: BuildChannel
         if case .verified(let transaction)? = try? await AppTransaction.shared {
             channel = transaction.environment == .production ? .appStore : .testflight

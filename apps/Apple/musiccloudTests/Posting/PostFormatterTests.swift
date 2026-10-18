@@ -7,8 +7,10 @@ import Testing
 struct PostFormatterTests {
     @Test func mastodonPlainTextDropsMarkdownCharacters() {
         let markdown = "# Now playing\n**MoonDial** by *Pat Metheny* in `ECM`\n[Listen](https://musiccloud.io/x) #jazz"
-        #expect(PostFormatter.mastodonPlainText(fromMarkdown: markdown)
-            == "Now playing\nMoonDial by Pat Metheny in ECM\nListen https://musiccloud.io/x #jazz")
+        #expect(
+            PostFormatter.mastodonPlainText(fromMarkdown: markdown)
+                == "Now playing\nMoonDial by Pat Metheny in ECM\nListen https://musiccloud.io/x #jazz"
+        )
     }
 
     /// A link whose text is its URL keeps the URL once.
@@ -30,10 +32,12 @@ struct PostFormatterTests {
         let post = PostFormatter.bluesky(fromMarkdown: "**Ä** [Listen](https://musiccloud.io/x) #jazz")
         #expect(post.text == "Ä Listen #jazz")
         // "Ä " takes three bytes in UTF-8, so the link starts at byte 3.
-        #expect(post.facets == [
-            BlueskyFacet(byteStart: 3, byteEnd: 9, feature: .link("https://musiccloud.io/x")),
-            BlueskyFacet(byteStart: 10, byteEnd: 15, feature: .tag("jazz")),
-        ])
+        #expect(
+            post.facets == [
+                BlueskyFacet(byteStart: 3, byteEnd: 9, feature: .link("https://musiccloud.io/x")),
+                BlueskyFacet(byteStart: 10, byteEnd: 15, feature: .tag("jazz")),
+            ]
+        )
     }
 
     @Test func blueskyBareURLBecomesALinkWithoutTrailingPunctuation() {
@@ -41,9 +45,7 @@ struct PostFormatterTests {
         #expect(post.facets == [BlueskyFacet(byteStart: 4, byteEnd: 27, feature: .link("https://musiccloud.io/x"))])
     }
 
-    @Test func blueskyCountsGraphemes() {
-        #expect(PostFormatter.bluesky(fromMarkdown: "👩‍👩‍👧 ok").graphemeCount == 4)
-    }
+    @Test func blueskyCountsGraphemes() { #expect(PostFormatter.bluesky(fromMarkdown: "👩‍👩‍👧 ok").graphemeCount == 4) }
 
     @Test func facetEncodesAsTheLexiconWantsIt() throws {
         let data = try JSONEncoder().encode(BlueskyFacet(byteStart: 0, byteEnd: 4, feature: .tag("jazz")))
@@ -66,7 +68,9 @@ struct PostRequestTests {
         #expect(markdown.value(forHTTPHeaderField: "Idempotency-Key") == "k")
         let markdownBody = try #require(markdown.httpBody)
         let plainBody = try #require(plain.httpBody)
-        #expect(try JSONDecoder().decode([String: String].self, from: markdownBody) == ["status": "**x**", "content_type": "text/markdown"])
+        #expect(
+            try JSONDecoder().decode([String: String].self, from: markdownBody) == ["status": "**x**", "content_type": "text/markdown"]
+        )
         #expect(try JSONDecoder().decode([String: String].self, from: plainBody) == ["status": "x"])
     }
 
@@ -84,9 +88,12 @@ struct PostRequestTests {
     }
 
     @Test func blueskyPostIsAFeedPostRecordInTheAccountsRepository() throws {
-        let request = BlueskyAPI.createPostRequest(pds: URL(string: "https://pds.example")!, did: "did:plc:abc",
-                                                   post: BlueskyPostText(text: "hi", facets: []),
-                                                   createdAt: Date(timeIntervalSince1970: 0))
+        let request = BlueskyAPI.createPostRequest(
+            pds: URL(string: "https://pds.example")!,
+            did: "did:plc:abc",
+            post: BlueskyPostText(text: "hi", facets: []),
+            createdAt: Date(timeIntervalSince1970: 0)
+        )
         #expect(request.url?.path == "/xrpc/com.atproto.repo.createRecord")
         let data = try #require(request.httpBody)
         let body = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
@@ -104,25 +111,54 @@ struct PostRequestTests {
 
 // MARK: - PostComposerModelTests
 
-@MainActor
-struct PostComposerModelTests {
+@MainActor struct PostComposerModelTests {
     private let context = PostContext(
-        track: TrackInfo(title: "MoonDial", artists: ["Pat Metheny"], albumName: "MoonDial", durationMs: 383_000, releaseDate: "2024-07-26"),
-        album: nil, artist: nil, shareURL: "https://musiccloud.io/x", originalURL: "", serviceLinks: [])
+        track: TrackInfo(
+            title: "MoonDial",
+            artists: ["Pat Metheny"],
+            albumName: "MoonDial",
+            durationMs: 383_000,
+            releaseDate: "2024-07-26"
+        ),
+        album: nil,
+        artist: nil,
+        shareURL: "https://musiccloud.io/x",
+        originalURL: "",
+        serviceLinks: []
+    )
 
     /// "MoonDial" plus a URL counted as 23 is 32, so the template fits in 40.
-    private let mastodon = SocialAccount.mastodon(MastodonAccount(
-        instance: URL(string: "https://oldbytes.space")!, accountID: "1", username: "u", displayName: "", avatarURL: nil, characterLimit: 40))
-    private let bluesky = SocialAccount.bluesky(BlueskyAccount(
-        did: "did:plc:abc", handle: "u.bsky.social", displayName: "", avatarURL: nil, pds: URL(string: "https://pds.example")!))
+    private let mastodon = SocialAccount.mastodon(
+        MastodonAccount(
+            instance: URL(string: "https://oldbytes.space")!,
+            accountID: "1",
+            username: "u",
+            displayName: "",
+            avatarURL: nil,
+            characterLimit: 40
+        )
+    )
+    private let bluesky = SocialAccount.bluesky(
+        BlueskyAccount(
+            did: "did:plc:abc",
+            handle: "u.bsky.social",
+            displayName: "",
+            avatarURL: nil,
+            pds: URL(string: "https://pds.example")!
+        )
+    )
 
     private let first = PostTemplate(name: "A", body: "**{song_name}** {share_url}")
     private let second = PostTemplate(name: "B", body: "{artist}")
 
     /// Mastodon chose `first` as its default; Bluesky has no choice and starts from its system template.
     private func model() -> PostComposerModel {
-        PostComposerModel(context: context, templates: PostTemplate.system + [first, second], accounts: [mastodon, bluesky],
-                          defaultTemplateIDs: [mastodon.id: first.id])
+        PostComposerModel(
+            context: context,
+            templates: PostTemplate.system + [first, second],
+            accounts: [mastodon, bluesky],
+            defaultTemplateIDs: [mastodon.id: first.id]
+        )
     }
 
     @Test func everyAccountStartsWithItsDefaultTemplate() throws {

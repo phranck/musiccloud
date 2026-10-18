@@ -27,9 +27,7 @@ struct PostTemplate: Codable, Identifiable, Hashable, Sendable {
         self.icon = icon
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case id, name, body, icon
-    }
+    private enum CodingKeys: String, CodingKey { case id, name, body, icon }
 
     /// Reads a stored template. A template stored without an icon, or with
     /// an icon this version does not know, loads without one rather than
@@ -48,21 +46,23 @@ extension PostTemplate {
     /// app recognizes it as a system template across launches, and so an
     /// automatic posting rule that names one keeps finding it.
     static let system: [PostTemplate] = [
-        PostTemplate(id: UUID(uuidString: "FDAD39C2-4220-4D95-9A60-704C77766E32")!,
-                     name: "Mastodon",
-                     body: nowPlayingBody(hashtags: "#Music #MusicCloud #NowPlaying #NowListening"),
-                     icon: .mastodon),
-        PostTemplate(id: UUID(uuidString: "1BCEECEB-A43A-4549-99CA-0609C92BE4A8")!,
-                     name: "Bluesky",
-                     body: nowPlayingBody(hashtags: "#Music #MusicCloud #NowPlaying"),
-                     icon: .bluesky),
+        PostTemplate(
+            id: UUID(uuidString: "FDAD39C2-4220-4D95-9A60-704C77766E32")!,
+            name: "Mastodon",
+            body: nowPlayingBody(hashtags: "#Music #MusicCloud #NowPlaying #NowListening"),
+            icon: .mastodon
+        ),
+        PostTemplate(
+            id: UUID(uuidString: "1BCEECEB-A43A-4549-99CA-0609C92BE4A8")!,
+            name: "Bluesky",
+            body: nowPlayingBody(hashtags: "#Music #MusicCloud #NowPlaying"),
+            icon: .bluesky
+        ),
     ]
 
     /// The system template written for the service of `account`, matched by
     /// the service's logo, which the Share Extension posts with.
-    static func systemTemplate(for account: SocialAccount) -> PostTemplate? {
-        system.first { $0.icon == account.icon }
-    }
+    static func systemTemplate(for account: SocialAccount) -> PostTemplate? { system.first { $0.icon == account.icon } }
 
     /// The template `account` posts with unless the user picks another one
     /// for a single post.
@@ -78,10 +78,11 @@ extension PostTemplate {
     ///   - chosenID: The template the user made this account's default, or `nil` for none.
     ///   - templates: The templates that exist now; iOS has no templates of the user's own and passes none.
     /// - Returns: The default template, or `nil` only for a service without a system template.
-    static func defaultTemplate(for account: SocialAccount, chosenID: PostTemplate.ID? = nil,
-                                among templates: [PostTemplate] = []) -> PostTemplate? {
-        templates.first { $0.id == chosenID } ?? systemTemplate(for: account)
-    }
+    static func defaultTemplate(
+        for account: SocialAccount,
+        chosenID: PostTemplate.ID? = nil,
+        among templates: [PostTemplate] = []
+    ) -> PostTemplate? { templates.first { $0.id == chosenID } ?? systemTemplate(for: account) }
 
     /// The "Now playing" post both system templates share. They differ in
     /// their hashtags only, because Bluesky's 300 graphemes leave less room.

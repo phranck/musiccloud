@@ -14,33 +14,31 @@ struct OpenInServiceSheet: View {
         NavigationStack {
             List(links, id: \.service) { link in
                 Button {
-                    if let url = StreamingServices.webURL(link.url) {
-                        openURL(url)
-                    }
+                    if let url = StreamingServices.webURL(link.url) { openURL(url) }
                     dismiss()
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "music.note")
-                            .frame(width: 28, height: 28)
-                            .foregroundStyle(.tint)
-                        Text(link.displayName)
-                            .foregroundStyle(.primary)
+                        Image(systemName: "music.note").frame(width: 28, height: 28).foregroundStyle(.tint)
+                        Text(link.displayName).foregroundStyle(.primary)
                         Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }.navigationTitle("Open In").navigationBarTitleDisplayMode(.inline).toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    // The close role exists from iOS 26 on; before, the same mark is drawn by hand.
+                    if #available(iOS 26, *) {
+                        Button(role: .close) { dismiss() }
+                    } else {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                        }.accessibilityLabel(String(localized: "Close"))
                     }
                 }
             }
-            .navigationTitle("Open In")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .close) { dismiss() }
-                }
-            }
-        }
-        .presentationDetents([.medium])
+        }.presentationDetents([.medium])
     }
 }
 

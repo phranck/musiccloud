@@ -58,7 +58,10 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.parent = self
-        guard let textView = context.coordinator.textView else { return }
+        guard let textView = context.coordinator.textView
+        else {
+            return
+        }
         textView.isEditable = isEditable
         textView.isSelectable = true
         if textView.string != text {
@@ -76,17 +79,17 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
 
     /// Keeps the binding and the coloring in step with the text view, and
     /// answers its completion requests.
-    @MainActor
-    final class Coordinator: NSObject, NSTextViewDelegate {
+    @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: MarkdownTemplateEditor
         weak var textView: NSTextView?
 
-        init(parent: MarkdownTemplateEditor) {
-            self.parent = parent
-        }
+        init(parent: MarkdownTemplateEditor) { self.parent = parent }
 
         func textDidChange(_ notification: Notification) {
-            guard let textView else { return }
+            guard let textView
+            else {
+                return
+            }
             parent.text = textView.string
             highlight()
             textView.enclosingScrollView?.verticalRulerView?.needsDisplay = true
@@ -99,7 +102,10 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
             indexOfSelectedItem index: UnsafeMutablePointer<Int>?
         ) -> [String] {
             let partial = (textView.string as NSString).substring(with: charRange)
-            guard partial.hasPrefix("{") else { return [] }
+            guard partial.hasPrefix("{")
+            else {
+                return []
+            }
             index?.pointee = 0
             return TemplateCompletion.candidates(for: partial, from: parent.tokens)
         }
@@ -107,16 +113,17 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
         /// Colors the whole text again. Templates are short, so a full pass
         /// on every change costs less than tracking edited ranges.
         func highlight() {
-            guard let storage = textView?.textStorage else { return }
+            guard let storage = textView?.textStorage
+            else {
+                return
+            }
             let whole = NSRange(location: 0, length: storage.length)
             let known = Set(parent.tokens)
 
             storage.beginEditing()
             storage.setAttributes([.font: MarkdownTemplateEditor.baseFont, .foregroundColor: NSColor.labelColor], range: whole)
             let highlights = TemplateSyntaxHighlighter.highlights(in: storage.string) { known.contains("{\($0)}") }
-            for highlight in highlights {
-                storage.addAttributes(Self.attributes(for: highlight.kind), range: highlight.range)
-            }
+            for highlight in highlights { storage.addAttributes(Self.attributes(for: highlight.kind), range: highlight.range) }
             storage.endEditing()
         }
 
@@ -124,22 +131,15 @@ struct MarkdownTemplateEditor: NSViewRepresentable {
             let fonts = NSFontManager.shared
             let base = MarkdownTemplateEditor.baseFont
             switch kind {
-            case .variable:
-                return [.foregroundColor: TemplateSyntaxColors.variable]
+            case .variable: return [.foregroundColor: TemplateSyntaxColors.variable]
             case .unknownVariable:
                 return [.foregroundColor: TemplateSyntaxColors.unknownVariable, .underlineStyle: NSUnderlineStyle.single.rawValue]
-            case .heading, .bold:
-                return [.font: fonts.convert(base, toHaveTrait: .boldFontMask)]
-            case .italic:
-                return [.font: fonts.convert(base, toHaveTrait: .italicFontMask)]
-            case .code:
-                return [.foregroundColor: TemplateSyntaxColors.code]
-            case .quote:
-                return [.foregroundColor: TemplateSyntaxColors.quote]
-            case .link:
-                return [.foregroundColor: TemplateSyntaxColors.link]
-            case .hashtag:
-                return [.foregroundColor: TemplateSyntaxColors.hashtag]
+            case .heading, .bold: return [.font: fonts.convert(base, toHaveTrait: .boldFontMask)]
+            case .italic: return [.font: fonts.convert(base, toHaveTrait: .italicFontMask)]
+            case .code: return [.foregroundColor: TemplateSyntaxColors.code]
+            case .quote: return [.foregroundColor: TemplateSyntaxColors.quote]
+            case .link: return [.foregroundColor: TemplateSyntaxColors.link]
+            case .hashtag: return [.foregroundColor: TemplateSyntaxColors.hashtag]
             }
         }
     }
@@ -167,7 +167,12 @@ final class TemplateTextView: NSTextView {
 
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
-        guard let lineRect = currentLineRect, lineRect.intersects(rect) else { return }
+        guard
+            let lineRect = currentLineRect,
+            lineRect.intersects(rect)
+        else {
+            return
+        }
         Self.currentLineColor.setFill()
         lineRect.fill()
     }
@@ -181,7 +186,14 @@ final class TemplateTextView: NSTextView {
     /// character.
     private var currentLineRect: NSRect? {
         let selection = selectedRange()
-        guard isEditable, selection.length == 0, let layoutManager, let textContainer else { return nil }
+        guard
+            isEditable,
+            selection.length == 0,
+            let layoutManager,
+            let textContainer
+        else {
+            return nil
+        }
         let text = string as NSString
         let fragment: NSRect
         if selection.location == text.length, text.length == 0 || text.character(at: text.length - 1) == 0x0A {
@@ -190,11 +202,18 @@ final class TemplateTextView: NSTextView {
         } else {
             let paragraph = text.paragraphRange(for: selection)
             let glyphs = layoutManager.glyphRange(forCharacterRange: paragraph, actualCharacterRange: nil)
-            guard glyphs.length > 0 else { return nil }
-            fragment = layoutManager.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
-                .union(layoutManager.lineFragmentRect(forGlyphAt: NSMaxRange(glyphs) - 1, effectiveRange: nil))
+            guard glyphs.length > 0
+            else {
+                return nil
+            }
+            fragment = layoutManager.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil).union(
+                layoutManager.lineFragmentRect(forGlyphAt: NSMaxRange(glyphs) - 1, effectiveRange: nil)
+            )
         }
-        guard fragment.height > 0 else { return nil }
+        guard fragment.height > 0
+        else {
+            return nil
+        }
         return NSRect(x: bounds.minX, y: fragment.minY + textContainerOrigin.y, width: bounds.width, height: fragment.height)
     }
 
@@ -207,12 +226,15 @@ final class TemplateTextView: NSTextView {
     /// `insertText`, so ⌘Z undoes it and the coloring follows.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        guard isEditable, window?.firstResponder === self,
-              let key = event.charactersIgnoringModifiers,
-              modifiers == .command || (modifiers == [.command, .shift] && !key.contains(where: \.isLetter)),
-              let shortcut = MarkdownShortcut(commandKey: key)
-        else { return super.performKeyEquivalent(with: event) }
-
+        guard
+            isEditable,
+            window?.firstResponder === self,
+            let key = event.charactersIgnoringModifiers,
+            modifiers == .command || (modifiers == [.command, .shift] && !key.contains(where: \.isLetter)),
+            let shortcut = MarkdownShortcut(commandKey: key)
+        else {
+            return super.performKeyEquivalent(with: event)
+        }
         let edit = shortcut.edit(in: string, selection: selectedRange(), clipboard: Pasteboard.string)
         insertText(edit.replacement, replacementRange: edit.range)
         setSelectedRange(edit.selection)
@@ -238,9 +260,13 @@ final class TemplateTextView: NSTextView {
     /// reached the text first.
     private func completeIfInsidePlaceholder() {
         Task { @MainActor [weak self] in
-            guard let self, selectedRange().length == 0,
-                  TemplateCompletion.partialRange(in: string, cursor: selectedRange().location) != nil
-            else { return }
+            guard
+                let self,
+                selectedRange().length == 0,
+                TemplateCompletion.partialRange(in: string, cursor: selectedRange().location) != nil
+            else {
+                return
+            }
             complete(nil)
         }
     }

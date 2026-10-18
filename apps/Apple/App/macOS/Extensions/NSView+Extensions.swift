@@ -13,9 +13,7 @@ extension NSView {
     /// Recursively searches the view hierarchy for the first subview of the given type.
     func findFirst<T: NSView>(_ type: T.Type) -> T? {
         if let match = self as? T { return match }
-        for sub in subviews {
-            if let found = sub.findFirst(type) { return found }
-        }
+        for sub in subviews { if let found = sub.findFirst(type) { return found } }
         return nil
     }
 }
@@ -43,16 +41,20 @@ struct WindowKeyMonitor: NSViewRepresentable {
         // The monitor lives until the coordinator removes it, so the closure
         // holds the coordinator weakly instead of keeping it alive itself.
         coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak coordinator] event in
-            guard let window = view.window, window.isKeyWindow else { return event }
-
-            if closesOnEscape, event.keyCode == 53 { // Escape
+            guard
+                let window = view.window,
+                window.isKeyWindow
+            else {
+                return event
+            }
+            if closesOnEscape, event.keyCode == 53 {  // Escape
                 window.close()
                 return nil
             }
 
             if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-               let number = event.charactersIgnoringModifiers.flatMap(Int.init),
-               (1...9).contains(number) {
+               let number = event.charactersIgnoringModifiers.flatMap(Int.init), (1...9).contains(number)
+            {
                 coordinator?.onCommandNumber(number)
                 return nil
             }
@@ -70,18 +72,14 @@ struct WindowKeyMonitor: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.onCommandNumber = onCommandNumber
-    }
+    func updateNSView(_ nsView: NSView, context: Context) { context.coordinator.onCommandNumber = onCommandNumber }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     final class Coordinator {
         var monitor: Any?
         var onCommandNumber: (Int) -> Void = { _ in }
-        deinit {
-            if let monitor { NSEvent.removeMonitor(monitor) }
-        }
+        deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
     }
 }
 #endif

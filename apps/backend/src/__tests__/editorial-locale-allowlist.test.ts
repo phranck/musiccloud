@@ -44,6 +44,7 @@ const localeFieldAllowlist = new Map<string, string>([
   ["apps/backend/src/db/schemas/postgres.ts", "artist/place data and native app telemetry"],
   ["apps/backend/src/routes/telemetry-app-error.ts", "native app telemetry input"],
   ["apps/backend/src/services/telemetry-app.ts", "native app telemetry persistence"],
+  ["apps/Apple/App/Shared/API/Models/ArtistInfo.swift", "native artist follower-count display formatting"],
   ["apps/Apple/App/Shared/Diagnostics/TelemetryEvent.swift", "native app telemetry capture"],
 ]);
 
