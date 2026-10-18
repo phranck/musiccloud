@@ -101,24 +101,57 @@ describe("ArtistTrackView playback mark", () => {
     }
   });
 
-  /**
-   * The ring and the bars fade through a transition on the row, which only runs
-   * when the row that is already on screen changes its attribute.
-   */
-  it("changes the mark on the same row element, which carries its bars in every state", () => {
+  it.each([
+    AudioStatus.Playing,
+    AudioStatus.Paused,
+    null,
+  ])("preserves the duration without analyzer bars when playback is %s", (status) => {
+    const timedItem = item(0);
+    const timedTrack = { ...timedItem, track: { ...timedItem.track, durationMs: 200_000 } };
+    const { container } = render(
+      <ArtistTrackView
+        items={[timedTrack]}
+        nowPlaying={status ? nowPlaying(status, timedTrack.track.deezerUrl) : null}
+      />,
+    );
+
+    expect(screen.getByText("3:20")).toBeInTheDocument();
+    expect(container.querySelector(".mc-playback-bars")).toBeNull();
+  });
+
+  it("moves playback to the new track and keeps a paused track marked", () => {
+    const items = [item(0), item(1)];
+    const { container, rerender } = render(
+      <ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[0].track.deezerUrl)} />,
+    );
+    const rows = Array.from(container.querySelectorAll("button"));
+
+    rerender(<ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[1].track.deezerUrl)} />);
+    expect(rows[0]).not.toHaveAttribute("data-playback");
+    expect(rows[0]).not.toHaveAttribute("aria-current");
+    expect(rows[1]).toHaveAttribute("data-playback", AudioStatus.Playing);
+
+    rerender(<ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Paused, items[1].track.deezerUrl)} />);
+    expect(rows[1]).toHaveAttribute("data-playback", AudioStatus.Paused);
+    expect(rows[1]).toHaveAttribute("aria-current", "true");
+    expect(container.querySelectorAll("button")[1]).toBe(rows[1]);
+  });
+
+  it("updates the frame on the same row without rendering a simulated analyzer", () => {
     const items = [item(0), item(1)];
     const { container, rerender } = render(
       <ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[0].track.deezerUrl)} />,
     );
     const markedRow = container.querySelector("button");
     expect(markedRow).toHaveAttribute("data-playback", AudioStatus.Playing);
+    expect(container.querySelector(".mc-playback-bars")).toBeNull();
 
     rerender(<ArtistTrackView items={items} nowPlaying={null} />);
 
     expect(container.querySelector("button")).toBe(markedRow);
     expect(markedRow).not.toHaveAttribute("data-playback");
     for (const row of container.querySelectorAll("button")) {
-      expect(row.querySelector(".mc-playback-bars")).toHaveAttribute("aria-hidden", "true");
+      expect(row.querySelector(".mc-playback-bars")).toBeNull();
     }
   });
 });

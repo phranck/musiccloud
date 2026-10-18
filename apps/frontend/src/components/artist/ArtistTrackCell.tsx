@@ -5,7 +5,6 @@ import { ArtistPanelRowText } from "@/components/artist/ArtistPanelRowText";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { getTrackSubline } from "@/components/artist/artistTrackItems";
 import type { NowPlayingStatus } from "@/components/artist/nowPlayingTrack";
-import { PlaybackBars } from "@/components/artist/PlaybackBars";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useTrackResolve } from "@/hooks/useTrackResolve";
 import { CardSignal } from "@/lib/analytics/umami";
@@ -39,8 +38,9 @@ interface ArtistTrackCellProps {
  *
  * The row that shows the track the share page's player holds carries
  * `data-playback` and `aria-current`: the stylesheet draws a ring inside its
- * contour and shows {@link PlaybackBars} under the duration. The ring stays
- * inside the row because the list's scroll viewport clips anything outside it.
+ * contour. The ring pulses while playing and stays static while paused or when
+ * reduced motion is requested. It stays inside the row because the list's scroll
+ * viewport clips anything outside it.
  *
  * Reuses {@link SlideArtwork} (cover frame + CD-slot resolve animation) and
  * {@link useTrackResolve} (busy state, analytics, failure toast).
@@ -105,14 +105,10 @@ export function ArtistTrackCell({
           </p>
         )}
       </ArtistPanelRowText>
-      {track.durationMs != null ? (
-        <span className="mc-txt-button-dimmed relative flex-none text-xs tabular-nums text-text-secondary">
+      {track.durationMs != null && (
+        <span className="mc-txt-button-dimmed flex-none text-xs tabular-nums text-text-secondary">
           {formatDuration(track.durationMs)}
-          {/* Hangs below the duration so the duration keeps its place in every row. */}
-          <PlaybackBars className="absolute top-full right-0" />
         </span>
-      ) : (
-        <PlaybackBars className="flex-none" />
       )}
     </ArtistPanelRow>
   );
