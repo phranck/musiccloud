@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
 import type { NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import { AudioStatus } from "@/components/audio/AudioStatus";
@@ -82,6 +82,65 @@ describe("ArtistTrackView grouped corners", () => {
 });
 
 describe("ArtistTrackView playback mark", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("renders the halo above clipping ancestors and follows scrolling without intercepting input", () => {
+    let rowTop = 120;
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      return this.matches("button") ? new DOMRect(100, rowTop, 300, 56) : new DOMRect(100, 100, 300, 252);
+    });
+    const items = [item(0)];
+    const { container, unmount } = render(
+      <ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[0].track.deezerUrl)} />,
+    );
+    const halo = document.body.querySelector<HTMLDivElement>(".mc-playback-glow");
+
+    expect(halo).not.toBeNull();
+    expect(halo?.parentElement).toBe(document.body);
+    expect(container).not.toContainElement(halo);
+    expect(halo).toHaveAttribute("aria-hidden", "true");
+    expect(halo).toHaveAttribute("data-playback", AudioStatus.Playing);
+    expect(halo).toHaveStyle({ left: "100px", top: "120px", width: "300px", height: "56px" });
+
+    rowTop = 150;
+    fireEvent.scroll(container.firstElementChild ?? window);
+    expect(halo).toHaveStyle({ top: "150px" });
+
+    rowTop = -100;
+    fireEvent.scroll(window);
+    expect(halo).toHaveAttribute("hidden");
+
+    unmount();
+    expect(document.body.querySelector(".mc-playback-glow")).toBeNull();
+  });
+
+  it("updates the halo on track changes and resize and releases measurements on unmount", () => {
+    let width = 300;
+    const measure = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      if (!this.matches("button")) return new DOMRect(100, 100, width, 252);
+      return new DOMRect(100, this.textContent?.includes("Track 2") ? 200 : 120, width, 56);
+    });
+    const items = [item(0), item(1)];
+    const { rerender, unmount } = render(
+      <ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[0].track.deezerUrl)} />,
+    );
+    const halo = document.body.querySelector<HTMLDivElement>(".mc-playback-glow");
+
+    rerender(<ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Paused, items[1].track.deezerUrl)} />);
+    expect(halo).toHaveStyle({ top: "200px" });
+    expect(halo).toHaveAttribute("data-playback", AudioStatus.Paused);
+
+    width = 420;
+    fireEvent.resize(window);
+    expect(halo).toHaveStyle({ width: "420px" });
+
+    unmount();
+    measure.mockClear();
+    fireEvent.scroll(window);
+    fireEvent.resize(window);
+    expect(measure).not.toHaveBeenCalled();
+  });
+
   function nowPlaying(status: NowPlayingTrack["status"], trackUrl: string): NowPlayingTrack {
     return { status, trackUrls: [trackUrl], title: "", artist: "" };
   }

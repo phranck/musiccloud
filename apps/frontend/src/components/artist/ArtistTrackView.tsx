@@ -2,6 +2,7 @@ import { ArtistTrackCell } from "@/components/artist/ArtistTrackCell";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
 import { trackItemKey } from "@/components/artist/artistTrackItems";
 import { findNowPlayingRowIndex, type NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
+import { PlaybackGlow } from "@/components/artist/PlaybackGlow";
 import { useRowCappedViewport } from "@/components/artist/useRowCappedViewport";
 import { groupedListClassName, raisedControlRadius } from "@/components/cards/cardGeometry";
 import {
@@ -61,6 +62,7 @@ export function ArtistTrackView({
           />
         ))}
       </div>
+      <PlaybackGlow viewportRef={cappedRef} rowIndex={nowPlayingIndex} playback={nowPlaying?.status} />
     </div>
   );
 }
