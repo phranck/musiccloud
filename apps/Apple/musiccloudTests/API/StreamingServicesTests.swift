@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 #if os(macOS)
 import AppKit
@@ -11,15 +12,49 @@ import UIKit
 
 struct StreamingServicesTests {
 
+    /// Rendering the real Audius mark preserves its gradient instead of flattening it into one template color.
+    @MainActor @Test func brandIconPreservesOriginalColors() throws {
+        let service = try #require(StreamingServices.all.first { $0.id == "audius" })
+        let renderer = ImageRenderer(content: StreamingServiceBrandIcon(service: service).environment(\.colorScheme, .light))
+        renderer.scale = 3
+        let image = try #require(renderer.cgImage)
+        #expect(image.width == 60)
+        #expect(image.height == 60)
+        let width = image.width
+        let height = image.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        let context = try #require(
+            CGContext(
+                data: &pixels,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: width * 4,
+                space: space,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            )
+        )
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        var colors = Set<UInt32>()
+        for offset in stride(from: 0, to: pixels.count, by: 4) where pixels[offset + 3] == 255 {
+            let red = pixels[offset]
+            let green = pixels[offset + 1]
+            let blue = pixels[offset + 2]
+            if Int(max(red, green, blue)) - Int(min(red, green, blue)) > 40 {
+                colors.insert(UInt32(red) << 16 | UInt32(green) << 8 | UInt32(blue))
+            }
+        }
+        #expect(colors.count > 8, "The original gradient must survive asset loading and SwiftUI rendering")
+    }
+
     /// Every supported service ships a real bundled brand mark rather than a placeholder.
     @MainActor @Test func everyServiceHasABundledBrandIcon() {
         for service in StreamingServices.all {
             #if os(macOS)
             #expect(NSImage(named: service.iconAssetName) != nil, "Missing brand icon for \(service.displayName)")
-            #expect(NSColor(named: service.brandColorAssetName) != nil, "Missing brand color for \(service.displayName)")
             #else
             #expect(UIImage(named: service.iconAssetName) != nil, "Missing brand icon for \(service.displayName)")
-            #expect(UIColor(named: service.brandColorAssetName) != nil, "Missing brand color for \(service.displayName)")
             #endif
         }
     }

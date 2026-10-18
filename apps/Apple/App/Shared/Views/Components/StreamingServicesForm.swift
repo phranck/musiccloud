@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - StreamingServicesForm
 
 /// Shared native Settings form for individual services and the aggregate switch.
-/// Brand marks share one scalable frame and use the shared brand palette; names provide accessibility labels.
+/// Source-identified brand artwork retains its original colors; adjacent names provide accessibility labels.
 struct StreamingServicesForm: View {
     @State private var enabledIDs = Set(StreamingServices.all.filter { StreamingServices.isEnabled($0) }.map(\.id))
 
@@ -66,12 +66,13 @@ private extension StreamingServicesForm {
 // MARK: - StreamingServiceBrandIcon
 
 /// Fits a bundled brand mark into the same optical frame without changing its aspect ratio.
-private struct StreamingServiceBrandIcon: View {
+struct StreamingServiceBrandIcon: View {
     let service: StreamingServices.Service
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 20
 
     var body: some View {
-        Image(service.iconAssetName).resizable().renderingMode(.template).scaledToFit().frame(width: iconSize, height: iconSize)
-            .foregroundStyle(service.brandingID == "tidal" ? Color.primary : Color(service.brandColorAssetName)).accessibilityHidden(true)
+        Image(service.iconAssetName).resizable().renderingMode(.original).scaledToFit().frame(width: iconSize, height: iconSize).clipShape(
+            RoundedRectangle(cornerRadius: iconSize * 0.2, style: .continuous)
+        ).accessibilityHidden(true)
     }
 }

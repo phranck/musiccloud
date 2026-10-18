@@ -1,0 +1,183 @@
+{
+  "notice": "Brand assets remain the property of their respective owners and are not covered by the repository code license. Brandfetch does not grant rights in third-party brand assets.",
+  "brandfetchTerms": "https://brandfetch.com/terms",
+  "assets": [
+    {
+      "service": "spotify",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/spotify.com",
+      "sourcePath": "https://cdn.brandfetch.io/id20mQyGeY/theme/dark/symbol.svg",
+      "sourceSHA256": "729a1f07709d005f83513dde503d4046777907d9b8b395643d655805a88fa9d8",
+      "bundledSHA256": "729a1f07709d005f83513dde503d4046777907d9b8b395643d655805a88fa9d8",
+      "transformation": null
+    },
+    {
+      "service": "apple-music",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/applemusic.com",
+      "sourcePath": "https://cdn.brandfetch.io/id_yBTuraI/theme/light/symbol.svg",
+      "sourceSHA256": "7e18cfb9968dd2f04aaf9c0f0164efaf5726ef8a8c7d97793d76ed8a72891cfb",
+      "bundledSHA256": "7e18cfb9968dd2f04aaf9c0f0164efaf5726ef8a8c7d97793d76ed8a72891cfb",
+      "transformation": null
+    },
+    {
+      "service": "youtube",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/youtube.com",
+      "sourcePath": "https://cdn.brandfetch.io/idVfYwcuQz/theme/dark/symbol.svg",
+      "sourceSHA256": "89a24ea7e431567e483c3c36093d4ebcf755f5afd035c1e6cf02895613d4ac81",
+      "bundledSHA256": "89a24ea7e431567e483c3c36093d4ebcf755f5afd035c1e6cf02895613d4ac81",
+      "transformation": null
+    },
+    {
+      "service": "soundcloud",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/soundcloud.com",
+      "sourcePath": "https://cdn.brandfetch.io/id3ytDFop3/theme/dark/symbol.svg",
+      "sourceSHA256": "037e86d534f7dd1815923922cbf97cff1b7a013415494ef788d2a6977d9a2424",
+      "bundledSHA256": "e00e361ad6c45b9e742a15a5b54f58cdee6a313b5bc8a7f1d3dbabab9cf468a3",
+      "transformation": "Resolve the source SVG currentColor slot to the SoundCloud accent; path geometry unchanged."
+    },
+    {
+      "service": "deezer",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/deezer.com",
+      "sourcePath": "https://cdn.brandfetch.io/idEUKgCNtu/theme/dark/symbol.svg",
+      "sourceSHA256": "5fca323e2e9b64648eb29a1f22400363a575511f9701bf77b3650b0dd58031b6",
+      "bundledSHA256": "5fca323e2e9b64648eb29a1f22400363a575511f9701bf77b3650b0dd58031b6",
+      "transformation": null
+    },
+    {
+      "service": "audius",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/audius.co",
+      "sourcePath": "https://cdn.brandfetch.io/idP9P-p_cv/w/180/h/180/theme/dark/logo.png",
+      "sourceSHA256": "7d57e92788f6705db4cec45effebf40d6a0dd919c73ef63cbb999138074899ac",
+      "bundledSHA256": "7d57e92788f6705db4cec45effebf40d6a0dd919c73ef63cbb999138074899ac",
+      "transformation": null
+    },
+    {
+      "service": "napster",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/napster.com",
+      "sourcePath": "https://cdn.brandfetch.io/idSrCdsGeU/theme/dark/symbol.svg",
+      "sourceSHA256": "298015d12f2c9742ab09a355d949549b513af13683637e03b84dfffac81a0f7c",
+      "bundledSHA256": "298015d12f2c9742ab09a355d949549b513af13683637e03b84dfffac81a0f7c",
+      "transformation": null
+    },
+    {
+      "service": "pandora",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/pandora.com",
+      "sourcePath": "https://cdn.brandfetch.io/idL-UAvQjy/w/400/h/400/theme/dark/icon.jpeg",
+      "sourceSHA256": "19be9cc32749cde04c5d3d65eede2ec311baf5b7361dbe46694846f724fee4e8",
+      "bundledSHA256": "19be9cc32749cde04c5d3d65eede2ec311baf5b7361dbe46694846f724fee4e8",
+      "transformation": null
+    },
+    {
+      "service": "qobuz",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/qobuz.com",
+      "sourcePath": "https://cdn.brandfetch.io/idUlFfVdYr/w/125/h/125/theme/dark/logo.png",
+      "sourceSHA256": "f9e366b1c7d5eecc1b3c2d9e07e4a919321946fed7dc9d26b0443a55cf881e2c",
+      "bundledSHA256": "f9e366b1c7d5eecc1b3c2d9e07e4a919321946fed7dc9d26b0443a55cf881e2c",
+      "transformation": null
+    },
+    {
+      "service": "boomplay",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/boomplay.com",
+      "sourcePath": "https://cdn.brandfetch.io/iduFCCNnH6/w/3240/h/2742/theme/dark/logo.png",
+      "sourceSHA256": "6229749cf70f9409f74ff623ea8555be6ee8c5c18cbc283cf7e72b7e82f58be5",
+      "bundledSHA256": "6229749cf70f9409f74ff623ea8555be6ee8c5c18cbc283cf7e72b7e82f58be5",
+      "transformation": null
+    },
+    {
+      "service": "kkbox",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/kkbox.com",
+      "sourcePath": "https://cdn.brandfetch.io/idceQCFZ7m/theme/dark/logo.svg",
+      "sourceSHA256": "ff76b5232ee4f438e37db913d7c4df949703c8345059cc48916dfa119b891ac6",
+      "bundledSHA256": "ff76b5232ee4f438e37db913d7c4df949703c8345059cc48916dfa119b891ac6",
+      "transformation": null
+    },
+    {
+      "service": "audiomack",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/audiomack.com",
+      "sourcePath": "https://cdn.brandfetch.io/ids9PJxow1/theme/dark/symbol.svg",
+      "sourceSHA256": "f465428f65078f5383d0d751ef3a1820e6a574d2bd962a9b382013044992ebb6",
+      "bundledSHA256": "f465428f65078f5383d0d751ef3a1820e6a574d2bd962a9b382013044992ebb6",
+      "transformation": null
+    },
+    {
+      "service": "melon",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/melon.com",
+      "sourcePath": "https://cdn.brandfetch.io/id1HpzLV0U/w/474/h/148/theme/dark/logo.png",
+      "sourceSHA256": "a83bea35da8b323718b928136d1cb3494e97ae18fdea0f80e7e72b1e84ef2376",
+      "bundledSHA256": "a83bea35da8b323718b928136d1cb3494e97ae18fdea0f80e7e72b1e84ef2376",
+      "transformation": null
+    },
+    {
+      "service": "bugs",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/bugs.co.kr",
+      "sourcePath": "https://cdn.brandfetch.io/idMgUUserG/w/1080/h/1080/theme/dark/icon.jpeg",
+      "sourceSHA256": "cb2eea4b66fee8617a02c953def7b152cdcc580cddd92fa39bfd3b6cbe0315df",
+      "bundledSHA256": "cb2eea4b66fee8617a02c953def7b152cdcc580cddd92fa39bfd3b6cbe0315df",
+      "transformation": null
+    },
+    {
+      "service": "jiosaavn",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/jiosaavn.com",
+      "sourcePath": "https://cdn.brandfetch.io/idmI9lAKkj/w/383/h/383/theme/dark/icon.jpeg",
+      "sourceSHA256": "aa7763c96ad53e921ef4e9bb2bfc84e87620bb2c14d70a0513fc94186f94ad41",
+      "bundledSHA256": "aa7763c96ad53e921ef4e9bb2bfc84e87620bb2c14d70a0513fc94186f94ad41",
+      "transformation": null
+    },
+    {
+      "service": "youtube-music",
+      "provider": "Brandfetch",
+      "profile": "https://brandfetch.com/artists.youtube",
+      "sourcePath": "https://cdn.brandfetch.io/id1T1Nlfsw/w/400/h/400/theme/dark/icon.jpeg",
+      "sourceSHA256": "03133943a8b0f327c1c48562c8de44f17543bb1029b61612952abafa52bda901",
+      "bundledSHA256": "03133943a8b0f327c1c48562c8de44f17543bb1029b61612952abafa52bda901",
+      "transformation": null
+    },
+    {
+      "service": "tidal",
+      "provider": "Simple Icons",
+      "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/tidal.svg",
+      "pathLicense": "CC0-1.0; no trademark rights granted",
+      "transformation": "Set brand fill; path geometry unchanged. Tidal has a white dark-appearance variant."
+    },
+    {
+      "service": "beatport",
+      "provider": "Simple Icons",
+      "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/beatport.svg",
+      "pathLicense": "CC0-1.0; no trademark rights granted",
+      "transformation": "Set brand fill; path geometry unchanged. Tidal has a white dark-appearance variant."
+    },
+    {
+      "service": "bandcamp",
+      "provider": "Simple Icons",
+      "source": "https://github.com/simple-icons/simple-icons/blob/develop/icons/bandcamp.svg",
+      "pathLicense": "CC0-1.0; no trademark rights granted",
+      "transformation": "Set brand fill; path geometry unchanged. Tidal has a white dark-appearance variant."
+    },
+    {
+      "service": "netease",
+      "provider": "Official website",
+      "source": "https://s1.music.126.net/style/favicon.ico?v20180823",
+      "transformation": "Decode the original 32-pixel ICO image as PNG; no tracing or redrawing."
+    },
+    {
+      "service": "qqmusic",
+      "provider": "Official website",
+      "source": "https://y.qq.com/favicon.ico",
+      "transformation": "Decode the original 32-pixel ICO image as PNG; no tracing or redrawing."
+    }
+  ]
+}

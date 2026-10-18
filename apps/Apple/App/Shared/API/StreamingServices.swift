@@ -67,14 +67,8 @@ enum StreamingServices {
             }
         }
 
-        /// The bundled silhouette, retaining a consistent optical frame across brands.
-        var iconAssetName: String {
-            let assetID = ["netease", "boomplay"].contains(brandingID) ? "\(brandingID)-settings" : brandingID
-            return "ServiceIcons/\(assetID)"
-        }
-
-        /// The color asset generated from the repository's canonical platform palette.
-        var brandColorAssetName: String { "ServiceColors/\(brandingID)" }
+        /// The original-color Settings artwork, separate from template-only macOS menu images.
+        var iconAssetName: String { "ServiceBrandIcons/\(brandingID)" }
 
         /// Creates the stable identity and host patterns used by detection and Settings.
         /// - Parameters:
