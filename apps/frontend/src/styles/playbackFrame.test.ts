@@ -18,9 +18,11 @@ describe("track preview frame motion", () => {
       .find((rule) => rule.conditionText === "(prefers-reduced-motion: no-preference)");
     const playing = Array.from(media?.cssRules ?? [])
       .filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule)
-      .find((rule) => rule.selectorText === '.mc-playback-row[data-playback="playing"]::before');
+      .find((rule) => rule.selectorText.includes('.mc-playback-row[data-playback="playing"]::before'));
 
+    expect(playing?.selectorText).toContain('.mc-playback-glow[data-playback="playing"]');
     expect(playing?.style.animation).toBe("mc-playback-pulse 3s ease-in-out infinite");
+    expect(playing?.style.willChange).toBe("opacity");
     expect(Array.from(media?.cssRules ?? [])).toHaveLength(1);
   });
 
@@ -41,17 +43,16 @@ describe("track preview frame motion", () => {
     expect(new Set(frames.map((frame) => frame.style.opacity)).size).toBeGreaterThan(1);
   });
 
-  it("lets the token-derived halo extend outside the row with the pulsing frame", () => {
+  it("paints the halo above page surfaces without intercepting input or clipping it to the row", () => {
     const rules = Array.from(stylesheet.sheet?.cssRules ?? []).filter(
       (rule): rule is CSSStyleRule => rule instanceof CSSStyleRule,
     );
-    const row = rules.find((rule) => rule.selectorText === ".mc-playback-row");
-    const frame = rules.find((rule) => rule.selectorText === ".mc-playback-row::before");
+    const halo = rules.find((rule) => rule.selectorText === ".mc-playback-glow");
 
-    expect(row?.style.overflow).toBe("visible");
-    expect(frame?.style.boxShadow).toMatch(
-      /(?:^|,)\s*0 0 var\(--mc-focus-halo-blur\) var\(--color-accent-glow\)/,
-    );
+    expect(halo?.style.position).toBe("fixed");
+    expect(halo?.style.pointerEvents).toBe("none");
+    expect(Number(halo?.style.zIndex)).toBeGreaterThan(50);
+    expect(halo?.style.boxShadow).toContain("0 0 var(--mc-focus-halo-blur) var(--color-accent-glow)");
   });
 
   it("keeps paused and reduced-motion frames static", () => {
@@ -59,7 +60,7 @@ describe("track preview frame motion", () => {
       (rule): rule is CSSStyleRule => rule instanceof CSSStyleRule,
     );
     const frame = rules.find((rule) => rule.selectorText === ".mc-playback-row::before");
-    const heldFrame = rules.find((rule) => rule.selectorText === ".mc-playback-row[data-playback]::before");
+    const heldFrame = rules.find((rule) => rule.selectorText.includes(".mc-playback-row[data-playback]::before"));
 
     expect(frame?.style.opacity).toBe("0");
     expect(heldFrame?.style.opacity).toBe("1");

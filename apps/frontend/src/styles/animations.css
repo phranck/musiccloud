@@ -479,13 +479,11 @@ html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-s
    everything below follows from that attribute, so a change fades on the row that
    is already on screen.
 
-   The ring uses the focus language from global.css. Its halo extends into the
-   gaps around the row, bounded by the list's scroll viewport. It sits beneath
-   the row's content (z-index -1 in the row's own stacking context), so the halo
-   never tints the artwork or the text. */
+   The inset ring uses the focus language from global.css. PlaybackGlow paints
+   the outward halo through a body portal, above the page's z-50 surfaces and
+   outside the clipping list and swap containers. */
 .mc-playback-row {
   isolation: isolate;
-  overflow: visible;
 }
 
 .mc-playback-row::before {
@@ -496,21 +494,34 @@ html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-s
   border-radius: inherit;
   box-shadow:
     inset 0 0 0 var(--mc-focus-edge-width) var(--color-accent),
-    inset 0 0 var(--mc-focus-halo-blur) var(--color-accent-glow),
-    0 0 var(--mc-focus-halo-blur) var(--color-accent-glow);
+    inset 0 0 var(--mc-focus-halo-blur) var(--color-accent-glow);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--mc-focus-fade-duration) ease;
 }
 
-.mc-playback-row[data-playback]::before {
+.mc-playback-glow {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  box-shadow:
+    0 0 var(--mc-focus-halo-blur) var(--color-accent-glow),
+    0 0 calc(2 * var(--mc-focus-halo-blur)) var(--color-accent-glow);
+  opacity: 0;
+  transition: opacity var(--mc-focus-fade-duration) ease;
+}
+
+.mc-playback-row[data-playback]::before,
+.mc-playback-glow[data-playback] {
   opacity: 1;
 }
 
 /* Paused and reduced-motion rows keep the static frame above. Only the
    frame breathes, so the artwork, text, and row geometry remain unchanged. */
 @media (prefers-reduced-motion: no-preference) {
-  .mc-playback-row[data-playback="playing"]::before {
+  .mc-playback-row[data-playback="playing"]::before,
+  .mc-playback-glow[data-playback="playing"] {
+    will-change: opacity;
     animation: mc-playback-pulse 3s ease-in-out infinite;
   }
 }
