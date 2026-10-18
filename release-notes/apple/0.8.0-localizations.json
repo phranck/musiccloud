@@ -39,6 +39,5 @@
       "whatToTest": "- iPhone: Desteklenen bir bağlantıyı kopyalayıp musiccloud'u açın. Ekran sonuçla birlikte açık kalmalıdır. Dönüştürme sesi çalarken animasyonu izleyin ve duraklama varsa bildirin.\n- Uygulama her iki aygıtta da çalışırken her birinde yeni bir şarkı bağlantısı kopyalayın. Yalnızca bağlantının kopyalandığı aygıt dönüştürme yapmalı ve ses çalmalıdır. iCloud eşzamanlamasından sonra geçmişte yalnızca bir yeni kayıt bulunmalıdır. Mac'te dönüştürme arka planda da çalışmalıdır.\n- Ayarlar'da bir hizmeti kapatıp bağlantılarından birini kopyalayın. Bağlantı yok sayılmalıdır. Hizmeti yeniden açıp bağlantısını tekrar kopyalayın; algılama yeniden çalışmalıdır."
     }
   },
-  "build": "2653",
   "approval": "https://github.com/phranck/musiccloud/issues/742#issuecomment-6242066203"
 }
