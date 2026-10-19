@@ -104,6 +104,13 @@ describe("Deezer: capabilities", () => {
 // =============================================================================
 
 describe("Deezer: getTrack", () => {
+  it("rejects malformed direct recording metadata at the provider boundary", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ ...MOCK_DEEZER_TRACK, duration: "invalid" })),
+    );
+    await expect(deezerAdapter.getTrack("3135556")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -173,6 +180,13 @@ describe("Deezer: getTrack", () => {
 // =============================================================================
 
 describe("Deezer: findByIsrc", () => {
+  it("rejects malformed identifier metadata instead of accepting a corrupt observation", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ ...MOCK_DEEZER_TRACK, isrc: 42 })),
+    );
+    await expect(deezerAdapter.findByIsrc("GBDUW0000059")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -250,9 +264,132 @@ describe("Deezer: searchTrack", () => {
     expect(result.confidence).toBeGreaterThan(0);
   });
 
+  it("finds a recording through a validated clean-title fallback without changing its display metadata", async () => {
+    const query = {
+      title: "Hurt People feat. @marinalatorracaofficial of @BattleBeast",
+      artist: "DARKK",
+      artists: ["DARKK"],
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const text = new URL(String(input)).searchParams.get("q");
+      return new Response(
+        JSON.stringify({
+          data:
+            text === "DARKK Hurt People"
+              ? [
+                  {
+                    ...MOCK_DEEZER_TRACK,
+                    id: 4275996402,
+                    title: "Hurt People",
+                    artist: { id: 1, name: "DARKK" },
+                    duration: 201,
+                    isrc: "DEZC62699545",
+                    link: "https://www.deezer.com/track/4275996402",
+                  },
+                ]
+              : [],
+        }),
+        { status: 200 },
+      );
+    });
+
+    const result = await deezerAdapter.searchTrack(query);
+
+    expect(result.found).toBe(true);
+    expect(result.track?.isrc).toBe("DEZC62699545");
+    expect(query.title).toBe("Hurt People feat. @marinalatorracaofficial of @BattleBeast");
+  });
+
+  it.each([
+    ["DARKK", "Hurt People"],
+    ["Daft Punk", "One More Time"],
+    ["Metallica", "Enter Sandman"],
+    ["The Weeknd", "Blinding Lights"],
+  ])("finds %s / %s after an empty structured search", async (artist, title) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input) =>
+        new Response(
+          JSON.stringify({
+            data:
+              new URL(String(input)).searchParams.get("q") === `${artist} ${title}`
+                ? [
+                    {
+                      ...MOCK_DEEZER_TRACK,
+                      title,
+                      artist: { id: 1, name: artist },
+                    },
+                  ]
+                : [],
+          }),
+          { status: 200 },
+        ),
+    );
+    const result = await deezerAdapter.searchTrack({ title, artist });
+    expect(result.found).toBe(true);
+    expect(result.track?.artists).toEqual([artist]);
+    expect(result.track?.title).toBe(title);
+  });
+
+  it.each([
+    { title: "Hurt People", artist: "Unrelated Artist", duration: 200 },
+    { title: "XYZ", artist: "DARKK", duration: 200 },
+    { title: "Hurt People (Remix)", artist: "DARKK", duration: 200 },
+    { title: "Hurt People", artist: "DARKK", duration: 251 },
+    { title: "Hurt People", artist: "DARKK", duration: 200, sourceTitle: "Hurt People (feat. Marina) (Live)" },
+  ])("rejects an incompatible broad-search recording: $title / $artist / $duration", async (candidate) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input) =>
+        new Response(
+          JSON.stringify({
+            data: new URL(String(input)).searchParams.get("q")?.startsWith("artist:")
+              ? []
+              : [
+                  {
+                    ...MOCK_DEEZER_TRACK,
+                    title: candidate.title,
+                    artist: { id: 1, name: candidate.artist },
+                    duration: candidate.duration,
+                  },
+                ],
+          }),
+          { status: 200 },
+        ),
+    );
+    const result = await deezerAdapter.searchTrack({
+      title: "sourceTitle" in candidate ? candidate.sourceTitle : "Hurt People",
+      artist: "DARKK",
+      durationMs: 200000,
+    });
+    expect(result.found).toBe(false);
+  });
+
+  it.each([
+    { title: "" },
+    { artist: { id: 27, name: "" } },
+    { duration: -1 },
+    { isrc: 42 },
+    { album: { cover_xl: 42 } },
+  ])("rejects malformed consumed recording metadata: %j", async (patch) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(JSON.stringify({ data: [{ ...MOCK_DEEZER_TRACK, ...patch }] })),
+    );
+    await expect(
+      deezerAdapter.searchTrack({ title: "Harder Better Faster Stronger", artist: "Daft Punk" }),
+    ).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
+  it("rejects a malformed successful search reply instead of caching a clean miss", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(JSON.stringify({ unexpected: [] }), { status: 200 }),
+    );
+    await expect(deezerAdapter.searchTrack({ title: "Hurt People", artist: "DARKK" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
+  });
+
   it("should return not found for empty results", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ data: [], total: 0 }), { status: 200 }),
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(JSON.stringify({ data: [], total: 0 }), { status: 200 }),
     );
 
     const result = await deezerAdapter.searchTrack({
@@ -422,8 +559,9 @@ describe("Deezer: searchTrackWithCandidates", () => {
   });
 
   it("returns empty candidates when Deezer returns API error envelope", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: { type: "DataException", message: "no", code: 800 } }), { status: 200 }),
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ error: { type: "DataException", message: "no", code: 800 } }), { status: 200 }),
     );
 
     const result = await deezerAdapter.searchTrackWithCandidates({
@@ -436,8 +574,8 @@ describe("Deezer: searchTrackWithCandidates", () => {
   });
 
   it("returns empty candidates when Deezer returns no items", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ data: [], total: 0 }), { status: 200 }),
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(JSON.stringify({ data: [], total: 0 }), { status: 200 }),
     );
 
     const result = await deezerAdapter.searchTrackWithCandidates({
@@ -471,7 +609,7 @@ describe("Deezer: searchTrackWithCandidates", () => {
   it("emits limit=24 in the search URL", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [], total: 0 }), { status: 200 }));
+      .mockImplementation(async () => new Response(JSON.stringify({ data: [], total: 0 }), { status: 200 }));
 
     await deezerAdapter.searchTrackWithCandidates({ title: "x", artist: "y" });
 

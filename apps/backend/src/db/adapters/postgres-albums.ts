@@ -627,6 +627,7 @@ export function buildCachedAlbumResult(rows: AlbumWithLinkRow[]): CachedAlbumRes
 
   return {
     albumId,
+    shortId: firstRow.short_id ?? undefined,
     album,
     links,
     updatedAt: dateToMs(firstRow.updated_at),

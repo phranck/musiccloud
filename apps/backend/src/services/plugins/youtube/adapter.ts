@@ -42,6 +42,7 @@
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
+import { youtubeVideoId } from "../../../lib/platform/youtube-video.js";
 import { ResolveError } from "../../../lib/resolve/errors";
 import { calculateArtistNameConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -59,8 +60,6 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
-
-const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.|music\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
 // Matches YouTube channel/artist URLs:
 //   youtube.com/@handle, youtube.com/channel/UCxxxx, music.youtube.com/channel/UCxxxx
@@ -150,7 +149,6 @@ function mapVideoToTrack(video: YouTubeVideoResource): NormalizedTrack {
     sourceId: video.id,
     title: trackTitle,
     artists: artist ? [artist] : [stripYouTubeTopicSuffix(video.snippet.channelTitle)],
-    artworkUrl: getBestThumbnail(video.snippet.thumbnails),
     durationMs: video.contentDetails ? parseIsoDuration(video.contentDetails.duration) : undefined,
     releaseDate: video.snippet.publishedAt,
     webUrl: `https://www.youtube.com/watch?v=${video.id}`,
@@ -160,7 +158,8 @@ function mapVideoToTrack(video: YouTubeVideoResource): NormalizedTrack {
 const capabilities: AdapterCapabilities = {
   supportsIsrc: false,
   supportsPreview: false,
-  supportsArtwork: true,
+  // A video thumbnail is not release artwork. Channel portraits are separate.
+  supportsArtwork: false,
 };
 
 const artistCapabilities: ArtistCapabilities = {
@@ -190,15 +189,25 @@ function mapChannelToArtist(channel: YouTubeChannelResource): NormalizedArtist {
   };
 }
 
+/**
+ * Video/channel provider with separate recording and portrait responsibilities.
+ * Video thumbnails never enter recording metadata; channel portraits remain
+ * available through the artist methods. Input detection shares video-id grammar
+ * with the resolver's YouTube Music derivation.
+ */
 export const youtubeAdapter: ServiceAdapter = {
   id: "youtube",
   displayName: getPlatformLabel("youtube"),
   capabilities,
   artistCapabilities,
 
+  /**
+   * Recognizes only supported recording URLs, independent of parameter order.
+   * @param url - Watch or youtu.be input on a supported YouTube host.
+   * @returns The video id, or null for search pages and lookalike addresses.
+   */
   detectUrl(url: string): string | null {
-    const match = YOUTUBE_REGEX.exec(url);
-    return match ? match[1] : null;
+    return youtubeVideoId(url);
   },
 
   async getTrack(videoId: string): Promise<NormalizedTrack> {

@@ -49,11 +49,11 @@
  * Runs over cached resolve results. A link whose service is currently
  * disabled must not reappear on a share page just because it was
  * persisted while the service was on. Links for services that have no
- * plugin at all (derived cross-links like `youtube-music`) pass
- * through: the admin has no direct toggle over them, and they follow
- * the state of the service they were derived from.
+ * plugin at all normally pass through. The derived `youtube-music`
+ * destination explicitly inherits YouTube's toggle because it has no separate
+ * plugin or administrative control.
  */
-import type { ServiceId } from "@musiccloud/shared";
+import { isValidServiceId, type ServiceId } from "@musiccloud/shared";
 import { readPluginStatesFromDb } from "../../db/plugin-repository.js";
 import type { ServiceAdapter } from "../types.js";
 import { appleMusicPlugin } from "./apple-music/index.js";
@@ -84,20 +84,15 @@ import { youtubePlugin } from "./youtube/index.js";
  * added by appending to this array (after creating the plugin directory
  * and its `<svc>Plugin` barrel).
  *
- * Order is the resolver chain order: `getActiveAdapters` preserves it,
- * and the resolver walks the chain top-to-bottom, so the first three
- * positions matter for cross-service-resolve quality.
+ * `getActiveAdapters` preserves this order for sequential text discovery.
+ * Deezer leads because its keyless metadata supplies identifiers and previews
+ * that the subsequent cross-service resolve can reuse.
  *
- * Top-three rationale (post-Spotify-Feb-2026):
- *  - **Deezer**: keyless, ISRC-fähig, exposes `label` and `nb_fan`,
- *    broad preview-URL coverage. Already the preview-refresh source.
- *  - **Apple Music**: ISRC + UPC reliably, `recordLabel`, broad catalog.
- *  - **Tidal**: ISRC, hi-res coverage, decoupled from Spotify risk.
- *
- * Spotify drops to the end of the major-adapter block. It stays active
- * for: Spotify URL detection (URL-based identifyService is order-
- * independent), cross-service Spotify links from any other resolver
- * hit, and as a last-fallback ISRC lookup when earlier adapters miss.
+ * Once a source recording is known, track matching fans out to all active
+ * targets in parallel. Spotify participates alongside the other targets; its
+ * position here does not make it a deferred ISRC retry. URL detection instead
+ * follows each adapter's detector, with non-overlap checked by classification
+ * tests. Keep ordering here rather than copying it into callers or docs.
  */
 const PLUGINS: readonly ServicePlugin[] = [
   deezerPlugin,
@@ -275,12 +270,17 @@ export async function isPluginEnabled(id: ServiceId): Promise<boolean> {
 
 /**
  * Drop entries whose `service` corresponds to a plugin that is currently
- * toggled off. Links for services with no plugin (e.g. derived
- * `youtube-music` cross-links) pass through; the admin has no direct
- * toggle over them. Used to filter cached resolve results so disabled
- * services don't reappear on share pages after a toggle.
+ * toggled off. YouTube Music inherits YouTube's toggle; other services with no
+ * plugin pass through. This also filters persisted derived destinations, so a
+ * disabled parent cannot reappear through its alias on a cached result.
+ *
+ * @param links - Stored or freshly derived destinations.
+ * @returns The visible links without changing their order or metadata.
  */
 export async function filterDisabledLinks<T extends { service: string }>(links: T[]): Promise<T[]> {
   const enabled = await getEnabledMap();
-  return links.filter((l) => enabled.get(l.service as ServiceId) !== false);
+  return links.filter((link) => {
+    const service = link.service === "youtube-music" ? "youtube" : link.service;
+    return !isValidServiceId(service) || enabled.get(service) !== false;
+  });
 }

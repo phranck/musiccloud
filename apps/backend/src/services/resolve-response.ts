@@ -85,7 +85,11 @@ export async function persistTrackAndRespond(
  * Persists a resolved album with its cross-service links and returns the album
  * variant of the unified response.
  *
- * @param result - The resolver's output for one album.
+ * Cached ids bypass canonical persistence because gap filling has already
+ * stored its enrichment. Rewriting that snapshot could overwrite a concurrent
+ * operator cover and undo the artwork compare-and-set boundary.
+ *
+ * @param result - The resolver's output for one album, including cached ids.
  * @param origin - Public origin the share URL is built on.
  * @returns The `album` variant, including the persisted id and share URL.
  */
@@ -105,25 +109,31 @@ export async function persistAlbumAndRespond(
     }
   }
 
-  const { albumId, shortId, artistCredits } = await repo.persistAlbumWithLinks({
-    sourceAlbum: {
-      ...result.sourceAlbum,
-      sourceUrl: result.sourceAlbum.webUrl,
-      previewUrl,
-    },
-    links: result.links.map((l) => ({
-      service: l.service,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-      externalId: l.externalId,
-    })),
-  });
+  const cachedIdentity =
+    result.albumId && result.shortId
+      ? { albumId: result.albumId, shortId: result.shortId, artistCredits: result.sourceAlbum.artistCredits ?? [] }
+      : undefined;
+  const { albumId, shortId, artistCredits } =
+    cachedIdentity ??
+    (await repo.persistAlbumWithLinks({
+      sourceAlbum: {
+        ...result.sourceAlbum,
+        sourceUrl: result.sourceAlbum.webUrl,
+        previewUrl,
+      },
+      links: result.links.map((l) => ({
+        service: l.service,
+        url: stripTrackingParams(l.url),
+        confidence: l.confidence,
+        matchMethod: l.matchMethod,
+        externalId: l.externalId,
+      })),
+    }));
 
   // Persist the resolved album preview into `album_previews`. The
   // canonical `albums` row no longer carries a preview column; reads
   // pull the best preview from `album_previews` via subquery.
-  if (previewUrl && previewService) {
+  if (!cachedIdentity && previewUrl && previewService) {
     const expiresAtMs = getPreviewExpiry(previewUrl, previewService);
     try {
       await repo.upsertAlbumPreview(albumId, {

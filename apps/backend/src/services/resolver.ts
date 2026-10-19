@@ -1,151 +1,103 @@
 /**
- * @file Track resolve pipeline: URL or text -> cross-service link set.
+ * @file Resolver-chain navigation and ownership for recording destinations.
  *
- * This is the core of the product. Every track resolve (whether driven
- * by POST `/api/v1/resolve`, GET `/api/v1/resolve`, or a background
- * job) ends up here. The album and artist resolvers (`album-resolver.ts`,
- * `artist-resolver.ts`) are parallel siblings at a similar abstraction.
+ * Start here to follow a URL, text query, or picked candidate through matching,
+ * cache enrichment, persistence, and the later read-only share response. Album
+ * and artist matching remain in `album-resolver.ts` and `artist-resolver.ts`.
+ * This module coordinates tracks rather than defining provider HTTP contracts.
  *
- * ## Entry points (public)
+ * ## Request and source selection
  *
- * - `resolveQuery(input)` - front door. Dispatches to URL vs text.
- * - `resolveUrl(url)` - URL input pipeline; handles short-link expansion.
- * - `resolveTextSearch(query)` - single-result text search (used by
- *   the unauthenticated GET endpoint, which cannot carry disambiguation).
- * - `resolveTextSearchWithDisambiguation(query)` - returns either a
- *   resolved track (when confidence is high enough) or a candidate list
- *   (used by the POST endpoint for interactive disambiguation).
- * - `resolveSelectedCandidate(id)` - second leg of the disambiguation
- *   flow, called after a client picks a candidate.
- * - `expandShortLink(url)` - HEAD-request short-link unroller;
- *   exported because the POST route inspects expanded URLs before
- *   content-type routing.
+ * `routes/resolve.ts` dispatches a URL, text query, or `selectedCandidate` after
+ * its registered authentication scope and client/site rate limits. The landing
+ * client's `apps/frontend/src/hooks/useAppState.ts` sends
+ * text first and the selected provider/id in its follow-up. A stored YouTube
+ * source therefore does not imply that every caller pasted a YouTube URL.
  *
- * ## Cache strategy: three layers
+ * `resolve-response.ts` classifies URLs through plugin detectors and chooses
+ * the track, album, or artist resolver. `resolveQuery` is the track front door;
+ * `resolveUrl` strips tracking, expands registered short links, and coalesces
+ * concurrent requests for the same canonical URL with `resolveCanonicalUrlOnce`.
  *
- * Any incoming request tries to avoid upstream API calls in this order:
+ * Text discovery walks `plugins/registry.ts` order. Native candidate lists use
+ * `AUTO_SELECT_THRESHOLD` to choose automatic resolution or disambiguation.
+ * Providers exposing only one match resolve under their own accepted score.
+ * `resolveSelectedCandidate` fetches the chosen id rather than searching again.
+ * Provider order and enabled/credential gates belong to the registry, not here.
  *
- * 1. Cache by canonical URL (after tracking-param stripping + short-link
- *    expansion), the URL a track was first resolved from.
- * 2. Cache by the link's own service id, before the service is asked. A track
- *    holding this link through a source or ISRC match resolves from the
- *    database, so a link the database knows still resolves while its service
- *    is down. Text matches do not count, because they can be another recording.
- * 3. Cache by ISRC after we fetched the source metadata. Catches the
- *    same track pasted from a different service the second time around.
+ * ## Cache identity is not destination completeness
  *
- * Two requests for the same canonical URL at once share one run of this
- * pipeline (`resolveCanonicalUrlOnce`), so a burst of identical pastes costs
- * one fan-out.
+ * The URL path checks canonical URL, then a known provider id, then ISRC after
+ * fetching metadata. Provider-id cache lookup accepts source/identifier links,
+ * not potentially ambiguous text matches. Candidate selection also checks the
+ * fetched canonical URL because video sources have no ISRC.
  *
- * After migration 0021 the canonical track row never expires; only
- * preview URLs (in `track_previews`) carry an `expires_at` and are
- * refreshed lazily by `fillMissingServices`. The cache hit path
- * through `fillMissingServices` so that enabling a new plugin over
- * time organically enriches the cached row.
+ * Every recognized cache hit enters `fillMissingServices`. It preserves newly
+ * confirmed source observations before querying gaps, so a redundant search
+ * cannot discard a destination already obtained by the caller. Observed ISRCs
+ * guide lookups without replacing canonical display metadata or the share id.
+ * The canonical row does not expire; preview rows have their own expiry.
  *
- * ## Fruitless lookups are remembered too
+ * A gap-fill records only fulfilled, empty lookups as `service_link_misses`.
+ * Rejections, malformed replies, and timeouts are not catalogue misses. Covered
+ * services refreshed for enrichment do not acquire contradictory miss rows.
+ * `constants.ts` owns the miss TTL and all matching/disambiguation thresholds.
  *
- * `service_links` records where a track was found. On its own that makes
- * a service which does not carry the track look identical to one that was
- * never asked, so a cached resolve asks every such service again, every
- * time, for as long as the row exists. `service_link_misses` closes that:
- * a service that answers with nothing is written down, and it is skipped
- * until the record is older than `SERVICE_MISS_TTL_MS`.
+ * ## Per-provider matching and link normalization
  *
- * A miss expires rather than being permanent, because catalogues do gain
- * tracks. A service that does answer has its miss removed in the same
- * step, so the two tables cannot end up asserting opposite things.
+ * `resolveOnService` uses a known provider id for metadata refresh, otherwise
+ * ISRC before text. A failed identifier request is an upstream failure, while
+ * an actual empty identifier result permits text fallback. Adapters own their
+ * HTTP contracts and candidate validation. `plugins/_shared/confidence.ts`
+ * owns free-text interpretation and scoring; `track-search-query.ts` owns the
+ * bounded credit-free alternatives and identity guards used by catalogue
+ * fallbacks. Original display titles, artist, duration, and version survive.
+ * `confidence.ts` interprets match methods; `constants.ts` owns acceptance gates.
  *
- * ## Preview URL preference (Deezer first)
+ * `normalizeTrackLinks` runs after source assembly and on completed deadline
+ * batches. It keeps one destination per provider and derives YouTube Music
+ * only from the shared `lib/platform/youtube-video.ts` recording-id grammar.
+ * A `search-fallback` opens search results, not the recording; it never seeds
+ * a derived recording link. Registry filtering applies the parent's toggle to
+ * persisted YouTube Music aliases as well as ordinary destinations.
  *
- * Deezer CDN preview URLs are permanent; Spotify preview URLs expire
- * after roughly 30-60 days. Whenever we see a Deezer preview among the
- * resolved links we prefer it over the source track's preview, even
- * going as far as issuing a gap-fill Deezer lookup from
- * `fillMissingServices` when the cached track has no preview at all.
+ * ## Deadline and persistence ownership
  *
- * ## Artwork: never Apple's
+ * `fan-out-deadline.ts` owns `RESOLVE_RESPONSE_DEADLINE_MS`. Early results form
+ * the response while each pending lookup remains bounded by `ADAPTER_TIMEOUT_MS`.
+ * A deadline is not cancellation. Late successful destinations remain useful.
  *
- * Every fresh resolve keeps the cover `pickArtworkUrl` (`artwork.ts`) picks:
- * the source track's own unless it is Apple's, else the cover a matched
- * service returned with its link, Spotify's first. Apple's artwork may only be
- * shown with MusicKit playback, so the Apple Music adapter returns none and an
- * Apple cover scraped from a page is dropped. When no cover is left and the
- * track has an ISRC, Spotify and then Deezer are asked by ISRC
- * (`withKeptArtwork`), which covers sources such as Tidal's API v2 that send
- * no artwork. The OG-scrape fallback (`scrapeTrackFromPage`) offers the page's
- * `og:image` as the source track's own cover.
+ * `completeFreshResolution` applies visibility, normalization, artwork policy,
+ * and initial identifier collection. `persist-resolution.ts` stores a fresh
+ * recording or preserves cached ids. Only after this primary persistence does
+ * `resolve-response.ts` start `persistLateTrackLinks`, because late writes need
+ * a real track id. Cached gap-fill batches already know that id and persist
+ * themselves. Both store links, provider-specific identifier observations, and
+ * previews. `external-ids.ts` owns provenance and deduplication of identifiers.
+ * Preview expiry is parsed by `lib/preview-url.ts`; an encoded expiry remains
+ * significant even for a provider preferred by the preview-selection policy.
  *
- * ## SERVICE_DISABLED vs NOT_MUSIC_LINK
+ * ## Artwork and share reads
  *
- * Before throwing the generic "unrecognized URL" error, the resolver
- * checks against *all* plugins, including disabled ones and ones without
- * credentials (`findInactiveServiceFor`). If the URL belongs to one of
- * them, the user sees the more actionable `SERVICE_DISABLED` error with
- * the service name, not a misleading `NOT_MUSIC_LINK`. The album and
- * artist pipelines make the same check. The admin controls which plugins
- * are enabled; the user only controls which link they paste.
+ * `artwork.ts` owns recording-cover eligibility and bounded lookup priority.
+ * YouTube imagery is never a recording fallback, and Apple restrictions remain.
+ * Fresh image provenance identifies the image's provider, not merely whichever
+ * service supplied title metadata. Artist portraits keep their separate policy.
  *
- * ## YouTube Music derivation
+ * Cached/late changes use `recording-artwork.ts` and cover-only compare-and-set
+ * storage, so another resolve or an operator's valid cover is not overwritten.
+ * Stored links contain no covers, which is why a missing cover permits bounded
+ * metadata refresh even when destinations and previews are already complete.
  *
- * YouTube and YouTube Music share video IDs. When we match a YouTube
- * video URL, we synthesise the YouTube Music link by swapping the
- * hostname + path prefix, rather than running a separate YT Music
- * search. Same trick as in the album and artist resolvers.
+ * `lib/server/share-page.ts` filters stored recording images for output and OG
+ * metadata without upstream calls or repair writes. Opening a share does not
+ * resolve missing destinations. Explicit resolution enriches service coverage;
+ * `routes/share.ts` separately owns HTTP caching of the resulting payload.
  *
- * ## YouTube search-fallback link
- *
- * If no YouTube match is found but the track has a title and artist,
- * we still emit a `music.youtube.com/search?q=...` link carrying
- * `matchMethod: "search-fallback"`. This guarantees every resolved track
- * has at least a "search on YouTube" option even when the YouTube API
- * could not pin the exact video.
- *
- * That method is what tells a consumer the link is not the recording. It
- * has to stay distinct from `search`, which means a text search that did
- * find the recording, because a caller filtering for real matches has no
- * other way to separate the two and would otherwise send somebody to a
- * result list believing it was the track.
- *
- * ## Response deadline and adapter timeout
- *
- * `resolveAcrossServices` and `fillMissingServices` answer with the links
- * that arrived within `RESOLVE_RESPONSE_DEADLINE_MS`. Services still running
- * at that point finish in the background and their links are stored on the
- * track once they arrive (`persistLateTrackLinks` for a fresh resolve, the
- * gap fill itself for a cache hit), so the share page has them from the next
- * load on. Each lookup is also raced against `ADAPTER_TIMEOUT_MS`, which bounds
- * that background work when a service never answers.
- *
- * ## OG-scrape fallback (`scrapeTrackFromPage`)
- *
- * When a URL belongs to a service whose plugin has no API
- * credentials (`isPluginAvailable` is false), we fall back to fetching
- * the page and parsing OG meta tags. The trick is the
- * `User-Agent: facebookexternalhit/1.1` header: single-page app shells
- * do not server-render OG tags for regular browsers, but they DO render
- * them for known social media crawlers because the page relies on
- * social unfurl previews working. We pretend to be Facebook's link
- * previewer to get the server-rendered variant.
- *
- * The OG-title string is parsed with five language-specific patterns
- * ("Title by Artist on Service" / "Title von Artist bei Service" /
- * etc.) because services localize the OG title based on the request
- * locale. Falling out of all patterns drops to a dash-split and then
- * to a last-resort free-text search.
- *
- * ## Confidence thresholds (in `constants.ts`)
- *
- * | Constant                    | Meaning                                                |
- * | --------------------------- | ------------------------------------------------------ |
- * | `MATCH_MIN_CONFIDENCE`      | Minimum for an adapter to report a result as "found"   |
- * | `LINK_QUALITY_THRESHOLD`    | Minimum for a link to appear in the final result set   |
- * | `AUTO_SELECT_THRESHOLD`     | Above this, text search skips disambiguation entirely  |
- * | `CANDIDATE_MIN_CONFIDENCE`  | Minimum for a candidate to appear in disambiguation    |
- * | `MAX_CANDIDATES`            | Disambiguation list size cap                           |
- * | `SEARCH_FALLBACK_CONFIDENCE`| Confidence of synthesised "search on X" fallback links |
- * | `SERVICE_MISS_TTL_MS`       | How long a fruitless lookup stands before a retry       |
+ * The OG metadata escape hatch is entered only after metadata fetch fails and
+ * the availability check reports missing configuration. Registry gating still
+ * runs first; a quota failure is not a reason to scrape. Page metadata enters
+ * ordinary matching and image policy rather than bypassing either boundary.
  */
 import { getPlatformLabel, isShortLinkHost, type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
@@ -153,9 +105,10 @@ import { createSingleFlight } from "../lib/concurrency.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
+import { youtubeVideoId } from "../lib/platform/youtube-video.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
-import { pickArtworkUrl } from "./artwork.js";
+import { pickRecordingArtworkUrl, RECORDING_ARTWORK_LOOKUP_SERVICES } from "./artwork.js";
 import { confidenceForMethod } from "./confidence.js";
 import {
   AUTO_SELECT_THRESHOLD,
@@ -176,6 +129,8 @@ import {
   identifyService,
   isPluginAvailable,
 } from "./index.js";
+import { isTrackSearchFallbackMatch } from "./plugins/_shared/track-search-query.js";
+import { keepRecordingArtwork } from "./recording-artwork.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   ExternalIdRecord,
@@ -350,7 +305,53 @@ async function tryCache(lookup: {
   }
 }
 
-async function fillMissingServices(cached: ResolutionResult): Promise<ResolutionResult> {
+/**
+ * Completes a cached recording without losing evidence already obtained upstream.
+ *
+ * A cache hit identifies the recording, not a complete destination set. Known
+ * source observations must be retained before gap filling, because searching
+ * again can fail after the source was already confirmed. Their ISRC may guide
+ * lookups without rewriting canonical metadata or changing the share id.
+ *
+ * @param cached - Stored recording and its current destinations.
+ * @param observations - Newly confirmed metadata for this same cached identity.
+ * @returns Visible destinations and early enrichment; late batches persist themselves.
+ */
+async function fillMissingServices(
+  cached: ResolutionResult,
+  observations: readonly ResolvedLink[] = [],
+): Promise<ResolutionResult> {
+  const normalizedLinks = await filterDisabledLinks([...cached.links, ...observations]);
+  const visibleServices = new Set(normalizedLinks.map((link) => link.service));
+  const visibleObservations = observations.filter((link) => visibleServices.has(link.service));
+  normalizeTrackLinks(normalizedLinks);
+  const changed = normalizedLinks.filter((link) => {
+    const stored = cached.links.find((candidate) => candidate.service === link.service);
+    return (
+      !stored ||
+      stored.url !== link.url ||
+      stored.confidence !== link.confidence ||
+      stored.matchMethod !== link.matchMethod
+    );
+  });
+  if (cached.trackId && (changed.length > 0 || visibleObservations.length > 0)) {
+    await persistTrackLinks(cached.trackId, changed, visibleObservations);
+  }
+  cached = {
+    ...cached,
+    links: normalizedLinks,
+    sourceTrack: {
+      ...cached.sourceTrack,
+      artworkUrl: await keepRecordingArtwork(
+        "track",
+        cached.trackId,
+        cached.sourceTrack.artworkUrl,
+        visibleObservations,
+      ),
+    },
+  };
+  const observedIsrc = cached.sourceTrack.isrc ?? visibleObservations.find((link) => link.isrc)?.isrc;
+  const lookupTrack = observedIsrc ? { ...cached.sourceTrack, isrc: observedIsrc } : cached.sourceTrack;
   const coveredServices = new Set(cached.links.map((l) => l.service));
   const active = await getActiveAdapters();
 
@@ -364,12 +365,8 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     (a) => !coveredServices.has(a.id) && a.id !== cached.sourceTrack.sourceService && !recentMisses.has(a.id),
   );
 
-  // Static-vs-dynamic split: a missing or expired preview-URL row is the
-  // ONLY reason to re-fetch Deezer for a row whose service-link list is
-  // already complete. Previously this fired on every cache hit when
-  // `sourceTrack.previewUrl` was empty; now it fires only when the
-  // `track_previews` row for the chosen preview source is genuinely
-  // expired (or absent).
+  // Destination completeness does not imply a usable preview. The preview
+  // rows' expiry controls this refresh; missing artwork is checked separately.
   const needsPreview = await isPreviewRefreshNeeded(cached);
   // A service with a fresh miss is skipped here too: it has no link for this
   // track, so it has no preview for it either, and asking is the same waste in
@@ -384,7 +381,23 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
         )
       : undefined;
 
-  const adaptersToFetch = deezerAdapter ? [...missingAdapters, deezerAdapter] : missingAdapters;
+  // Stored links do not contain covers. A missing cover therefore permits a
+  // bounded metadata refresh even when previews and destinations are complete.
+  const artworkAdapters = !cached.sourceTrack.artworkUrl
+    ? RECORDING_ARTWORK_LOOKUP_SERVICES.flatMap((service) =>
+        active.filter(
+          (adapter) => adapter.id === service && adapter.capabilities.supportsArtwork && coveredServices.has(service),
+        ),
+      )
+    : [];
+  const adaptersToFetch = [
+    ...new Map(
+      [...missingAdapters, ...(deezerAdapter ? [deezerAdapter] : []), ...artworkAdapters].map((adapter) => [
+        adapter.id,
+        adapter,
+      ]),
+    ).values(),
+  ];
 
   if (adaptersToFetch.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
@@ -397,7 +410,13 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
   // its misses recorded, in the background once it arrives, so a slow service
   // costs the next load nothing and this one no wait.
   const fanOut = await settleWithinDeadline(
-    adaptersToFetch.map((a) => resolveOnServiceWithTimeout(a, cached.sourceTrack)),
+    adaptersToFetch.map((adapter) =>
+      resolveOnServiceWithTimeout(
+        adapter,
+        lookupTrack,
+        cached.links.find((link) => link.service === adapter.id),
+      ),
+    ),
     RESOLVE_RESPONSE_DEADLINE_MS,
   );
   const newLinks = await storeGapFillResults(cached, coveredServices, adaptersToFetch, fanOut.early);
@@ -420,8 +439,8 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
   const genuinelyNewLinks = newLinks.filter((l) => !coveredServices.has(l.service));
   const allLinks = [...cached.links, ...genuinelyNewLinks].sort((a, b) => b.confidence - a.confidence);
 
-  // Always prefer a fresh Deezer preview URL. Deezer CDN URLs are permanent,
-  // Spotify preview URLs expire after ~30-60 days. Overwrite any existing value.
+  // Prefer Deezer among new preview observations. Persisted preview rows keep
+  // their parsed expiry independently of this response-level preference.
   let sourceTrack = cached.sourceTrack;
   const deezerGapLink = newLinks.find((l) => l.service === "deezer" && l.previewUrl);
   const anyGapPreview = deezerGapLink ?? newLinks.find((l) => l.previewUrl);
@@ -434,7 +453,8 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     links: await filterDisabledLinks(allLinks),
     trackId: cached.trackId,
     shortId: cached.shortId,
-    externalIds: collectTrackExternalIds(sourceTrack, newLinks),
+    // Each gap-fill batch stores its own identifiers, including late batches.
+    externalIds: [],
   };
 }
 
@@ -463,7 +483,7 @@ async function storeGapFillResults(
     const result = results[i];
     if (result?.status === "fulfilled" && result.value) {
       newLinks.push(result.value);
-    } else if (result?.status === "fulfilled") {
+    } else if (result?.status === "fulfilled" && !coveredServices.has(adapters[i].id)) {
       // A clean "not here". A rejected lookup is left out on purpose: that is
       // an outage or a timeout, and recording it would suppress the service
       // for a month over a bad minute.
@@ -471,7 +491,14 @@ async function storeGapFillResults(
     }
   }
 
+  normalizeTrackLinks(newLinks);
   await recordServiceMisses(cached.trackId, missedServices);
+  // Both deadline batches share this owned snapshot, so late artwork compares
+  // against the cover kept by the early batch rather than its obsolete fallback.
+  cached.sourceTrack = {
+    ...cached.sourceTrack,
+    artworkUrl: await keepRecordingArtwork("track", cached.trackId, cached.sourceTrack.artworkUrl, newLinks),
+  };
 
   // Only persist genuinely new service links (not Deezer re-fetched for preview only)
   if (cached.trackId) {
@@ -485,20 +512,21 @@ async function storeGapFillResults(
 }
 
 /**
- * Stores service links on a persisted track and saves the previews they carry.
+ * Stores links and every identifier/preview observation in a completed batch.
+ * Cover policy is applied separately by the cached or late-result owner.
  *
  * @param trackId - The persisted track.
  * @param links - Links to add or replace, one per service.
- * @param previewLinks - Links whose preview URL should be saved, with its
- *   parsed expiry. A permanent CDN URL is saved with a `null` expiry, which
- *   the refresh check reads as "never expires".
- * @returns A promise that settles once both writes are done or given up on. It
+ * @param observations - All validated metadata, including covered services
+ *   refreshed only for artwork or preview. Identifiers retain provider provenance.
+ *   Preview expiry is parsed; null means that no expiry was encoded.
+ * @returns A promise that settles once the writes are done or given up on. It
  *   never rejects: the response it belongs to is already correct without them.
  */
 async function persistTrackLinks(
   trackId: string,
   links: readonly ResolvedLink[],
-  previewLinks: readonly ResolvedLink[],
+  observations: readonly ResolvedLink[],
 ): Promise<void> {
   if (links.length > 0) {
     try {
@@ -520,13 +548,39 @@ async function persistTrackLinks(
         links.map((l) => l.service),
       );
     } catch (error) {
-      log.error("Resolver", `Failed to persist service links: ${error instanceof Error ? error.message : error}`);
+      log.deviation(
+        {
+          component: "Resolver",
+          errorCode: "MC-DB-0004",
+          operation: "track_links_persist",
+          outcome: "response_without_link_update",
+        },
+        error,
+      );
+    }
+  }
+
+  const identifiers = collectTrackExternalIds(undefined, observations);
+  if (identifiers.length > 0) {
+    try {
+      const repository = await getRepository();
+      await repository.addTrackExternalIds(trackId, identifiers);
+    } catch (error) {
+      log.deviation(
+        {
+          component: "Resolver",
+          errorCode: "MC-DB-0004",
+          operation: "track_identifier_persist",
+          outcome: "links_without_identifier_update",
+        },
+        error,
+      );
     }
   }
 
   try {
     const repo = await getRepository();
-    for (const link of previewLinks) {
+    for (const link of observations) {
       if (!link.previewUrl) continue;
       const expiresAtMs = getPreviewExpiry(link.previewUrl, link.service);
       await repo.upsertTrackPreview(trackId, {
@@ -536,7 +590,15 @@ async function persistTrackLinks(
       });
     }
   } catch (error) {
-    log.error("Resolver", `Failed to persist preview rows: ${error instanceof Error ? error.message : error}`);
+    log.deviation(
+      {
+        component: "Resolver",
+        errorCode: "MC-DB-0004",
+        operation: "track_preview_persist",
+        outcome: "links_without_preview_update",
+      },
+      error,
+    );
   }
 }
 
@@ -554,8 +616,19 @@ export async function persistLateTrackLinks(trackId: string, lateLinks: Promise<
     const links = await lateLinks;
     if (links.length === 0) return;
     await persistTrackLinks(trackId, links, links);
+    const repository = await getRepository();
+    const stored = await repository.loadByTrackId(trackId);
+    if (stored) await keepRecordingArtwork("track", trackId, stored.track.artworkUrl ?? undefined, links);
   } catch (error) {
-    log.error("Resolver", `Failed to persist late links: ${error instanceof Error ? error.message : error}`);
+    log.deviation(
+      {
+        component: "Resolver",
+        errorCode: "MC-DB-0004",
+        operation: "late_track_links_persist",
+        outcome: "primary_result_retained",
+      },
+      error,
+    );
   }
 }
 
@@ -754,7 +827,10 @@ async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> 
   // 3b. Cache lookup by ISRC (in case same track was resolved via different URL)
   if (sourceTrack.isrc) {
     const cachedByIsrc = await tryCache({ isrc: sourceTrack.isrc });
-    if (cachedByIsrc) return fillMissingServices(cachedByIsrc);
+    if (cachedByIsrc)
+      return fillMissingServices(cachedByIsrc, [
+        resolvedTrackLink(sourceAdapter, sourceTrack, IDENTIFIER_MATCH_CONFIDENCE, "source"),
+      ]);
   }
 
   // 4. Resolve on all other services in parallel
@@ -772,8 +848,7 @@ async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> 
     previewUrl: sourceTrack.previewUrl,
   });
 
-  // 6. Always prefer a stable Deezer preview URL over any other service.
-  // Deezer CDN URLs are permanent; Spotify preview URLs expire after ~30-60 days.
+  // Prefer Deezer when it supplied a preview; expiry remains per observation.
   const deezerLink = links.find((l) => l.service === "deezer" && l.previewUrl);
   const bestPreviewUrl =
     deezerLink?.previewUrl ?? links.find((l) => l.previewUrl)?.previewUrl ?? sourceTrack.previewUrl;
@@ -781,7 +856,7 @@ async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> 
     sourceTrack = { ...sourceTrack, previewUrl: bestPreviewUrl };
   }
 
-  // 7. Keep a cover that is not Apple's.
+  // Source assembly is complete before alias derivation and recording-cover selection.
   return completeFreshResolution(sourceTrack, links, lateLinks);
 }
 
@@ -800,24 +875,19 @@ async function completeFreshResolution(
   links: ResolvedLink[],
   lateLinks: Promise<ResolvedLink[]> | undefined,
 ): Promise<ResolutionResult> {
-  const track = await withKeptArtwork(sourceTrack, links);
+  const visible = await filterDisabledLinks(links);
+  normalizeTrackLinks(visible);
+  const track = await withKeptArtwork(sourceTrack, visible);
   return {
     sourceTrack: track,
-    links,
-    externalIds: collectTrackExternalIds(track, links),
+    links: visible,
+    externalIds: collectTrackExternalIds(track, visible),
     lateLinks,
   };
 }
 
 /**
- * Services asked by ISRC for a cover when neither the source track nor any of
- * its links has one to keep, in this order. Never Apple Music, whose artwork
- * may not be shown (see `artwork.ts`).
- */
-const ISRC_ARTWORK_SERVICES: readonly ServiceId[] = ["spotify", "deezer"];
-
-/**
- * Gives a freshly resolved track the cover it keeps, see {@link pickArtworkUrl}.
+ * Gives fresh metadata a permitted cover through {@link pickRecordingArtworkUrl}.
  *
  * @param sourceTrack - The resolved track, with the cover its service returned.
  * @param links - The links the resolve found, each with the cover its service
@@ -827,7 +897,7 @@ const ISRC_ARTWORK_SERVICES: readonly ServiceId[] = ["spotify", "deezer"];
  *   from {@link findArtworkByIsrc}.
  */
 async function withKeptArtwork(sourceTrack: NormalizedTrack, links: readonly ResolvedLink[]): Promise<NormalizedTrack> {
-  let artworkUrl = pickArtworkUrl(sourceTrack.artworkUrl, links);
+  let artworkUrl = pickRecordingArtworkUrl(sourceTrack.artworkUrl, links, sourceTrack.sourceService);
   if (!artworkUrl && sourceTrack.isrc) {
     artworkUrl = await findArtworkByIsrc(sourceTrack.isrc, new Set(links.map((link) => link.service)));
   }
@@ -835,7 +905,7 @@ async function withKeptArtwork(sourceTrack: NormalizedTrack, links: readonly Res
 }
 
 /**
- * Asks {@link ISRC_ARTWORK_SERVICES} in turn for a cover of the recording.
+ * Asks {@link RECORDING_ARTWORK_LOOKUP_SERVICES} in turn for a cover of the recording.
  *
  * @param isrc - The track's ISRC.
  * @param considered - Services whose link is already in the result. They are
@@ -845,12 +915,12 @@ async function withKeptArtwork(sourceTrack: NormalizedTrack, links: readonly Res
  */
 async function findArtworkByIsrc(isrc: string, considered: ReadonlySet<string>): Promise<string | undefined> {
   const active = await getActiveAdapters();
-  for (const serviceId of ISRC_ARTWORK_SERVICES) {
+  for (const serviceId of RECORDING_ARTWORK_LOOKUP_SERVICES) {
     const adapter = active.find((candidate) => candidate.id === serviceId);
     if (!adapter || considered.has(serviceId)) continue;
     try {
       const track = await adapter.findByIsrc(isrc);
-      const artworkUrl = pickArtworkUrl(track?.artworkUrl, []);
+      const artworkUrl = pickRecordingArtworkUrl(track?.artworkUrl);
       if (artworkUrl) return artworkUrl;
     } catch (error) {
       log.deviation(
@@ -925,7 +995,8 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
         // Cache lookup by ISRC before full cross-service resolve
         if (result.track.isrc) {
           const cached = await tryCache({ isrc: result.track.isrc });
-          if (cached) return fillMissingServices(cached);
+          if (cached)
+            return fillMissingServices(cached, [resolvedTrackLink(adapter, result.track, result.confidence, "search")]);
         }
 
         const { links, lateLinks } = await resolveAcrossServices(result.track, adapter);
@@ -997,12 +1068,13 @@ export async function resolveTextSearchWithDisambiguation(
           // Cache lookup by ISRC before full resolve
           if (topCandidate.track.isrc) {
             const cached = await tryCache({ isrc: topCandidate.track.isrc });
-            if (cached) {
+            if (cached)
               return {
                 kind: "resolved",
-                result: { ...cached, links: await filterDisabledLinks(cached.links) },
+                result: await fillMissingServices(cached, [
+                  resolvedTrackLink(adapter, topCandidate.track, topCandidate.confidence, "search"),
+                ]),
               };
-            }
           }
 
           const { links, lateLinks } = await resolveAcrossServices(topCandidate.track, adapter);
@@ -1044,12 +1116,13 @@ export async function resolveTextSearchWithDisambiguation(
         // Cache lookup by ISRC before full resolve
         if (result.track.isrc) {
           const cached = await tryCache({ isrc: result.track.isrc });
-          if (cached) {
+          if (cached)
             return {
               kind: "resolved",
-              result: { ...cached, links: await filterDisabledLinks(cached.links) },
+              result: await fillMissingServices(cached, [
+                resolvedTrackLink(adapter, result.track, result.confidence, "search"),
+              ]),
             };
-          }
         }
 
         const { links, lateLinks } = await resolveAcrossServices(result.track, adapter);
@@ -1107,11 +1180,17 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
 
   const sourceTrack = await adapter.getTrack(trackId);
 
-  // Cache lookup by ISRC before full cross-service resolve
-  if (sourceTrack.isrc) {
-    const cached = await tryCache({ isrc: sourceTrack.isrc });
-    if (cached) return { ...cached, links: await filterDisabledLinks(cached.links) };
-  }
+  // Video sources have no ISRC. Their canonical URL still identifies the
+  // stored recording, which must keep its share id and receive the same gap fill.
+  const cached = await tryCache({
+    url: sourceTrack.webUrl,
+    serviceLink: serviceLinkLookup(adapter, trackId),
+    isrc: sourceTrack.isrc,
+  });
+  if (cached)
+    return fillMissingServices(cached, [
+      resolvedTrackLink(adapter, sourceTrack, IDENTIFIER_MATCH_CONFIDENCE, "search"),
+    ]);
 
   const { links, lateLinks } = await resolveAcrossServices(sourceTrack, adapter);
 
@@ -1140,7 +1219,7 @@ async function resolveAcrossServices(
   );
 
   const links = collectMatchedLinks(targetAdapters, fanOut.early);
-  appendYouTubeMusicLink(links);
+  normalizeTrackLinks(links);
 
   // For services with no match, add YouTube search fallback
   const coveredServices = new Set([excludeAdapter.id, ...links.map((l) => l.service)]);
@@ -1176,7 +1255,7 @@ async function resolveAcrossServices(
       lateAdapterIndices.map((index) => targetAdapters[index]),
       lateAdapterIndices.map((index) => results[index]),
     );
-    appendYouTubeMusicLink(late);
+    normalizeTrackLinks(late);
     return late.filter((l) => l.confidence >= LINK_QUALITY_THRESHOLD);
   });
 
@@ -1232,24 +1311,44 @@ function collectMatchedLinks(
 }
 
 /**
- * Derives the YouTube Music link from a YouTube match in `links`, which share
- * the video id, and appends it unless one is there already.
+ * Keeps one destination per provider and derives a validated music-video alias.
  *
- * @param links - Links to extend in place.
+ * Sources are assembled first. A recording replaces a search-page fallback,
+ * while stronger evidence can replace a weaker provider observation. Validated
+ * video grammar is shared with the input adapter; search pages never become
+ * recording destinations. Availability filtering belongs to the calling boundary.
+ *
+ * @param links - Final source set or completed deadline batch, mutated in place.
  */
-function appendYouTubeMusicLink(links: ResolvedLink[]): void {
-  const youtubeLink = links.find((l) => l.service === "youtube");
-  if (!youtubeLink || links.some((l) => l.service === "youtube-music")) return;
+function normalizeTrackLinks(links: ResolvedLink[]): void {
+  const unique = new Map<ServiceId, ResolvedLink>();
+  for (const link of links) {
+    const current = unique.get(link.service);
+    if (
+      !current ||
+      (current.matchMethod === "search-fallback" && link.matchMethod !== "search-fallback") ||
+      (link.matchMethod !== "search-fallback" && link.confidence > current.confidence)
+    )
+      unique.set(link.service, link);
+  }
+  links.splice(0, links.length, ...unique.values());
+  const youtubeLink = links.find((link) => link.service === "youtube");
+  if (
+    !youtubeLink ||
+    youtubeLink.matchMethod === "search-fallback" ||
+    links.some((link) => link.service === "youtube-music")
+  )
+    return;
 
-  const videoIdMatch = /[?&]v=([^&]+)/.exec(youtubeLink.url);
-  if (!videoIdMatch) return;
+  const videoId = youtubeVideoId(youtubeLink.url);
+  if (!videoId) return;
   links.push({
     service: "youtube-music",
     displayName: getPlatformLabel("youtube-music"),
-    url: `https://music.youtube.com/watch?v=${videoIdMatch[1]}`,
+    url: `https://music.youtube.com/watch?v=${videoId}`,
     confidence: youtubeLink.confidence,
     matchMethod: youtubeLink.matchMethod,
-    externalId: youtubeLink.externalId,
+    externalId: videoId,
   });
 }
 
@@ -1275,15 +1374,61 @@ const ADAPTER_TIMEOUT_MS = 10_000;
 function resolveOnServiceWithTimeout(
   adapter: ServiceAdapter,
   sourceTrack: NormalizedTrack,
+  knownLink?: ResolvedLink,
 ): Promise<ResolvedLink | null> {
   let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timeoutTimer = setTimeout(() => reject(new Error(`Timeout after ${ADAPTER_TIMEOUT_MS}ms`)), ADAPTER_TIMEOUT_MS);
   });
-  return Promise.race([resolveOnService(adapter, sourceTrack), timeout]).finally(() => clearTimeout(timeoutTimer));
+  return Promise.race([resolveOnService(adapter, sourceTrack, knownLink), timeout]).finally(() =>
+    clearTimeout(timeoutTimer),
+  );
 }
 
-async function resolveOnService(adapter: ServiceAdapter, sourceTrack: NormalizedTrack): Promise<ResolvedLink | null> {
+/**
+ * Refreshes a known destination by its id, otherwise tries ISRC before text.
+ *
+ * @param adapter - Enabled, configured provider owning the destination.
+ * @param sourceTrack - Original recording identity; display metadata stays intact.
+ * @param knownLink - Existing destination being refreshed for preview or artwork.
+ * @returns A validated match with enrichment metadata, or null for a clean miss.
+ * @throws Provider failures, which must not become negative catalogue cache entries.
+ */
+async function resolveOnService(
+  adapter: ServiceAdapter,
+  sourceTrack: NormalizedTrack,
+  knownLink?: ResolvedLink,
+): Promise<ResolvedLink | null> {
+  if (knownLink) {
+    const sourceId = adapter.detectUrl(knownLink.url);
+    if (sourceId) {
+      const track = await adapter.getTrack(sourceId);
+      if (
+        !isTrackSearchFallbackMatch(
+          {
+            title: sourceTrack.title,
+            artist: sourceTrack.artists[0] ?? "",
+            artists: sourceTrack.artists,
+            durationMs: sourceTrack.durationMs,
+          },
+          track,
+        )
+      ) {
+        log.deviation(
+          {
+            component: "Resolver",
+            adapterId: adapter.id,
+            errorCode: "MC-API-0004",
+            operation: "cached_recording_identity",
+            outcome: "cover_not_borrowed",
+          },
+          new Error("Cached catalogue metadata does not match the recording"),
+        );
+        return null;
+      }
+      return resolvedTrackLink(adapter, track, knownLink.confidence, knownLink.matchMethod);
+    }
+  }
   // Strategy 1: ISRC lookup (most reliable)
   if (adapter.capabilities.supportsIsrc && sourceTrack.isrc) {
     if (adapter.id === "youtube") {
@@ -1293,19 +1438,7 @@ async function resolveOnService(adapter: ServiceAdapter, sourceTrack: Normalized
 
     const track = await adapter.findByIsrc(sourceTrack.isrc);
     if (track) {
-      return {
-        service: adapter.id,
-        displayName: adapter.displayName,
-        url: track.webUrl,
-        confidence: IDENTIFIER_MATCH_CONFIDENCE,
-        matchMethod: "isrc",
-        externalId: track.sourceId,
-        previewUrl: track.previewUrl,
-        artworkUrl: track.artworkUrl,
-        isrc: track.isrc,
-        mbid: track.mbid,
-        iswc: track.iswc,
-      };
+      return resolvedTrackLink(adapter, track, IDENTIFIER_MATCH_CONFIDENCE, "isrc");
     }
   }
 
@@ -1324,18 +1457,41 @@ async function resolveViaSearch(adapter: ServiceAdapter, sourceTrack: Normalized
 
   if (!result.found || !result.track) return null;
 
+  return resolvedTrackLink(
+    adapter,
+    result.track,
+    confidenceForMethod(result.matchMethod, result.confidence),
+    result.matchMethod,
+  );
+}
+
+/**
+ * Retains enrichment metadata consistently across identifier, text and refresh matches.
+ *
+ * @param adapter - Provider that returned the recording.
+ * @param track - Validated recording metadata, not a search-result page.
+ * @param confidence - Score already assigned by the matching strategy.
+ * @param matchMethod - Evidence behind that score; refreshes preserve it.
+ * @returns The destination plus metadata consumed by persistence and cover policy.
+ */
+function resolvedTrackLink(
+  adapter: ServiceAdapter,
+  track: NormalizedTrack,
+  confidence: number,
+  matchMethod: MatchMethod,
+): ResolvedLink {
   return {
     service: adapter.id,
     displayName: adapter.displayName,
-    url: result.track.webUrl,
-    confidence: confidenceForMethod(result.matchMethod, result.confidence),
-    matchMethod: result.matchMethod,
-    externalId: result.track.sourceId,
-    previewUrl: result.track.previewUrl,
-    artworkUrl: result.track.artworkUrl,
-    isrc: result.track.isrc,
-    mbid: result.track.mbid,
-    iswc: result.track.iswc,
+    url: track.webUrl,
+    confidence,
+    matchMethod,
+    externalId: track.sourceId,
+    previewUrl: track.previewUrl,
+    artworkUrl: pickRecordingArtworkUrl(undefined, [{ service: adapter.id, artworkUrl: track.artworkUrl }]),
+    isrc: track.isrc,
+    mbid: track.mbid,
+    iswc: track.iswc,
   };
 }
 
@@ -1472,38 +1628,29 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
     throw new ResolveError("TRACK_NOT_FOUND", `Track not found: "${scraped.title}" by ${scraped.artist}`);
   }
 
-  // ISRC cache check
+  // The page image retains its provider even when catalogue metadata came from
+  // another service. Both observations belong to the same verified cache identity.
+  const observations: ResolvedLink[] = [
+    {
+      service: sourceServiceId,
+      displayName: PLATFORM_CONFIG[sourceServiceId].label,
+      url,
+      confidence: 0.9,
+      matchMethod: "search",
+      artworkUrl: pickRecordingArtworkUrl(scraped.artworkUrl, [], sourceServiceId),
+    },
+    resolvedTrackLink(bestAdapter, bestSourceTrack, bestConfidence, "search"),
+  ];
   if (bestSourceTrack.isrc) {
     const cached = await tryCache({ isrc: bestSourceTrack.isrc });
-    if (cached) return { ...cached, links: await filterDisabledLinks(cached.links) };
+    if (cached) return fillMissingServices(cached, observations);
   }
 
   // Resolve across all other services
   const { links, lateLinks } = await resolveAcrossServices(bestSourceTrack, bestAdapter);
 
-  // Add the source adapter's match
-  links.unshift({
-    service: bestAdapter.id,
-    displayName: bestAdapter.displayName,
-    url: bestSourceTrack.webUrl,
-    confidence: bestConfidence,
-    matchMethod: "search",
-    externalId: bestSourceTrack.sourceId,
-  });
-
-  // Add the original URL as a link for the source service
-  links.unshift({
-    service: sourceServiceId,
-    displayName: PLATFORM_CONFIG[sourceServiceId].label,
-    url,
-    confidence: 0.9,
-    matchMethod: "search",
-  });
-
-  // The scraped page's cover counts as the track's own when the search hit has
-  // none. An Apple Music page's cover is Apple's, and the pick drops it.
-  const sourceTrack = { ...bestSourceTrack, artworkUrl: bestSourceTrack.artworkUrl ?? scraped.artworkUrl };
-  return completeFreshResolution(sourceTrack, links, lateLinks);
+  links.unshift(...observations);
+  return completeFreshResolution(bestSourceTrack, links, lateLinks);
 }
 
 // ─── Last.fm URL → text query ──────────────────────────────────────────────

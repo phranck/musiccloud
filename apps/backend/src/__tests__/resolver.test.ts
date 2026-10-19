@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ResolveError } from "@/lib/resolve/errors";
-import type { CachedTrackResult, TrackRepository } from "../db/repository";
+import type { CachedTrackResult, SharePageDbResult, TrackRepository } from "../db/repository";
+import { loadByTrackId as loadShareTrack } from "../lib/server/share-page.js";
 import type { MatchResult, NormalizedTrack, SearchResultWithCandidates, ServiceAdapter } from "../services/types";
 
 // =============================================================================
@@ -24,15 +25,16 @@ vi.mock("../db/index.js", () => ({
 }));
 
 // Mock the logger to suppress output during tests
-vi.mock("../lib/logger.js", () => ({
+vi.mock("../lib/infra/logger.js", () => ({
   log: {
     debug: vi.fn(),
     error: vi.fn(),
+    deviation: vi.fn(),
   },
 }));
 
 // Mock fetchWithTimeout (used in scrapeTrackFromPage)
-vi.mock("../lib/fetch.js", () => ({
+vi.mock("../lib/infra/fetch.js", () => ({
   fetchWithTimeout: vi.fn(),
 }));
 
@@ -41,9 +43,16 @@ vi.mock("../lib/fetch.js", () => ({
 // =============================================================================
 
 import { getRepository } from "../db/index";
+import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { SERVICE_MISS_TTL_MS } from "../services/constants.js";
 import { RESOLVE_RESPONSE_DEADLINE_MS } from "../services/fan-out-deadline.js";
-import { filterDisabledLinks, findInactiveServiceFor, getActiveAdapters, identifyService } from "../services/index";
+import {
+  filterDisabledLinks,
+  findInactiveServiceFor,
+  getActiveAdapters,
+  identifyService,
+  isPluginAvailable,
+} from "../services/index";
 import {
   MATCH_MIN_CONFIDENCE,
   persistLateTrackLinks,
@@ -84,6 +93,32 @@ function createMockAdapter(overrides: Partial<ServiceAdapter> = {}): ServiceAdap
   };
 }
 
+/**
+ * Models the reported video metadata, including its prohibited legacy thumbnail.
+ *
+ * @returns A provider boundary fixture without invented ISRC or catalogue artwork.
+ */
+function createMockVideoAdapter(): ServiceAdapter {
+  return createMockAdapter({
+    id: "youtube",
+    capabilities: { supportsIsrc: false, supportsPreview: false, supportsArtwork: false },
+    detectUrl: vi.fn(() => "ImX2w6Ufj4w"),
+    getTrack: vi.fn().mockResolvedValue(
+      createMockTrack({
+        sourceService: "youtube",
+        sourceId: "ImX2w6Ufj4w",
+        title: "Hurt People feat. @marinalatorracaofficial of @BattleBeast",
+        artists: ["DARKK"],
+        albumName: undefined,
+        isrc: undefined,
+        durationMs: 200000,
+        artworkUrl: "https://i.ytimg.com/vi/ImX2w6Ufj4w/maxresdefault.jpg",
+        webUrl: "https://www.youtube.com/watch?v=ImX2w6Ufj4w",
+      }),
+    ),
+  });
+}
+
 function createMockRepository(): TrackRepository {
   return {
     findTrackByUrl: vi.fn().mockResolvedValue(null),
@@ -95,6 +130,8 @@ function createMockRepository(): TrackRepository {
     loadByTrackId: vi.fn().mockResolvedValue(null),
     persistTrackWithLinks: vi.fn().mockResolvedValue({ trackId: "tid1", shortId: "abc" }),
     addLinksToTrack: vi.fn().mockResolvedValue(undefined),
+    replaceRecordingArtwork: vi.fn().mockResolvedValue(true),
+    addTrackExternalIds: vi.fn().mockResolvedValue(undefined),
     readServiceLinkMisses: vi.fn().mockResolvedValue([]),
     recordServiceLinkMisses: vi.fn().mockResolvedValue(undefined),
     clearServiceLinkMisses: vi.fn().mockResolvedValue(undefined),
@@ -122,6 +159,39 @@ function createMockRepository(): TrackRepository {
 // =============================================================================
 
 let mockRepo: TrackRepository;
+
+/**
+ * Models cover storage independently of the resolver so a later share read
+ * observes only successful compare-and-set writes, never a mutated read object.
+ *
+ * @param artworkUrl - The cover initially stored on this test's private row.
+ */
+function mockStoredTrackArtwork(artworkUrl: string | null): void {
+  const stored: SharePageDbResult = {
+    trackId: "tid1",
+    shortId: "existing-share",
+    artists: ["DARKK"],
+    artistCredits: [],
+    artistDisplay: "DARKK",
+    links: [],
+    track: {
+      title: "Hurt People",
+      albumName: null,
+      artworkUrl,
+      durationMs: 200000,
+      isrc: null,
+      releaseDate: null,
+      isExplicit: null,
+      previewUrl: null,
+    },
+  };
+  vi.mocked(mockRepo.loadByTrackId).mockImplementation(async () => structuredClone(stored));
+  vi.mocked(mockRepo.replaceRecordingArtwork).mockImplementation(async (kind, id, expected, replacement) => {
+    if (kind !== "track" || id !== stored.trackId || expected !== stored.track.artworkUrl) return false;
+    stored.track.artworkUrl = replacement;
+    return true;
+  });
+}
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -230,6 +300,45 @@ describe("resolveQuery: URL resolution", () => {
 // =============================================================================
 
 describe("resolveTextSearchWithDisambiguation", () => {
+  it.each([true, false])("enriches an automatic cache hit with native candidates=%s", async (nativeCandidates) => {
+    const track = createMockTrack();
+    const match: MatchResult = { found: true, track, confidence: 0.95, matchMethod: "search" };
+    const source = createMockAdapter({
+      searchTrack: vi.fn().mockResolvedValue(match),
+      ...(nativeCandidates
+        ? {
+            searchTrackWithCandidates: vi.fn().mockResolvedValue({
+              bestMatch: match,
+              candidates: [{ track, confidence: 0.95 }],
+            }),
+          }
+        : {}),
+    });
+    const deezer = createMockAdapter({
+      id: "deezer",
+      findByIsrc: vi.fn().mockResolvedValue(
+        createMockTrack({
+          sourceService: "deezer",
+          sourceId: "456",
+          webUrl: "https://www.deezer.com/track/456",
+        }),
+      ),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([source, deezer]);
+    vi.mocked(mockRepo.findTrackByIsrc).mockResolvedValue({
+      trackId: "tid1",
+      shortId: "existing-share",
+      updatedAt: Date.now(),
+      track,
+      links: [{ service: "spotify", url: track.webUrl, confidence: 1, matchMethod: "source" }],
+    });
+
+    const result = await resolveTextSearchWithDisambiguation("Queen");
+
+    expect(result.result?.links).toContainEqual(expect.objectContaining({ service: "deezer" }));
+    expect(result.result?.shortId).toBe("existing-share");
+  });
+
   it("should auto-select when top candidate confidence >= 0.9", async () => {
     const track = createMockTrack();
 
@@ -1230,6 +1339,125 @@ describe("resolveQuery: ISRC-based resolution", () => {
 // =============================================================================
 
 describe("resolveSelectedCandidate", () => {
+  it.each([
+    "selected",
+    "native-auto",
+    "plain-auto",
+    "url",
+  ])("retains confirmed %s evidence when a second search would fail", async (entry) => {
+    const original = await createMockVideoAdapter().getTrack("ImX2w6Ufj4w");
+    const selected = createMockTrack({
+      title: "Hurt People",
+      artists: ["DARKK"],
+      isrc: "DEZC62699545",
+      sourceId: "2Ii7mUmPen9cMZPDdFjjPW",
+      webUrl: "https://open.spotify.com/track/2Ii7mUmPen9cMZPDdFjjPW",
+    });
+    const match: MatchResult = { found: true, track: selected, confidence: 0.95, matchMethod: "search" };
+    const source = createMockAdapter({
+      detectUrl: vi.fn(() => selected.sourceId),
+      getTrack: vi.fn().mockResolvedValue(selected),
+      searchTrack: vi.fn().mockRejectedValue(new Error("A redundant search failed")),
+      ...(entry === "native-auto"
+        ? {
+            searchTrackWithCandidates: vi
+              .fn()
+              .mockResolvedValue({ bestMatch: match, candidates: [{ track: selected, confidence: 0.95 }] }),
+          }
+        : {}),
+    });
+    if (entry === "plain-auto") vi.mocked(source.searchTrack).mockResolvedValueOnce(match);
+    vi.mocked(identifyService).mockResolvedValue(source);
+    vi.mocked(getActiveAdapters).mockResolvedValue([source]);
+    vi.mocked(mockRepo.findTrackByIsrc).mockResolvedValue({
+      trackId: "tid1",
+      shortId: "existing-share",
+      updatedAt: Date.now(),
+      track: original,
+      links: [{ service: "youtube", url: original.webUrl, confidence: 1, matchMethod: "source" }],
+    });
+
+    const result =
+      entry === "selected"
+        ? await resolveSelectedCandidate("spotify:2Ii7mUmPen9cMZPDdFjjPW")
+        : entry === "url"
+          ? await resolveQuery(selected.webUrl)
+          : (await resolveTextSearchWithDisambiguation("Darkk")).result;
+
+    expect(result?.links).toContainEqual(
+      expect.objectContaining({
+        service: "spotify",
+        url: selected.webUrl,
+        confidence: entry === "selected" || entry === "url" ? 1 : 0.95,
+      }),
+    );
+    expect(result?.shortId).toBe("existing-share");
+    expect(result?.sourceTrack.title).toBe(original.title);
+    expect(result?.sourceTrack.isrc).toBeUndefined();
+  });
+
+  it("reuses and enriches a selected video source without an ISRC", async () => {
+    const source = createMockVideoAdapter();
+    const track = await source.getTrack("ImX2w6Ufj4w");
+    const deezer = createMockAdapter({
+      id: "deezer",
+      searchTrack: vi.fn().mockResolvedValue({
+        found: true,
+        confidence: 0.9,
+        matchMethod: "search",
+        track: {
+          sourceService: "deezer",
+          sourceId: "4275996402",
+          title: "Hurt People",
+          artists: ["DARKK"],
+          isrc: "DEZC62699545",
+          webUrl: "https://www.deezer.com/track/4275996402",
+        },
+      }),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([source, deezer]);
+    vi.mocked(mockRepo.findTrackByUrl).mockResolvedValue({
+      trackId: "tid1",
+      shortId: "existing-share",
+      updatedAt: Date.now(),
+      track,
+      links: [{ service: "youtube", url: track.webUrl, confidence: 1, matchMethod: "source" }],
+    });
+
+    const result = await resolveSelectedCandidate("youtube:ImX2w6Ufj4w");
+
+    expect(result.shortId).toBe("existing-share");
+    expect(result.links).toContainEqual(expect.objectContaining({ service: "deezer" }));
+  });
+
+  it("fills missing destinations when a selected candidate hits the ISRC cache", async () => {
+    const track = createMockTrack();
+    const source = createMockAdapter({ getTrack: vi.fn().mockResolvedValue(track) });
+    const deezer = createMockAdapter({
+      id: "deezer",
+      findByIsrc: vi.fn().mockResolvedValue(
+        createMockTrack({
+          sourceService: "deezer",
+          sourceId: "456",
+          webUrl: "https://www.deezer.com/track/456",
+        }),
+      ),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([source, deezer]);
+    vi.mocked(mockRepo.findTrackByIsrc).mockResolvedValue({
+      trackId: "tid1",
+      shortId: "existing-share",
+      updatedAt: Date.now(),
+      track,
+      links: [{ service: "spotify", url: track.webUrl, confidence: 1, matchMethod: "source" }],
+    });
+
+    const result = await resolveSelectedCandidate("spotify:track123");
+
+    expect(result.links).toContainEqual(expect.objectContaining({ service: "deezer" }));
+    expect(result.shortId).toBe("existing-share");
+  });
+
   it("should resolve a candidate by service:trackId format", async () => {
     const track = createMockTrack();
 
@@ -1308,6 +1536,45 @@ describe("resolveSelectedCandidate", () => {
 // =============================================================================
 
 describe("resolveQuery: YouTube Music link derivation", () => {
+  it.each([
+    "https://youtu.be/ImX2w6Ufj4w",
+    "https://www.youtube.com/watch?v=ImX2w6Ufj4w",
+    "https://music.youtube.com/watch?v=ImX2w6Ufj4w",
+  ])("derives one recording destination when the source is %s", async (url) => {
+    const source = createMockVideoAdapter();
+    vi.mocked(getActiveAdapters).mockResolvedValue([source]);
+    vi.mocked(identifyService).mockResolvedValue(source);
+    const result = await resolveQuery(url);
+    expect(result.links.filter((link) => link.service === "youtube-music")).toEqual([
+      expect.objectContaining({
+        url: "https://music.youtube.com/watch?v=ImX2w6Ufj4w",
+        confidence: 1,
+        matchMethod: "source",
+      }),
+    ]);
+  });
+
+  it("adds and persists the missing derived destination on cached re-resolution", async () => {
+    const source = createMockVideoAdapter();
+    const track = await source.getTrack("ImX2w6Ufj4w");
+    vi.mocked(mockRepo.findTrackByUrl).mockResolvedValue({
+      trackId: "tid1",
+      shortId: "existing-share",
+      updatedAt: Date.now(),
+      track,
+      links: [{ service: "youtube", url: track.webUrl, confidence: 0.85, matchMethod: "search" }],
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([source]);
+    const result = await resolveQuery(track.webUrl);
+    expect(result.shortId).toBe("existing-share");
+    expect(result.sourceTrack.artworkUrl).toBeUndefined();
+    expect(result.links.filter((link) => link.service === "youtube-music")).toHaveLength(1);
+    expect(result.links.find((link) => link.service === "youtube-music")?.externalId).toBe("ImX2w6Ufj4w");
+    expect(mockRepo.addLinksToTrack).toHaveBeenCalledWith("tid1", [
+      expect.objectContaining({ service: "youtube-music", confidence: 0.85, matchMethod: "search" }),
+    ]);
+  });
+
   it("should derive YouTube Music link from YouTube video result", async () => {
     const sourceTrack = createMockTrack();
     const youtubeTrack = createMockTrack({
@@ -1495,6 +1762,22 @@ describe("resolveQuery: adapter availability", () => {
 });
 
 describe("resolveQuery: SERVICE_DISABLED", () => {
+  it("does not emit a disabled video destination on a fresh resolve", async () => {
+    const source = createMockAdapter({
+      detectUrl: vi.fn(() => "track123"),
+      getTrack: vi.fn().mockResolvedValue(createMockTrack()),
+    });
+    vi.mocked(identifyService).mockResolvedValue(source);
+    vi.mocked(getActiveAdapters).mockResolvedValue([source]);
+    vi.mocked(filterDisabledLinks).mockImplementation(async <T extends { service: string }>(links: T[]) =>
+      links.filter((link) => link.service !== "youtube" && link.service !== "youtube-music"),
+    );
+
+    const result = await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(result.links.map((link) => link.service)).toEqual(["spotify"]);
+  });
+
   it("should throw SERVICE_DISABLED when the source service is inactive", async () => {
     // The link belongs to a plugin that is switched off or lacks credentials,
     // so the resolver must surface SERVICE_DISABLED rather than falling
@@ -1566,6 +1849,78 @@ describe("resolveQuery: SERVICE_DISABLED", () => {
 // =============================================================================
 
 describe("resolveQuery: response deadline", () => {
+  it.each([false, true])("persists a unique music destination for a late video match with cache=%s", async (cached) => {
+    const video = await createMockVideoAdapter().getTrack("ImX2w6Ufj4w");
+    const sourceTrack: NormalizedTrack = {
+      ...video,
+      sourceService: "spotify",
+      sourceId: "2Ii7mUmPen9cMZPDdFjjPW",
+      title: "Hurt People",
+      isrc: "DEZC62699545",
+      artworkUrl: "https://i.scdn.co/image/recording-cover",
+      durationMs: 201000,
+      webUrl: "https://open.spotify.com/track/2Ii7mUmPen9cMZPDdFjjPW",
+    };
+    const slowVideo = deferred<MatchResult>();
+    const source = createMockAdapter({
+      detectUrl: vi.fn(() => sourceTrack.sourceId),
+      getTrack: vi.fn().mockResolvedValue(sourceTrack),
+    });
+    const youtube = createMockAdapter({
+      id: "youtube",
+      capabilities: { supportsIsrc: false, supportsPreview: false, supportsArtwork: false },
+      searchTrack: vi.fn().mockReturnValue(slowVideo.promise),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([source, youtube]);
+    vi.mocked(identifyService).mockResolvedValue(source);
+    if (cached)
+      vi.mocked(mockRepo.findTrackByUrl).mockResolvedValue({
+        trackId: "tid1",
+        shortId: "existing-share",
+        updatedAt: Date.now(),
+        track: sourceTrack,
+        links: [{ service: "spotify", url: sourceTrack.webUrl, confidence: 1, matchMethod: "source" }],
+      });
+    const pending = resolveQuery(sourceTrack.webUrl);
+    await vi.advanceTimersByTimeAsync(RESOLVE_RESPONSE_DEADLINE_MS);
+    const result = await pending;
+    expect(result.links.filter((link) => link.service === "youtube-music")).toHaveLength(0);
+
+    slowVideo.resolve({ found: true, track: video, confidence: 0.85, matchMethod: "search" });
+    if (result.lateLinks) await persistLateTrackLinks("tid1", result.lateLinks);
+    await vi.waitFor(() =>
+      expect(mockRepo.addLinksToTrack).toHaveBeenCalledWith(
+        "tid1",
+        expect.arrayContaining([
+          expect.objectContaining({
+            service: "youtube-music",
+            externalId: "ImX2w6Ufj4w",
+            url: "https://music.youtube.com/watch?v=ImX2w6Ufj4w",
+          }),
+        ]),
+      ),
+    );
+  });
+
+  it("persists identifiers observed only by late recording matches", async () => {
+    await persistLateTrackLinks(
+      "tid1",
+      Promise.resolve([
+        {
+          service: "deezer",
+          displayName: "Deezer",
+          confidence: 1,
+          matchMethod: "isrc",
+          url: "https://www.deezer.com/track/4275996402",
+          isrc: "DEZC62699545",
+        },
+      ]),
+    );
+    expect(mockRepo.addTrackExternalIds).toHaveBeenCalledWith("tid1", [
+      { idType: "isrc", idValue: "DEZC62699545", sourceService: "deezer" },
+    ]);
+  });
+
   function deferred<T>() {
     let resolve!: (value: T) => void;
     const promise = new Promise<T>((settle) => {
@@ -1693,6 +2048,164 @@ describe("resolveQuery: response deadline", () => {
 // =============================================================================
 
 describe("resolveQuery: artwork", () => {
+  it.each([
+    ["tidal", undefined],
+    ["youtube", undefined],
+    ["tidal", "DEZC62699545"],
+  ] as const)("retains provenance and unique destinations for scraped %s with identifier %s", async (service, isrc) => {
+    const source = createMockAdapter({
+      id: service,
+      detectUrl: vi.fn(() => (service === "tidal" ? "559761174" : "ImX2w6Ufj4w")),
+      getTrack: vi.fn().mockRejectedValue(new Error("Source configuration became unavailable")),
+    });
+    const catalogueTrack: NormalizedTrack = {
+      sourceService: "apple-music",
+      sourceId: "6810290307",
+      title: "Hurt People",
+      artists: ["DARKK"],
+      isrc,
+      webUrl: "https://music.apple.com/jp/album/hurt-people-feat-marina-la-torraca/6810290305?i=6810290307",
+    };
+    const catalogue = createMockAdapter({
+      id: "apple-music",
+      searchTrack: vi.fn().mockResolvedValue({
+        found: true,
+        confidence: 0.9,
+        matchMethod: "search",
+        track: catalogueTrack,
+      }),
+    });
+    if (isrc) {
+      const original = await createMockVideoAdapter().getTrack("ImX2w6Ufj4w");
+      vi.mocked(mockRepo.findTrackByIsrc).mockResolvedValue({
+        trackId: "tid1",
+        shortId: "existing-share",
+        updatedAt: Date.now(),
+        track: original,
+        links: [{ service: "youtube", url: original.webUrl, confidence: 1, matchMethod: "source" }],
+      });
+    }
+    vi.mocked(identifyService).mockResolvedValue(source);
+    vi.mocked(isPluginAvailable).mockReturnValueOnce(false);
+    vi.mocked(getActiveAdapters).mockResolvedValue([catalogue]);
+    vi.mocked(fetchWithTimeout).mockResolvedValue(
+      new Response(
+        '<meta property="og:title" content="Hurt People by DARKK on Tidal"><meta property="og:image" content="https://example.com/catalogue-cover.jpg">',
+      ),
+    );
+
+    const result = await resolveQuery(
+      service === "tidal" ? "https://tidal.com/track/559761174" : "https://youtu.be/ImX2w6Ufj4w",
+    );
+
+    expect(result.sourceTrack.artworkUrl).toBe(
+      service === "tidal" ? "https://example.com/catalogue-cover.jpg" : undefined,
+    );
+    expect(new Set(result.links.map((link) => link.service)).size).toBe(result.links.length);
+    if (isrc) {
+      expect(result.shortId).toBe("existing-share");
+      expect(result.links.map((link) => link.service)).toEqual(expect.arrayContaining(["apple-music", "tidal"]));
+    }
+  });
+
+  it("recovers a cover from an already linked recording without waiting for preview expiry", async () => {
+    const source = createMockVideoAdapter();
+    const track = await source.getTrack("ImX2w6Ufj4w");
+    const cover = "https://cdn-images.dzcdn.net/images/cover/release/1000x1000.jpg";
+    mockStoredTrackArtwork(track.artworkUrl ?? null);
+    const deezer = createMockAdapter({
+      id: "deezer",
+      detectUrl: vi.fn(() => "4275996402"),
+      getTrack: vi.fn().mockResolvedValue({
+        sourceService: "deezer",
+        sourceId: "4275996402",
+        title: "Hurt People",
+        artists: ["DARKK"],
+        artworkUrl: cover,
+        durationMs: 201000,
+        webUrl: "https://www.deezer.com/track/4275996402",
+      }),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([source, deezer]);
+    vi.mocked(mockRepo.findTrackByUrl).mockResolvedValue({
+      trackId: "tid1",
+      shortId: "existing-share",
+      updatedAt: Date.now(),
+      track,
+      links: [
+        { service: "youtube", url: track.webUrl, confidence: 1, matchMethod: "source" },
+        { service: "deezer", url: "https://www.deezer.com/track/4275996402", confidence: 0.9, matchMethod: "search" },
+      ],
+    });
+    vi.mocked(mockRepo.findTrackPreviews).mockResolvedValue([
+      { service: "deezer", url: "https://example.test/preview.mp3", expiresAt: null, observedAt: new Date() },
+    ]);
+
+    const result = await resolveQuery("https://youtu.be/ImX2w6Ufj4w");
+    const shared = await loadShareTrack("tid1", "https://example.test");
+
+    expect(result.sourceTrack.artworkUrl).toBe(cover);
+    expect(shared?.track.artworkUrl).toBe(cover);
+    expect(shared?.shortId).toBe("existing-share");
+  });
+
+  it.each([
+    ["https://i.ytimg.com/vi/ImX2w6Ufj4w/maxresdefault.jpg", "https://i.scdn.co/image/recording-cover"],
+    [
+      "https://cdn-images.dzcdn.net/images/cover/existing/1000x1000.jpg",
+      "https://cdn-images.dzcdn.net/images/cover/existing/1000x1000.jpg",
+    ],
+  ])("keeps the correct persisted cover on a share read after a late match from %s", async (storedCover, expectedCover) => {
+    mockStoredTrackArtwork(storedCover);
+    await persistLateTrackLinks(
+      "tid1",
+      Promise.resolve([
+        {
+          service: "spotify",
+          displayName: "Spotify",
+          confidence: 0.85,
+          matchMethod: "search",
+          url: "https://open.spotify.com/track/2Ii7mUmPen9cMZPDdFjjPW",
+          artworkUrl: "https://i.scdn.co/image/recording-cover",
+        },
+      ]),
+    );
+
+    const shared = await loadShareTrack("tid1", "https://example.test");
+
+    expect(shared?.track.artworkUrl).toBe(expectedCover);
+    expect(shared?.shortId).toBe("existing-share");
+  });
+
+  it("uses catalogue artwork instead of a source video thumbnail", async () => {
+    const source = createMockVideoAdapter();
+    const catalogue = createMockAdapter({
+      id: "spotify",
+      searchTrack: vi.fn().mockResolvedValue({
+        found: true,
+        confidence: 0.85,
+        matchMethod: "search",
+        track: createMockTrack({
+          title: "Hurt People",
+          artists: ["DARKK"],
+          artworkUrl: "https://i.scdn.co/image/recording-cover",
+        }),
+      }),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([source, catalogue]);
+    vi.mocked(identifyService).mockResolvedValue(source);
+    const result = await resolveQuery("https://www.youtube.com/watch?v=ImX2w6Ufj4w");
+    expect(result.sourceTrack.artworkUrl).toBe("https://i.scdn.co/image/recording-cover");
+  });
+
+  it("keeps no recording cover when only a source video thumbnail exists", async () => {
+    const source = createMockVideoAdapter();
+    vi.mocked(getActiveAdapters).mockResolvedValue([source]);
+    vi.mocked(identifyService).mockResolvedValue(source);
+    const result = await resolveQuery("https://www.youtube.com/watch?v=ImX2w6Ufj4w");
+    expect(result.sourceTrack.artworkUrl).toBeUndefined();
+  });
+
   const APPLE_COVER = "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/aa/bb/cc/source/640x640bb.jpg";
   const SPOTIFY_COVER = "https://i.scdn.co/image/ab67616d0000b273";
   const DEEZER_COVER = "https://e-cdns-images.dzcdn.net/images/cover/abc/1000x1000-000000-80-0-0.jpg";

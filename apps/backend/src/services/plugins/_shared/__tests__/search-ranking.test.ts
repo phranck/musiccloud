@@ -29,6 +29,7 @@ vi.mock("../../../../lib/infra/token-manager.js", () => ({
 
 import { appleMusicAdapter } from "../../apple-music/adapter.js";
 import { deezerAdapter } from "../../deezer/adapter.js";
+import { tidalSearchDocument } from "../../tidal/__tests__/search-document.js";
 import { tidalAdapter } from "../../tidal/adapter.js";
 import { youtubeAdapter } from "../../youtube/adapter.js";
 
@@ -128,10 +129,13 @@ describe("Tidal album search", () => {
       relationships: { artists: { data: [{ id: "artist-1" }] } },
     });
     fetchWithTimeoutMock.mockResolvedValue(
-      jsonResponse({
-        data: [candidate("1", "2005-04-11"), candidate("2", "1993-06-01")],
-        included: [{ id: "artist-1", type: "artists", attributes: { name: "Slowdive" } }],
-      }),
+      jsonResponse(
+        tidalSearchDocument(
+          "albums",
+          [candidate("1", "2005-04-11"), candidate("2", "1993-06-01")],
+          [{ id: "artist-1", type: "artists", attributes: { name: "Slowdive" } }],
+        ),
+      ),
     );
 
     const result = await tidalAdapter.searchAlbum({ ...QUERY });

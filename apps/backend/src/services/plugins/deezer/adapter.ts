@@ -1,23 +1,10 @@
 /**
- * @file Deezer adapter: full-featured API client against the public Deezer API.
+ * @file Deezer metadata adapter for tracks, albums, and artists.
  *
- * Keyless (always available). The public Deezer API (`api.deezer.com`)
- * accepts unauthenticated track, album, artist, ISRC, and search
- * queries. No credentials are required, no rate limit unless abused.
- *
- * Deezer is the linchpin of the cross-service resolve pipeline for
- * two reasons:
- *
- * 1. **Permanent preview URLs.** Deezer's preview URLs are signed
- *    CDN links that never expire (see `lib/preview-url.ts`). Other
- *    services (notably Spotify) issue URLs that die after 30-60 days.
- *    The resolver preferentially plucks Deezer previews out of
- *    cross-service results and uses them as the stable preview on
- *    share pages.
- * 2. **Broad coverage + keyless.** Deezer has ISRC lookups
- *    (`/track/isrc:...`) and full album detail including track
- *    listings, so it powers the ISRC-inference fallback used by the
- *    album resolver when other services lack a direct UPC match.
+ * Requests use the keyless public API at `api.deezer.com`. Identifier lookups,
+ * album tracklists, and previews make it useful as an initial recording source.
+ * The resolver prefers Deezer previews, but encoded expiry is still parsed by
+ * `lib/preview-url.ts`; preference does not mean a signed URL cannot expire.
  *
  * ## Error shape
  *
@@ -28,12 +15,19 @@
  * recorded as "Deezer does not carry this track". `getTrack`, `getAlbum` and
  * `getArtist` keep `isDeezerError` and report the object as not found.
  *
- * ## Structured search query syntax
+ * ## Bounded catalogue search
  *
- * `searchTrack` builds a structured query (`artist:"X" track:"Y"`)
- * when the resolver provides both fields, and a free-text query
- * when `title === artist`. Deezer's search endpoint interprets the
- * structured form more precisely than a plain concatenation.
+ * Both recording search entry points use `searchTrackItems`. A structured query
+ * is followed by bounded plain-text alternatives when it produces no compatible
+ * result. Video credits and social handles remain display metadata; only a
+ * separate lookup term removes their suffix. A free-text input retains its
+ * candidate-ranking semantics.
+ *
+ * Broad alternatives are constrained by the original artist, title, available
+ * duration, and version in `track-search-query.ts`. A provider's ranking alone
+ * cannot establish a structured recording match. Required recording fields and
+ * consumed optional metadata are validated before mapping, so malformed success
+ * responses cannot be remembered as clean catalogue misses.
  *
  * ## Top-track preview heuristic
  *
@@ -50,6 +44,7 @@
  * page rendering sharp at retina resolutions.
  */
 import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
+import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable.js";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { CANDIDATE_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE, MAX_CANDIDATES } from "../../constants.js";
@@ -68,7 +63,12 @@ import type {
   SearchResultWithCandidates,
   ServiceAdapter,
 } from "../../types.js";
-import { isFreeTextSearch, scoreAlbumCandidate, scoreSearchCandidate } from "../_shared/confidence.js";
+import { isFreeTextSearch, scoreAlbumCandidate } from "../_shared/confidence.js";
+import {
+  isTrackSearchFallbackMatch,
+  scoreCatalogueTrackCandidate,
+  trackSearchTexts,
+} from "../_shared/track-search-query.js";
 import { pickDeezerArtistImage } from "./artist-image.js";
 import { deezerFetch, deezerGet } from "./deezer-response.js";
 
@@ -80,19 +80,18 @@ const DEEZER_ARTIST_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\
 interface DeezerTrackResponse {
   id: number;
   title: string;
-  artist: { id: number; name: string };
-  album: {
-    id: number;
-    title: string;
+  artist: { name: string };
+  album?: {
+    title?: string;
     cover_xl?: string;
     cover_big?: string;
     release_date?: string;
   };
   duration: number; // in seconds
   isrc?: string;
-  explicit_lyrics: boolean;
+  explicit_lyrics?: boolean;
   preview?: string;
-  link: string;
+  link?: string;
 }
 
 interface DeezerSearchResponse {
@@ -194,19 +193,88 @@ function mapTrack(raw: DeezerTrackResponse): NormalizedTrack {
   return {
     sourceService: "deezer",
     sourceId: String(raw.id),
-    isrc: raw.isrc,
+    isrc: raw.isrc ?? undefined,
     title: raw.title,
     artists: [raw.artist.name],
-    albumName: raw.album?.title,
+    albumName: raw.album?.title ?? undefined,
     durationMs: raw.duration * 1000,
     releaseDate: raw.album?.release_date,
-    isExplicit: raw.explicit_lyrics,
-    artworkUrl: raw.album?.cover_xl ?? raw.album?.cover_big,
+    isExplicit: raw.explicit_lyrics ?? undefined,
+    artworkUrl: raw.album?.cover_xl ?? raw.album?.cover_big ?? undefined,
     previewUrl: raw.preview ?? undefined,
     webUrl: raw.link ?? `https://www.deezer.com/track/${raw.id}`,
   };
 }
 
+/**
+ * Validates consumed recording fields before mapping or scoring upstream data.
+ *
+ * @param value - Untrusted track object from direct lookup or search.
+ * @throws UpstreamUnavailableError for malformed metadata instead of a clean miss.
+ */
+function assertDeezerRecording(value: unknown): asserts value is DeezerTrackResponse {
+  if (!value || typeof value !== "object")
+    throw new UpstreamUnavailableError("deezer", "track response omitted recording data");
+  const record = value as Partial<DeezerTrackResponse>;
+  const required =
+    typeof record.id === "number" &&
+    Number.isSafeInteger(record.id) &&
+    record.id > 0 &&
+    typeof record.title === "string" &&
+    record.title.trim().length > 0 &&
+    typeof record.artist?.name === "string" &&
+    record.artist.name.trim().length > 0 &&
+    typeof record.duration === "number" &&
+    Number.isFinite(record.duration) &&
+    record.duration >= 0;
+  const strings = [
+    record.isrc,
+    record.preview,
+    record.link,
+    record.album?.title,
+    record.album?.cover_xl,
+    record.album?.cover_big,
+    record.album?.release_date,
+  ];
+  if (
+    !required ||
+    strings.some((field) => field != null && typeof field !== "string") ||
+    (record.explicit_lyrics != null && typeof record.explicit_lyrics !== "boolean") ||
+    (record.album != null && (typeof record.album !== "object" || Array.isArray(record.album)))
+  ) {
+    throw new UpstreamUnavailableError("deezer", "track response contains malformed recording data");
+  }
+}
+
+/**
+ * Reads bounded search alternatives through one validated catalogue boundary.
+ *
+ * @param query - Original metadata; broader request strings never replace it.
+ * @param limit - Candidate cap for the one-shot or disambiguation caller.
+ * @returns Plausible recordings from the first successful alternative.
+ * @throws {UpstreamUnavailableError} when the provider fails or its shape drifts.
+ */
+async function searchTrackItems(query: SearchQuery, limit: number): Promise<DeezerTrackResponse[]> {
+  const alternatives = [...new Set([buildDeezerQ(query), ...trackSearchTexts(query)])];
+  for (const text of alternatives) {
+    const data = await deezerGet<DeezerSearchResponse>(
+      `/search/track?q=${encodeURIComponent(text)}&limit=${limit}`,
+      "track search",
+    );
+    if (!data) continue;
+    if (!Array.isArray(data.data))
+      throw new UpstreamUnavailableError("deezer", "track search omitted its recording collection");
+    data.data.forEach(assertDeezerRecording);
+    const items = data.data.filter((item) => isTrackSearchFallbackMatch(query, mapTrack(item)));
+    if (items.length > 0) return items;
+  }
+  return [];
+}
+
+/**
+ * Deezer provider boundary. Recording searches share one validated, bounded
+ * lookup path so direct matching and interactive candidates obey the same rules.
+ */
 export const deezerAdapter = {
   id: "deezer",
   displayName: getPlatformLabel("deezer"),
@@ -221,6 +289,12 @@ export const deezerAdapter = {
     return match ? match[1] : null;
   },
 
+  /**
+   * Fetches source metadata and validates consumed fields before normalization.
+   * @param trackId - Deezer recording id from URL detection or candidate selection.
+   * @returns Recording metadata with identifiers, preview, and supplied artwork.
+   * @throws Provider or malformed-response errors rather than accepting corrupt metadata.
+   */
   async getTrack(trackId: string): Promise<NormalizedTrack> {
     const response = await deezerFetch(`/track/${encodeURIComponent(trackId)}`);
 
@@ -234,22 +308,31 @@ export const deezerAdapter = {
       throw serviceNotFoundError(Service.Deezer, ResourceKind.Track, trackId, data.error.message);
     }
 
-    return mapTrack(data as DeezerTrackResponse);
+    assertDeezerRecording(data);
+    return mapTrack(data);
   },
 
+  /**
+   * Looks up the strongest available recording identifier before text fallback.
+   * @param isrc - Recording identifier reported by a validated source.
+   * @returns Validated metadata or null for the provider's explicit no-data answer.
+   * @throws Upstream failures, which must not become negative catalogue entries.
+   */
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
     const data = await deezerGet<DeezerTrackResponse>(`/track/isrc:${encodeURIComponent(isrc)}`, "ISRC lookup");
-    return data ? mapTrack(data) : null;
+    if (!data) return null;
+    assertDeezerRecording(data);
+    return mapTrack(data);
   },
 
+  /**
+   * Matches bounded catalogue alternatives against the original recording identity.
+   * @param query - Free text or structured source metadata, retained unchanged.
+   * @returns The best qualifying recording from the first compatible query result.
+   * @throws Upstream and response-contract failures instead of a clean miss.
+   */
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = buildDeezerQ(query);
-
-    const data = await deezerGet<DeezerSearchResponse>(
-      `/search/track?q=${encodeURIComponent(q)}&limit=5`,
-      "track search",
-    );
-    const items = data?.data ?? [];
+    const items = await searchTrackItems(query, 5);
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };
@@ -260,7 +343,7 @@ export const deezerAdapter = {
 
     for (let i = 0; i < items.length; i++) {
       const track = mapTrack(items[i]);
-      const confidence = scoreSearchCandidate(query, track, i);
+      const confidence = scoreCatalogueTrackCandidate(query, track, i);
       if (confidence > bestConfidence) {
         bestConfidence = confidence;
         bestMatch = track;
@@ -282,23 +365,18 @@ export const deezerAdapter = {
   /**
    * Multi-result search returning ranked candidates for the
    * disambiguation flow. Mirrors the Spotify implementation: ranks via
-   * the shared `scoreSearchCandidate`, returns up to `MAX_CANDIDATES`
+   * the shared `scoreCatalogueTrackCandidate`, returns up to `MAX_CANDIDATES`
    * filtered by `CANDIDATE_MIN_CONFIDENCE` so the UI never receives a
    * candidate it would render as confidently-wrong.
    *
-   * Implemented here (in addition to Spotify) because Phase B pushed
-   * Spotify to the back of the resolver chain. Without a candidates
-   * method on the new top-of-chain (Deezer), free-text queries skipped
-   * disambiguation entirely.
+   * Discovery follows registry order, so its first matching provider needs
+   * candidates rather than silently resolving an ambiguous free-text result.
+   *
+   * @param query - Original user text or structured recording metadata.
+   * @returns Ranked candidates under the shared thresholds without altering titles.
    */
   async searchTrackWithCandidates(query: SearchQuery): Promise<SearchResultWithCandidates> {
-    const q = buildDeezerQ(query);
-
-    const data = await deezerGet<DeezerSearchResponse>(
-      `/search/track?q=${encodeURIComponent(q)}&limit=${MAX_CANDIDATES}`,
-      "track search",
-    );
-    const items = data?.data ?? [];
+    const items = await searchTrackItems(query, MAX_CANDIDATES);
 
     if (items.length === 0) {
       return {
@@ -309,7 +387,7 @@ export const deezerAdapter = {
 
     const scored: Array<{ track: NormalizedTrack; confidence: number }> = items.map((raw, i) => {
       const track = mapTrack(raw);
-      return { track, confidence: scoreSearchCandidate(query, track, i) };
+      return { track, confidence: scoreCatalogueTrackCandidate(query, track, i) };
     });
 
     scored.sort((a, b) => b.confidence - a.confidence);
