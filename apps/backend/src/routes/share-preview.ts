@@ -22,7 +22,9 @@ import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { deezerAlbumIdFromLinks } from "../lib/server/share-page.js";
+import { isTrackSearchFallbackMatch } from "../services/plugins/_shared/track-search-query.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
+import { deezerTrackIdFromLinks } from "../services/track-preview.js";
 
 /**
  * The preview row stored for a URL just fetched from Deezer, with the expiry
@@ -38,8 +40,9 @@ function deezerPreviewObservation(url: string): PreviewObservation {
 
 /**
  * A usable preview URL for a track share: the stored one while its Deezer
- * signature is valid, otherwise a fresh one looked up on Deezer by ISRC and
- * stored for the next request.
+ * signature is valid, otherwise refreshed by ISRC or its confirmed Deezer link.
+ * Link-based refresh validates the recording metadata before borrowing audio,
+ * because the canonical video source need not have supplied an ISRC.
  *
  * @param repo - The repository the share was read from.
  * @param data - The track share.
@@ -48,11 +51,33 @@ function deezerPreviewObservation(url: string): PreviewObservation {
 async function currentTrackPreview(repo: TrackRepository, data: SharePageDbResult): Promise<string | null> {
   const existing = data.track.previewUrl;
   if (existing && !isExpiredDeezerPreviewUrl(existing)) return existing;
-  if (!data.track.isrc) return null;
+  const deezerTrackId = deezerTrackIdFromLinks(data.links);
+  if (!data.track.isrc && !deezerTrackId) return null;
 
   try {
-    const deezerTrack = await deezerAdapter.findByIsrc(data.track.isrc);
+    const deezerTrack = data.track.isrc
+      ? await deezerAdapter.findByIsrc(data.track.isrc)
+      : deezerTrackId
+        ? await deezerAdapter.getTrack(deezerTrackId)
+        : null;
     if (!deezerTrack?.previewUrl) return null;
+    if (
+      !data.track.isrc &&
+      !isTrackSearchFallbackMatch(
+        {
+          title: data.track.title,
+          artist: data.artists[0] ?? "",
+          artists: data.artists,
+          durationMs: data.track.durationMs ?? undefined,
+        },
+        deezerTrack,
+      )
+    ) {
+      throw new Error("Deezer preview metadata does not match the stored recording");
+    }
+    if (isExpiredDeezerPreviewUrl(deezerTrack.previewUrl)) {
+      throw new Error("Deezer returned an expired preview");
+    }
     await repo.upsertTrackPreview(data.trackId, deezerPreviewObservation(deezerTrack.previewUrl));
     return deezerTrack.previewUrl;
   } catch (error) {

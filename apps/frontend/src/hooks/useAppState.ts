@@ -23,6 +23,7 @@ import {
 import { setResolveMode } from "@/lib/resolve/resolveMode";
 import { prefetchArtistInfo } from "@/lib/share/artist-info-client";
 import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
+import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
 import {
   type ActiveResult,
   type AppAction,
@@ -101,6 +102,10 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
     candidates ||
     genreBrowseGenres ||
     genreSearchPayload
+  );
+
+  useResolvedShareUrl(
+    active?.shareUrl ?? (screen.type === AppStateType.CcResult ? screen.ccActive.shareUrl : undefined),
   );
 
   const inFlight = useInFlightRequest();
@@ -286,6 +291,29 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
     handleBack,
     handleClear,
   };
+}
+
+/**
+ * Keeps a landing result's reload target aligned with the displayed recording.
+ *
+ * Initial idle renders do not own the route, because the landing component can
+ * also appear behind a content overlay. Once a result owns it, returning to
+ * search restores the landing path. Unmounting does not restore it, so a reload
+ * or navigation retains the share URL rather than discarding the shown result.
+ *
+ * @param shortUrl - Current commercial or CC result URL, absent outside a result.
+ */
+function useResolvedShareUrl(shortUrl: string | undefined): void {
+  const ownsRoute = useRef(false);
+  useEffect(() => {
+    if (shortUrl) {
+      replaceBrowserUrlWithShortUrl(shortUrl);
+      ownsRoute.current = true;
+    } else if (ownsRoute.current) {
+      replaceBrowserUrlWithShortUrl("/");
+      ownsRoute.current = false;
+    }
+  }, [shortUrl]);
 }
 
 /**

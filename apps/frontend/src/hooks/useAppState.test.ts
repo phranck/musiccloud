@@ -28,28 +28,73 @@ function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } });
 }
 
+/**
+ * Answers search and selection at the HTTP boundary without provider traffic.
+ * @param shortUrl - Isolated result identity for this test's artist-prefetch key.
+ * @returns A fetch mock that also completes the artist-column prefetch.
+ */
+function candidateRequests(shortUrl = TRACK_RESPONSE.shortUrl) {
+  return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+    if (String(url).startsWith("/api/artist-info")) return jsonResponse({ artistName: "Massive Attack" });
+    const body = JSON.parse(String(init?.body ?? "{}")) as { selectedCandidate?: string };
+    return body.selectedCandidate
+      ? jsonResponse({ ...TRACK_RESPONSE, shortUrl })
+      : jsonResponse({ status: "disambiguation", candidates: [CANDIDATE] });
+  });
+}
+
 function requestedPaths(fetchMock: ReturnType<typeof vi.fn>): string[] {
   return fetchMock.mock.calls.map(([url]) => new URL(String(url), "https://musiccloud.test").pathname);
 }
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  window.history.replaceState(null, "", "/");
 });
 
 describe("useAppState candidate selection", () => {
+  it("keeps the resolved short URL as the reload target after the selected result unmounts", async () => {
+    window.history.replaceState({ testMarker: "retained" }, "", "/");
+    vi.stubGlobal("fetch", candidateRequests("https://musiccloud.io/reload-target"));
+    const { result, unmount } = renderHook(() => useAppState());
+    await act(() => result.current.handleSubmit("teardrop"));
+    await act(() => result.current.handleSelectCandidate(CANDIDATE));
+
+    expect(window.location.pathname).toBe("/reload-target");
+    expect(window.history.state).toEqual({ testMarker: "retained" });
+    unmount();
+    expect(window.location.pathname).toBe("/reload-target");
+  });
+
+  it("restores the landing route only when the result has finished clearing", async () => {
+    vi.stubGlobal("fetch", candidateRequests("https://musiccloud.io/return-target"));
+    const { result } = renderHook(() => useAppState());
+    await act(() => result.current.handleSubmit("teardrop"));
+    await act(() => result.current.handleSelectCandidate(CANDIDATE));
+
+    act(() => result.current.handleClear());
+    expect(result.current.state.type).toBe("clearing");
+    expect(window.location.pathname).toBe("/return-target");
+    act(() => result.current.handleClear());
+    expect(result.current.state.type).toBe("idle");
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("does not rewrite a content overlay route on the initial idle render", () => {
+    window.history.replaceState(null, "", "/privacy");
+    const { unmount } = renderHook(() => useAppState());
+    expect(window.location.pathname).toBe("/privacy");
+    unmount();
+    expect(window.location.pathname).toBe("/privacy");
+  });
+
   /**
    * The panel's selection animation runs while the request is in flight. The
    * answer waits for the animation, and the artist column's request starts as
    * soon as the answer is in, not once the column has mounted.
    */
   it("applies the answer only after the animation and prefetches the artist column right away", async () => {
-    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
-      if (String(url).startsWith("/api/artist-info")) return jsonResponse({ artistName: "Massive Attack" });
-      const body = JSON.parse(String(init?.body ?? "{}")) as { selectedCandidate?: string };
-      return body.selectedCandidate
-        ? jsonResponse(TRACK_RESPONSE)
-        : jsonResponse({ status: "disambiguation", candidates: [CANDIDATE] });
-    });
+    const fetchMock = candidateRequests();
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useAppState());
 

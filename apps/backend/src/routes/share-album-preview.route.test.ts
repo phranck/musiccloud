@@ -23,6 +23,7 @@ const repository = {
 
 const deezer = {
   getAlbum: vi.fn(),
+  getTrack: vi.fn(),
   findByIsrc: vi.fn(),
 };
 
@@ -57,6 +58,36 @@ const EXPIRED_URL = `https://cdnt-preview.dzcdn.net/api/1/1/stored.mp3?hdnea=exp
 const VALID_URL = `https://cdnt-preview.dzcdn.net/api/1/1/stored.mp3?hdnea=exp=${VALID_TOKEN_SECONDS}~hmac=valid`;
 const FRESH_URL = `https://cdnt-preview.dzcdn.net/api/1/1/fresh.mp3?hdnea=exp=${VALID_TOKEN_SECONDS}~hmac=fresh`;
 const DEEZER_LINK = { service: "deezer", url: `https://www.deezer.com/album/${DEEZER_ALBUM_ID}` };
+
+/**
+ * Models the video-origin track whose known provider link can refresh its preview.
+ * @param previewUrl - The stored clip, which may already have expired.
+ * @param links - This fixture's provider identity observations.
+ * @returns An isolated repository projection without a canonical ISRC.
+ */
+function trackShareResult(
+  previewUrl: string | null,
+  links = [{ service: "deezer", url: "https://www.deezer.com/track/4275996402" }],
+) {
+  return {
+    trackId: "track-1",
+    shortId: SHORT_ID,
+    artists: ["DARKK"],
+    artistCredits: [],
+    artistDisplay: "DARKK",
+    links,
+    track: {
+      title: "Hurt People",
+      albumName: null,
+      artworkUrl: null,
+      durationMs: 200000,
+      isrc: null,
+      releaseDate: null,
+      isExplicit: false,
+      previewUrl,
+    },
+  };
+}
 
 function albumShareResult(previewUrl: string | null, links: Array<{ service: string; url: string }> = [DEEZER_LINK]) {
   return {
@@ -109,6 +140,81 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.clearAllMocks();
+});
+
+describe("track preview refresh without a canonical ISRC", () => {
+  it.each([
+    { artists: ["Unrelated Artist"] },
+    { title: "Different Recording" },
+    { title: "Hurt People (Remix)" },
+    { durationMs: 500000 },
+  ])("does not borrow a mismatched recording preview: %j", async (patch) => {
+    repository.loadByShortId.mockImplementation(async () => trackShareResult(EXPIRED_URL));
+    deezer.getTrack.mockResolvedValue({
+      sourceService: "deezer",
+      sourceId: "4275996402",
+      title: "Hurt People",
+      artists: ["DARKK"],
+      durationMs: 201000,
+      webUrl: "https://www.deezer.com/track/4275996402",
+      previewUrl: FRESH_URL,
+      ...patch,
+    });
+    const response = await get(`/api/v1/share/${SHORT_ID}/preview`);
+    expect(response.json()).toEqual({ previewUrl: null });
+    expect(repository.upsertTrackPreview).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "https://notdeezer.com/track/4275996402",
+    "https://www.deezer.com/search/Hurt%20People",
+    "https://example.test/deezer.com/track/4275996402",
+    "https://user@www.deezer.com/track/4275996402",
+  ])("does not offer refresh through an invalid provider identity: %s", async (url) => {
+    repository.loadByShortId.mockImplementation(async () =>
+      trackShareResult(EXPIRED_URL, [{ service: "deezer", url }]),
+    );
+    const share = await get(`/api/v1/share/${SHORT_ID}`);
+    expect(share.json().track.previewRefreshable).toBeUndefined();
+    const preview = await get(`/api/v1/share/${SHORT_ID}/preview`);
+    expect(preview.json()).toEqual({ previewUrl: null });
+    expect(deezer.getTrack).not.toHaveBeenCalled();
+  });
+
+  it("returns a usable stored track preview without a provider request", async () => {
+    repository.loadByShortId.mockImplementation(async () => trackShareResult(VALID_URL));
+    const response = await get(`/api/v1/share/${SHORT_ID}/preview`);
+    expect(response.json()).toEqual({ previewUrl: VALID_URL });
+    expect(deezer.getTrack).not.toHaveBeenCalled();
+  });
+
+  it("offers and returns a fresh preview through the confirmed Deezer recording link", async () => {
+    repository.loadByShortId.mockImplementation(async () => trackShareResult(EXPIRED_URL));
+    deezer.getTrack.mockResolvedValue({
+      sourceService: "deezer",
+      sourceId: "4275996402",
+      title: "Hurt People",
+      artists: ["DARKK"],
+      durationMs: 201000,
+      webUrl: "https://www.deezer.com/track/4275996402",
+      previewUrl: FRESH_URL,
+    });
+
+    const share = await get(`/api/v1/share/${SHORT_ID}`);
+    expect(share.statusCode).toBe(200);
+    expect(share.json().track.previewUrl).toBeUndefined();
+    expect(share.json().track.previewRefreshable).toBe(true);
+
+    const preview = await get(`/api/v1/share/${SHORT_ID}/preview`);
+    expect(preview.statusCode).toBe(200);
+    expect(preview.json()).toEqual({ previewUrl: FRESH_URL });
+    expect(deezer.getTrack).toHaveBeenCalledWith("4275996402");
+    expect(repository.upsertTrackPreview).toHaveBeenCalledWith("track-1", {
+      service: "deezer",
+      url: FRESH_URL,
+      expiresAt: new Date(VALID_TOKEN_SECONDS * 1000),
+    });
+  });
 });
 
 describe("album share response", () => {
