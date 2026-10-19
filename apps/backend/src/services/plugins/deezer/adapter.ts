@@ -64,6 +64,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { isFreeTextSearch, scoreAlbumCandidate } from "../_shared/confidence.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
 import {
   isTrackSearchFallbackMatch,
   scoreCatalogueTrackCandidate,
@@ -443,36 +444,39 @@ export const deezerAdapter = {
     return data ? mapAlbum(data) : null;
   },
 
+  /**
+   * Tries the structured album query and one plain alternative against the same identity.
+   *
+   * @param query - Original album metadata, including any year and track-count evidence.
+   * @returns The first qualifying album, or a clean miss after both bounded alternatives.
+   * @throws Provider failures, which never permit a negative catalog-cache entry.
+   */
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
-    const q = `artist:"${query.artist}" album:"${query.title}"`;
-    const data = await deezerGet<DeezerAlbumSearchResponse>(
-      `/search/album?q=${encodeURIComponent(q)}&limit=5`,
-      "album search",
-    );
-    const items = data?.data ?? [];
-
-    if (items.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
+    const alternatives = [
+      ...new Set([`artist:"${query.artist}" album:"${query.title}"`, `${query.artist} ${query.title}`.trim()]),
+    ];
     let bestAlbum: NormalizedAlbum | null = null;
     let bestConfidence = 0;
 
-    for (const item of items) {
-      const album = mapAlbum(item);
-      const confidence = scoreAlbumCandidate(query, album);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestAlbum = album;
+    for (const text of alternatives) {
+      const data = await deezerGet<DeezerAlbumSearchResponse>(
+        `/search/album?q=${encodeURIComponent(text)}&limit=5`,
+        "album search",
+      );
+      const items = data === null ? [] : requireProviderCollection(data.data, Service.Deezer, "album search");
+      for (const item of items) {
+        const album = mapAlbum(item);
+        const confidence = scoreAlbumCandidate(query, album);
+        if (confidence > bestConfidence) {
+          bestConfidence = confidence;
+          bestAlbum = album;
+        }
+      }
+      if (bestAlbum && bestConfidence >= MATCH_MIN_CONFIDENCE) {
+        return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
       }
     }
-
-    if (!bestAlbum || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
+    return { found: false, confidence: bestConfidence, matchMethod: "search" };
   },
 
   // --- Artist support ---
@@ -515,7 +519,7 @@ export const deezerAdapter = {
       `/search/artist?q=${encodeURIComponent(query.name)}&limit=5`,
       "artist search",
     );
-    const items = data?.data ?? [];
+    const items = data === null ? [] : requireProviderCollection(data.data, Service.Deezer, "artist search");
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };

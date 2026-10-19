@@ -33,7 +33,16 @@
  * touched. `available` comes from the manifest through
  * `evaluatePluginEnv`: a keyless plugin is always available, and a
  * credentialed one when its `requiredEnv` or its `alternativeEnv` is set.
- * A plugin has to be BOTH for `getActiveAdapters` to include it.
+ * A plugin has to be BOTH for `getActiveAdapters` to include it. These are
+ * configuration/admission checks, not network probes or proof of working
+ * credentials, regional access, provider health, or catalog coverage. A keyless
+ * provider can still refuse requests. Adapters own that HTTP distinction.
+ *
+ * Operational inventories and registered failure/capability tests derive from
+ * `listPlugins`; do not copy this provider list into another coverage table.
+ * `types.ts` defines completed-negative and capability/method invariants.
+ * Each provider's adapter owns its endpoint/payload assumptions; the recording
+ * flow has one navigation map in `services/resolver.ts`.
  *
  * ## `findInactiveServiceFor`
  *

@@ -51,9 +51,10 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { throwIfNoCandidateAnswered } from "../_shared/candidates.js";
+import { throwIfSearchIncomplete } from "../_shared/candidates.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -232,7 +233,7 @@ async function searchBandcamp(query: string): Promise<BandcampSearchResult[]> {
   const results: BandcampSearchResult[] = [];
   const seenUrls = new Set<string>();
 
-  for (const item of payload.results ?? []) {
+  for (const item of requireProviderCollection(payload.results, Service.BandCamp, "catalog search")) {
     if (item.type !== "t" && item.type !== "a") continue;
 
     const kind = item.type === "t" ? "track" : "album";
@@ -349,7 +350,6 @@ async function findBestBandcampMatch(
   let bestConfidence = 0;
 
   const candidateResults = await Promise.allSettled(results.map((r) => fetchTracksForSearchResult(r)));
-  throwIfNoCandidateAnswered(candidateResults);
 
   for (let i = 0; i < candidateResults.length; i++) {
     const result = candidateResults[i];
@@ -370,6 +370,11 @@ async function findBestBandcampMatch(
     }
   }
 
+  throwIfSearchIncomplete(
+    candidateResults,
+    Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
+    Service.BandCamp,
+  );
   return { track: bestMatch, confidence: bestConfidence };
 }
 
@@ -499,7 +504,6 @@ export const bandcampAdapter: ServiceAdapter = {
     if (results.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
     const albumResults = await Promise.allSettled(results.map((r) => fetchAlbumByUrl(r.url)));
-    throwIfNoCandidateAnswered(albumResults);
     let bestMatch: NormalizedAlbum | null = null;
     let bestConfidence = 0;
 
@@ -513,6 +517,11 @@ export const bandcampAdapter: ServiceAdapter = {
       }
     }
 
+    throwIfSearchIncomplete(
+      albumResults,
+      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
+      Service.BandCamp,
+    );
     if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }

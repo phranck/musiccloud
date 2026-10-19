@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { audiusAdapter } from "../adapter";
+import recordedAlbumSearch from "./fixtures/current-album-search.json";
 
 // =============================================================================
 // Mock data
@@ -225,6 +226,37 @@ describe("Audius: getAlbum", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }));
 
     await expect(audiusAdapter.getAlbum("P5wZ0")).rejects.toThrow(/Album not found/);
+  });
+});
+
+describe("Audius: explicit album search", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uses the documented album collection for the verified native release", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(recordedAlbumSearch));
+    const result = await audiusAdapter.searchAlbum({ title: "The Lost Concert #1", artist: "Euphoryn" });
+    expect(result).toMatchObject({
+      found: true,
+      album: { sourceId: "P7zg5N1", title: "The Lost Concert #1", artists: ["Euphoryn"], totalTracks: 7 },
+    });
+    const url = new URL(String(fetchSpy.mock.calls[0][0]));
+    expect(url.pathname).toBe("/v1/search/full");
+    expect(url.searchParams.get("kind")).toBe("albums");
+    expect(url.searchParams.get("query")).toBe("Euphoryn The Lost Concert #1");
+  });
+
+  it("accepts a completed empty album collection", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({ data: { albums: [] } }));
+    await expect(audiusAdapter.searchAlbum({ title: "Absent", artist: "Nobody" })).resolves.toMatchObject({
+      found: false,
+    });
+  });
+
+  it("rejects a missing album collection rather than claiming absence", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({ data: {} }));
+    await expect(audiusAdapter.searchAlbum({ title: "The Lost Concert #1", artist: "Euphoryn" })).rejects.toThrow();
   });
 });
 

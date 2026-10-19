@@ -60,6 +60,7 @@ import type {
 } from "../../types.js";
 import { splitArtistNames } from "../_shared/artists.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
 
 const API_BASE = "https://api.napster.com/v2.2";
 
@@ -222,9 +223,9 @@ export const napsterAdapter = {
     }
 
     const data = (await response.json()) as NapsterTracksResponse;
-    const tracks = data.tracks;
+    const tracks = requireProviderCollection(data.tracks, Service.Napster, "ISRC lookup");
 
-    if (!tracks || tracks.length === 0) {
+    if (tracks.length === 0) {
       log.debug("Napster", "ISRC not found:", isrc);
       return null;
     }
@@ -242,7 +243,7 @@ export const napsterAdapter = {
     }
 
     const data = (await response.json()) as NapsterSearchResponse;
-    const items = data.search?.data?.tracks ?? [];
+    const items = requireProviderCollection(data.search?.data?.tracks, Service.Napster, "track search");
 
     if (items.length === 0) {
       log.debug("Napster", "Search returned no tracks for:", q);
@@ -326,7 +327,7 @@ export const napsterAdapter = {
     }
 
     const data = (await response.json()) as NapsterArtistSearchResponse;
-    const items = data.search?.data?.artists ?? [];
+    const items = requireProviderCollection(data.search?.data?.artists, Service.Napster, "artist search");
 
     if (items.length === 0) {
       log.debug("Napster", "Artist search returned no results for:", query.name);

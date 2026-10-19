@@ -25,12 +25,10 @@ import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 /**
  * @file SoundCloud adapter: internal API with self-extracted client_id.
  *
- * Keyless (always available). SoundCloud's official developer API
- * has been closed to new registrations for years, but the web player
- * talks to a public `api-v2.soundcloud.com` endpoint using a
- * `client_id` that is minted server-side and embedded in the
- * homepage's hydration JSON. This adapter extracts that client_id
- * on first use and caches it for 24 hours.
+ * Uses the consumer api-v2.soundcloud.com surface, not the separate official
+ * OAuth developer API. No account configuration is required by this adapter.
+ * It reads a client_id from homepage hydration on first use and caches it under
+ * CLIENT_ID_TTL_MS. Configuration availability does not establish API access.
  *
  * ## client_id lifecycle
  *
@@ -63,12 +61,10 @@ import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
  *
  * ## ISRC exposed but no direct lookup
  *
- * SoundCloud tracks carry ISRC in `publisher_metadata.isrc`, but
- * the API has no ISRC-to-track endpoint. `capabilities.supportsIsrc`
- * is true from the perspective of "we extract it when present" but
- * `findByIsrc` returns null because we have no way to query by it.
- * The flag primarily helps other adapters decide whether to trust
- * a SoundCloud-sourced ISRC for their own ISRC lookups.
+ * mapApiTrack retains publisher_metadata.isrc when supplied. This adapter
+ * implements no identifier lookup, so supportsIsrc is false and findByIsrc
+ * returns null. A source observation still guides other adapters' ISRC lookups;
+ * retaining metadata and implementing a lookup are separate responsibilities.
  *
  * ## Artwork upscale
  *
@@ -518,12 +514,14 @@ export const soundcloudAdapter = {
         releaseDate: candidate.releaseDate,
         totalTracks: candidate.trackCount,
       });
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        // Lazy-fetch full album only if it's the best candidate
-        if (bestConfidence > 0.4) {
-          const full = await fetchAlbumByPath(candidate.path);
-          if (full) bestMatch = full;
+      if (confidence > bestConfidence && confidence > 0.4) {
+        const full = await fetchAlbumByPath(candidate.path);
+        if (!full) continue;
+        // A later missing detail cannot lend its preliminary score to an older album.
+        const fullConfidence = scoreAlbumCandidate(query, full);
+        if (fullConfidence > bestConfidence) {
+          bestConfidence = fullConfidence;
+          bestMatch = full;
         }
       }
     }

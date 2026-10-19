@@ -1,0 +1,830 @@
+{
+  "track": {
+    "data": {
+      "id": "20115564",
+      "type": "tracks",
+      "attributes": {
+        "title": "Get Lucky",
+        "isrc": "USQX91300108",
+        "duration": "PT6M10S",
+        "explicit": false
+      },
+      "relationships": {
+        "albums": {
+          "data": [
+            {
+              "id": "20115556",
+              "type": "albums"
+            }
+          ]
+        },
+        "artists": {
+          "data": [
+            {
+              "id": "8847",
+              "type": "artists"
+            },
+            {
+              "id": "4900204",
+              "type": "artists"
+            },
+            {
+              "id": "30528",
+              "type": "artists"
+            }
+          ]
+        }
+      }
+    },
+    "included": [
+      {
+        "id": "20115556",
+        "type": "albums",
+        "attributes": {
+          "title": "Random Access Memories",
+          "duration": "PT1H14M39S",
+          "explicit": false,
+          "barcodeId": "886443927087",
+          "releaseDate": "2013-05-20",
+          "numberOfItems": 13
+        },
+        "relationships": {
+          "coverArt": {
+            "data": [
+              {
+                "id": "iWOu0yW0IP6ETqRNzbvi",
+                "type": "artworks"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "30528",
+        "type": "artists",
+        "attributes": {
+          "name": "Nile Rodgers"
+        },
+        "relationships": {}
+      },
+      {
+        "id": "4900204",
+        "type": "artists",
+        "attributes": {
+          "name": "Pharrell Williams"
+        },
+        "relationships": {}
+      },
+      {
+        "id": "8847",
+        "type": "artists",
+        "attributes": {
+          "name": "Daft Punk"
+        },
+        "relationships": {}
+      },
+      {
+        "id": "iWOu0yW0IP6ETqRNzbvi",
+        "type": "artworks",
+        "attributes": {
+          "files": [
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/1280x1280.jpg",
+              "meta": {
+                "width": 1280,
+                "height": 1280
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/1080x1080.jpg",
+              "meta": {
+                "width": 1080,
+                "height": 1080
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/750x750.jpg",
+              "meta": {
+                "width": 750,
+                "height": 750
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/640x640.jpg",
+              "meta": {
+                "width": 640,
+                "height": 640
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/320x320.jpg",
+              "meta": {
+                "width": 320,
+                "height": 320
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/160x160.jpg",
+              "meta": {
+                "width": 160,
+                "height": 160
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/80x80.jpg",
+              "meta": {
+                "width": 80,
+                "height": 80
+              }
+            }
+          ]
+        },
+        "relationships": {}
+      }
+    ]
+  },
+  "album": {
+    "data": {
+      "id": "20115556",
+      "type": "albums",
+      "attributes": {
+        "title": "Random Access Memories",
+        "duration": "PT1H14M39S",
+        "explicit": false,
+        "barcodeId": "886443927087",
+        "releaseDate": "2013-05-20",
+        "numberOfItems": 13
+      },
+      "relationships": {
+        "artists": {
+          "data": [
+            {
+              "id": "8847",
+              "type": "artists"
+            }
+          ]
+        },
+        "coverArt": {
+          "data": [
+            {
+              "id": "iWOu0yW0IP6ETqRNzbvi",
+              "type": "artworks"
+            }
+          ]
+        },
+        "items": {
+          "data": [
+            {
+              "id": "20115557",
+              "type": "tracks"
+            },
+            {
+              "id": "20115558",
+              "type": "tracks"
+            },
+            {
+              "id": "20115559",
+              "type": "tracks"
+            },
+            {
+              "id": "20115560",
+              "type": "tracks"
+            },
+            {
+              "id": "20115561",
+              "type": "tracks"
+            },
+            {
+              "id": "20115562",
+              "type": "tracks"
+            },
+            {
+              "id": "20115563",
+              "type": "tracks"
+            },
+            {
+              "id": "20115564",
+              "type": "tracks"
+            },
+            {
+              "id": "20115565",
+              "type": "tracks"
+            },
+            {
+              "id": "20115566",
+              "type": "tracks"
+            },
+            {
+              "id": "20115567",
+              "type": "tracks"
+            },
+            {
+              "id": "20115568",
+              "type": "tracks"
+            },
+            {
+              "id": "20115569",
+              "type": "tracks"
+            }
+          ]
+        }
+      }
+    },
+    "included": [
+      {
+        "id": "8847",
+        "type": "artists",
+        "attributes": {
+          "name": "Daft Punk"
+        },
+        "relationships": {}
+      },
+      {
+        "id": "iWOu0yW0IP6ETqRNzbvi",
+        "type": "artworks",
+        "attributes": {
+          "files": [
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/1280x1280.jpg",
+              "meta": {
+                "width": 1280,
+                "height": 1280
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/1080x1080.jpg",
+              "meta": {
+                "width": 1080,
+                "height": 1080
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/750x750.jpg",
+              "meta": {
+                "width": 750,
+                "height": 750
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/640x640.jpg",
+              "meta": {
+                "width": 640,
+                "height": 640
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/320x320.jpg",
+              "meta": {
+                "width": 320,
+                "height": 320
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/160x160.jpg",
+              "meta": {
+                "width": 160,
+                "height": 160
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/80x80.jpg",
+              "meta": {
+                "width": 80,
+                "height": 80
+              }
+            }
+          ]
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115557",
+        "type": "tracks",
+        "attributes": {
+          "title": "Give Life Back to Music",
+          "isrc": "USQX91300101",
+          "duration": "PT4M35S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115558",
+        "type": "tracks",
+        "attributes": {
+          "title": "The Game of Love",
+          "isrc": "USQX91300102",
+          "duration": "PT5M22S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115559",
+        "type": "tracks",
+        "attributes": {
+          "title": "Giorgio by Moroder",
+          "isrc": "USQX91300103",
+          "duration": "PT9M5S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115560",
+        "type": "tracks",
+        "attributes": {
+          "title": "Within",
+          "isrc": "USQX91300104",
+          "duration": "PT3M49S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115561",
+        "type": "tracks",
+        "attributes": {
+          "title": "Instant Crush",
+          "isrc": "USQX91300105",
+          "duration": "PT5M38S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115562",
+        "type": "tracks",
+        "attributes": {
+          "title": "Lose Yourself to Dance",
+          "isrc": "USQX91300106",
+          "duration": "PT5M54S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115563",
+        "type": "tracks",
+        "attributes": {
+          "title": "Touch",
+          "isrc": "USQX91300107",
+          "duration": "PT8M19S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115564",
+        "type": "tracks",
+        "attributes": {
+          "title": "Get Lucky",
+          "isrc": "USQX91300108",
+          "duration": "PT6M10S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115565",
+        "type": "tracks",
+        "attributes": {
+          "title": "Beyond",
+          "isrc": "USQX91300109",
+          "duration": "PT4M50S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115566",
+        "type": "tracks",
+        "attributes": {
+          "title": "Motherboard",
+          "isrc": "USQX91300110",
+          "duration": "PT5M42S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115567",
+        "type": "tracks",
+        "attributes": {
+          "title": "Fragments of Time",
+          "isrc": "USQX91300111",
+          "duration": "PT4M40S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115568",
+        "type": "tracks",
+        "attributes": {
+          "title": "Doin' it Right",
+          "isrc": "USQX91300112",
+          "duration": "PT4M11S",
+          "explicit": false
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115569",
+        "type": "tracks",
+        "attributes": {
+          "title": "Contact",
+          "isrc": "USQX91300113",
+          "duration": "PT6M24S",
+          "explicit": false
+        },
+        "relationships": {}
+      }
+    ]
+  },
+  "artist": {
+    "data": {
+      "id": "8847",
+      "type": "artists",
+      "attributes": {
+        "name": "Daft Punk"
+      },
+      "relationships": {
+        "profileArt": {
+          "data": [
+            {
+              "id": "9Uwk47MKGpAYjDj",
+              "type": "artworks"
+            }
+          ]
+        }
+      }
+    },
+    "included": [
+      {
+        "id": "9Uwk47MKGpAYjDj",
+        "type": "artworks",
+        "attributes": {
+          "files": [
+            {
+              "href": "https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/b02832ddc204/750x750.jpg",
+              "meta": {
+                "width": 750,
+                "height": 750
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/b02832ddc204/480x480.jpg",
+              "meta": {
+                "width": 480,
+                "height": 480
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/b02832ddc204/320x320.jpg",
+              "meta": {
+                "width": 320,
+                "height": 320
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/b02832ddc204/160x160.jpg",
+              "meta": {
+                "width": 160,
+                "height": 160
+              }
+            }
+          ]
+        },
+        "relationships": {}
+      }
+    ]
+  },
+  "search": {
+    "data": [
+      {
+        "id": "24HkRueBIna5BSbvCCwQjzAhtpTvUsapnFvOJtW97BIzlJsKH",
+        "type": "searchResults",
+        "attributes": {},
+        "relationships": {
+          "tracks": {
+            "data": [
+              {
+                "id": "20115564",
+                "type": "tracks"
+              }
+            ]
+          },
+          "artists": {
+            "data": [
+              {
+                "id": "8847",
+                "type": "artists"
+              }
+            ]
+          },
+          "albums": {
+            "data": [
+              {
+                "id": "19823989",
+                "type": "albums"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "included": [
+      {
+        "id": "19823989",
+        "type": "albums",
+        "attributes": {
+          "title": "Get Lucky (Radio Edit - feat. Pharrell Williams and Nile Rodgers)",
+          "duration": "PT4M8S",
+          "explicit": false,
+          "barcodeId": "886443973442",
+          "releaseDate": "2013-04-19",
+          "numberOfItems": 1
+        },
+        "relationships": {
+          "artists": {
+            "data": [
+              {
+                "id": "8847",
+                "type": "artists"
+              },
+              {
+                "id": "4900204",
+                "type": "artists"
+              },
+              {
+                "id": "30528",
+                "type": "artists"
+              }
+            ]
+          },
+          "coverArt": {
+            "data": [
+              {
+                "id": "iWOu0yW0IP165rOFDBFZ",
+                "type": "artworks"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "20115556",
+        "type": "albums",
+        "attributes": {
+          "title": "Random Access Memories",
+          "duration": "PT1H14M39S",
+          "explicit": false,
+          "barcodeId": "886443927087",
+          "releaseDate": "2013-05-20",
+          "numberOfItems": 13
+        },
+        "relationships": {
+          "artists": {
+            "data": [
+              {
+                "id": "8847",
+                "type": "artists"
+              }
+            ]
+          },
+          "coverArt": {
+            "data": [
+              {
+                "id": "iWOu0yW0IP6ETqRNzbvi",
+                "type": "artworks"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "30528",
+        "type": "artists",
+        "attributes": {
+          "name": "Nile Rodgers"
+        },
+        "relationships": {}
+      },
+      {
+        "id": "4900204",
+        "type": "artists",
+        "attributes": {
+          "name": "Pharrell Williams"
+        },
+        "relationships": {}
+      },
+      {
+        "id": "8847",
+        "type": "artists",
+        "attributes": {
+          "name": "Daft Punk"
+        },
+        "relationships": {
+          "profileArt": {
+            "data": [
+              {
+                "id": "9Uwk47MKGpAYjDj",
+                "type": "artworks"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "9Uwk47MKGpAYjDj",
+        "type": "artworks",
+        "attributes": {
+          "files": [
+            {
+              "href": "https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/b02832ddc204/750x750.jpg",
+              "meta": {
+                "width": 750,
+                "height": 750
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/b02832ddc204/480x480.jpg",
+              "meta": {
+                "width": 480,
+                "height": 480
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/b02832ddc204/320x320.jpg",
+              "meta": {
+                "width": 320,
+                "height": 320
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/65d23ddc/7b3b/4b17/bc84/b02832ddc204/160x160.jpg",
+              "meta": {
+                "width": 160,
+                "height": 160
+              }
+            }
+          ]
+        },
+        "relationships": {}
+      },
+      {
+        "id": "iWOu0yW0IP165rOFDBFZ",
+        "type": "artworks",
+        "attributes": {
+          "files": [
+            {
+              "href": "https://resources.tidal.com/images/5b3c232a/c6c1/4f3d/b014/fe7f3a3d86a8/1280x1280.jpg",
+              "meta": {
+                "width": 1280,
+                "height": 1280
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/5b3c232a/c6c1/4f3d/b014/fe7f3a3d86a8/1080x1080.jpg",
+              "meta": {
+                "width": 1080,
+                "height": 1080
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/5b3c232a/c6c1/4f3d/b014/fe7f3a3d86a8/750x750.jpg",
+              "meta": {
+                "width": 750,
+                "height": 750
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/5b3c232a/c6c1/4f3d/b014/fe7f3a3d86a8/640x640.jpg",
+              "meta": {
+                "width": 640,
+                "height": 640
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/5b3c232a/c6c1/4f3d/b014/fe7f3a3d86a8/320x320.jpg",
+              "meta": {
+                "width": 320,
+                "height": 320
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/5b3c232a/c6c1/4f3d/b014/fe7f3a3d86a8/160x160.jpg",
+              "meta": {
+                "width": 160,
+                "height": 160
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/5b3c232a/c6c1/4f3d/b014/fe7f3a3d86a8/80x80.jpg",
+              "meta": {
+                "width": 80,
+                "height": 80
+              }
+            }
+          ]
+        },
+        "relationships": {}
+      },
+      {
+        "id": "iWOu0yW0IP6ETqRNzbvi",
+        "type": "artworks",
+        "attributes": {
+          "files": [
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/1280x1280.jpg",
+              "meta": {
+                "width": 1280,
+                "height": 1280
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/1080x1080.jpg",
+              "meta": {
+                "width": 1080,
+                "height": 1080
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/750x750.jpg",
+              "meta": {
+                "width": 750,
+                "height": 750
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/640x640.jpg",
+              "meta": {
+                "width": 640,
+                "height": 640
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/320x320.jpg",
+              "meta": {
+                "width": 320,
+                "height": 320
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/160x160.jpg",
+              "meta": {
+                "width": 160,
+                "height": 160
+              }
+            },
+            {
+              "href": "https://resources.tidal.com/images/b66a5c40/c34d/4507/a0dc/5f98e46fdd20/80x80.jpg",
+              "meta": {
+                "width": 80,
+                "height": 80
+              }
+            }
+          ]
+        },
+        "relationships": {}
+      },
+      {
+        "id": "20115564",
+        "type": "tracks",
+        "attributes": {
+          "title": "Get Lucky",
+          "isrc": "USQX91300108",
+          "duration": "PT6M10S",
+          "explicit": false
+        },
+        "relationships": {
+          "artists": {
+            "data": [
+              {
+                "id": "8847",
+                "type": "artists"
+              },
+              {
+                "id": "4900204",
+                "type": "artists"
+              },
+              {
+                "id": "30528",
+                "type": "artists"
+              }
+            ]
+          },
+          "albums": {
+            "data": [
+              {
+                "id": "20115556",
+                "type": "albums"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

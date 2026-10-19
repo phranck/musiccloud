@@ -2186,8 +2186,13 @@ describe("resolveQuery: artwork", () => {
         confidence: 0.85,
         matchMethod: "search",
         track: createMockTrack({
+          sourceId: "2Ii7mUmPen9cMZPDdFjjPW",
           title: "Hurt People",
           artists: ["DARKK"],
+          albumName: undefined,
+          isrc: "DEZC62699545",
+          durationMs: 201000,
+          webUrl: "https://open.spotify.com/track/2Ii7mUmPen9cMZPDdFjjPW",
           artworkUrl: "https://i.scdn.co/image/recording-cover",
         }),
       }),

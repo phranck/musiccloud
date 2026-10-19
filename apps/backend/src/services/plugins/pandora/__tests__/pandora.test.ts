@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetCsrfTokenCache, _setCsrfTokenForTest, pandoraAdapter } from "../adapter";
+import observedSearch from "./fixtures/get-lucky-search.json";
 
 // =============================================================================
 // Mock data
@@ -248,11 +249,35 @@ describe("Pandora: searchTrack", () => {
     _resetCsrfTokenCache();
   });
 
+  it("selects the studio ISRC rather than an observed cover from the current search envelope", async () => {
+    mockApiCall(Response.json(observedSearch));
+    const result = await pandoraAdapter.searchTrack({
+      title: "Get Lucky",
+      artist: "Daft Punk",
+      artists: ["Daft Punk"],
+    });
+    expect(result.found).toBe(true);
+    expect(result.track?.isrc).toBe("USQX91300108");
+    expect(result.track?.artists).toEqual(["Daft Punk"]);
+  });
+
+  it("rejects the observed cover when no compatible recording is returned", async () => {
+    const entry = Object.entries(observedSearch.annotations).find(([, track]) => track.isrc === "BXCPT2000157");
+    if (!entry) throw new Error("Expected the observed cover fixture");
+    mockApiCall(Response.json({ results: [entry[0]], annotations: { [entry[0]]: entry[1] } }));
+    const result = await pandoraAdapter.searchTrack({
+      title: "Get Lucky",
+      artist: "Daft Punk",
+      artists: ["Daft Punk"],
+    });
+    expect(result.found).toBe(false);
+  });
+
   it("should find track with structured query", async () => {
     mockApiCall(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
 
     const result = await pandoraAdapter.searchTrack({
-      title: "Shake It Off",
+      title: "Shake It Off (Taylor's Version)",
       artist: "Taylor Swift",
     });
 
@@ -332,7 +357,7 @@ describe("Pandora: searchTrack", () => {
     mockApiCall(new Response(JSON.stringify(multiResults), { status: 200 }));
 
     const result = await pandoraAdapter.searchTrack({
-      title: "Shake It Off",
+      title: "Shake It Off (Taylor's Version)",
       artist: "Taylor Swift",
     });
 

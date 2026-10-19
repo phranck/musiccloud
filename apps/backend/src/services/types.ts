@@ -140,8 +140,12 @@ export interface ServiceAdapter {
    * Looks a recording up by ISRC.
    *
    * Lookups and searches answer `null`, `{ found: false }` or no candidates
-   * only when the service answered and has no match. When it did not answer
-   * (an error status, a rate limit, a timeout, an unreadable body) they throw,
+   * only after a complete, recognized provider answer has no compatible match.
+   * A failed query alternative, storefront, page or candidate leaves negative
+   * evidence incomplete, even when another reply is readable. A validated
+   * positive may survive an unrelated failure with structured diagnostics.
+   * When the service did not answer (an error status, rate limit, timeout or
+   * malformed required envelope/collection), lookups throw,
    * because the resolver records a miss for `SERVICE_MISS_TTL_MS` and skips
    * the service for that long, and a text search where every service threw
    * reports an outage instead of "not found". The same holds for the album
@@ -334,8 +338,14 @@ export interface AlbumMatchResult {
   matchMethod: MatchMethod;
 }
 
-/** Album-level adapter capabilities */
+/**
+ * Describes implemented album operations, not every feature a provider offers.
+ * A declared lookup/search requires its corresponding ServiceAdapter method;
+ * returning identifier metadata alone does not implement identifier lookup.
+ * Registry-derived contract tests enforce that distinction without live calls.
+ */
 export interface AlbumCapabilities {
+  /** Enables UPC-first resolution and requires findAlbumByUpc. */
   supportsUpc: boolean;
   supportsAlbumSearch: boolean;
   supportsTrackListing: boolean;

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { audiomackAdapter } from "../adapter";
+import recordedPages from "./fixtures/current-page-titles.json";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -20,6 +21,24 @@ describe("Audiomack: detectUrl", () => {
 
   it("should return null for non-Audiomack URL", () => {
     expect(audiomackAdapter.detectUrl("https://open.spotify.com/track/abc")).toBeNull();
+  });
+});
+
+describe("Audiomack: current page metadata", () => {
+  it.each([
+    {
+      kind: "track",
+      id: "ti-blaze/round-one-elle-mummy-6276266",
+      title: "Round One (Elle Mummy)",
+      artist: "T.I BLAZE",
+      page: recordedPages[0],
+    },
+    { kind: "album", id: "folapondis/9-4108363", title: "9", artist: "FOLA", page: recordedPages[1] },
+  ])("does not include page branding in the $kind performer credit", async ({ kind, id, title, artist, page }) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(page.tags.join("\n")));
+    const value = kind === "track" ? await audiomackAdapter.getTrack(id) : await audiomackAdapter.getAlbum?.(id);
+    expect(value?.title).toBe(title);
+    expect(value?.artists).toEqual([artist]);
   });
 });
 

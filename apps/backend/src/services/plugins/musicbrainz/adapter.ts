@@ -1,12 +1,10 @@
 /**
- * @file MusicBrainz adapter, the first canonical-identity source.
+ * @file MusicBrainz recording, release and artist metadata through WS/2.
  *
- * MusicBrainz is community-curated metadata, not a streaming target.
- * The adapter exists to harvest cross-platform identifiers (MBID for
- * recordings/releases/artists, ISWC for compositions, ISNI for artists)
- * into the *_external_ids aggregation tables introduced by Phase A,
- * and to act as the eventual canonical primary key when the
- * static-vs-dynamic cache split lands.
+ * The adapter reports MBID/ISWC/ISNI observations. external-ids.ts and the
+ * persistence layer own their aggregation; this module does not choose the
+ * application's canonical primary key. Provider relevance can rank accepted
+ * recordings but cannot override a shared recording-identity rejection.
  *
  * Auth: none (keyless WS/2 API).
  *
@@ -19,9 +17,9 @@
  *
  * Cover Art: served by Cover Art Archive (coverartarchive.org/...),
  * not MusicBrainz proper. The URL pattern is conventional - no extra
- * request, no 404 handling here. If the image is missing, the share
- * page's existing artwork-backfill logic in album-resolver.ts kicks
- * in and pulls cover art from another adapter.
+ * request or asset-existence check here. Recording artwork eligibility and
+ * bounded enrichment belong to artwork.ts and the resolvers. Share rendering
+ * reads existing data and does not fetch or repair an absent cover.
  *
  * Failure versus no match: a lookup or search answers "nothing" only when
  * MusicBrainz answered with an empty result list, or with 404 for an ISRC no
@@ -324,9 +322,18 @@ function mapArtist(artist: MbArtist): NormalizedArtist {
   };
 }
 
+/**
+ * Combines relevance only after shared recording identity permits the candidate.
+ * Provider ranking cannot revive a rejected performer or recording version.
+ *
+ * @param mbScore - MusicBrainz relevance in its percentage scale.
+ * @param projectScore - Shared score, including an explicit identity rejection at zero.
+ * @returns Zero for a rejected recording, otherwise the stronger accepted score.
+ */
 function combinedConfidence(mbScore: number | undefined, projectScore: number): number {
-  const normalisedMb = typeof mbScore === "number" ? Math.max(0, Math.min(1, mbScore / 100)) : 0;
-  return Math.max(normalisedMb, projectScore);
+  if (projectScore === 0) return 0;
+  const normalizedMb = typeof mbScore === "number" ? Math.max(0, Math.min(1, mbScore / 100)) : 0;
+  return Math.max(normalizedMb, projectScore);
 }
 
 export const musicbrainzAdapter = {

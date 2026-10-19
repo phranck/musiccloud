@@ -1,0 +1,96 @@
+{
+  "results": [
+    {
+      "id": "53488368",
+      "title": "Odia Romantic Hits, Vol-1",
+      "more_info": {
+        "artistMap": {
+          "primary_artists": [
+            {
+              "name": "Humane Sagar"
+            },
+            {
+              "name": "Pragyan Hota"
+            },
+            {
+              "name": "Mantu Chhuria"
+            },
+            {
+              "name": "Aseema Panda"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "75737847",
+      "title": "Big Hits, Vol. 1",
+      "more_info": {
+        "artistMap": {
+          "primary_artists": [
+            {
+              "name": "Various Artists"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "61411030",
+      "title": "Best of Lata Mangeshkar Hits, Vol. 1",
+      "more_info": {
+        "artistMap": {
+          "primary_artists": [
+            {
+              "name": "Lata Mangeshkar"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "77361274",
+      "title": "Malayalam Duet Hits, Vol. 1",
+      "more_info": {
+        "artistMap": {
+          "primary_artists": [
+            {
+              "name": "K.J. Yesudas"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "76926718",
+      "title": "Khelaiya Disco Dandiya Hits, Vol. 1",
+      "more_info": {
+        "artistMap": {
+          "primary_artists": [
+            {
+              "name": "Jyotsna Hardikar"
+            },
+            {
+              "name": "Rupal Doshi"
+            },
+            {
+              "name": "Deepak Kumar"
+            },
+            {
+              "name": "Sonali Vajpayee"
+            },
+            {
+              "name": "Kishore Manraj"
+            },
+            {
+              "name": "Mahesh Kumar"
+            },
+            {
+              "name": "Kishore Manraja"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -47,9 +47,11 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { throwIfNoCandidateAnswered } from "../_shared/candidates.js";
+import { splitArtistNames } from "../_shared/artists.js";
+import { throwIfSearchIncomplete } from "../_shared/candidates.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
+import { readProviderHtml } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -77,6 +79,33 @@ interface MelonJsonLd {
   duration?: string; // ISO 8601
   byArtist?: { name?: string } | Array<{ name?: string }>;
   inAlbum?: { name?: string };
+}
+
+/**
+ * Reads Melon's published title/artist boundary without changing recording-title credits.
+ * @param html - The same recording or album page whose schema is being consumed.
+ * @returns OG metadata with the final artist suffix separated, or the legacy unknown-artist fallback.
+ */
+function melonOpenGraph(html: string): { title?: string; image?: string; artists: string[] } {
+  const og = extractOgTags(html);
+  if (!og.title) return { ...og, artists: ["Unknown Artist"] };
+  const separator = og.title.lastIndexOf(" - ");
+  return separator > 0
+    ? { ...og, title: og.title.slice(0, separator).trim(), artists: splitArtistNames(og.title.slice(separator + 3)) }
+    : { ...og, artists: ["Unknown Artist"] };
+}
+
+/**
+ * Keeps explicit schema credits and completes their absence from the same page's OG metadata.
+ * @param data - Optional single-artist or multi-artist schema field.
+ * @param html - Current page, not a separately fetched or inferred artist identity.
+ * @returns Reported performer names, preserving schema precedence over OG fallback.
+ */
+function melonArtistNames(data: MelonJsonLd["byArtist"], html: string): string[] {
+  const artists = (Array.isArray(data) ? data : data ? [data] : []).flatMap((artist) =>
+    artist.name ? [artist.name] : [],
+  );
+  return artists.length > 0 ? artists : melonOpenGraph(html).artists;
 }
 
 function parseDuration(iso: string): number | undefined {
@@ -128,16 +157,7 @@ async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   // Try JSON-LD first
   const jsonLd = parseJsonLd(html);
   if (jsonLd?.name) {
-    const artistData = jsonLd.byArtist;
-    const artists: string[] = [];
-    if (Array.isArray(artistData)) {
-      for (const a of artistData) {
-        if (a.name) artists.push(a.name);
-      }
-    } else if (artistData?.name) {
-      artists.push(artistData.name);
-    }
-    if (artists.length === 0) artists.push("Unknown Artist");
+    const artists = melonArtistNames(jsonLd.byArtist, html);
 
     return {
       sourceService: "melon",
@@ -152,13 +172,13 @@ async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   }
 
   // Fallback to OG tags
-  const og = extractOgTags(html);
+  const og = melonOpenGraph(html);
   if (og.title) {
     return {
       sourceService: "melon",
       sourceId: songId,
       title: og.title,
-      artists: ["Unknown Artist"],
+      artists: og.artists,
       artworkUrl: og.image,
       webUrl: `https://www.melon.com/song/detail.htm?songId=${songId}`,
     };
@@ -175,7 +195,7 @@ async function searchForSongIds(query: string): Promise<string[]> {
     throw serviceHttpError(Service.Melon, response.status, ResourceKind.Track, query, Operation.Search);
   }
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Melon, "track search");
 
   // Extract song IDs from data-song-no attributes
   const songIds: string[] = [];
@@ -215,16 +235,7 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
   // Try JSON-LD first
   const jsonLd = parseMelonAlbumJsonLd(html);
   if (jsonLd) {
-    const artistData = jsonLd.byArtist;
-    const artists: string[] = [];
-    if (Array.isArray(artistData)) {
-      for (const a of artistData) {
-        if (a.name) artists.push(a.name);
-      }
-    } else if (artistData?.name) {
-      artists.push(artistData.name);
-    }
-    if (artists.length === 0) artists.push("Unknown Artist");
+    const artists = melonArtistNames(jsonLd.byArtist, html);
 
     return {
       sourceService: "melon",
@@ -239,13 +250,13 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
   }
 
   // Fallback to OG tags
-  const og = extractOgTags(html);
+  const og = melonOpenGraph(html);
   if (og.title) {
     return {
       sourceService: "melon",
       sourceId: albumId,
       title: og.title,
-      artists: ["Unknown Artist"],
+      artists: og.artists,
       artworkUrl: og.image,
       webUrl: `https://www.melon.com/album/detail.htm?albumId=${albumId}`,
     };
@@ -261,10 +272,11 @@ async function searchMelonAlbumIds(query: string): Promise<string[]> {
     throw serviceHttpError(Service.Melon, response.status, ResourceKind.Album, query, Operation.Search);
   }
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Melon, "album search");
   const albumIds: string[] = [];
   const seen = new Set<string>();
-  const idMatches = html.matchAll(/albumId=(\d+)/g);
+  const currentIds = [...html.matchAll(/data-album-no=["'](\d+)["']/g)];
+  const idMatches = currentIds.length > 0 ? currentIds : html.matchAll(/albumId=(\d+)/g);
   for (const m of idMatches) {
     if (m[1] && !seen.has(m[1])) {
       seen.add(m[1]);
@@ -314,7 +326,6 @@ export const melonAdapter: ServiceAdapter = {
 
     // Fetch track pages in parallel
     const trackResults = await Promise.allSettled(songIds.map((id) => fetchTrackById(id)));
-    throwIfNoCandidateAnswered(trackResults);
 
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
@@ -337,6 +348,7 @@ export const melonAdapter: ServiceAdapter = {
       }
     }
 
+    throwIfSearchIncomplete(trackResults, Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE), Service.Melon);
     if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       log.debug("Melon", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
@@ -378,7 +390,6 @@ export const melonAdapter: ServiceAdapter = {
     log.debug("Melon", `Album search returned ${albumIds.length} IDs for: ${q}`);
 
     const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
-    throwIfNoCandidateAnswered(albumResults);
     let bestMatch: NormalizedAlbum | null = null;
     let bestConfidence = 0;
 
@@ -393,6 +404,7 @@ export const melonAdapter: ServiceAdapter = {
       }
     }
 
+    throwIfSearchIncomplete(albumResults, Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE), Service.Melon);
     if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }

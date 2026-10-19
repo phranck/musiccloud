@@ -1,9 +1,14 @@
 /**
  * @file Audius adapter: track + album resolves against the public Audius API.
  *
- * Keyless service (always available). The `app_name` query parameter
- * is not auth but identification required by the API for usage
- * tracking; omitting it yields 403.
+ * Uses keyless metadata requests with `app_name` identification. Configuration
+ * availability does not establish upstream availability. HTTP or malformed
+ * collection failures throw and must not become cached catalog misses.
+ *
+ * Album search uses `/search/full?kind=albums` and `data.albums`, as exposed by
+ * Audius SDK 17.0.0 SearchApi. Album retrieval uses the playlist resource and checks
+ * `is_album`; a playlist is not interchangeable with an album.
+ * @see https://www.npmjs.com/package/@audius/sdk/v/17.0.0
  *
  * ## URL shapes: the second path segment tells albums from tracks
  *
@@ -13,17 +18,17 @@
  * the album and playlist shapes, so exactly one detector claims a link.
  * `classifyMusicUrl` in `plugins/registry.ts` depends on that, because it
  * routes a link by the first detector that claims it. `fetchAlbumById`
- * still checks `is_album`, because a numeric playlist id carries no shape
+ * still checks `is_album`, because an opaque playlist id carries no shape
  * that says whether it is an album.
  *
  * ## Two ID shapes reach the adapter
  *
  * `detectUrl` returns a path-style ID (`handle/slug`) extracted from
  * the user-facing URL, but the resolver sometimes passes direct
- * numeric track IDs (e.g. for cross-service lookups via external ID).
+ * opaque track IDs (e.g. for cross-service lookups via external ID).
  * Each getter branches on whether the ID contains a `/` and dispatches
  * to `/resolve?url=...` for paths or `/tracks/{id}` / `/playlists/{id}`
- * for numeric IDs.
+ * for opaque IDs.
  *
  * ## No ISRC
  *
@@ -51,6 +56,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
 
 const API_BASE = "https://api.audius.co/v1";
 const APP_NAME = "music_cloud";
@@ -109,8 +115,9 @@ interface AudiusPlaylistDetailResponse {
   data?: AudiusPlaylistResponse[];
 }
 
-interface AudiusPlaylistSearchResponse {
-  data: AudiusPlaylistResponse[];
+/** Explicit album-search envelope, distinct from playlist search/detail lists. */
+interface AudiusAlbumSearchResponse {
+  data?: { albums?: AudiusPlaylistResponse[] };
 }
 
 async function audiusFetch(endpoint: string): Promise<Response> {
@@ -159,14 +166,14 @@ async function fetchAlbumById(playlistId: string): Promise<NormalizedAlbum | nul
 }
 
 async function searchAudiusAlbums(query: string): Promise<NormalizedAlbum[]> {
-  const response = await audiusFetch(`/playlists/search?query=${encodeURIComponent(query)}&limit=10`);
+  const response = await audiusFetch(`/search/full?kind=albums&query=${encodeURIComponent(query)}&limit=10`);
   // Audius answers a search without results with an empty list, so any
   // error status is a failure rather than an answer.
   if (!response.ok) {
     throw serviceHttpError(Service.Audius, response.status, ResourceKind.Album, query, Operation.Search);
   }
-  const data = (await response.json()) as AudiusPlaylistSearchResponse;
-  return (data.data ?? [])
+  const data = (await response.json()) as AudiusAlbumSearchResponse;
+  return requireProviderCollection(data.data?.albums, Service.Audius, "album search")
     .filter((p) => p.is_album)
     .slice(0, 5)
     .map(mapPlaylist);
@@ -187,7 +194,7 @@ export const audiusAdapter = {
   },
 
   async getTrack(trackId: string): Promise<NormalizedTrack> {
-    // See file header: path-style IDs use the resolve endpoint, numeric
+    // See file header: path-style IDs use the resolve endpoint, opaque
     // IDs use the direct tracks endpoint.
     if (trackId.includes("/")) {
       const response = await audiusFetch(`/resolve?url=https://audius.co/${encodeURIComponent(trackId)}`);
@@ -226,7 +233,7 @@ export const audiusAdapter = {
     }
 
     const data = (await response.json()) as AudiusSearchResponse;
-    const items = data.data ?? [];
+    const items = requireProviderCollection(data.data, Service.Audius, "track search");
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };

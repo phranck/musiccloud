@@ -10,16 +10,15 @@
  * 1. **Disambiguation source.** The text-search variant with
  *    candidates (`searchTrackWithCandidates`) is implemented here and
  *    used by the POST resolve endpoint when the user enters free
- *    text and multiple plausible matches exist. Spotify's search
- *    relevance is the best of the credentialed services, so it is
- *    tried first in that flow.
- * 2. **Artwork provider.** When a source track lacks `artworkUrl`
- *    but has an ISRC, the resolver falls back to Spotify's
- *    `findByIsrc` to pull its artwork. Spotify serves consistent
- *    high-resolution images.
- * 3. **Genre provider.** The artist resolver uses Spotify's
- *    `getArtist` specifically for the `genres` field, which almost
- *    no other service exposes reliably.
+ *    text and multiple plausible matches exist. The registry owns
+ *    discovery order; this adapter does not assume it is the first source.
+ *    Structured candidate ranking uses the shared recording-identity policy.
+ * 2. **Artwork provider.** Catalog metadata can supply a missing recording
+ *    cover. `services/recording-artwork.ts` owns persistence, while the shared
+ *    artwork policy decides which observations may supply that cover.
+ * 3. **Genre provider.** `getArtist` forwards optional genres as enrichment.
+ *    Callers tolerate their absence rather than treating this provider as
+ *    a guaranteed source of that field.
  *
  * ## Two search methods
  *
@@ -40,11 +39,10 @@
  *
  * ## Preview URL expiry
  *
- * Spotify preview URLs expire after roughly 30 to 60 days. The
- * resolver deliberately overwrites them with Deezer previews when
- * available (see `resolver.ts`). The `previewUrl` field is still
- * populated here so that Spotify-only tracks have a working preview
- * for that 30-60d window.
+ * The optional preview field is forwarded when Spotify reports it; metadata
+ * alone does not prove that the clip remains playable. Expiry parsing and
+ * response-level preference belong to `lib/preview-url.ts`, which the resolver
+ * uses when selecting usable provider observations.
  *
  * ## `intl-<locale>` URL prefix
  *
@@ -75,7 +73,9 @@ import type {
   SearchResultWithCandidates,
   ServiceAdapter,
 } from "../../types.js";
+import { artistSearchNames } from "../_shared/artists.js";
 import { isFreeTextSearch, scoreAlbumCandidate, scoreSearchCandidate } from "../_shared/confidence.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
 import { fetchSpotifyOEmbed } from "./oembed.js";
 
 const SPOTIFY_TRACK_REGEX = /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?track\/([a-zA-Z0-9]+)/;
@@ -173,8 +173,17 @@ interface SpotifyTrackResponse {
   };
   duration_ms: number;
   explicit: boolean;
-  preview_url: string | null;
+  preview_url?: string | null;
   external_ids?: { isrc?: string };
+  external_urls?: { spotify?: string };
+}
+
+/** Public artist fields consumed by direct retrieval and search normalization. */
+interface SpotifyArtistResponse {
+  id: string;
+  name: string;
+  images?: Array<{ url: string }>;
+  genres?: string[];
   external_urls?: { spotify?: string };
 }
 
@@ -189,11 +198,16 @@ function pushUnique(values: string[], value: string | undefined): void {
   if (normalized && !values.some((v) => v.toLowerCase() === normalized.toLowerCase())) values.push(normalized);
 }
 
+/**
+ * Expands explicit collaboration credits without changing the original query.
+ *
+ * @param query - Known artist metadata or its primary artist fallback.
+ * @returns Ordered, case-insensitively distinct full credits and component names.
+ */
 function buildArtistSearchTerms(query: SearchQuery): string[] {
   const artists: string[] = [];
   for (const artist of query.artists?.length ? query.artists : [query.artist]) {
-    pushUnique(artists, artist);
-    for (const part of artist.split(/\s+(?:x|feat\.?|ft\.?)\s+|,|&/i)) pushUnique(artists, part);
+    for (const part of artistSearchNames(artist)) pushUnique(artists, part);
   }
   pushUnique(artists, query.artist);
   return artists;
@@ -267,16 +281,15 @@ export const spotifyAdapter = {
     }
 
     const data = await response.json();
-    const items = data.tracks?.items;
+    const items = requireProviderCollection<SpotifyTrackResponse>(data.tracks?.items, Service.Spotify, "ISRC lookup");
 
-    if (!items || items.length === 0) return null;
+    if (items.length === 0) return null;
 
     return mapTrack(items[0]);
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const itemsById = new Map<string, SpotifyTrackResponse>();
-    let answered = false;
     let lastFailedStatus = 0;
 
     for (const searchQuery of buildSpotifyTrackSearchQueries(query)) {
@@ -287,23 +300,15 @@ export const spotifyAdapter = {
         lastFailedStatus = response.status;
         continue;
       }
-      answered = true;
-
       const data = await response.json();
-      const items: SpotifyTrackResponse[] = data.tracks?.items ?? [];
+      const items = requireProviderCollection<SpotifyTrackResponse>(
+        data.tracks?.items,
+        Service.Spotify,
+        "track search",
+      );
       for (const item of items) {
         if (!itemsById.has(item.id)) itemsById.set(item.id, item);
       }
-    }
-
-    // Only an answered search may report a miss; the resolver remembers a
-    // miss for a month, and a rate limit is not one.
-    if (!answered) {
-      throw serviceHttpError(Service.Spotify, lastFailedStatus, ResourceKind.Track, query.title, Operation.Search);
-    }
-
-    if (itemsById.size === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
     }
 
     // Score each result and pick the best match
@@ -322,9 +327,26 @@ export const spotifyAdapter = {
     }
 
     if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      // A failed alternative may contain the recording; it cannot become a cached miss.
+      if (lastFailedStatus) {
+        throw serviceHttpError(Service.Spotify, lastFailedStatus, ResourceKind.Track, query.title, Operation.Search);
+      }
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }
 
+    if (lastFailedStatus) {
+      log.deviation(
+        {
+          component: "Spotify",
+          adapterId: Service.Spotify,
+          errorCode: "MC-API-0004",
+          operation: "track_search_alternatives",
+          outcome: "positive_partial_queries",
+          status: lastFailedStatus,
+        },
+        serviceHttpError(Service.Spotify, lastFailedStatus, ResourceKind.Track, query.title, Operation.Search),
+      );
+    }
     return {
       found: true,
       track: bestMatch,
@@ -333,11 +355,13 @@ export const spotifyAdapter = {
     };
   },
 
-  async searchTrackWithCandidates(query: {
-    title: string;
-    artist: string;
-    album?: string;
-  }): Promise<SearchResultWithCandidates> {
+  /**
+   * Ranks bounded provider pages under the same identity rules as plain search.
+   * @param query - Free text or known recording metadata, including artist and duration evidence.
+   * @returns Ranked candidates; a partial page sequence requires a qualifying positive match.
+   * @throws Provider failures when incomplete pages would otherwise become negative evidence.
+   */
+  async searchTrackWithCandidates(query: SearchQuery): Promise<SearchResultWithCandidates> {
     log.debug("Spotify", "searchTrackWithCandidates called with:", query);
     const isFreeText = isFreeTextSearch(query);
     let q: string;
@@ -357,6 +381,7 @@ export const spotifyAdapter = {
     log.debug("Spotify", "Search query string:", q);
 
     const items: SpotifyTrackResponse[] = [];
+    let lastFailedStatus = 0;
     for (let offset = 0; offset < MAX_CANDIDATES; offset += SPOTIFY_SEARCH_LIMIT_MAX) {
       const limit = Math.min(SPOTIFY_SEARCH_LIMIT_MAX, MAX_CANDIDATES - offset);
       const response = await spotifyFetch(`/search?type=track&q=${q}&limit=${limit}&offset=${offset}`);
@@ -364,14 +389,17 @@ export const spotifyAdapter = {
       log.debug("Spotify", "API response status:", response.status, response.ok, "offset:", offset);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        log.error("Spotify", "Search failed:", response.status, errorText);
+        lastFailedStatus = response.status;
         if (items.length > 0) break;
         throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Track, query.title, Operation.Search);
       }
 
       const data = await response.json();
-      const pageItems: SpotifyTrackResponse[] = data.tracks?.items ?? [];
+      const pageItems = requireProviderCollection<SpotifyTrackResponse>(
+        data.tracks?.items,
+        Service.Spotify,
+        "candidate search",
+      );
       items.push(...pageItems);
       if (pageItems.length < limit) break;
     }
@@ -399,6 +427,26 @@ export const spotifyAdapter = {
         ? { found: true, track: best.track, confidence: best.confidence, matchMethod: "search" }
         : { found: false, confidence: best.confidence, matchMethod: "search" };
 
+    if (lastFailedStatus) {
+      const error = serviceHttpError(
+        Service.Spotify,
+        lastFailedStatus,
+        ResourceKind.Track,
+        query.title,
+        Operation.Search,
+      );
+      if (!bestMatch.found) throw error;
+      log.deviation(
+        {
+          component: "Spotify",
+          adapterId: Service.Spotify,
+          errorCode: "MC-API-0004",
+          operation: "track_candidate_pagination",
+          outcome: "positive_partial_candidates",
+        },
+        error,
+      );
+    }
     return {
       bestMatch,
       candidates: scored.filter((c) => c.confidence >= 0.4),
@@ -436,7 +484,7 @@ export const spotifyAdapter = {
     }
 
     const data: SpotifyAlbumSearchResponse = await response.json();
-    const items = data.albums?.items ?? [];
+    const items = requireProviderCollection(data.albums?.items, Service.Spotify, "UPC lookup");
     if (items.length === 0) return null;
 
     return mapAlbum(items[0]);
@@ -451,7 +499,7 @@ export const spotifyAdapter = {
     }
 
     const data: SpotifyAlbumSearchResponse = await response.json();
-    const items = data.albums?.items ?? [];
+    const items = requireProviderCollection(data.albums?.items, Service.Spotify, "album search");
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };
@@ -515,7 +563,11 @@ export const spotifyAdapter = {
     }
 
     const data = await response.json();
-    const items = data.artists?.items ?? [];
+    const items = requireProviderCollection<SpotifyArtistResponse>(
+      data.artists?.items,
+      Service.Spotify,
+      "artist search",
+    );
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };

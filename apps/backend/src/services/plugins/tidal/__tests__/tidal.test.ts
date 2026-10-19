@@ -377,7 +377,8 @@ describe("Tidal: searchTrack", () => {
       const url = new URL(String(input));
       if (url.hostname === "auth.tidal.com") return new Response(JSON.stringify(MOCK_TOKEN_RESPONSE));
       if (url.pathname !== "/v2/searchResults") return new Response(null, { status: 404 });
-      const relation = url.searchParams.get("include") === "artists" ? "artists" : "albums";
+      const includes = new Set((url.searchParams.get("include") ?? "").split(","));
+      const relation = includes.has("artists") ? "artists" : "albums";
       const resource =
         relation === "artists"
           ? MOCK_INCLUDED[0]

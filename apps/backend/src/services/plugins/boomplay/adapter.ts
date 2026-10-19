@@ -44,8 +44,9 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { throwIfNoCandidateAnswered } from "../_shared/candidates.js";
+import { throwIfSearchIncomplete } from "../_shared/candidates.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { readProviderHtml } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -198,7 +199,7 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
 async function searchBoomplayAlbumIds(query: string): Promise<string[]> {
   const response = await fetchSearchPage(query, ResourceKind.Album);
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Boomplay, "album search");
 
   // Extract album IDs from /albums/{id} links in the search page
   const albumIds: string[] = [];
@@ -246,7 +247,7 @@ export const boomplayAdapter: ServiceAdapter = {
 
     // Step 1: Fetch search page and extract song IDs
     const response = await fetchSearchPage(q, ResourceKind.Track);
-    const html = await response.text();
+    const html = await readProviderHtml(response, Service.Boomplay, "track search");
 
     // Extract data-id attributes (song IDs embedded in search results)
     const idMatches = html.matchAll(/data-id="(\d+)"/g);
@@ -269,7 +270,6 @@ export const boomplayAdapter: ServiceAdapter = {
 
     // Step 2: Fetch each song page in parallel for JSON-LD metadata
     const trackResults = await Promise.allSettled(songIds.map((id) => fetchTrackById(id)));
-    throwIfNoCandidateAnswered(trackResults);
 
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
@@ -292,6 +292,11 @@ export const boomplayAdapter: ServiceAdapter = {
       }
     }
 
+    throwIfSearchIncomplete(
+      trackResults,
+      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
+      Service.Boomplay,
+    );
     if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       log.debug("Boomplay", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
@@ -333,7 +338,6 @@ export const boomplayAdapter: ServiceAdapter = {
     log.debug("Boomplay", `Album search returned ${albumIds.length} IDs for: ${q}`);
 
     const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
-    throwIfNoCandidateAnswered(albumResults);
     let bestMatch: NormalizedAlbum | null = null;
     let bestConfidence = 0;
 
@@ -348,6 +352,11 @@ export const boomplayAdapter: ServiceAdapter = {
       }
     }
 
+    throwIfSearchIncomplete(
+      albumResults,
+      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
+      Service.Boomplay,
+    );
     if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }

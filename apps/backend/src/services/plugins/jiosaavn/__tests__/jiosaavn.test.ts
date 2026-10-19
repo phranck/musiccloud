@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
 import { jiosaavnAdapter } from "../adapter";
+import recordedAlbumDetails from "./fixtures/album-id-metadata.json";
+import recordedPunctuatedSearch from "./fixtures/album-punctuated-search.json";
+import recordedAlbumSearch from "./fixtures/album-search-current.json";
+import recordedUnknownAlbum from "./fixtures/album-token-current.json";
+import recordedAlbumToken from "./fixtures/album-token-v4.json";
+import recordedArtistV4 from "./fixtures/artist-v4-metadata.json";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -86,6 +92,22 @@ describe("JioSaavn: getTrack", () => {
 // =============================================================================
 
 describe("JioSaavn: getAlbum", () => {
+  it("resolves a public URL token to its catalog id before reading complete album metadata", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const params = new URL(String(input)).searchParams;
+      if (params.get("__call") === "webapi.get" && params.get("type") === "album")
+        return Response.json(recordedAlbumToken);
+      return Response.json(params.get("albumid") === "1527849" ? recordedAlbumDetails : recordedUnknownAlbum);
+    });
+    await expect(jiosaavnAdapter.getAlbum?.("fZKfu-Ey4oA_")).resolves.toMatchObject({
+      sourceId: "1527849",
+      title: "Singing Today's Hits! - Vol. 1",
+      artists: ["Karaoke Idols"],
+      releaseDate: recordedAlbumDetails.release_date,
+      webUrl: recordedAlbumDetails.perma_url,
+    });
+  });
+
   // Recorded from content.getAlbumDetails for album 56783991: the endpoint sends
   // albumid, name and a comma-separated primary_artists string, with no id.
   const recordedAlbum = {
@@ -212,6 +234,18 @@ describe("JioSaavn: searchTrack", () => {
     );
   });
 
+  it("does not copy arbitrary provider error payload content into diagnostics", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      Response.json({ error: { code: "INPUT_INVALID", msg: "test-only-sensitive-detail" } }),
+    );
+    const error: unknown = await jiosaavnAdapter
+      .searchTrack({ title: "Test", artist: "Test" })
+      .catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(UpstreamUnavailableError);
+    expect(error).toMatchObject({ message: expect.stringContaining("INPUT_INVALID") });
+    expect(error).not.toMatchObject({ message: expect.stringContaining("test-only-sensitive-detail") });
+  });
+
   it("should throw when JioSaavn refuses the call with an error object", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(REFUSED_CALL));
 
@@ -240,6 +274,39 @@ describe("JioSaavn: searchTrack", () => {
 // =============================================================================
 
 describe("JioSaavn: searchAlbum", () => {
+  it("tries one punctuation-normalized alternative while retaining the requested volume and metadata", async () => {
+    const query = { title: "Singing Today's Hits! - Vol. 1", artist: "Karaoke Idols" };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const params = new URL(String(input)).searchParams;
+      if (params.get("__call") === "content.getAlbumDetails") return Response.json(recordedAlbumDetails);
+      return Response.json(
+        params.get("q") === "Karaoke Idols Singing Today's Hits Vol 1" ? recordedAlbumSearch : recordedPunctuatedSearch,
+      );
+    });
+    const result = await jiosaavnAdapter.searchAlbum?.(query);
+    expect(result?.found).toBe(true);
+    expect(result?.album).toMatchObject({ sourceId: "1527849", title: query.title, artists: [query.artist] });
+    expect(query.title).toBe("Singing Today's Hits! - Vol. 1");
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it("uses the current album search artist map to identify the existing release", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const operation = new URL(String(input)).searchParams.get("__call");
+      return Response.json(operation === "search.getAlbumResults" ? recordedAlbumSearch : recordedAlbumDetails);
+    });
+    const result = await jiosaavnAdapter.searchAlbum?.({
+      title: "Singing Today's Hits! - Vol. 1",
+      artist: "Karaoke Idols",
+    });
+    expect(result?.found).toBe(true);
+    expect(result?.album).toMatchObject({
+      sourceId: "1527849",
+      title: "Singing Today's Hits! - Vol. 1",
+      artists: ["Karaoke Idols"],
+    });
+  });
+
   it("should return not found for empty results", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ total: 0, start: 1, results: [] }), { status: 200 }),
@@ -282,6 +349,18 @@ describe("JioSaavn: searchAlbum", () => {
 // =============================================================================
 
 describe("JioSaavn: getArtist", () => {
+  it("requests the current artist contract and retains its canonical overview URL", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const version = new URL(String(input)).searchParams.get("api_version");
+      return version === "4" ? Response.json(recordedArtistV4) : new Response("", { status: 500 });
+    });
+    await expect(jiosaavnAdapter.getArtist?.("LmR4m2rZchQ_")).resolves.toMatchObject({
+      sourceId: "1273866",
+      name: "Karaoke Idols",
+      webUrl: "https://www.jiosaavn.com/artist/karaoke-idols/LmR4m2rZchQ_",
+    });
+  });
+
   it("should fetch and map artist data", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       Response.json({

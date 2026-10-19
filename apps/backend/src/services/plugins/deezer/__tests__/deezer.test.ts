@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
 import { deezerAdapter } from "../adapter";
+import recordedAlbumSearch from "./fixtures/random-access-memories-search.json";
 
 // =============================================================================
 // Mock data
@@ -488,6 +489,22 @@ describe("Deezer: searchTrack", () => {
     expect(calledUrl).toContain("artist%3A%22Radiohead%22");
     expect(calledUrl).toContain("track%3A%22Karma%20Police%22");
     expect(calledUrl).toContain("album%3A%22OK%20Computer%22");
+  });
+});
+
+describe("Deezer: album search contract", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("finds the existing album when the structured provider query is empty", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const query = new URL(String(input)).searchParams.get("q");
+      return Response.json(query === "Daft Punk Random Access Memories" ? recordedAlbumSearch : { data: [], total: 0 });
+    });
+    const result = await deezerAdapter.searchAlbum({ title: "Random Access Memories", artist: "Daft Punk" });
+    expect(result.found).toBe(true);
+    expect(result.album?.sourceId).toBe("6575789");
+    expect(result.album?.title).toBe("Random Access Memories");
+    expect(result.album?.artists).toEqual(["Daft Punk"]);
   });
 });
 

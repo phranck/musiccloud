@@ -1,30 +1,34 @@
 /**
  * @file Audiomack adapter: track + album resolves via public search API + OG scraping.
  *
- * Keyless (always available). Two-track strategy:
+ * Uses two existing consumer-facing contracts without account login:
  *
- * - **Search**: `api.audiomack.com/v1/music/search` returns structured JSON
- *   with song/album objects. Public endpoint, no key required.
- * - **Individual track/album fetch**: no JSON endpoint exists for a single
- *   item by slug, so `getTrack` / `getAlbum` scrape the web page and parse
- *   the `og:title` / `og:image` tags from the HTML head.
+ * - Search calls `api.audiomack.com/v1/music/search` and requires `results`
+ *   arrays. A search HTTP 404 is a request failure, not an empty catalog. This
+ *   adapter does not invent an alternative API or obtain credentials when the
+ *   configured route refuses a request.
+ * - Getters read the supplied resource's public page. An explicit resource
+ *   HTTP 404 is absence; other error statuses throw. Page identity comes from
+ *   OG metadata rather than the search API's numeric ids.
  *
- * The OG-title format on Audiomack is `"Track by Artist"` (English only),
- * which this adapter parses with a single regex. If the pattern does not
- * match, the full title is kept and artist falls back to `"Unknown Artist"`.
+ * `audiomackPageMetadata` owns both page decoders. The observed title format is
+ * `"Title by Artist: Listen on Audiomack"`; its anchored branding suffix is not
+ * part of the artist. Missing OG titles remain absent metadata. Titles without
+ * the by-credit pattern retain their full text and Unknown Artist fallback.
  *
  * ## No ISRC, no preview
  *
- * Audiomack does not publish ISRC or preview-URL fields. `findByIsrc`
- * returns null and `capabilities.supportsPreview` is false, so cross-
- * service resolves into Audiomack always go through text search.
+ * This adapter implements neither ISRC lookup nor preview selection.
+ * `findByIsrc` returns null and supportsPreview is false. These declarations
+ * describe this implementation, not every feature the provider might offer.
  *
  * ## Artist splitting
  *
  * The `artist` field is a single string that may include `", "`, `" & "`,
- * or `" feat. "` (case-insensitive). Custom split regex here (rather than
- * `splitArtistNames` from `_shared`) because Audiomack is the only
- * adapter that also needs to split on `feat.`.
+ * or `" feat. "` (case-insensitive). Search-row normalization owns that split;
+ * page normalization removes branding without rewriting performer credits.
+ * Shared confidence policy compares the resulting identity, and the resolver
+ * owns acceptance, negative-cache persistence, and recording artwork policy.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
@@ -40,6 +44,8 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { extractOgTags } from "../_shared/og.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -126,7 +132,28 @@ async function searchSongs(query: string): Promise<AudiomackSong[]> {
     throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Track, query, Operation.Search);
   }
   const data = (await response.json()) as AudiomackSearchResponse;
-  return data.results ?? [];
+  return requireProviderCollection(data.results, Service.AudioMack, "track search");
+}
+
+/**
+ * Decodes the shared track/album OG identity without promoting page branding
+ * into a performer credit. The observed `: Listen on Audiomack` suffix belongs
+ * to the page, not the recording. Missing OG titles remain absent metadata;
+ * callers own fetching, HTTP failures and resource identity.
+ *
+ * @param html - Successful public resource-page HTML.
+ * @returns Page identity and optional cover, or null without an OG title.
+ */
+function audiomackPageMetadata(html: string): Pick<NormalizedTrack, "title" | "artists" | "artworkUrl"> | null {
+  const og = extractOgTags(html);
+  if (!og.title) return null;
+  const pageTitle = og.title.replace(/:\s*Listen on Audiomack\s*$/i, "").trim();
+  const byMatch = /^(.+?)\s+by\s+(.+)$/i.exec(pageTitle);
+  return {
+    title: byMatch?.[1].trim() ?? pageTitle,
+    artists: [byMatch?.[2].trim() ?? "Unknown Artist"],
+    artworkUrl: og.image || undefined,
+  };
 }
 
 async function fetchTrackPage(artistSlug: string, trackSlug: string): Promise<NormalizedTrack | null> {
@@ -138,29 +165,12 @@ async function fetchTrackPage(artistSlug: string, trackSlug: string): Promise<No
     throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Track, `${artistSlug}/${trackSlug}`);
   }
 
-  const html = await response.text();
-
-  // Extract OG tags
-  const ogTitle = /<meta\s+(?:property|name)="og:title"\s+content="([^"]*)"[^>]*>/i.exec(html)?.[1];
-  const ogImage = /<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"[^>]*>/i.exec(html)?.[1];
-
-  if (!ogTitle) return null;
-
-  // OG title format varies: "Track by Artist" or "Track"
-  let title = ogTitle;
-  let artist = "Unknown Artist";
-  const byMatch = /^(.+?)\s+by\s+(.+)$/i.exec(ogTitle);
-  if (byMatch) {
-    title = byMatch[1].trim();
-    artist = byMatch[2].trim();
-  }
-
+  const metadata = audiomackPageMetadata(await response.text());
+  if (!metadata) return null;
   return {
     sourceService: "audiomack",
     sourceId: `${artistSlug}/${trackSlug}`,
-    title,
-    artists: [artist],
-    artworkUrl: ogImage || undefined,
+    ...metadata,
     webUrl: url,
   };
 }
@@ -188,26 +198,12 @@ async function fetchAlbumPage(artistSlug: string, albumSlug: string): Promise<No
     throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Album, `${artistSlug}/${albumSlug}`);
   }
 
-  const html = await response.text();
-  const ogTitle = /<meta\s+(?:property|name)="og:title"\s+content="([^"]*)"[^>]*>/i.exec(html)?.[1];
-  const ogImage = /<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"[^>]*>/i.exec(html)?.[1];
-
-  if (!ogTitle) return null;
-
-  let title = ogTitle;
-  let artist = "Unknown Artist";
-  const byMatch = /^(.+?)\s+by\s+(.+)$/i.exec(ogTitle);
-  if (byMatch) {
-    title = byMatch[1].trim();
-    artist = byMatch[2].trim();
-  }
-
+  const metadata = audiomackPageMetadata(await response.text());
+  if (!metadata) return null;
   return {
     sourceService: "audiomack",
     sourceId: `${artistSlug}/${albumSlug}`,
-    title,
-    artists: [artist],
-    artworkUrl: ogImage || undefined,
+    ...metadata,
     webUrl: url,
   };
 }
@@ -219,7 +215,7 @@ async function searchAudiomackAlbums(query: string): Promise<AudiomackAlbumResul
     throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Album, query, Operation.Search);
   }
   const data = (await response.json()) as AudiomackAlbumSearchResponse;
-  return data.results ?? [];
+  return requireProviderCollection(data.results, Service.AudioMack, "album search");
 }
 
 export const audiomackAdapter: ServiceAdapter = {

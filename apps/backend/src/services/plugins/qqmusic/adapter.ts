@@ -1,34 +1,32 @@
 /**
  * @file QQ Music (Chinese) adapter: track + album resolves via the internal API.
  *
- * Keyless (always available). QQ Music does not publish a developer
- * API, but the desktop client talks to the public `u.y.qq.com/cgi-bin/musicu.fcg`
- * endpoint with a JSON-RPC-ish payload. This adapter POSTs the same
- * shape the desktop client does, imitating the `DoSearchForQQMusicDesktop`
- * method. The `Referer: https://y.qq.com/` header is required;
- * requests without it return 403.
+ * Uses the consumer `u.y.qq.com/cgi-bin/musicu.fcg` JSON-RPC surface with
+ * DoSearchForQQMusicDesktop and a web-player Referer. No account is configured;
+ * configuration availability does not prove a request will be permitted.
  *
  * ## One endpoint, two search types via `search_type`
  *
  * Track search uses `search_type: 0`, album search uses `search_type: 8`.
- * There is no direct song-by-mid detail endpoint that works without an
- * authenticated session, so `getTrackByMid` re-uses the search endpoint:
- * searching for the exact mid usually returns it as the top result.
- * Same trick on the album side.
+ * getTrackByMid and getAlbumByMid reuse that search surface with the requested
+ * mid and retain only an exact returned mid. A failed mid lookup throws rather
+ * than proving that the catalog lacks the resource. Required nested collections
+ * are validated; refusal diagnostics retain only finite numeric provider codes.
  *
  * ## Artwork URL template
  *
  * QQ Music embeds album art on a predictable CDN path:
  * `y.qq.com/music/photo_new/T002R<size>x<size>M000<album_mid>.jpg`.
- * The adapter synthesises URLs at 300x300 for tracks and 500x500 for
+ * The adapter synthesizes URLs at 300x300 for tracks and 500x500 for
  * album cards (the latter higher because the album share page renders
  * the artwork bigger). API responses do not include an image URL, so
  * this template is the only source.
  *
  * ## No ISRC, no preview
  *
- * The publicly-reachable endpoint surfaces neither. `findByIsrc`
- * returns null; cross-service resolves go through text search.
+ * This adapter maps neither field. findByIsrc returns null; cross-service
+ * resolution uses text search. These are implementation limits, not proof of
+ * every capability of QQ Music's consumer API.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
@@ -45,6 +43,11 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import {
+  requireProviderCollection,
+  requireProviderObject,
+  safeNumericProviderCode,
+} from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -147,10 +150,13 @@ async function search(
   if (envelope.code !== 0 || answer?.code !== 0) {
     throw new UpstreamUnavailableError(
       "qqmusic",
-      `search for "${query}" answered code ${envelope.code ?? "none"}, module code ${answer?.code ?? "none"}`,
+      `search answered code ${safeNumericProviderCode(envelope.code)}, module code ${safeNumericProviderCode(answer?.code)}`,
     );
   }
-  return answer.data?.body ?? {};
+  const body = requireProviderObject(answer.data?.body, Service.QQMusic, `${kind} search`);
+  if (searchType === SearchType.Song) requireProviderCollection(body.song?.list, Service.QQMusic, "track search");
+  else requireProviderCollection(body.album?.list, Service.QQMusic, "album search");
+  return body;
 }
 
 function mapSong(song: QQMusicSong): NormalizedTrack {

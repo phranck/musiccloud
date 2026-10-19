@@ -1,0 +1,16 @@
+{
+  "data": {
+    "albums": [
+      {
+        "id": "P7zg5N1",
+        "playlist_name": "The Lost Concert #1",
+        "is_album": true,
+        "permalink": "/Euphoryn/album/the-lost-concert-1",
+        "track_count": 7,
+        "user": {
+          "name": "Euphoryn"
+        }
+      }
+    ]
+  }
+}

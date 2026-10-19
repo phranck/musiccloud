@@ -2,10 +2,9 @@
  * @file NetEase Cloud Music (Chinese) adapter: API client against the
  *       internal `music.163.com/api/*` endpoints.
  *
- * Keyless (always available). NetEase exposes no public developer API
- * but its web player talks to unauthenticated `/api/*` endpoints that
- * the adapter calls directly. The `Referer: https://music.163.com/`
- * header is required; requests without it return empty bodies.
+ * Uses the consumer `/api/*` surface with no configured account. Requests
+ * supply the web-player Referer. Registry configuration availability is not
+ * proof that a request is permitted; provider refusals still throw.
  *
  * ## URL format includes a hash fragment
  *
@@ -43,8 +42,8 @@
  *
  * ## No ISRC, no preview
  *
- * Public NetEase endpoints surface neither. `findByIsrc` returns
- * null; cross-service resolves go through text search.
+ * This adapter implements neither identifier lookup nor preview selection.
+ * findByIsrc returns null; cross-service matching uses bounded text search.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
@@ -66,6 +65,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { safeNumericProviderCode } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -139,6 +139,13 @@ const CODE_NOT_FOUND = 404;
 /** The `type` values of `/api/search/get`. */
 const SearchType = { Song: "1", Album: "10", Artist: "100" } as const;
 
+/** Each search kind owns its result list and explicit omitted-list zero marker. */
+const SEARCH_RESULT_FIELDS = {
+  [SearchType.Song]: { list: "songs", count: "songCount" },
+  [SearchType.Album]: { list: "albums", count: "albumCount" },
+  [SearchType.Artist]: { list: "artists", count: "artistCount" },
+} as const;
+
 async function neteaseFetch(url: string, init?: RequestInit, timeoutMs = 8000): Promise<Response> {
   return fetchWithTimeout(
     url,
@@ -180,7 +187,8 @@ async function readAnswer<T extends NetEaseEnvelope>(response: Response, what: s
   const answer = body as T;
   if (answer.code === CODE_NOT_FOUND) return null;
   if (answer.code !== CODE_OK) {
-    throw new UpstreamUnavailableError("netease", `${what} answered code ${answer.code ?? "none"}`);
+    const code = safeNumericProviderCode(answer.code);
+    throw new UpstreamUnavailableError("netease", `${what} answered code ${code}`);
   }
   return answer;
 }
@@ -212,6 +220,13 @@ async function search<Result>(
   const answer = await readAnswer<NetEaseEnvelope & { result?: Result }>(response, `${kind} search for "${query}"`);
   if (!answer?.result) {
     throw new UpstreamUnavailableError("netease", `${kind} search for "${query}" answered no result`);
+  }
+  const contract = SEARCH_RESULT_FIELDS[type];
+  const result = answer.result as Record<string, unknown>;
+  const list = result[contract.list];
+  const explicitEmpty = list === undefined && result[contract.count] === 0;
+  if (!Array.isArray(list) && !explicitEmpty) {
+    throw new UpstreamUnavailableError("netease", `${kind} search answered without its result collection`);
   }
   return answer.result;
 }

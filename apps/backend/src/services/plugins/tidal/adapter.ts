@@ -35,9 +35,15 @@
  * numeric seconds, then exposes milliseconds to matching. Consumed search
  * fields are checked before mapping so invalid durations cannot bypass scoring.
  *
- * `imageLinks` is optional. The adapter uses supplied images and never invents
- * a CDN address. Missing recording covers are owned by `artwork.ts` and its
- * `pickRecordingArtworkUrl` policy, not by artist-portrait selection.
+ * Current covers/profile pictures are ordered coverArt/profileArt relationships
+ * pointing to included artworks.attributes.files. Those includes travel with
+ * the metadata request; there is no per-result image request. Related assets
+ * are joined by type and id, and the largest supplied file is selected without
+ * constructing a CDN address. Legacy imageLinks remain a compatibility fallback.
+ * Album-listing ISO durations use the same parseDuration boundary as tracks.
+ * Recording-cover eligibility remains in artwork.ts; profileArt never becomes
+ * a recording cover.
+ * @see https://github.com/tidal-music/tidal-sdk-ios/blob/main/Sources/TidalAPI/Generated/docs/ArtworksAttributes.md
  *
  * ## URL formats
  *
@@ -86,6 +92,39 @@ const tokenManager = new TokenManager({
   clientSecretEnv: "TIDAL_CLIENT_SECRET",
 });
 
+/** A provider-supplied image variant; dimensions choose among actual hrefs only. */
+interface TidalImageLink {
+  href: string;
+  meta?: { width: number; height: number };
+}
+
+/** Optional to-many artwork linkage, distinct from the included file resource. */
+interface TidalArtworkRelationship {
+  data?: Array<{ id: string; type: string }> | null;
+}
+
+/** Keeps album covers and artist portraits as separate relationship roles. */
+interface TidalArtworkRelationships {
+  coverArt?: TidalArtworkRelationship;
+  profileArt?: TidalArtworkRelationship;
+}
+
+/** Shared included-resource fields consumed by identity, listings and artwork. */
+interface TidalRelatedResource {
+  id: string;
+  type: string;
+  attributes: {
+    name?: string;
+    title?: string;
+    isrc?: string;
+    trackNumber?: number;
+    duration?: number | string;
+    imageLinks?: TidalImageLink[];
+    files?: TidalImageLink[];
+  };
+  relationships?: TidalTrackResource["relationships"] & TidalArtworkRelationships;
+}
+
 interface TidalTrackResource {
   id: string;
   attributes: {
@@ -108,20 +147,12 @@ interface TidalTrackResource {
 
 interface TidalTrackResponse {
   data: TidalTrackResource;
-  included?: Array<{
-    id: string;
-    type: string;
-    attributes: { name?: string; title?: string; imageLinks?: Array<{ href: string }> };
-  }>;
+  included?: TidalRelatedResource[];
 }
 
 interface TidalSearchResponse {
   data: TidalTrackResource[];
-  included?: Array<{
-    id: string;
-    type: string;
-    attributes: { name?: string; title?: string; imageLinks?: Array<{ href: string }> };
-  }>;
+  included?: TidalRelatedResource[];
 }
 
 interface TidalAlbumResource {
@@ -133,7 +164,7 @@ interface TidalAlbumResource {
     numberOfItems?: number;
     imageLinks?: Array<{ href: string; meta: { width: number; height: number } }>;
   };
-  relationships?: {
+  relationships?: TidalArtworkRelationships & {
     artists?: { data: Array<{ id: string }> };
     items?: { data: Array<{ id: string }> };
   };
@@ -141,17 +172,7 @@ interface TidalAlbumResource {
 
 interface TidalAlbumResponse {
   data: TidalAlbumResource;
-  included?: Array<{
-    id: string;
-    type: string;
-    attributes: {
-      name?: string;
-      title?: string;
-      isrc?: string;
-      trackNumber?: number;
-      duration?: number;
-    };
-  }>;
+  included?: TidalRelatedResource[];
 }
 
 /** UPC-filtered album collections contain albums directly, unlike text-search documents. */
@@ -182,7 +203,7 @@ function mapAlbum(resource: TidalAlbumResource, included?: TidalAlbumResponse["i
           return {
             title: t.attributes.title,
             trackNumber: t.attributes.trackNumber ?? idx + 1,
-            durationMs: t.attributes.duration ? t.attributes.duration * 1000 : undefined,
+            durationMs: parseDuration(t.attributes.duration),
             isrc: t.attributes.isrc,
           };
         })
@@ -197,7 +218,7 @@ function mapAlbum(resource: TidalAlbumResource, included?: TidalAlbumResponse["i
     artists: artists.length > 0 ? artists : ["Unknown Artist"],
     releaseDate: attrs.releaseDate ?? undefined,
     totalTracks: attrs.numberOfItems ?? undefined,
-    artworkUrl: pickLargestImage(attrs.imageLinks),
+    artworkUrl: pickRelatedArtwork(resource, included, "coverArt") ?? pickLargestImage(attrs.imageLinks),
     webUrl: `https://tidal.com/browse/album/${resource.id}`,
     tracks: tracks && tracks.length > 0 ? tracks : undefined,
   };
@@ -221,18 +242,18 @@ async function tidalFetch(endpoint: string): Promise<Response> {
 /** Search operations own their relationship name, includes and expected label field. */
 const SEARCH_RELATIONSHIPS = {
   tracks: {
-    include: "tracks.artists,tracks.albums",
+    include: "tracks.artists,tracks.albums,tracks.albums.coverArt",
     label: "title",
     kind: ResourceKind.Track,
     optional: { isrc: "string", explicit: "boolean" },
   },
   albums: {
-    include: "albums.artists",
+    include: "albums.artists,albums.coverArt",
     label: "title",
     kind: ResourceKind.Album,
     optional: { barcodeId: "string", releaseDate: "string", numberOfItems: "number" },
   },
-  artists: { include: "artists", label: "name", kind: ResourceKind.Artist, optional: {} },
+  artists: { include: "artists,artists.profileArt", label: "name", kind: ResourceKind.Artist, optional: {} },
 } as const;
 
 /** Resources projected from the corresponding JSON:API search relationship. */
@@ -241,7 +262,8 @@ interface TidalSearchResourceMap {
   albums: TidalAlbumResource;
   artists: {
     id: string;
-    attributes: { name: string; imageLinks?: Array<{ href: string; meta: { width: number; height: number } }> };
+    attributes: { name: string; imageLinks?: TidalImageLink[] };
+    relationships?: TidalArtworkRelationships;
   };
 }
 
@@ -250,7 +272,7 @@ interface TidalIncludedResource {
   id: string;
   type: string;
   attributes: Record<string, unknown>;
-  relationships?: TidalTrackResource["relationships"];
+  relationships?: TidalRelatedResource["relationships"];
 }
 
 /** The current API returns one search-results resource, never a primary track array. */
@@ -465,8 +487,45 @@ function pickLargestImage(
   return sorted[0].href;
 }
 
+/**
+ * Resolves the first supplied artwork asset by typed relationship, then selects
+ * its largest file. Included-array order is not asset priority. An absent or
+ * empty optional relationship permits legacy fallback; a referenced but missing
+ * or malformed file resource is an upstream failure.
+ *
+ * @param resource - Album/artist resource owning the artwork relationship.
+ * @param included - Unordered resources from the same metadata response.
+ * @param relationship - Cover artwork or the separate artist-profile role.
+ * @returns An actual supplied image href, or undefined without an image.
+ * @throws UpstreamUnavailableError for invalid linkage or file metadata.
+ */
+function pickRelatedArtwork(
+  resource: { relationships?: TidalArtworkRelationships },
+  included: TidalRelatedResource[] | undefined,
+  relationship: keyof TidalArtworkRelationships,
+): string | undefined {
+  const identifiers = resource.relationships?.[relationship]?.data;
+  if (identifiers == null) return undefined;
+  if (!Array.isArray(identifiers)) throw new UpstreamUnavailableError("tidal", "artwork linkage is not a collection");
+  for (const identifier of identifiers) {
+    if (!identifier || identifier.type !== "artworks" || typeof identifier.id !== "string" || !identifier.id) {
+      throw new UpstreamUnavailableError("tidal", "artwork linkage has an invalid resource identifier");
+    }
+    const artwork = included?.find((entry) => entry.type === "artworks" && entry.id === identifier.id);
+    const files = artwork?.attributes?.files;
+    if (!Array.isArray(files) || files.some((file) => !file || typeof file.href !== "string" || !file.href.trim())) {
+      throw new UpstreamUnavailableError("tidal", "referenced artwork omitted its file collection");
+    }
+    const href = pickLargestImage(files);
+    if (href) return href;
+  }
+  return undefined;
+}
+
 function mapTrack(resource: TidalTrackResource, included?: TidalTrackResponse["included"]): NormalizedTrack {
   const attrs = resource.attributes;
+  const albumId = resource.relationships?.albums?.data?.[0]?.id;
+  const album = included?.find((entry) => entry.type === "albums" && entry.id === albumId);
   return {
     sourceService: "tidal",
     sourceId: resource.id,
@@ -476,7 +535,8 @@ function mapTrack(resource: TidalTrackResource, included?: TidalTrackResponse["i
     albumName: extractAlbumName(resource, included),
     durationMs: parseDuration(attrs.duration ?? undefined),
     isExplicit: attrs.explicit ?? undefined,
-    artworkUrl: pickLargestImage(attrs.imageLinks),
+    artworkUrl:
+      (album ? pickRelatedArtwork(album, included, "coverArt") : undefined) ?? pickLargestImage(attrs.imageLinks),
     webUrl: `https://tidal.com/browse/track/${resource.id}`,
   };
 }
@@ -500,7 +560,9 @@ export const tidalAdapter = {
   },
 
   async getTrack(trackId: string): Promise<NormalizedTrack> {
-    const response = await tidalFetch(`/tracks/${encodeURIComponent(trackId)}?countryCode=US&include=artists,albums`);
+    const response = await tidalFetch(
+      `/tracks/${encodeURIComponent(trackId)}?countryCode=US&include=artists,albums,albums.coverArt`,
+    );
 
     if (!response.ok) {
       throw serviceHttpError(Service.Tidal, response.status, ResourceKind.Track, trackId);
@@ -512,7 +574,7 @@ export const tidalAdapter = {
 
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
     const response = await tidalFetch(
-      `/tracks?filter[isrc]=${encodeURIComponent(isrc)}&countryCode=US&include=artists,albums`,
+      `/tracks?filter[isrc]=${encodeURIComponent(isrc)}&countryCode=US&include=artists,albums,albums.coverArt`,
     );
 
     if (!tidalAnswered(response, ResourceKind.Track, isrc, Operation.IsrcLookup)) return null;
@@ -568,7 +630,9 @@ export const tidalAdapter = {
   },
 
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
-    const response = await tidalFetch(`/albums/${encodeURIComponent(albumId)}?countryCode=US&include=artists,items`);
+    const response = await tidalFetch(
+      `/albums/${encodeURIComponent(albumId)}?countryCode=US&include=artists,items,coverArt`,
+    );
 
     if (!response.ok) {
       throw serviceHttpError(Service.Tidal, response.status, ResourceKind.Album, albumId);
@@ -580,7 +644,7 @@ export const tidalAdapter = {
 
   async findAlbumByUpc(upc: string): Promise<NormalizedAlbum | null> {
     const response = await tidalFetch(
-      `/albums?filter[barcodeId]=${encodeURIComponent(upc)}&countryCode=US&include=artists`,
+      `/albums?filter[barcodeId]=${encodeURIComponent(upc)}&countryCode=US&include=artists,coverArt`,
     );
 
     if (!tidalAnswered(response, ResourceKind.Album, upc, Operation.UpcLookup)) return null;
@@ -644,7 +708,7 @@ export const tidalAdapter = {
   },
 
   async getArtist(artistId: string): Promise<NormalizedArtist> {
-    const response = await tidalFetch(`/artists/${encodeURIComponent(artistId)}?countryCode=US`);
+    const response = await tidalFetch(`/artists/${encodeURIComponent(artistId)}?countryCode=US&include=profileArt`);
 
     if (!response.ok) {
       throw serviceHttpError(Service.Tidal, response.status, ResourceKind.Artist, artistId);
@@ -658,7 +722,7 @@ export const tidalAdapter = {
       sourceService: "tidal",
       sourceId: resource.id,
       name: attrs.name,
-      imageUrl: pickLargestImage(attrs.imageLinks),
+      imageUrl: pickRelatedArtwork(resource, data.included, "profileArt") ?? pickLargestImage(attrs.imageLinks),
       webUrl: `https://tidal.com/browse/artist/${resource.id}`,
     };
   },
@@ -697,7 +761,9 @@ export const tidalAdapter = {
           sourceService: "tidal",
           sourceId: item.id,
           name,
-          imageUrl: pickLargestImage(artistResource.attributes.imageLinks),
+          imageUrl:
+            pickRelatedArtwork(artistResource, data.included, "profileArt") ??
+            pickLargestImage(artistResource.attributes.imageLinks),
           webUrl: `https://tidal.com/browse/artist/${item.id}`,
         };
       }

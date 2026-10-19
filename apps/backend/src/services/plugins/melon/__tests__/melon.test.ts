@@ -1,5 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { melonAdapter } from "../adapter";
+import recordedPages from "./fixtures/current-page-metadata.json";
+
+/**
+ * Reassembles only the musical schema and raw OG tags captured from current public pages.
+ * @param page - Metadata projection without unrelated scripts, images or visitor state.
+ * @returns The provider fields used by the parser, retaining the absent byArtist field.
+ */
+function recordedHtml(page: { tags: string[]; schemas: Array<{ value: unknown }> }): string {
+  return (
+    page.tags.join("\n") +
+    page.schemas
+      .map((schema) => `<script type="application/ld+json">${JSON.stringify(schema.value)}</script>`)
+      .join("\n")
+  );
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -24,6 +39,14 @@ describe("Melon: detectUrl", () => {
 });
 
 describe("Melon: getTrack", () => {
+  it("completes artist credits from the same page when the current schema omits byArtist", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(recordedHtml(recordedPages.track)));
+    const track = await melonAdapter.getTrack("4118346");
+    expect(track.title).toBe("Get Lucky (feat. Pharrell Williams and Nile Rodgers)");
+    expect(track.artists).toEqual(["Daft Punk", "Pharrell Williams", "Nile Rodgers"]);
+    expect(track.albumName).toBe("Random Access Memories");
+  });
+
   it("should fetch and map JSON-LD data", async () => {
     const jsonLd = {
       "@type": "MusicRecording",
@@ -54,6 +77,24 @@ describe("Melon: getTrack", () => {
 });
 
 describe("Melon: searchTrack", () => {
+  it("reads the current album row identifier and its same-page artist credits", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input) =>
+        new Response(
+          new URL(String(input)).pathname.includes("/search/")
+            ? '<i data-album-no="2185777"></i>'
+            : recordedHtml(recordedPages.album),
+        ),
+    );
+    const result = await melonAdapter.searchAlbum?.({ title: "Random Access Memories", artist: "Daft Punk" });
+    expect(result?.found).toBe(true);
+    expect(result?.album).toMatchObject({
+      sourceId: "2185777",
+      title: "Random Access Memories",
+      artists: ["Daft Punk"],
+    });
+  });
+
   it("should return not found for empty results", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("<html>No results</html>", { status: 200 }));
 
@@ -70,6 +111,36 @@ describe("Melon: searchTrack", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Busy", { status: 503 }));
 
     await expect(melonAdapter.searchTrack({ title: "Dynamite", artist: "BTS" })).rejects.toThrow(/503/);
+  });
+
+  it.each([
+    "missing",
+    "different-recording",
+  ])("does not cache a partial candidate failure as a miss after a %s reply", async (reply) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname.includes("/search/"))
+        return new Response('<i data-song-no="4118346"></i><i data-song-no="4094951"></i>');
+      if (url.searchParams.get("songId") === "4094951") return new Response("Busy", { status: 500 });
+      return reply === "missing"
+        ? new Response("Not Found", { status: 404 })
+        : new Response(recordedHtml(recordedPages.track));
+    });
+    await expect(melonAdapter.searchTrack({ title: "Dynamite", artist: "BTS" })).rejects.toThrow(/500/);
+  });
+
+  it("retains an accepted recording when an unrelated candidate page fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname.includes("/search/"))
+        return new Response('<i data-song-no="4118346"></i><i data-song-no="4094951"></i>');
+      return url.searchParams.get("songId") === "4094951"
+        ? new Response("Busy", { status: 500 })
+        : new Response(recordedHtml(recordedPages.track));
+    });
+    await expect(melonAdapter.searchTrack({ title: "Get Lucky", artist: "Daft Punk" })).resolves.toMatchObject({
+      found: true,
+    });
   });
 
   it("throws when every song page of a search fails", async () => {

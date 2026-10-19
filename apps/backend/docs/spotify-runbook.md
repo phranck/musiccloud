@@ -23,6 +23,8 @@ musiccloud keeps those product features through other sources:
 | Track ISRC | Spotify `external_ids.isrc` | Deezer / Apple Music / other ISRC-capable adapters |
 | Album UPC | Spotify `external_ids.upc` | Apple Music / Deezer / other UPC-capable adapters |
 
+Returning UPC metadata does not implement UPC lookup. Apple Music can return `upc` with a fetched album, while UPC-first matching requires both the capability flag and `findAlbumByUpc`. The registry-derived declaration tests enforce that distinction.
+
 ## Pre-Deploy Verification
 
 Run these checks whenever Spotify publishes API changes or the Spotify adapter

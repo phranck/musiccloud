@@ -1,0 +1,340 @@
+{
+  "tracks": {
+    "items": [
+      {
+        "id": "0RUqiaUcnNrfOJLKV7rWgW",
+        "name": "Get Lucky - Live",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "JBBFO Jugend Brass Band Forum Ostschweiz"
+          },
+          {
+            "name": "José Rafael Pascual Vilaplana"
+          }
+        ],
+        "album": {
+          "name": "JBBFO 2018 (Live)"
+        },
+        "duration_ms": 296293,
+        "external_ids": {
+          "isrc": "CH6541873318"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/0RUqiaUcnNrfOJLKV7rWgW"
+        }
+      },
+      {
+        "id": "2pA2IoMpMbLVDc1qDGg4UC",
+        "name": "Get Lucky",
+        "artists": [
+          {
+            "name": "Daft Punk Experience"
+          },
+          {
+            "name": "Zico Oliveira"
+          }
+        ],
+        "album": {
+          "name": "Get Lucky"
+        },
+        "duration_ms": 204920,
+        "external_ids": {
+          "isrc": "BXCPT2000157"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/2pA2IoMpMbLVDc1qDGg4UC"
+        }
+      },
+      {
+        "id": "78NwNb2BPO7OKDYYRWB1WT",
+        "name": "Get Lucky - Daft Punk Remix",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          },
+          {
+            "name": "Florian Lagatta"
+          }
+        ],
+        "album": {
+          "name": "Get Lucky (Daft Punk Remix) (feat. Pharrell Williams & Nile Rodgers)"
+        },
+        "duration_ms": 632693,
+        "external_ids": {
+          "isrc": "USQX91301322"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/78NwNb2BPO7OKDYYRWB1WT"
+        }
+      },
+      {
+        "id": "69kOkLUCkxIZYexIgSG8rq",
+        "name": "Get Lucky (feat. Pharrell Williams and Nile Rodgers)",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          }
+        ],
+        "album": {
+          "name": "Random Access Memories"
+        },
+        "duration_ms": 369626,
+        "external_ids": {
+          "isrc": "USQX91300108"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/69kOkLUCkxIZYexIgSG8rq"
+        }
+      },
+      {
+        "id": "66xHyI6ITToQPm7PdOzIyn",
+        "name": "Get Lucky (feat. Pharrell Williams and Nile Rodgers)",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          }
+        ],
+        "album": {
+          "name": "Random Access Memories"
+        },
+        "duration_ms": 369614,
+        "external_ids": {
+          "isrc": "USQX91300108"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/66xHyI6ITToQPm7PdOzIyn"
+        }
+      },
+      {
+        "id": "2olIQt0rL0hOHau1SJ4xf2",
+        "name": "Get Lucky (feat. Pharrell Williams and Nile Rodgers)",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          }
+        ],
+        "album": {
+          "name": "Random Access Memories (10th Anniversary Edition)"
+        },
+        "duration_ms": 369614,
+        "external_ids": {
+          "isrc": "USQX91300108"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/2olIQt0rL0hOHau1SJ4xf2"
+        }
+      },
+      {
+        "id": "5bDrb5U9wtV4tzeiVhw7kO",
+        "name": "Get Lucky (feat. Pharrell Williams and Nile Rodgers)",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          }
+        ],
+        "album": {
+          "name": "New Year's Eve - NYE 2018/2019"
+        },
+        "duration_ms": 369626,
+        "external_ids": {
+          "isrc": "USQX91300108"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/5bDrb5U9wtV4tzeiVhw7kO"
+        }
+      },
+      {
+        "id": "35IcGJ1XvRhcmjpmOHsQHW",
+        "name": "Harder, Better, Faster, Stronger / Get Lucky - Arr. for Harp by Alexander Boldachev",
+        "artists": [
+          {
+            "name": "Guy-Manuel de Homem-Christo"
+          },
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Thomas Bangalter"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          },
+          {
+            "name": "Alexander Boldachev"
+          }
+        ],
+        "album": {
+          "name": "Pop Meets Classical (Vol. 1)"
+        },
+        "duration_ms": 375272,
+        "external_ids": {
+          "isrc": "UKMYP2200095"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/35IcGJ1XvRhcmjpmOHsQHW"
+        }
+      },
+      {
+        "id": "2Foc5Q5nqNiosCNqttzHof",
+        "name": "Get Lucky (Radio Edit) [feat. Pharrell Williams and Nile Rodgers]",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          }
+        ],
+        "album": {
+          "name": "Get Lucky (Radio Edit) [feat. Pharrell Williams and Nile Rodgers]"
+        },
+        "duration_ms": 247632,
+        "external_ids": {
+          "isrc": "USQX91300809"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/2Foc5Q5nqNiosCNqttzHof"
+        }
+      },
+      {
+        "id": "3OtHNyiaYaQgQlGagvhEku",
+        "name": "Get Lucky (Radio Edit) [feat. Pharrell Williams and Nile Rodgers]",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          }
+        ],
+        "album": {
+          "name": "2010s Hits"
+        },
+        "duration_ms": 248381,
+        "external_ids": {
+          "isrc": "USQX91300809"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/3OtHNyiaYaQgQlGagvhEku"
+        }
+      },
+      {
+        "id": "433Qyu3d9Dz6PGJribPFzI",
+        "name": "Get Lucky (Radio Edit) [feat. Pharrell Williams and Nile Rodgers]",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          }
+        ],
+        "album": {
+          "name": "Wedding Reception Party-Pleasers"
+        },
+        "duration_ms": 248413,
+        "external_ids": {
+          "isrc": "USQX91300809"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/433Qyu3d9Dz6PGJribPFzI"
+        }
+      },
+      {
+        "id": "6uM7MOCtLgcTgmZuSALGi3",
+        "name": "Get Lucky (Radio Edit) [feat. Pharrell Williams and Nile Rodgers]",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          }
+        ],
+        "album": {
+          "name": "Hits Total 2013"
+        },
+        "duration_ms": 249106,
+        "external_ids": {
+          "isrc": "USQX91300809"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/6uM7MOCtLgcTgmZuSALGi3"
+        }
+      },
+      {
+        "id": "2jyjdujFPnzqtCr3229yls",
+        "name": "Get Lucky (Drumless Edition) (ft. Pharrell Williams and Nile Rodgers)",
+        "artists": [
+          {
+            "name": "Daft Punk"
+          },
+          {
+            "name": "Pharrell Williams"
+          },
+          {
+            "name": "Nile Rodgers"
+          }
+        ],
+        "album": {
+          "name": "Random Access Memories (Drumless Edition)"
+        },
+        "duration_ms": 369746,
+        "external_ids": {
+          "isrc": "GBDUW2300160"
+        },
+        "external_urls": {
+          "spotify": "https://open.spotify.com/track/2jyjdujFPnzqtCr3229yls"
+        }
+      }
+    ]
+  }
+}
