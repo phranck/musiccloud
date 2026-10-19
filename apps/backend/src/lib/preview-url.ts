@@ -11,6 +11,8 @@
  * cached entity.
  */
 
+import { Service } from "@musiccloud/shared";
+
 /**
  * Returns the unix-millis timestamp at which the preview URL expires,
  * or `null` if the URL has no parseable expiry (the common case for
@@ -32,6 +34,27 @@ export function getPreviewExpiry(previewUrl: string, _service?: string): number 
 export function isExpiredPreviewUrl(previewUrl: string, service?: string, now = Date.now()): boolean {
   const expiresAt = getPreviewExpiry(previewUrl, service);
   return expiresAt !== null && expiresAt <= now;
+}
+
+/**
+ * Selects a usable preview from provider observations in preference order.
+ *
+ * Expired signed URLs are not playable fallbacks. Deezer wins among usable
+ * observations; otherwise the first usable candidate wins. Callers place newly
+ * observed metadata before stored metadata so a response uses the same fresh
+ * preview that its persistence path just saved.
+ *
+ * @param candidates - Provider ids and optional preview URLs, newest observations first.
+ * @param stored - Previously selected preview, used only when it remains usable and no candidate wins.
+ * @returns A currently usable URL, or undefined when every observation is absent or expired.
+ */
+export function pickPreferredPreview(
+  candidates: readonly { service: string; previewUrl?: string }[],
+  stored?: string,
+): string | undefined {
+  const usable = candidates.filter((candidate) => candidate.previewUrl && !isExpiredPreviewUrl(candidate.previewUrl));
+  const observed = (usable.find((candidate) => candidate.service === Service.Deezer) ?? usable[0])?.previewUrl;
+  return observed ?? (stored && !isExpiredPreviewUrl(stored) ? stored : undefined);
 }
 
 // ─── Service-specific helpers (kept exported for back-compat) ──────────────

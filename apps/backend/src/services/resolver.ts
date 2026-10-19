@@ -106,7 +106,7 @@ import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
 import { youtubeVideoId } from "../lib/platform/youtube-video.js";
-import { getPreviewExpiry } from "../lib/preview-url.js";
+import { getPreviewExpiry, pickPreferredPreview } from "../lib/preview-url.js";
 import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
 import { pickRecordingArtworkUrl, RECORDING_ARTWORK_LOOKUP_SERVICES } from "./artwork.js";
 import { confidenceForMethod } from "./confidence.js";
@@ -342,6 +342,7 @@ async function fillMissingServices(
     links: normalizedLinks,
     sourceTrack: {
       ...cached.sourceTrack,
+      previewUrl: pickPreferredPreview(visibleObservations, cached.sourceTrack.previewUrl),
       artworkUrl: await keepRecordingArtwork(
         "track",
         cached.trackId,
@@ -439,14 +440,10 @@ async function fillMissingServices(
   const genuinelyNewLinks = newLinks.filter((l) => !coveredServices.has(l.service));
   const allLinks = [...cached.links, ...genuinelyNewLinks].sort((a, b) => b.confidence - a.confidence);
 
-  // Prefer Deezer among new preview observations. Persisted preview rows keep
-  // their parsed expiry independently of this response-level preference.
-  let sourceTrack = cached.sourceTrack;
-  const deezerGapLink = newLinks.find((l) => l.service === "deezer" && l.previewUrl);
-  const anyGapPreview = deezerGapLink ?? newLinks.find((l) => l.previewUrl);
-  if (anyGapPreview?.previewUrl) {
-    sourceTrack = { ...sourceTrack, previewUrl: anyGapPreview.previewUrl };
-  }
+  const sourceTrack = {
+    ...cached.sourceTrack,
+    previewUrl: pickPreferredPreview(newLinks, cached.sourceTrack.previewUrl),
+  };
 
   return {
     sourceTrack,
@@ -848,15 +845,7 @@ async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> 
     previewUrl: sourceTrack.previewUrl,
   });
 
-  // Prefer Deezer when it supplied a preview; expiry remains per observation.
-  const deezerLink = links.find((l) => l.service === "deezer" && l.previewUrl);
-  const bestPreviewUrl =
-    deezerLink?.previewUrl ?? links.find((l) => l.previewUrl)?.previewUrl ?? sourceTrack.previewUrl;
-  if (bestPreviewUrl !== sourceTrack.previewUrl) {
-    sourceTrack = { ...sourceTrack, previewUrl: bestPreviewUrl };
-  }
-
-  // Source assembly is complete before alias derivation and recording-cover selection.
+  // Source assembly is complete before preview, alias, and recording-cover selection.
   return completeFreshResolution(sourceTrack, links, lateLinks);
 }
 
@@ -877,7 +866,13 @@ async function completeFreshResolution(
 ): Promise<ResolutionResult> {
   const visible = await filterDisabledLinks(links);
   normalizeTrackLinks(visible);
-  const track = await withKeptArtwork(sourceTrack, visible);
+  const track = await withKeptArtwork(
+    {
+      ...sourceTrack,
+      previewUrl: pickPreferredPreview(visible, sourceTrack.previewUrl),
+    },
+    visible,
+  );
   return {
     sourceTrack: track,
     links: visible,

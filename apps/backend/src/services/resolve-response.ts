@@ -35,6 +35,7 @@ import { type ArtistResolutionResult, resolveArtistUrl } from "./artist-resolver
 import { persistResolution } from "./persist-resolution.js";
 import { classifyMusicUrl } from "./plugins/registry.js";
 import { expandShortLink, persistLateTrackLinks, type ResolutionResult, resolveQuery } from "./resolver.js";
+import { isTrackPreviewRefreshable } from "./track-preview.js";
 import { resolveAlbumVinylLayout, resolveTrackVinylLayout } from "./track-vinyl-layout.js";
 
 /**
@@ -75,6 +76,8 @@ export async function persistTrackAndRespond(
       releaseDate: normalizeReleaseDate(result.sourceTrack.releaseDate) ?? undefined,
       isExplicit: result.sourceTrack.isExplicit,
       previewUrl: refreshedPreviewUrl,
+      previewRefreshable:
+        (!refreshedPreviewUrl && isTrackPreviewRefreshable(result.sourceTrack.isrc, result.links)) || undefined,
       vinylLayout,
     },
     links: toApiLinks(result.links, { stripTracking: true }),

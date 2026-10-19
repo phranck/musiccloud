@@ -3,6 +3,7 @@ import { getRepository } from "../../db/index.js";
 import type { ArtistCredit } from "../../db/repository.js";
 import { pickRecordingArtworkUrl } from "../../services/artwork.js";
 import { deezerAdapter } from "../../services/plugins/deezer/adapter.js";
+import { isTrackPreviewRefreshable } from "../../services/track-preview.js";
 import { rewriteAppleMusicUrlForStorefront } from "../platform/apple-music-storefront.js";
 import { isExpiredDeezerPreviewUrl } from "../preview-url.js";
 import { getPublicOrigin } from "../public-origin.js";
@@ -72,7 +73,7 @@ export async function loadByShortId(
   const expired = !!data.track.previewUrl && isExpiredDeezerPreviewUrl(data.track.previewUrl);
   if (expired) data.track.previewUrl = null;
 
-  const previewRefreshable = !data.track.previewUrl && !!data.track.isrc;
+  const previewRefreshable = !data.track.previewUrl && isTrackPreviewRefreshable(data.track.isrc, data.links);
   return enrichWithOGMeta(
     { ...data, links: rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront) },
     data.shortId,
@@ -95,7 +96,7 @@ export async function loadByTrackId(
   const expired = !!data.track.previewUrl && isExpiredDeezerPreviewUrl(data.track.previewUrl);
   if (expired) data.track.previewUrl = null;
 
-  const previewRefreshable = !data.track.previewUrl && !!data.track.isrc;
+  const previewRefreshable = !data.track.previewUrl && isTrackPreviewRefreshable(data.track.isrc, data.links);
   return enrichWithOGMeta(
     { ...data, links: rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront) },
     data.shortId,
