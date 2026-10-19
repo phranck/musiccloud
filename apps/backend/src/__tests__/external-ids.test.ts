@@ -26,6 +26,14 @@ const baseArtist: NormalizedArtist = {
 };
 
 describe("collectTrackExternalIds", () => {
+  it("collects late observations without inventing an originating provider", () => {
+    const observations = [{ service: "deezer", isrc: "DEZC62699545" }];
+    expect(() => collectTrackExternalIds(undefined, observations)).not.toThrow();
+    expect(collectTrackExternalIds(undefined, observations)).toEqual([
+      { idType: "isrc", idValue: "DEZC62699545", sourceService: "deezer" },
+    ]);
+  });
+
   it("emits the source-track ISRC under its sourceService", () => {
     const records = collectTrackExternalIds({ ...baseTrack, isrc: "ABCDE1234567" });
 

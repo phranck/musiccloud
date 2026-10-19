@@ -28,6 +28,7 @@ vi.mock("../../../../lib/infra/token-manager.js", () => ({
 
 import { MATCH_MIN_CONFIDENCE } from "../../../constants.js";
 import { listPlugins } from "../../registry.js";
+import { tidalSearchDocument } from "../../tidal/__tests__/search-document.js";
 
 /** The artist every case searches for and every service answers with. */
 const ARTIST = "Slowdive";
@@ -97,11 +98,8 @@ const ANSWERS: Record<string, (url: string) => Response | undefined> = {
         })
       : undefined,
   tidal: (url) =>
-    url.includes("/searchresults/")
-      ? json({
-          data: [{ id: "t1", type: "artists" }],
-          included: [{ id: "t1", type: "artists", attributes: { name: ARTIST } }],
-        })
+    new URL(url).pathname === "/v2/searchResults"
+      ? json(tidalSearchDocument("artists", [{ id: "1", attributes: { name: ARTIST } }]))
       : undefined,
   musicbrainz: (url) =>
     url.includes("/artist?query=") ? json({ artists: [{ id: "mbid-1", name: ARTIST, score: 100 }] }) : undefined,

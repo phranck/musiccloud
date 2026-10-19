@@ -9,6 +9,7 @@ const mockRepo = {
   findExistingAlbumByUpc: vi.fn().mockResolvedValue(null),
   persistAlbumWithLinks: vi.fn().mockResolvedValue({ albumId: "test-album-id", shortId: "ab1234" }),
   addLinksToAlbum: vi.fn().mockResolvedValue(undefined),
+  replaceRecordingArtwork: vi.fn().mockResolvedValue(true),
   loadAlbumByShortId: vi.fn().mockResolvedValue(null),
   findTrackPreviews: vi.fn().mockResolvedValue([]),
   upsertTrackPreview: vi.fn().mockResolvedValue(undefined),
@@ -388,6 +389,68 @@ describe("AlbumResolver: resolveAlbumTextSearch", () => {
 
     const result = await resolveAlbumTextSearch("Random Access Memories");
     expect(result.albumId).toBe("cached-upc-id");
+  });
+});
+
+describe("AlbumResolver: recording-cover policy", () => {
+  const video = "https://i.ytimg.com/vi/ImX2w6Ufj4w/maxresdefault.jpg";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRepo.findAlbumByUrl.mockResolvedValue(null);
+    mockRepo.findAlbumByServiceLink.mockResolvedValue(null);
+    mockRepo.findAlbumByUpc.mockResolvedValue(null);
+    vi.mocked(getActiveAdapters).mockResolvedValue([mockSpotifyAdapter, mockDeezerAdapter]);
+    mockSpotifyAdapter.getAlbum.mockResolvedValue({ ...MOCK_SOURCE_ALBUM, artworkUrl: video });
+    mockSpotifyAdapter.findAlbumByUpc.mockResolvedValue(null);
+    mockSpotifyAdapter.searchAlbum.mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" });
+    mockDeezerAdapter.findAlbumByUpc.mockResolvedValue(MOCK_DEEZER_ALBUM);
+  });
+  afterEach(() => {
+    vi.mocked(getActiveAdapters).mockResolvedValue([mockDeezerAdapter, mockSpotifyAdapter, mockTidalAdapter]);
+  });
+
+  it("uses a catalogue cover instead of a video image on a fresh album", async () => {
+    const result = await resolveAlbumUrl(MOCK_SOURCE_ALBUM.webUrl);
+    expect(result.sourceAlbum.artworkUrl).toBe(MOCK_DEEZER_ALBUM.artworkUrl);
+  });
+
+  it("recovers a cached cover from its original catalogue provider", async () => {
+    vi.mocked(getActiveAdapters).mockResolvedValue([mockDeezerAdapter]);
+    mockRepo.findAlbumByUrl.mockResolvedValue({
+      albumId: "cached-id",
+      shortId: "existing-album",
+      updatedAt: Date.now(),
+      album: { ...MOCK_DEEZER_ALBUM, artworkUrl: video },
+      links: [{ service: "deezer", url: MOCK_DEEZER_ALBUM.webUrl, confidence: 1, matchMethod: "source" }],
+    });
+    mockRepo.findAlbumPreviews.mockResolvedValue([
+      { service: "deezer", url: "https://example.test/preview.mp3", expiresAt: null, observedAt: new Date() },
+    ]);
+
+    const result = await resolveAlbumUrl(MOCK_DEEZER_ALBUM.webUrl);
+
+    expect(result.sourceAlbum.artworkUrl).toBe(MOCK_DEEZER_ALBUM.artworkUrl);
+    expect(result.shortId).toBe("existing-album");
+    expect(result.links).toHaveLength(1);
+  });
+
+  it("recovers a cached album cover even while its existing preview is fresh", async () => {
+    mockRepo.findAlbumByUrl.mockResolvedValue({
+      albumId: "cached-id",
+      updatedAt: Date.now(),
+      album: { ...MOCK_SOURCE_ALBUM, artworkUrl: video },
+      links: [
+        { service: "spotify", url: MOCK_SOURCE_ALBUM.webUrl, confidence: 1, matchMethod: "source" },
+        { service: "deezer", url: MOCK_DEEZER_ALBUM.webUrl, confidence: 1, matchMethod: "upc" },
+      ],
+    });
+    mockRepo.findAlbumPreviews.mockResolvedValue([
+      { service: "deezer", url: "https://example.test/preview.mp3", expiresAt: null, observedAt: new Date() },
+    ]);
+    const result = await resolveAlbumUrl(MOCK_SOURCE_ALBUM.webUrl);
+    expect(result.sourceAlbum.artworkUrl).toBe(MOCK_DEEZER_ALBUM.artworkUrl);
+    expect(result.albumId).toBe("cached-id");
   });
 });
 

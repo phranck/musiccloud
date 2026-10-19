@@ -62,13 +62,18 @@
  * via its playlist endpoint, we synthesise the YouTube Music link
  * from the same playlist ID instead of running a separate search.
  *
- * ## Artwork: never Apple's
+ * ## Recording artwork and completion
  *
- * An album keeps the cover `pickArtworkUrl` (`artwork.ts`) picks: its own
- * unless it is Apple's, else Spotify's, else the first cover another matched
- * service returned. Apple's artwork may only be shown with MusicKit playback,
- * so the Apple Music adapter returns none and its albums borrow a cover. So do
- * Tidal's, because Tidal's API v2 returns no album artwork.
+ * `artwork.ts` owns cover eligibility and extra lookup priority. YouTube images
+ * are never recording fallbacks, and Apple restrictions remain. A valid stored
+ * cover wins over enrichment. Cached cover changes use `recording-artwork.ts`
+ * and a cover-only compare-and-set; artist portraits use a separate policy.
+ * A missing cover permits bounded metadata refresh even with complete links
+ * and a fresh preview, because stored service links do not include covers.
+ *
+ * Album lookups await their complete `Promise.allSettled` batch. This result
+ * type has no detached late-link contract; that contract belongs to tracks in
+ * `resolver.ts`, whose file header maps the complete request/persistence chain.
  */
 import { getPlatformLabel, type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
@@ -76,11 +81,12 @@ import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
-import { pickArtworkUrl } from "./artwork.js";
+import { pickRecordingArtworkUrl, RECORDING_ARTWORK_LOOKUP_SERVICES } from "./artwork.js";
 import { confidenceForMethod } from "./confidence.js";
 import { IDENTIFIER_MATCH_CONFIDENCE } from "./constants.js";
 import { collectAlbumExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, findInactiveServiceFor, getActiveAdapters } from "./index.js";
+import { keepRecordingArtwork } from "./recording-artwork.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   AlbumMatchResult,
@@ -129,6 +135,8 @@ export interface AlbumResolutionResult {
   sourceAlbum: NormalizedAlbum;
   links: ResolvedAlbumLink[];
   albumId?: string; // present when loaded from cache
+  /** Stored share id prevents a cached snapshot from rewriting concurrent metadata. */
+  shortId?: string;
   /**
    * External-id observations harvested across every adapter contacted
    * during the album resolve. Persisted into `album_external_ids`.
@@ -179,7 +187,7 @@ async function tryAlbumCache(lookup: {
     const links = mapCachedAlbumLinks(cached.links);
     log.debug("AlbumResolver", `Cache hit: ${links.length} links`);
 
-    return { sourceAlbum: cached.album, links, albumId: cached.albumId, externalIds: [] };
+    return { sourceAlbum: cached.album, links, albumId: cached.albumId, shortId: cached.shortId, externalIds: [] };
   } catch (error) {
     log.deviation(
       {
@@ -195,6 +203,13 @@ async function tryAlbumCache(lookup: {
 }
 
 async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<AlbumResolutionResult> {
+  cached = {
+    ...cached,
+    sourceAlbum: {
+      ...cached.sourceAlbum,
+      artworkUrl: await keepRecordingArtwork("album", cached.albumId, cached.sourceAlbum.artworkUrl),
+    },
+  };
   const coveredServices = new Set(cached.links.map((l) => l.service));
   const active = await getActiveAdapters();
 
@@ -213,7 +228,25 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
       )
     : undefined;
 
-  const adaptersToFetch = deezerAdapter ? [...missingAdapters, deezerAdapter] : missingAdapters;
+  const artworkAdapters = !cached.sourceAlbum.artworkUrl
+    ? RECORDING_ARTWORK_LOOKUP_SERVICES.flatMap((service) =>
+        active.filter(
+          (adapter) =>
+            adapter.id === service &&
+            Boolean(adapter.albumCapabilities) &&
+            adapter.capabilities.supportsArtwork &&
+            coveredServices.has(service),
+        ),
+      )
+    : [];
+  const adaptersToFetch = [
+    ...new Map(
+      [...missingAdapters, ...(deezerAdapter ? [deezerAdapter] : []), ...artworkAdapters].map((adapter) => [
+        adapter.id,
+        adapter,
+      ]),
+    ).values(),
+  ];
 
   if (adaptersToFetch.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
@@ -265,7 +298,10 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
 
   const allLinks = [...cached.links, ...genuinelyNewLinks].sort((a, b) => b.confidence - a.confidence);
 
-  let sourceAlbum = { ...cached.sourceAlbum, artworkUrl: pickArtworkUrl(cached.sourceAlbum.artworkUrl, allLinks) };
+  let sourceAlbum = {
+    ...cached.sourceAlbum,
+    artworkUrl: await keepRecordingArtwork("album", cached.albumId, cached.sourceAlbum.artworkUrl, newLinks),
+  };
 
   if (!sourceAlbum.label) {
     const label = pickLabelFromLinks(allLinks);
@@ -307,6 +343,7 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
     sourceAlbum,
     links: await filterDisabledLinks(allLinks),
     albumId: cached.albumId,
+    shortId: cached.shortId,
     externalIds: collectAlbumExternalIds(sourceAlbum, newLinks),
   };
 }
@@ -717,7 +754,10 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
 
   // 6. Keep a cover that is not Apple's. Tidal's API v2 and the Apple Music
   // adapter return none, so their albums borrow one from another service.
-  sourceAlbum = { ...sourceAlbum, artworkUrl: pickArtworkUrl(sourceAlbum.artworkUrl, links) };
+  sourceAlbum = {
+    ...sourceAlbum,
+    artworkUrl: pickRecordingArtworkUrl(sourceAlbum.artworkUrl, links, sourceAlbum.sourceService),
+  };
 
   // 6b. Same idea for label: Spotify removed `album.label` in Feb 2026,
   // and not every adapter returns one. Borrow from Deezer first
@@ -776,7 +816,10 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
         }
 
         const links = await resolveAlbumAcrossServices(result.album, adapter);
-        let sourceAlbum = { ...result.album, artworkUrl: pickArtworkUrl(result.album.artworkUrl, links) };
+        let sourceAlbum = {
+          ...result.album,
+          artworkUrl: pickRecordingArtworkUrl(result.album.artworkUrl, links, result.album.sourceService),
+        };
 
         if (!sourceAlbum.label) {
           const label = pickLabelFromLinks(links);

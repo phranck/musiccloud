@@ -1,6 +1,7 @@
 import { isValidServiceId, type ServiceId, type VinylLayout } from "@musiccloud/shared";
 import { getRepository } from "../../db/index.js";
 import type { ArtistCredit } from "../../db/repository.js";
+import { pickRecordingArtworkUrl } from "../../services/artwork.js";
 import { deezerAdapter } from "../../services/plugins/deezer/adapter.js";
 import { rewriteAppleMusicUrlForStorefront } from "../platform/apple-music-storefront.js";
 import { isExpiredDeezerPreviewUrl } from "../preview-url.js";
@@ -49,6 +50,8 @@ function rewriteLinksForAppleMusicStorefront<T extends { service: string; url: s
  *  expired Deezer CDN token, it is nulled out and `previewRefreshable` is
  *  set so the client can request a fresh URL via the preview endpoint.
  *  This keeps the share-page response latency bounded by database alone.
+ *  Stored recording artwork is filtered without network calls or repair writes.
+ *  Enrichment belongs to the resolver, not a share-page read.
  *
  *  Apple Music is the exception to "cached service link is globally portable".
  *  Its catalogue links carry the storefront in the URL, so the cached link's
@@ -161,21 +164,25 @@ export async function loadAlbumByShortId(
 
   // Writes normalize the date, and a row stored before they did can still hold
   // a raw value that the response schema's `format: date` would refuse.
-  data.album.releaseDate = normalizeReleaseDate(data.album.releaseDate);
+  const album = {
+    ...data.album,
+    releaseDate: normalizeReleaseDate(data.album.releaseDate),
+    artworkUrl: pickRecordingArtworkUrl(data.album.artworkUrl ?? undefined) ?? null,
+  };
   const links = rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront);
   const availablePlatforms: ServiceId[] = links.map((l) => l.service).filter(isValidServiceId);
 
-  const expired = !!data.album.previewUrl && isExpiredDeezerPreviewUrl(data.album.previewUrl);
-  if (expired) data.album.previewUrl = null;
-  const previewRefreshable = !data.album.previewUrl && deezerAlbumIdFromLinks(data.links) !== null;
+  const expired = !!album.previewUrl && isExpiredDeezerPreviewUrl(album.previewUrl);
+  if (expired) album.previewUrl = null;
+  const previewRefreshable = !album.previewUrl && deezerAlbumIdFromLinks(data.links) !== null;
 
   const og = generateAlbumOGMeta({
-    title: data.album.title,
+    title: album.title,
     artist: data.artistDisplay,
-    totalTracks: data.album.totalTracks ?? undefined,
-    releaseDate: data.album.releaseDate ?? undefined,
+    totalTracks: album.totalTracks ?? undefined,
+    releaseDate: album.releaseDate ?? undefined,
     // Empty string lets generateAlbumOGMeta apply its absolute default-image fallback.
-    albumArtUrl: data.album.artworkUrl ?? "",
+    albumArtUrl: album.artworkUrl ?? "",
     shortId,
     availablePlatforms,
     origin,
@@ -183,6 +190,7 @@ export async function loadAlbumByShortId(
 
   return {
     ...data,
+    album,
     links,
     availablePlatforms,
     previewRefreshable,
@@ -260,13 +268,14 @@ function enrichWithOGMeta(
   previewRefreshable: boolean,
 ): SharePageData {
   const availablePlatforms: ServiceId[] = data.links.map((l) => l.service).filter(isValidServiceId);
+  const track = { ...data.track, artworkUrl: pickRecordingArtworkUrl(data.track.artworkUrl ?? undefined) ?? null };
 
   const og = generateOGMeta({
     title: data.track.title,
     artist: data.artistDisplay,
     album: data.track.albumName ?? undefined,
     // Empty string lets generateOGMeta apply its absolute default-image fallback.
-    albumArtUrl: data.track.artworkUrl ?? "",
+    albumArtUrl: track.artworkUrl ?? "",
     shortId,
     availablePlatforms,
     origin,
@@ -274,6 +283,7 @@ function enrichWithOGMeta(
 
   return {
     ...data,
+    track,
     availablePlatforms,
     previewRefreshable,
     og,

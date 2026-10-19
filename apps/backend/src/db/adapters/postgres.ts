@@ -89,6 +89,7 @@ import type {
   PersistTrackData,
   PreviewObservation,
   PreviewRow,
+  RecordingKind,
   SharePageAlbumResult,
   SharePageArtistResult,
   SharePageDbResult,
@@ -284,6 +285,7 @@ import {
   updateDeveloperAccount as developerUpdateAccount,
   updateDeveloperLastLogin as developerUpdateLastLogin,
 } from "./postgres-developer.js";
+import { replaceRecordingArtwork as recordingReplaceArtwork } from "./postgres-recording-artwork.js";
 import { deleteAppTelemetryEventsBefore, insertAppTelemetryEvent } from "./postgres-telemetry.js";
 import { PostgresTierRepository } from "./postgres-tiers.js";
 import {
@@ -439,6 +441,24 @@ export class PostgresAdapter
 
   loadByTrackId(trackId: string): Promise<SharePageDbResult | null> {
     return tracksLoadByTrackId(this.pool, trackId);
+  }
+
+  /**
+   * Applies a cover-only compare-and-set through the shared recording storage boundary.
+   *
+   * @param kind - Track or album, excluding artist portraits.
+   * @param id - Stored entity id.
+   * @param expected - Previously observed cover, including null.
+   * @param replacement - Allowed cover, or null for the placeholder.
+   * @returns Whether the observed row was updated without a concurrent change.
+   */
+  replaceRecordingArtwork(
+    kind: RecordingKind,
+    id: string,
+    expected: string | null,
+    replacement: string | null,
+  ): Promise<boolean> {
+    return recordingReplaceArtwork(this.pool, kind, id, expected, replacement);
   }
 
   persistTrackWithLinks(data: PersistTrackData): Promise<{

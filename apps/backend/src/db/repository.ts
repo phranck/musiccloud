@@ -97,6 +97,8 @@ export interface PreviewObservation {
 /** Cached album with its cross-service links */
 export interface CachedAlbumResult {
   albumId: string;
+  /** Stored share identity lets cached responses skip a canonical-row rewrite. */
+  shortId?: string;
   updatedAt: number;
   album: NormalizedAlbum;
   links: Array<{
@@ -445,6 +447,9 @@ export interface CrawlRunsPage {
   limit: number;
 }
 
+/** Track and album entities share cover policy; artist portraits do not. */
+export type RecordingKind = "track" | "album";
+
 // ─── Repository Interface ─────────────────────────────────────────────────────
 
 /**
@@ -523,6 +528,25 @@ export interface TrackRepository {
    * @returns The matching record, or `null` when no row matches.
    */
   loadByTrackId(trackId: string): Promise<SharePageDbResult | null>;
+
+  /**
+   * Replaces only the cover value the caller actually observed.
+   *
+   * Late enrichment must not overwrite a cover changed by another resolve or
+   * operator. A deleted recording stays deleted; this operation never inserts.
+   *
+   * @param kind - Track or album; artist portraits use a separate policy.
+   * @param id - Persisted entity id, never a source-service identifier.
+   * @param expected - Observed cover, or null when no cover was stored.
+   * @param replacement - Validated catalogue cover, or null to remove a prohibited cover.
+   * @returns Whether the observed row was updated. False means stale or missing.
+   */
+  replaceRecordingArtwork(
+    kind: RecordingKind,
+    id: string,
+    expected: string | null,
+    replacement: string | null,
+  ): Promise<boolean>;
 
   // Track: Write operations (transaction-safe)
   /**

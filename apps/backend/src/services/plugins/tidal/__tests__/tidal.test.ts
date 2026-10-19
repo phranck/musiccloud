@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable.js";
 import { _resetTokenCache, tidalAdapter } from "../adapter";
+import { tidalSearchDocument } from "./search-document.js";
 
 // =============================================================================
 // Mock data
@@ -46,6 +48,11 @@ const MOCK_SEARCH_RESPONSE = {
   data: [MOCK_TIDAL_TRACK_RESOURCE],
   included: MOCK_INCLUDED,
 };
+
+/** Builds the current query response with explicit ranked linkage and included resources. */
+function searchDocument(relationship: "tracks" | "albums" | "artists", resources: Array<{ id: string }>) {
+  return tidalSearchDocument(relationship, resources, MOCK_INCLUDED);
+}
 
 const MOCK_TOKEN_RESPONSE = {
   access_token: "mock-token-123",
@@ -224,6 +231,15 @@ describe("Tidal: getTrack", () => {
 // =============================================================================
 
 describe("Tidal: findByIsrc", () => {
+  it.each(["isrc", "upc"])("does not treat a missing %s collection as a clean miss", async (kind) => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE)))
+      .mockResolvedValueOnce(new Response(JSON.stringify({})));
+    const lookup =
+      kind === "isrc" ? tidalAdapter.findByIsrc("USUG11904190") : tidalAdapter.findAlbumByUpc("fixture-upc");
+    await expect(lookup).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
   it("should find track by ISRC", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
@@ -268,10 +284,68 @@ describe("Tidal: findByIsrc", () => {
 // =============================================================================
 
 describe("Tidal: searchTrack", () => {
+  it.each([
+    { title: "" },
+    { duration: "not-a-duration" },
+    { duration: "PT" },
+    { duration: "PT200Strailing" },
+    { duration: "prefixPT200S" },
+    { duration: { seconds: 200 } },
+    { isrc: 42 },
+    { imageLinks: { href: "broken" } },
+  ])("rejects malformed consumed metadata: %j", async (patch) => {
+    const resource = {
+      ...MOCK_TIDAL_TRACK_RESOURCE,
+      attributes: { ...MOCK_TIDAL_TRACK_RESOURCE.attributes, ...patch },
+    };
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE)))
+      .mockResolvedValueOnce(new Response(JSON.stringify(searchDocument("tracks", [resource]))));
+    await expect(tidalAdapter.searchTrack({ title: "Blinding Lights", artist: "The Weeknd" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
+  });
+
+  it("resolves ranked track relationships through the current query endpoint", async () => {
+    const modern = searchDocument("tracks", [MOCK_TIDAL_TRACK_RESOURCE, { ...MOCK_TIDAL_TRACK_RESOURCE, id: "999" }]);
+    modern.included.reverse();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      if (url.hostname === "auth.tidal.com") return new Response(JSON.stringify(MOCK_TOKEN_RESPONSE));
+      if (
+        url.pathname === "/v2/searchResults" &&
+        url.searchParams.get("filter[query]") === "The Weeknd Blinding Lights"
+      ) {
+        return new Response(JSON.stringify(modern));
+      }
+      return new Response(null, { status: 404 });
+    });
+    const result = await tidalAdapter.searchTrack({ title: "Blinding Lights", artist: "The Weeknd" });
+    expect(result.found).toBe(true);
+    expect(result.track?.sourceId).toBe("77640617");
+    expect(result.track?.artists).toEqual(["The Weeknd"]);
+  });
+
+  it("does not treat an invalid search route as a clean catalogue miss", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE)))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    await expect(tidalAdapter.searchTrack({ title: "Blinding Lights", artist: "The Weeknd" })).rejects.toThrow(/404/);
+  });
+
+  it("rejects the old fabricated search shape instead of trusting it as a current response", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE)))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE)));
+    await expect(tidalAdapter.searchTrack({ title: "Blinding Lights", artist: "The Weeknd" })).rejects.toThrow();
+  });
+
   it("should find track with structured query", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(searchDocument("tracks", [MOCK_TIDAL_TRACK_RESOURCE])), { status: 200 }),
+      );
 
     const result = await tidalAdapter.searchTrack({
       title: "Blinding Lights",
@@ -287,7 +361,7 @@ describe("Tidal: searchTrack", () => {
   it("should return not found for empty results", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+      .mockResolvedValueOnce(new Response(JSON.stringify(searchDocument("tracks", [])), { status: 200 }));
 
     const result = await tidalAdapter.searchTrack({
       title: "Nonexistent Song",
@@ -296,6 +370,53 @@ describe("Tidal: searchTrack", () => {
 
     expect(result.found).toBe(false);
     expect(result.confidence).toBe(0);
+  });
+
+  it("uses the same query contract for album and artist search", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      if (url.hostname === "auth.tidal.com") return new Response(JSON.stringify(MOCK_TOKEN_RESPONSE));
+      if (url.pathname !== "/v2/searchResults") return new Response(null, { status: 404 });
+      const relation = url.searchParams.get("include") === "artists" ? "artists" : "albums";
+      const resource =
+        relation === "artists"
+          ? MOCK_INCLUDED[0]
+          : {
+              id: "123456",
+              attributes: { title: "After Hours" },
+              relationships: { artists: { data: [{ id: "7553669" }] } },
+            };
+      return new Response(JSON.stringify(searchDocument(relation, [resource])));
+    });
+    const album = await tidalAdapter.searchAlbum!({ title: "After Hours", artist: "The Weeknd" });
+    const artist = await tidalAdapter.searchArtist!({ name: "The Weeknd" });
+    expect(album.found).toBe(true);
+    expect(album.album?.title).toBe("After Hours");
+    expect(artist.found).toBe(true);
+    expect(artist.artist?.name).toBe("The Weeknd");
+  });
+
+  it("tries a bounded clean-title alternative without changing metadata", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      if (url.hostname === "auth.tidal.com") return new Response(JSON.stringify(MOCK_TOKEN_RESPONSE));
+      const resources =
+        url.searchParams.get("filter[query]") === "The Weeknd Blinding Lights" ? [MOCK_TIDAL_TRACK_RESOURCE] : [];
+      return new Response(JSON.stringify(searchDocument("tracks", resources)));
+    });
+    const query = { title: "Blinding Lights feat. @guest", artist: "The Weeknd", durationMs: 200000 };
+    const result = await tidalAdapter.searchTrack(query);
+    expect(result.found).toBe(true);
+    expect(query.title).toBe("Blinding Lights feat. @guest");
+  });
+
+  it("rejects missing referenced recordings instead of recording a miss", async () => {
+    const document = searchDocument("tracks", [MOCK_TIDAL_TRACK_RESOURCE]);
+    document.included = [];
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE)))
+      .mockResolvedValueOnce(new Response(JSON.stringify(document)));
+    await expect(tidalAdapter.searchTrack({ title: "Blinding Lights", artist: "The Weeknd" })).rejects.toThrow();
   });
 
   it("throws on HTTP error", async () => {
