@@ -125,6 +125,29 @@ async function publishBundle(output: string, bundle: AuditBundle, database: stri
 }
 
 /**
+ * Reads the running state and published ports of the local `musiccloud` container.
+ * The command is looked up on the search path, so Docker Desktop, OrbStack or any other product that provides `docker` answers.
+ * @param execute - Process port that returns the standard output of a command.
+ * @returns The inspected container, still untrusted.
+ * @throws {AuditFailure} `AUDIT_CONTAINER_RUNTIME_MISSING` when no `docker` executable exists, and `AUDIT_CONTAINER_IDENTITY` when the runtime cannot report the container.
+ */
+function inspectLocalContainer(execute: (command: string, arguments_: string[]) => string): unknown {
+  try {
+    return JSON.parse(
+      execute("docker", [
+        "inspect",
+        "--format",
+        '{"running":{{json .State.Running}},"ports":{{json .NetworkSettings.Ports}}}',
+        "musiccloud",
+      ]),
+    );
+  } catch (error) {
+    const missing = error instanceof Error && "code" in error && error.code === "ENOENT";
+    throw new AuditFailure(missing ? "AUDIT_CONTAINER_RUNTIME_MISSING" : "AUDIT_CONTAINER_IDENTITY");
+  }
+}
+
+/**
  * Captures private resolver evidence from an explicitly selected local snapshot.
  * @param argv - Snapshot directory, local env file, new output and optional reference ids.
  * @param runtime - External process/driver ports; defaults use the installed local tools.
@@ -206,14 +229,7 @@ export async function runAuditCapture(argv: string[], runtime: AuditRuntime = {}
   const archiveInformation = await requirePrivatePath(archive);
   if (!archiveInformation.isFile() || archiveInformation.size === 0 || (await fileSha256(archive)) !== manifest.sha256)
     throw new AuditFailure("AUDIT_ARCHIVE_MISMATCH");
-  const container: unknown = JSON.parse(
-    execute("/Applications/Docker.app/Contents/Resources/bin/docker", [
-      "inspect",
-      "--format",
-      '{"running":{{json .State.Running}},"ports":{{json .NetworkSettings.Ports}}}',
-      "musiccloud",
-    ]),
-  );
+  const container = inspectLocalContainer(execute);
   if (!isRecord(container) || container.running !== true || !isRecord(container.ports))
     throw new AuditFailure("AUDIT_CONTAINER_IDENTITY");
   const bindings = container.ports["5432/tcp"];

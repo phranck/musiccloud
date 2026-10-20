@@ -97,8 +97,11 @@ async function captureFixture() {
  */
 function captureRuntime(port = "5433") {
   let connected = false;
+  const commands: string[] = [];
   return {
+    commands,
     execute(command: string, arguments_: string[]) {
+      commands.push(command);
       if (command.endsWith("docker"))
         return JSON.stringify({ running: true, ports: { "5432/tcp": [{ HostPort: port }] } });
       if (arguments_.includes("status")) return "";
@@ -209,6 +212,39 @@ describe("local audit capture entry point", () => {
     try {
       const runtime = captureRuntime("5432");
       await expect(runAuditCapture(fixture.argv, runtime)).rejects.toThrow("AUDIT_CONTAINER_IDENTITY");
+      expect(runtime.connected()).toBe(false);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it("asks the runtime on the search path for the container, whichever product provides it", async () => {
+    const fixture = await captureFixture();
+    try {
+      const runtime = captureRuntime();
+      await runAuditCapture(fixture.argv, runtime);
+      expect(runtime.commands.filter((command) => command.endsWith("docker"))).toEqual(["docker"]);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it.each([
+    {
+      failure: Object.assign(new Error("spawnSync docker ENOENT"), { code: "ENOENT" }),
+      code: "AUDIT_CONTAINER_RUNTIME_MISSING",
+    },
+    { failure: new Error("Command failed: docker inspect musiccloud"), code: "AUDIT_CONTAINER_IDENTITY" },
+  ])("ends with $code when the container runtime cannot report the container", async ({ failure, code }) => {
+    const fixture = await captureFixture();
+    try {
+      const runtime = captureRuntime();
+      const execute = runtime.execute;
+      runtime.execute = (command, arguments_) => {
+        if (command === "docker") throw failure;
+        return execute(command, arguments_);
+      };
+      await expect(runAuditCapture(fixture.argv, runtime)).rejects.toThrow(code);
       expect(runtime.connected()).toBe(false);
     } finally {
       await fixture.cleanup();
