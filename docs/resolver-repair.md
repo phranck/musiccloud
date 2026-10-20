@@ -31,6 +31,12 @@ The new directory holds `manifest.json`, `manifest.json.sha256`, `plan-evidence.
 
 `recording-artwork` takes no option. It sets a stored cover or portrait to null where the cover policy of `services/artwork.ts` does not allow it: Apple artwork in tracks, albums and artist profiles, and YouTube images in tracks and albums. A YouTube channel portrait in an artist profile is allowed and stays. Each value becomes one update that applies only while the column still holds the recorded value, so a cover that somebody replaced since the plan makes the run stop. No replacement is looked up. Served share pages already hide these values, so clearing them changes no page, and a normal resolve fills a missing cover again.
 
+`duplicate-identities` takes no option. It merges duplicate recordings and releases into the older record of each pair. A candidate group is two or more records that repeat an ISRC, a UPC or a source URL. Only a pair of exact twins is merged: every identity column is equal, the credits agree in name, role and position, no link names another destination for the same service unless both were found by an identifier, and the younger record has at most one short URL. Every other group stays as it is and is listed with its reason in the evidence.
+
+For a merged pair, the short URL of the removed record becomes an alias of the kept record in `track_short_url_aliases` or `album_short_url_aliases`, so every address that was handed out still opens the page. Links, identifier observations and previews that only the removed record has move to the kept one. Everything else that belongs to the removed record goes with it. Artist entities that only the removed record's credits referenced are named in the evidence and left alone, because merging artists is a different repair. The plan needs the alias tables, so the copy it is made from has to carry the migration that creates them, and the target has to carry the same migration.
+
+A manifest also names the newest migration of its target. If a later migration changes the schema, the earlier manifests no longer match, and undoing one of them means sealing its inverse again after checking that the change was additive.
+
 ## What a run does
 
 `verify` reads the target in a read-only transaction and reports for every operation whether it is in the recorded state (`before`), in the approved state (`after`) or in neither (`conflict`).
