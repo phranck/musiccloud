@@ -1,7 +1,6 @@
 /** @file Local-only CLI for private, version-pinned resolver evidence. */
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
 import { lstat, mkdir, readFile, realpath, rmdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs, parseEnv } from "node:util";
@@ -13,6 +12,7 @@ import {
   type AuditSource,
   captureResolverEvidence,
 } from "./resolver-data-audit.js";
+import { fileSha256, isPrivateOwnedEntry } from "./resolver-repair/private-files.js";
 
 /** Driver boundary used by the local-only command; clients never become application pools. */
 interface AuditClient extends AuditDatabase {
@@ -30,6 +30,7 @@ export interface AuditRuntime {
 const RULE_FILES = [
   "apps/backend/src/scripts/audit-resolver-data.ts",
   "apps/backend/src/scripts/resolver-data-audit.ts",
+  "apps/backend/src/scripts/resolver-repair/canonical-json.ts",
   "apps/backend/src/services/artwork.ts",
   "apps/backend/src/services/constants.ts",
 ];
@@ -50,8 +51,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  */
 async function requirePrivatePath(location: string) {
   const information = await lstat(location);
-  if (information.isSymbolicLink() || (information.mode & 0o077) !== 0 || information.uid !== process.getuid?.())
-    throw new AuditFailure("AUDIT_PRIVATE_PATH_REQUIRED");
+  if (!isPrivateOwnedEntry(information)) throw new AuditFailure("AUDIT_PRIVATE_PATH_REQUIRED");
   return information;
 }
 
@@ -65,17 +65,6 @@ async function readPrivateObject(location: string): Promise<Record<string, unkno
   const value: unknown = JSON.parse(await readFile(location, "utf8"));
   if (!isRecord(value)) throw new AuditFailure("AUDIT_METADATA_INVALID");
   return value;
-}
-
-/**
- * Streams an archive so the checksum does not require a second in-memory dump.
- * @param location - Protected archive already checked as a regular file.
- * @returns The exact UTF-8-independent SHA-256 of its bytes.
- */
-async function fileSha256(location: string): Promise<string> {
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(location)) hash.update(chunk);
-  return hash.digest("hex");
 }
 
 /**
