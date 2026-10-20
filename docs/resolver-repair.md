@@ -29,6 +29,8 @@ The new directory holds `manifest.json`, `manifest.json.sha256`, `plan-evidence.
 
 `recording-links` checks the stored destinations of one recording against its service, one lookup per destination that a text search chose. A destination is removed only when its service reports a duration that differs from the recording's by more than the bound the matching guard uses. A destination the guard rejects for its title or version while the duration agrees stays, because it may be the right performance. A destination whose service could not be asked stays as well.
 
+`recording-artwork` takes no option. It sets a stored cover or portrait to null where the cover policy of `services/artwork.ts` does not allow it: Apple artwork in tracks, albums and artist profiles, and YouTube images in tracks and albums. A YouTube channel portrait in an artist profile is allowed and stays. Each value becomes one update that applies only while the column still holds the recorded value, so a cover that somebody replaced since the plan makes the run stop. No replacement is looked up. Served share pages already hide these values, so clearing them changes no page, and a normal resolve fills a missing cover again.
+
 ## What a run does
 
 `verify` reads the target in a read-only transaction and reports for every operation whether it is in the recorded state (`before`), in the approved state (`after`) or in neither (`conflict`).
