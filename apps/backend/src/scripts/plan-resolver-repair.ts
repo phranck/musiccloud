@@ -9,6 +9,7 @@ import { parseArgs } from "node:util";
 import { Client } from "pg";
 import type { NormalizedTrack } from "../services/types.js";
 import { ManifestError } from "./resolver-repair/manifest.js";
+import { planDuplicateIdentities } from "./resolver-repair/planners/duplicate-identities.js";
 import { planRecordingArtwork } from "./resolver-repair/planners/recording-artwork.js";
 import { planRecordingLinks } from "./resolver-repair/planners/recording-links.js";
 import {
@@ -39,6 +40,7 @@ import {
 
 /** The repairs this command can plan. A new planner is registered here in the same change that adds it. */
 const PLANNERS: Readonly<Record<string, Planner>> = {
+  "duplicate-identities": planDuplicateIdentities,
   "recording-artwork": planRecordingArtwork,
   "recording-links": planRecordingLinks,
 };

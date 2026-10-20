@@ -16,4 +16,7 @@ export const REPAIRABLE_TABLES: ReadonlySet<string> = new Set([
   "album_short_urls",
   "album_external_ids",
   "album_artist_credits",
+  "album_previews",
+  "track_short_url_aliases",
+  "album_short_url_aliases",
 ]);
