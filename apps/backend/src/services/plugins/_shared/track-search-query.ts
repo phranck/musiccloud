@@ -5,7 +5,8 @@
  * `confidence.ts`. The re-exports preserve the query-helper surface consumed by
  * adapters and enrichment without a second scoring implementation.
  */
-import type { SearchQuery } from "../../types.js";
+import type { NormalizedTrack, SearchQuery } from "../../types.js";
+import { artistNameForSearch } from "./artists.js";
 import { isFreeTextSearch, trackSearchTitles } from "./confidence.js";
 
 export {
@@ -13,6 +14,25 @@ export {
   scoreSearchCandidate as scoreCatalogueTrackCandidate,
   trackSearchTitles,
 } from "./confidence.js";
+
+/**
+ * Builds lookup metadata without replacing a canonical provider display credit.
+ * The resolver builds the query for every destination search with it, and the repair planners judge stored
+ * destinations with the same query, so both sides ask the same question.
+ *
+ * @param sourceTrack - Confirmed source recording and its provider provenance.
+ * @returns A fresh query with published artist-name interpretations and original recording evidence.
+ */
+export function recordingSearchQuery(sourceTrack: NormalizedTrack): SearchQuery {
+  const artists = sourceTrack.artists.map((artist) => artistNameForSearch(artist, sourceTrack.sourceService));
+  return {
+    title: sourceTrack.title,
+    artist: artists[0] ?? "",
+    artists,
+    album: sourceTrack.albumName,
+    durationMs: sourceTrack.durationMs,
+  };
+}
 
 /**
  * Builds bounded plain-text alternatives without changing free-text semantics.

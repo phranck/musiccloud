@@ -45,6 +45,8 @@
       "apps/backend/src/scripts/audit-resolver-data.ts",
       "apps/backend/src/scripts/resolver-data-audit.ts",
       "apps/backend/src/scripts/resolver-data-audit.test.ts",
+      "apps/backend/src/scripts/plan-resolver-repair.ts",
+      "apps/backend/src/scripts/plan-resolver-repair.test.ts",
       "apps/backend/src/scripts/repair-resolver-data.ts",
       "apps/backend/src/scripts/repair-resolver-data.test.ts",
       "apps/backend/src/scripts/resolver-repair",

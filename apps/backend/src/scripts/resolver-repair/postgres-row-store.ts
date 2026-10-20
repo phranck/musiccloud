@@ -116,6 +116,22 @@ export class PostgresRowStore implements RowStore {
     return dependents;
   }
 
+  /**
+   * Runs a planner's query and returns every row as JSON in the same form `readRow` reports.
+   * The text must be static code in a planner. It is wrapped as a subquery and never built from manifest or user data.
+   *
+   * @param sql - A `SELECT` statement.
+   * @param parameters - Values bound to its placeholders.
+   * @returns One JSON object per row.
+   */
+  async selectRows(sql: string, parameters: unknown[] = []): Promise<RowValues[]> {
+    const result = await this.client.query<{ row: RowValues }>(
+      `SELECT to_jsonb(item) AS row FROM (${sql}) AS item`,
+      parameters,
+    );
+    return result.rows.map((row) => row.row);
+  }
+
   async readRow(reference: RowReference, lock: boolean): Promise<RowValues | null> {
     await this.requireColumns(reference.table, [reference.keyColumn]);
     const result = await this.client.query<{ row: RowValues }>(
@@ -200,7 +216,7 @@ export type RepairTransactionMode = "read-only" | "read-write";
 export async function withRepairTransaction<T>(
   client: ClientBase,
   mode: RepairTransactionMode,
-  work: (store: RowStore, migrationHash: string) => Promise<T>,
+  work: (store: PostgresRowStore, migrationHash: string) => Promise<T>,
 ): Promise<T> {
   await client.query(`BEGIN ISOLATION LEVEL REPEATABLE READ ${mode === "read-only" ? "READ ONLY" : "READ WRITE"}`);
   try {

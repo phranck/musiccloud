@@ -12,7 +12,22 @@ There are three operations, and each names one table and one single-column prima
 - `update-columns` changes named columns from the recorded values to the approved ones.
 - `delete-row` removes a row that must still be exactly as recorded.
 
-Because every operation records its expected state, the manifest also describes its own inverse. The tables a manifest may touch are listed in `REPAIRABLE_TABLES` in the command file. A planner that needs another table adds it there in the same change.
+Because every operation records its expected state, the manifest also describes its own inverse. The tables a manifest may touch are listed in `REPAIRABLE_TABLES` in `resolver-repair/repairable-tables.ts`. A planner that needs another table adds it there in the same change.
+
+## Planning
+
+`apps/backend/src/scripts/plan-resolver-repair.ts` turns a restored copy into a manifest. It only reads, and it accepts a restored copy as the only source, never production. The copy has to be the one the snapshot directory describes: `restore-verification.json` must name the database and report matching counts and migration history.
+
+```bash
+cd apps/backend
+REPAIR_DATABASE_URL="$COPY_URL" pnpm exec tsx --env-file=.env.local src/scripts/plan-resolver-repair.ts recording-links \
+  --snapshot-dir "$SNAPSHOT_DIRECTORY" --target-env REPAIR_DATABASE_URL \
+  --out-dir "$NEW_PRIVATE_DIRECTORY" --track-id "$TRACK_ID"
+```
+
+The new directory holds `manifest.json`, `manifest.json.sha256`, `plan-evidence.json` and `plan.json`, which is written last. The evidence shows how each stored item was judged, with public provider metadata and never a credential. It must lie outside every Git checkout. A plan without operations publishes nothing.
+
+`recording-links` checks the stored destinations of one recording against its service, one lookup per destination that a text search chose. A destination is removed only when its service reports a duration that differs from the recording's by more than the bound the matching guard uses. A destination the guard rejects for its title or version while the duration agrees stays, because it may be the right performance. A destination whose service could not be asked stays as well.
 
 ## What a run does
 
@@ -24,7 +39,7 @@ Because every operation records its expected state, the manifest also describes 
 
 A delete first checks that no row in another table would be changed by a cascade, a reset to null or a reset to the default. The manifest has to list those rows itself, so that what it lists is everything that happens.
 
-The command prints counts and the manifest checksum. It never prints column values. `--report <new file>` keeps the outcome, including the keys of conflicting rows, in a private file.
+The command prints counts, the manifest checksum and the commit it runs from. It never prints column values. `--report <new file>` keeps the outcome, including the keys of conflicting rows, in a private file. A write on production is refused from a checkout with uncommitted changes, so the commit in the report is the program that ran.
 
 ## Targets
 

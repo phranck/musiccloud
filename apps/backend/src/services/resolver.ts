@@ -132,8 +132,7 @@ import {
   identifyService,
   isPluginAvailable,
 } from "./index.js";
-import { artistNameForSearch } from "./plugins/_shared/artists.js";
-import { isTrackSearchFallbackMatch } from "./plugins/_shared/track-search-query.js";
+import { isTrackSearchFallbackMatch, recordingSearchQuery } from "./plugins/_shared/track-search-query.js";
 import { keepRecordingArtwork } from "./recording-artwork.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
@@ -1390,22 +1389,6 @@ function resolveOnServiceWithTimeout(
       throw error;
     })
     .finally(() => clearTimeout(timeoutTimer));
-}
-
-/**
- * Builds lookup metadata without replacing a canonical provider display credit.
- * @param sourceTrack - Confirmed source recording and its provider provenance.
- * @returns A fresh query with published artist-name interpretations and original recording evidence.
- */
-function recordingSearchQuery(sourceTrack: NormalizedTrack): SearchQuery {
-  const artists = sourceTrack.artists.map((artist) => artistNameForSearch(artist, sourceTrack.sourceService));
-  return {
-    title: sourceTrack.title,
-    artist: artists[0] ?? "",
-    artists,
-    album: sourceTrack.albumName,
-    durationMs: sourceTrack.durationMs,
-  };
 }
 
 /**
