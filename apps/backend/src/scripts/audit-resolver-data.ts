@@ -36,6 +36,7 @@ const RULE_FILES = [
   "apps/backend/src/scripts/audit-resolver-data.ts",
   "apps/backend/src/scripts/resolver-data-audit.ts",
   "apps/backend/src/scripts/resolver-repair/canonical-json.ts",
+  "apps/backend/src/scripts/resolver-repair/stored-artwork-policy.ts",
   "apps/backend/src/services/artwork.ts",
   "apps/backend/src/services/constants.ts",
 ];

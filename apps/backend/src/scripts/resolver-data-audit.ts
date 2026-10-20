@@ -2,9 +2,13 @@
  * @file Read-only resolver evidence with environment-neutral selectors and hashes.
  * Findings retain observed values and keys. They are not executable repair plans.
  */
-import { isAppleArtworkUrl, isYouTubeArtworkUrl } from "../services/artwork.js";
 import { SERVICE_MISS_TTL_MS } from "../services/constants.js";
 import { canonicalJson, sha256Hex } from "./resolver-repair/canonical-json.js";
+import {
+  ARTWORK_COLUMNS,
+  rejectedStoredArtwork,
+  type StoredArtworkTable,
+} from "./resolver-repair/stored-artwork-policy.js";
 
 /** A safe operational code that never includes driver messages or stored values. */
 export class AuditFailure extends Error {
@@ -224,13 +228,11 @@ function artworkFindings(rows: Record<string, unknown>[]): Record<string, unknow
     if (
       typeof row.url !== "string" ||
       typeof row.key !== "string" ||
-      !["tracks", "albums", "artist_profiles"].includes(String(row.table))
+      !Object.hasOwn(ARTWORK_COLUMNS, String(row.table))
     )
       throw new Error("AUDIT_ARTWORK_SHAPE");
-    if (isAppleArtworkUrl(row.url)) return [{ ...row, policy: "apple_artwork" }];
-    if (row.table !== "artist_profiles" && isYouTubeArtworkUrl(row.url))
-      return [{ ...row, policy: "youtube_recording_artwork" }];
-    return [];
+    const policy = rejectedStoredArtwork(row.table as StoredArtworkTable, row.url);
+    return policy ? [{ ...row, policy }] : [];
   });
 }
 
