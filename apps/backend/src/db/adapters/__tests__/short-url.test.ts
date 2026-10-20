@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateShortId } from "../../../lib/short-id.js";
-import { mintShortUrl } from "../short-url.js";
+import { findCanonicalShortId, mintShortUrl } from "../short-url.js";
 
 vi.mock("../../../lib/short-id.js", () => ({
   generateShortId: vi.fn(),
@@ -182,5 +182,57 @@ describe("mintShortUrl", () => {
       /Could not allocate a short id in cc_short_urls/,
     );
     expect(tables.storedIdFor("cc_short_urls", "cc-track-a")).toBeUndefined();
+  });
+
+  it("never hands out an id that an alias holds, because the share route also answers aliases", async () => {
+    const tables = new FakeShortUrlTables();
+    tables.seed("track_short_url_aliases", "legacy", "track-a");
+    generateShortIdMock.mockReturnValueOnce("legacy").mockReturnValueOnce("fresh");
+
+    const result = await mintShortUrl(tables.asClient(), "short_urls", "track-b", new Date());
+
+    expect(result).toBe("fresh");
+    const check = tables.statements.find((sql) => sql.includes("UNION ALL")) ?? "";
+    expect(check).toContain("FROM track_short_url_aliases");
+    expect(check).toContain("FROM album_short_url_aliases");
+  });
+});
+
+describe("findCanonicalShortId", () => {
+  /** A queryable that knows one alias and records the statements it receives. */
+  function queryableWithAlias(alias: string, canonical: string) {
+    const statements: string[] = [];
+    const queryable = {
+      query: async (sql: string, params: unknown[]) => {
+        statements.push(sql);
+        return { rows: params[0] === alias ? [{ id: canonical }] : [] };
+      },
+    } as unknown as Pick<PoolClient, "query">;
+    return { queryable, statements };
+  }
+
+  it("joins the alias to the canonical table of its entity kind and returns the canonical id", async () => {
+    const { queryable, statements } = queryableWithAlias("legacy", "canonical");
+
+    expect(await findCanonicalShortId(queryable, "track_short_url_aliases", "legacy")).toBe("canonical");
+    expect(statements[0]).toMatch(
+      /FROM track_short_url_aliases AS alias\s+JOIN short_urls AS canonical ON canonical\.track_id = alias\.track_id/,
+    );
+  });
+
+  it("uses the album tables for an album alias", async () => {
+    const { queryable, statements } = queryableWithAlias("legacy", "canonical");
+
+    await findCanonicalShortId(queryable, "album_short_url_aliases", "legacy");
+
+    expect(statements[0]).toMatch(
+      /FROM album_short_url_aliases AS alias\s+JOIN album_short_urls AS canonical ON canonical\.album_id = alias\.album_id/,
+    );
+  });
+
+  it("answers null for an id that is no alias", async () => {
+    const { queryable } = queryableWithAlias("legacy", "canonical");
+
+    expect(await findCanonicalShortId(queryable, "track_short_url_aliases", "unknown")).toBeNull();
   });
 });

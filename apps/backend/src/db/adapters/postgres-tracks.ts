@@ -46,7 +46,7 @@ import {
   TRACK_PREVIEW_URL_SELECT,
   upsertServiceLinks,
 } from "./postgres-shared.js";
-import { mintShortUrl } from "./short-url.js";
+import { findCanonicalShortId, mintShortUrl } from "./short-url.js";
 
 // ============================================================================
 // ROW TYPES
@@ -361,7 +361,10 @@ export async function loadByShortId(pool: Pool, shortId: string): Promise<ShareP
     [shortId],
   );
 
-  if (result.rows.length === 0) return null;
+  if (result.rows.length === 0) {
+    const canonicalShortId = await findCanonicalShortId(pool, "track_short_url_aliases", shortId);
+    return canonicalShortId ? loadByShortId(pool, canonicalShortId) : null;
+  }
   return buildSharePageResult(result.rows as TrackWithLinkRow[]);
 }
 
@@ -746,7 +749,10 @@ export async function loadSharePageResult(pool: Pool, shortId: string): Promise<
     [shortId],
   );
 
-  if (result.rows.length === 0) return null;
+  if (result.rows.length === 0) {
+    const canonicalShortId = await findCanonicalShortId(pool, "track_short_url_aliases", shortId);
+    return canonicalShortId ? loadSharePageResult(pool, canonicalShortId) : null;
+  }
 
   const firstRow = result.rows[0] as TrackWithLinkRow;
   const artists = safeParseArray(firstRow.artists);
