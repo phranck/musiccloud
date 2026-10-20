@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import observedSpotifyCandidates from "../../spotify/__tests__/fixtures/get-lucky-candidates.json";
 
 /**
  * The adapter contract: a lookup or search answers "nothing" only when the
@@ -42,19 +43,70 @@ afterEach(() => {
 });
 
 describe("Spotify", () => {
+  it("selects the observed studio recording through both public search methods", async () => {
+    fetchWithTimeoutMock.mockImplementation(async (input: string) => {
+      const params = new URL(input).searchParams;
+      const offset = Number(params.get("offset") ?? 0);
+      const limit = Number(params.get("limit") ?? 5);
+      return jsonResponse({ tracks: { items: observedSpotifyCandidates.tracks.items.slice(offset, offset + limit) } });
+    });
+    const query = { title: "Get Lucky", artist: "Daft Punk", artists: ["Daft Punk"] };
+    const plain = await spotifyAdapter.searchTrack(query);
+    const candidates = await spotifyAdapter.searchTrackWithCandidates(query);
+    for (const result of [plain, candidates.bestMatch]) {
+      expect(result.found).toBe(true);
+      expect(result.track?.sourceId).toBe("69kOkLUCkxIZYexIgSG8rq");
+      expect(result.track?.isrc).toBe("USQX91300108");
+      expect(result.confidence).toBeCloseTo(0.8);
+    }
+    expect(candidates.candidates.every((candidate) => candidate.track.isrc === "USQX91300108")).toBe(true);
+  });
+
+  it("rejects an incomplete candidate miss when a later page failed", async () => {
+    const cover = observedSpotifyCandidates.tracks.items.find((track) => track.external_ids.isrc === "BXCPT2000157");
+    fetchWithTimeoutMock.mockImplementation(async (input: string) => {
+      const offset = Number(new URL(input).searchParams.get("offset") ?? 0);
+      return offset === 0
+        ? jsonResponse({ tracks: { items: Array.from({ length: 10 }, () => cover) } })
+        : jsonResponse({}, 503);
+    });
+    await expect(
+      spotifyAdapter.searchTrackWithCandidates({ title: "Get Lucky", artist: "Daft Punk", artists: ["Daft Punk"] }),
+    ).rejects.toThrow(/503/);
+  });
+
   it("throws when every search query failed", async () => {
     fetchWithTimeoutMock.mockImplementation(async () => jsonResponse({}, 503));
 
     await expect(spotifyAdapter.searchTrack({ title: "Alison", artist: "Slowdive" })).rejects.toThrow(/503/);
   });
 
-  it("answers from the queries that did answer when some failed", async () => {
+  it("rejects an incomplete negative search when one query failed", async () => {
     fetchWithTimeoutMock
       .mockResolvedValueOnce(jsonResponse({}, 503))
       .mockImplementation(async () => jsonResponse({ tracks: { items: [] } }));
 
-    await expect(spotifyAdapter.searchTrack({ title: "Alison", artist: "Slowdive" })).resolves.toMatchObject({
-      found: false,
+    await expect(spotifyAdapter.searchTrack({ title: "Alison", artist: "Slowdive" })).rejects.toThrow(/503/);
+  });
+
+  it("retains a verified positive recording when another query failed", async () => {
+    fetchWithTimeoutMock.mockResolvedValueOnce(jsonResponse({}, 503)).mockImplementation(async () =>
+      jsonResponse({
+        tracks: {
+          items: [
+            {
+              id: "69kOkLUCkxIZYexIgSG8rq",
+              name: "Get Lucky (feat. Pharrell Williams and Nile Rodgers)",
+              artists: [{ name: "Daft Punk" }, { name: "Pharrell Williams" }, { name: "Nile Rodgers" }],
+              external_ids: { isrc: "USQX91300108" },
+            },
+          ],
+        },
+      }),
+    );
+    await expect(spotifyAdapter.searchTrack({ title: "Get Lucky", artist: "Daft Punk" })).resolves.toMatchObject({
+      found: true,
+      track: { sourceId: "69kOkLUCkxIZYexIgSG8rq", isrc: "USQX91300108" },
     });
   });
 
@@ -72,12 +124,12 @@ describe("Apple Music", () => {
     await expect(appleMusicAdapter.findByIsrc("GBUM71029604")).rejects.toThrow(/500/);
   });
 
-  it("returns null when a storefront answered with nothing", async () => {
+  it("rejects an incomplete negative lookup when a storefront failed", async () => {
     fetchWithTimeoutMock
       .mockResolvedValueOnce(jsonResponse({}, 500))
       .mockImplementation(async () => jsonResponse({ data: [] }));
 
-    await expect(appleMusicAdapter.findByIsrc("GBUM71029604")).resolves.toBeNull();
+    await expect(appleMusicAdapter.findByIsrc("GBUM71029604")).rejects.toThrow(/500/);
   });
 
   it("throws when no storefront answered the search", async () => {

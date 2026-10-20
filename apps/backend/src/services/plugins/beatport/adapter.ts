@@ -1,12 +1,12 @@
 /**
  * @file Beatport adapter: track + release resolves via __NEXT_DATA__ scraping.
  *
- * Keyless (always available). Beatport has no public developer API,
- * but its Next.js-powered pages embed a `__NEXT_DATA__` JSON blob
- * that includes structured track and release data pulled from the
- * private API. This adapter parses that blob rather than scraping
- * HTML, which gives it access to fields like ISRC, BPM, key, and
- * release metadata that are not in the visible page markup.
+ * Uses keyless consumer pages and their `__NEXT_DATA__` hydration payload,
+ * not a guaranteed developer API. HTTP refusals remain failures. A readable
+ * hydration root alone does not establish an answered search: the requested
+ * tracks/releases collection and its basic row identity must be recognizable.
+ * Explicit empty collections are valid; missing or malformed collections throw
+ * so the resolver cannot cache a gateway/redesign response as catalog absence.
  *
  * "Album" in the rest of the app maps to Beatport's "release".
  * Release URLs are `beatport.com/release/{slug}/{id}` (not `/album/`)
@@ -28,9 +28,9 @@
  *
  * ## ISRC lookup through the site search
  *
- * Tracks carry an ISRC field, but Beatport exposes no ISRC-based
- * lookup endpoint that works without auth. `findByIsrc` searches the
- * site for the ISRC and keeps the result whose ISRC matches exactly.
+ * `findByIsrc` uses the same site-search contract and accepts only a returned
+ * row whose ISRC matches exactly. Release UPC metadata is retained, but this
+ * adapter implements no UPC lookup.
  *
  * ## OG-title fallback parsing
  *
@@ -55,6 +55,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -176,42 +177,47 @@ function extractTrackFromNextData(data: Record<string, unknown>): BeatportTrack 
   }
 }
 
-function extractSearchResultsFromNextData(data: Record<string, unknown>): BeatportTrack[] {
-  try {
-    const props = data.props as Record<string, unknown> | undefined;
-    const pageProps = props?.pageProps as Record<string, unknown> | undefined;
-    const dehydratedState = pageProps?.dehydratedState as Record<string, unknown> | undefined;
-    const queries = dehydratedState?.queries as Array<Record<string, unknown>> | undefined;
-
-    if (!queries) return [];
-
-    for (const q of queries) {
-      const state = q.state as Record<string, unknown> | undefined;
-      const stateData = state?.data as Record<string, unknown> | undefined;
-
-      // Search results
-      if (stateData && "tracks" in stateData) {
-        const tracks = stateData.tracks;
-        if (Array.isArray(tracks)) return tracks as BeatportTrack[];
-        // Beatport sometimes returns { count, data: [...] } instead of a direct array
-        const nested = (tracks as Record<string, unknown>)?.data;
-        if (Array.isArray(nested)) return nested as BeatportTrack[];
-        return [];
-      }
-
-      // Alternative: results array
-      if (stateData && Array.isArray(stateData)) {
-        return stateData.filter((item: unknown) => {
-          const record = item as Record<string, unknown>;
-          return record && typeof record.name === "string" && typeof record.id === "number";
-        }) as unknown as BeatportTrack[];
-      }
+/**
+ * Reads the requested hydrated search collection without converting parser
+ * failures into negative catalog evidence. Retains direct arrays, nested data
+ * arrays, and the existing direct track-result-array variant.
+ *
+ * @param data - Parsed __NEXT_DATA__, not proof that a search has answered.
+ * @param category - Tracks for text/ISRC lookup or releases for album search.
+ * @returns Reported rows, including an explicitly empty collection.
+ * @throws When hydration, the collection, or its required id/name is malformed.
+ */
+function extractSearchCollection<T extends { id: number; name: string }>(
+  data: Record<string, unknown>,
+  category: "tracks" | "releases",
+): T[] {
+  const props = data.props as Record<string, unknown> | undefined;
+  const pageProps = props?.pageProps as Record<string, unknown> | undefined;
+  const hydration = pageProps?.dehydratedState as Record<string, unknown> | undefined;
+  const queries = requireProviderCollection(
+    hydration?.queries as Array<{ state?: { data?: Record<string, unknown> | unknown[] } }> | undefined,
+    Service.Beatport,
+    `${category} search hydration`,
+  );
+  for (const query of queries) {
+    const state = query.state?.data;
+    let reported: unknown;
+    if (category === "tracks" && Array.isArray(state)) reported = state;
+    else if (state && !Array.isArray(state) && category in state) reported = state[category];
+    else continue;
+    const collection = Array.isArray(reported) ? reported : (reported as { data?: unknown[] } | null)?.data;
+    const rows = requireProviderCollection(collection, Service.Beatport, `${category} search results`);
+    if (
+      rows.some((item) => {
+        const row = item as { id?: unknown; name?: unknown } | null;
+        return !row || typeof row.id !== "number" || !row.id || typeof row.name !== "string" || !row.name.trim();
+      })
+    ) {
+      throw new UpstreamUnavailableError("beatport", `${category} search returned invalid row identity`);
     }
-
-    return [];
-  } catch {
-    return [];
+    return rows as T[];
   }
+  throw new UpstreamUnavailableError("beatport", `${category} search hydration omitted its result collection`);
 }
 
 function mapTrack(track: BeatportTrack): NormalizedTrack {
@@ -311,30 +317,6 @@ function extractReleaseFromNextData(data: Record<string, unknown>): BeatportRele
   }
 }
 
-function extractReleaseSearchFromNextData(data: Record<string, unknown>): BeatportRelease[] {
-  try {
-    const props = data.props as Record<string, unknown> | undefined;
-    const pageProps = props?.pageProps as Record<string, unknown> | undefined;
-    const dehydratedState = pageProps?.dehydratedState as Record<string, unknown> | undefined;
-    const queries = dehydratedState?.queries as Array<Record<string, unknown>> | undefined;
-    if (!queries) return [];
-
-    for (const q of queries) {
-      const state = q.state as Record<string, unknown> | undefined;
-      const stateData = state?.data as Record<string, unknown> | undefined;
-      if (stateData && "releases" in stateData) {
-        const releases = stateData.releases;
-        if (Array.isArray(releases)) return releases as BeatportRelease[];
-        const nested = (releases as Record<string, unknown>)?.data;
-        if (Array.isArray(nested)) return nested as BeatportRelease[];
-      }
-    }
-    return [];
-  } catch {
-    return [];
-  }
-}
-
 function mapRelease(release: BeatportRelease): NormalizedAlbum {
   const artists = release.artists?.map((a) => a.name).filter(Boolean) ?? ["Unknown Artist"];
   return {
@@ -395,7 +377,7 @@ export const beatportAdapter: ServiceAdapter = {
       isrc,
       Operation.IsrcLookup,
     );
-    const match = extractSearchResultsFromNextData(nextData).find((t) => t.isrc === isrc);
+    const match = extractSearchCollection<BeatportTrack>(nextData, "tracks").find((t) => t.isrc === isrc);
     return match ? mapTrack(match) : null;
   },
 
@@ -408,7 +390,7 @@ export const beatportAdapter: ServiceAdapter = {
       Operation.Search,
     );
 
-    const tracks = extractSearchResultsFromNextData(nextData);
+    const tracks = extractSearchCollection<BeatportTrack>(nextData, "tracks");
     if (tracks.length === 0) {
       log.debug("Beatport", "Search returned no tracks for:", q);
       return { found: false, confidence: 0, matchMethod: "search" };
@@ -451,7 +433,7 @@ export const beatportAdapter: ServiceAdapter = {
   },
 
   albumCapabilities: {
-    supportsUpc: true,
+    supportsUpc: false,
     supportsAlbumSearch: true,
     supportsTrackListing: false,
   },
@@ -476,7 +458,7 @@ export const beatportAdapter: ServiceAdapter = {
       Operation.Search,
     );
 
-    const releases = extractReleaseSearchFromNextData(nextData);
+    const releases = extractSearchCollection<BeatportRelease>(nextData, "releases");
     if (releases.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
     let bestMatch: NormalizedAlbum | null = null;

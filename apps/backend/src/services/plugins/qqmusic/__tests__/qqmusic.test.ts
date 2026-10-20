@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
 import { qqmusicAdapter } from "../adapter";
 
 afterEach(() => {
@@ -52,6 +53,20 @@ describe("QQ Music: searchTrack", () => {
     expect(result.track?.title).toBe("Take on Me");
     expect(result.track?.artists).toEqual(["a-ha"]);
     expect(result.confidence).toBeGreaterThan(0.6);
+  });
+
+  it.each(["track", "album"])("rejects a successful %s envelope without the requested collection", async (kind) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      Response.json({
+        code: 0,
+        "music.search.SearchCgiService": { code: 0, data: { body: {} } },
+      }),
+    );
+    const result =
+      kind === "track"
+        ? qqmusicAdapter.searchTrack({ title: "Get Lucky", artist: "Daft Punk" })
+        : qqmusicAdapter.searchAlbum?.({ title: "Random Access Memories", artist: "Daft Punk" });
+    await expect(result).rejects.toBeInstanceOf(UpstreamUnavailableError);
   });
 
   it("should return not found for empty results", async () => {

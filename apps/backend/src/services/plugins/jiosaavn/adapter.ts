@@ -1,11 +1,10 @@
 /**
  * @file JioSaavn (Indian) adapter: API client against the public `api.php`.
  *
- * Keyless (always available). JioSaavn's web and mobile clients talk
- * to a public `jiosaavn.com/api.php` endpoint with a `__call` query
- * parameter selecting the operation (`search.getResults`,
- * `content.getAlbumDetails`, etc.). The adapter calls the same
- * surface directly.
+ * Uses the consumer client's keyless `jiosaavn.com/api.php` surface, not a
+ * guaranteed stable developer API. Configuration availability does not prove
+ * upstream availability. The __call query parameter selects the operation,
+ * including search.getResults and content.getAlbumDetails.
  *
  * ## What counts as an answer
  *
@@ -17,6 +16,16 @@
  * as does every error status and every other body that is not JSON,
  * because the resolver remembers a returned miss for a month and skips the
  * service for that long.
+ *
+ * ## Tokens, catalog ids and query limits
+ *
+ * URL tokens are not numeric catalog ids. Album tokens first use version-4
+ * `webapi.get`, then content.getAlbumDetails retains the full date/listing.
+ * Artist metadata also requires version 4 and may report its canonical page
+ * under `urls.overview` or `urls.songs`. Search credits come from artistMap,
+ * with legacy string fallbacks. Album search keeps every word/volume and
+ * attempts only the original plus one punctuation-normalized query.
+ * `readAnswer` exposes a bounded sanitized refusal code, never provider text.
  *
  * ## Variable response shape: `{ songs: [...] }` or direct object
  *
@@ -95,13 +104,15 @@ interface JioSaavnAlbum {
   songs?: JioSaavnSong[];
 }
 
+/** Version-4 album search reports primary credits in artistMap, with music as a legacy fallback. */
 interface JioSaavnAlbumSearchResult {
   id: string;
   title: string;
   year?: string;
   perma_url: string;
   image: string;
-  music?: string; // artist name
+  music?: string; // artist name in legacy results
+  more_info?: JioSaavnAlbum["more_info"];
 }
 
 interface JioSaavnSong {
@@ -168,7 +179,13 @@ async function readAnswer<T>(response: Response, what: string): Promise<T | null
     throw new UpstreamUnavailableError("jiosaavn", `${what} answered a body that is not an object`);
   }
   if ("error" in body) {
-    throw new UpstreamUnavailableError("jiosaavn", `${what} answered an error: ${JSON.stringify(body.error)}`);
+    let code = "provider_refusal";
+    if (body.error && typeof body.error === "object" && "code" in body.error) {
+      const value = body.error.code;
+      if ((typeof value === "string" || typeof value === "number") && /^[A-Za-z0-9_-]{1,64}$/.test(String(value)))
+        code = String(value);
+    }
+    throw new UpstreamUnavailableError("jiosaavn", `${what} answered error ${code}`);
   }
   return body as T;
 }
@@ -251,7 +268,12 @@ async function searchSongs(query: string): Promise<JioSaavnSong[]> {
   return search<JioSaavnSong>("search.getResults", ResourceKind.Track, query);
 }
 
-function primaryArtistNames(album: JioSaavnAlbum): string[] {
+/**
+ * Reads primary credits consistently from search and detailed album documents.
+ * @param album - Version-4 artistMap or the legacy primary_artists string.
+ * @returns Reported primary names, empty when neither supported shape supplies them.
+ */
+function primaryArtistNames(album: Pick<JioSaavnAlbum, "more_info" | "primary_artists">): string[] {
   const structured = (album.more_info?.artistMap?.primary_artists ?? []).map((artist) => artist.name).filter(Boolean);
   if (structured.length > 0) return structured;
   return (album.primary_artists ?? "")
@@ -293,7 +315,29 @@ function mapAlbumToNormalized(album: JioSaavnAlbum & { id: string; title: string
   };
 }
 
+/**
+ * Reads complete album metadata after resolving a public token when necessary.
+ *
+ * URL tokens and numeric catalog ids are different identifiers. Version-4
+ * webapi.get supplies the latter; the existing detailed call supplies complete
+ * release dates and track listings without changing the stored catalog id.
+ *
+ * @param albumId - Numeric catalog id or opaque token from an album URL.
+ * @returns Detailed album metadata, or null for the provider's explicit absence.
+ * @throws Provider failures or a token document with an invalid catalog id.
+ */
 async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
+  if (!/^\d+$/.test(albumId)) {
+    const tokenUrl = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(albumId)}&type=album&api_version=4&_format=json&_marker=0&ctx=web6dot0`;
+    const response = await jiosaavnFetch(tokenUrl);
+    if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Album, albumId);
+    const resolved = await readAnswer<JioSaavnAlbum>(response, `album token ${albumId}`);
+    if (!resolved?.id || !resolved.title) return null;
+    if (!/^\d+$/.test(resolved.id)) {
+      throw new UpstreamUnavailableError("jiosaavn", `album token ${albumId} answered with an invalid catalog id`);
+    }
+    albumId = resolved.id;
+  }
   const url = `https://www.jiosaavn.com/api.php?__call=content.getAlbumDetails&albumid=${encodeURIComponent(albumId)}&_format=json&_marker=0&ctx=web6dot0`;
   const response = await jiosaavnFetch(url);
   if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Album, albumId);
@@ -310,11 +354,13 @@ async function searchAlbums(query: string): Promise<JioSaavnAlbumSearchResult[]>
   return search<JioSaavnAlbumSearchResult>("search.getAlbumResults", ResourceKind.Album, query);
 }
 
+/** Artist metadata uses a catalog id and separately reports its token-based public URLs. */
 interface JioSaavnArtist {
   artistId: string;
   name: string;
   image: string;
-  perma_url: string;
+  perma_url?: string;
+  urls?: { overview?: string; songs?: string };
 }
 
 interface JioSaavnArtistSearchResult {
@@ -325,21 +371,32 @@ interface JioSaavnArtistSearchResult {
   description?: string;
 }
 
+/**
+ * Reads the current artist document using its opaque public-page token.
+ *
+ * @param artistId - Token returned by the artist URL detector, not its numeric catalog id.
+ * @returns The artist and provider-reported canonical page, or null for explicit absence.
+ * @throws Provider refusals or a document without a compatible public artist URL.
+ */
 async function getArtistById(artistId: string): Promise<NormalizedArtist | null> {
-  const url = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(artistId)}&type=artist&n_song=0&n_album=0&_format=json&_marker=0&ctx=web6dot0`;
+  const url = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(artistId)}&type=artist&n_song=0&n_album=0&api_version=4&_format=json&_marker=0&ctx=web6dot0`;
   const response = await jiosaavnFetch(url);
   if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Artist, artistId);
 
   // A token JioSaavn does not know answers an empty body or an artist without `artistId`.
   const data = await readAnswer<JioSaavnArtist>(response, `artist ${artistId}`);
   if (!data?.artistId || !data?.name) return null;
+  const webUrl = data.perma_url ?? data.urls?.overview ?? data.urls?.songs;
+  if (!webUrl || JIOSAAVN_ARTIST_REGEX.exec(webUrl)?.[1] !== artistId) {
+    throw new UpstreamUnavailableError("jiosaavn", `artist ${artistId} answered without a compatible public URL`);
+  }
 
   return {
     sourceService: "jiosaavn",
     sourceId: data.artistId,
     name: data.name,
     imageUrl: data.image?.replace(/150x150|50x50/, "500x500"),
-    webUrl: data.perma_url ?? `https://www.jiosaavn.com/artist/-/${data.artistId}`,
+    webUrl,
   };
 }
 
@@ -419,7 +476,8 @@ export const jiosaavnAdapter: ServiceAdapter = {
   },
 
   albumCapabilities: {
-    supportsUpc: true,
+    // UPC metadata may be returned; no UPC lookup operation is implemented.
+    supportsUpc: false,
     supportsAlbumSearch: true,
     supportsTrackListing: true,
   },
@@ -435,36 +493,46 @@ export const jiosaavnAdapter: ServiceAdapter = {
     return album;
   },
 
+  /**
+   * Searches the original album credit and one punctuation-normalized alternative.
+   * @param query - Unchanged title, artist and edition evidence used for every score.
+   * @returns A qualifying detailed album without dropping volume words from the lookup.
+   * @throws Provider failures instead of interpreting a failed alternative as absence.
+   */
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
-    const q = `${query.artist} ${query.title}`;
-    const results = await searchAlbums(q);
-    if (results.length === 0) {
-      log.debug("JioSaavn", "Album search returned no results for:", q);
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    log.debug("JioSaavn", `Album search returned ${results.length} results for: ${q}`);
-
+    const plainTitle = query.title
+      .replace(/[!.]/g, " ")
+      .replace(/\s+-\s+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const alternatives = [...new Set([`${query.artist} ${query.title}`, `${query.artist} ${plainTitle}`])];
     let bestMatch: NormalizedAlbum | null = null;
     let bestConfidence = 0;
 
-    for (const r of results) {
-      const artists = r.music ? [r.music] : ["Unknown Artist"];
-      const confidence = scoreAlbumCandidate(query, { title: r.title, artists, releaseDate: r.year });
-      log.debug("JioSaavn", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        if (bestConfidence > 0.4) {
+    for (const text of alternatives) {
+      const results = await searchAlbums(text);
+      log.debug("JioSaavn", `Album search returned ${results.length} results for: ${text}`);
+      for (const r of results) {
+        const primary = primaryArtistNames(r);
+        const artists = primary.length > 0 ? primary : r.music ? [r.music] : ["Unknown Artist"];
+        const confidence = scoreAlbumCandidate(query, { title: r.title, artists, releaseDate: r.year });
+        log.debug("JioSaavn", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
+        if (confidence > bestConfidence && confidence > 0.4) {
           const full = await getAlbumById(r.id);
-          if (full) bestMatch = full;
+          if (!full) continue;
+          // Only the returned full metadata and its own score may become a destination.
+          const fullConfidence = scoreAlbumCandidate(query, full);
+          if (fullConfidence > bestConfidence) {
+            bestConfidence = fullConfidence;
+            bestMatch = full;
+          }
         }
       }
+      if (bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE) {
+        return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+      }
     }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    return { found: false, confidence: bestConfidence, matchMethod: "search" };
   },
   // --- Artist support ---
 

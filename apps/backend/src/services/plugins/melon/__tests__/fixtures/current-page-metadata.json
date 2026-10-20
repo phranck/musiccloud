@@ -1,0 +1,55 @@
+{
+  "track": {
+    "service": "melon",
+    "path": "/song/detail.htm?songId=4118346",
+    "status": 200,
+    "tags": [
+      "<meta property=\"og:title\" content=\"Get Lucky (feat. Pharrell Williams and Nile Rodgers) - Daft Punk, Pharrell Williams, Nile Rodgers\"/>",
+      "<meta property=\"og:description\" content=\"음악이 필요한 순간, 멜론\"/>",
+      "<meta property=\"og:type\" content=\"website\"/>"
+    ],
+    "schemas": [
+      {
+        "keys": [
+          "@context",
+          "@type",
+          "@id",
+          "url",
+          "image",
+          "name",
+          "sameAs",
+          "description",
+          "inAlbum",
+          "potentialAction"
+        ],
+        "value": {
+          "@type": "MusicRecording",
+          "name": "Get Lucky (feat. Pharrell Williams and Nile Rodgers)",
+          "inAlbum": {
+            "@type": "MusicAlbum",
+            "name": "Random Access Memories"
+          }
+        }
+      }
+    ]
+  },
+  "album": {
+    "service": "melon",
+    "path": "/album/detail.htm?albumId=2185777",
+    "status": 200,
+    "tags": [
+      "<meta property=\"og:title\" content=\"Random Access Memories - Daft Punk\"/>",
+      "<meta property=\"og:description\" content=\"음악이 필요한 순간, 멜론\"/>",
+      "<meta property=\"og:type\" content=\"website\"/>"
+    ],
+    "schemas": [
+      {
+        "keys": ["@context", "@type", "url", "image", "name", "sameAs", "description", "potentialAction"],
+        "value": {
+          "@type": "MusicAlbum",
+          "name": "Random Access Memories"
+        }
+      }
+    ]
+  }
+}

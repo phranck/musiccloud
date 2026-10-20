@@ -1,0 +1,125 @@
+{
+  "total": 4,
+  "results": [
+    {
+      "id": "1527849",
+      "title": "Singing Today's Hits! - Vol. 1",
+      "type": "album",
+      "perma_url": "https://www.jiosaavn.com/album/singing-todays-hits-vol.-1/fZKfu-Ey4oA_",
+      "more_info": {
+        "music": null,
+        "artistMap": {
+          "primary_artists": [
+            {
+              "id": "1273866",
+              "name": "Karaoke Idols",
+              "role": "primary_artists",
+              "type": "artist",
+              "perma_url": "https://www.jiosaavn.com/artist/karaoke-idols-songs/LmR4m2rZchQ_"
+            }
+          ],
+          "featured_artists": [],
+          "artists": [
+            {
+              "id": "1273866",
+              "name": "Karaoke Idols",
+              "role": "singers",
+              "type": "artist",
+              "perma_url": "https://www.jiosaavn.com/artist/karaoke-idols-songs/LmR4m2rZchQ_"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1527850",
+      "title": "Singing Today's Hits! - Vol. 2",
+      "type": "album",
+      "perma_url": "https://www.jiosaavn.com/album/singing-todays-hits-vol.-2/VhCKedKv5xQ_",
+      "more_info": {
+        "music": null,
+        "artistMap": {
+          "primary_artists": [
+            {
+              "id": "1273866",
+              "name": "Karaoke Idols",
+              "role": "primary_artists",
+              "type": "artist",
+              "perma_url": "https://www.jiosaavn.com/artist/karaoke-idols-songs/LmR4m2rZchQ_"
+            }
+          ],
+          "featured_artists": [],
+          "artists": [
+            {
+              "id": "1273866",
+              "name": "Karaoke Idols",
+              "role": "singers",
+              "type": "artist",
+              "perma_url": "https://www.jiosaavn.com/artist/karaoke-idols-songs/LmR4m2rZchQ_"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1527851",
+      "title": "Singing Today's Hits! - Vol. 3",
+      "type": "album",
+      "perma_url": "https://www.jiosaavn.com/album/singing-todays-hits-vol.-3/yVs4jTTb0-c_",
+      "more_info": {
+        "music": null,
+        "artistMap": {
+          "primary_artists": [
+            {
+              "id": "1273866",
+              "name": "Karaoke Idols",
+              "role": "primary_artists",
+              "type": "artist",
+              "perma_url": "https://www.jiosaavn.com/artist/karaoke-idols-songs/LmR4m2rZchQ_"
+            }
+          ],
+          "featured_artists": [],
+          "artists": [
+            {
+              "id": "1273866",
+              "name": "Karaoke Idols",
+              "role": "singers",
+              "type": "artist",
+              "perma_url": "https://www.jiosaavn.com/artist/karaoke-idols-songs/LmR4m2rZchQ_"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1527852",
+      "title": "Singing Today's Hits! - Vol. 4",
+      "type": "album",
+      "perma_url": "https://www.jiosaavn.com/album/singing-todays-hits-vol.-4/ddRRgZ2LVbo_",
+      "more_info": {
+        "music": null,
+        "artistMap": {
+          "primary_artists": [
+            {
+              "id": "1273866",
+              "name": "Karaoke Idols",
+              "role": "primary_artists",
+              "type": "artist",
+              "perma_url": "https://www.jiosaavn.com/artist/karaoke-idols-songs/LmR4m2rZchQ_"
+            }
+          ],
+          "featured_artists": [],
+          "artists": [
+            {
+              "id": "1273866",
+              "name": "Karaoke Idols",
+              "role": "singers",
+              "type": "artist",
+              "perma_url": "https://www.jiosaavn.com/artist/karaoke-idols-songs/LmR4m2rZchQ_"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

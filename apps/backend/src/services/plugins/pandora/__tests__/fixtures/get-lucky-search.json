@@ -1,0 +1,70 @@
+{
+  "results": ["TR:45507014", "TR:26975307", "TR:5340420", "TR:72659536", "TR:2198273"],
+  "annotations": {
+    "TR:45507014": {
+      "pandoraId": "TR:45507014",
+      "artistName": "Daft Punk",
+      "explicitness": "NONE",
+      "name": "Get Lucky (feat. Pharrell Williams and Nile Rodgers)",
+      "shareableUrlPath": "/artist/daft-punk/decade-of-summer-the-10s/get-lucky-feat-pharrell-williams-and-nile-rodgers/TRnggPwvfn3dKZZ",
+      "isrc": "USQX91300108",
+      "duration": 370,
+      "type": "TR",
+      "albumName": "Decade of Summer: The 10s",
+      "durationMillis": 369620,
+      "trackNumber": 17
+    },
+    "TR:26975307": {
+      "pandoraId": "TR:26975307",
+      "artistName": "Lowland",
+      "explicitness": "NONE",
+      "name": "Get Lucky (Originally performed by Daft Punk)",
+      "shareableUrlPath": "/artist/lowland/classical-trancelations-3-live-in-helsinki/get-lucky-originally-performed-by-daft-punk/TRjd5hh4w4XfVjg",
+      "isrc": "NLF711913449",
+      "duration": 290,
+      "type": "TR",
+      "albumName": "Classical Trancelations 3 (Live in Helsinki)",
+      "durationMillis": 290230,
+      "trackNumber": 11
+    },
+    "TR:5340420": {
+      "pandoraId": "TR:5340420",
+      "artistName": "Vitamin String Quartet",
+      "explicitness": "NONE",
+      "name": "Get Lucky",
+      "shareableUrlPath": "/artist/vitamin-string-quartet/vitamin-string-quartet-performs-daft-punks-random-access-memories/get-lucky/TRwJxrmphtgckkP",
+      "isrc": "USEWC1388879",
+      "duration": 293,
+      "type": "TR",
+      "albumName": "Vitamin String Quartet Performs Daft Punk's Random Access Memories",
+      "durationMillis": 293160,
+      "trackNumber": 8
+    },
+    "TR:72659536": {
+      "pandoraId": "TR:72659536",
+      "artistName": "Daft Punk Experience & Zico Oliveira",
+      "explicitness": "NONE",
+      "name": "Get Lucky",
+      "shareableUrlPath": "/artist/daft-punk-experience-and-zico-oliveira/get-lucky/get-lucky/TRflPd6xqJ3rnjm",
+      "isrc": "BXCPT2000157",
+      "duration": 205,
+      "type": "TR",
+      "albumName": "Get Lucky",
+      "durationMillis": 204920,
+      "trackNumber": 1
+    },
+    "TR:2198273": {
+      "pandoraId": "TR:2198273",
+      "artistName": "Daft Punk",
+      "explicitness": "NONE",
+      "name": "Get Lucky (Radio Edit - feat. Pharrell Williams and Nile Rodgers)",
+      "shareableUrlPath": "/artist/daft-punk/get-lucky-radio-edit-feat-pharrell-williams-and-nile-rodgers/get-lucky-radio-edit-feat-pharrell-williams-and-nile-rodgers/TRV4k4P4lv7g7ng",
+      "isrc": "USQX91300809",
+      "duration": 248,
+      "type": "TR",
+      "albumName": "Get Lucky (Radio Edit - feat. Pharrell Williams and Nile Rodgers)",
+      "durationMillis": 248410,
+      "trackNumber": 1
+    }
+  }
+}

@@ -25,27 +25,16 @@ import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 /**
  * @file Qobuz adapter: track + album + artist resolves against the Qobuz API.
  *
- * Technically keyless in the credential sense (the manifest lists its
- * account only under `optionalEnv`) but in practice credentialed: the public endpoints
- * return 401 from Czech Republic / other geo-restricted regions
- * unless a user auth token is attached. The adapter supports both
- * modes via `QOBUZ_EMAIL` / `QOBUZ_PASSWORD`. Without them, resolves
- * work from unrestricted IPs but fail from Zerops (CZ-based).
+ * The manifest requires no account. Optional QOBUZ_EMAIL/QOBUZ_PASSWORD enable
+ * account authentication; QOBUZ_APP_ID overrides the app identifier selected by
+ * getAppId. These settings do not prove regional access or working credentials.
+ * Public metadata controls establish only the observed request/account profile.
  *
- * ## App-ID workaround
- *
- * Qobuz's web-player app_ids (`377257687`, `798273057`) are blocked
- * from `/user/login`: even with valid credentials they return 401.
- * The Chromecast app_id (`425621600`, extracted from the Qobuz web
- * bundle and referenced publicly) accepts the standard email/password
- * login flow, so that is the default. `QOBUZ_APP_ID` is a user-
- * settable env override for the case where Qobuz revokes this id.
- *
- * ## 24h auth token with 401-retry
- *
- * User auth tokens live 24 hours. The adapter caches one and re-uses
- * it for all subsequent calls. If any API call returns 401 with a
- * valid-looking cached token, the cache is cleared and a fresh login
+ * Authentication belongs to explicit metadata requests, not module imports.
+ * qobuzApiFetch calls getAuthToken, which coalesces concurrent login attempts.
+ * AUTH_TOKEN_TTL_MS owns the local token-cache lifetime; it is not a promise
+ * about the provider's token validity or the recording miss cache. If any API call returns 401 with a
+ * cached token, the cache is cleared and a fresh login
  * is attempted once; that single retry covers cases where Qobuz
  * invalidated the token early (on password change, server cycle,
  * etc.). Login request coalescing via `authTokenPromise` ensures a
@@ -65,14 +54,10 @@ import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
  *
  * ## Available regardless of config
  *
- * Unlike most credentialed adapters, Qobuz counts as available even
- * when `QOBUZ_EMAIL` is unset, because its manifest requires no
- * variable. This is intentional:
- * the URL detection path (`detectUrl`) must still work so that a
- * pasted Qobuz URL gets routed here (and produces a
- * `SERVICE_DISABLED` or a specific API error) instead of falling
- * through to `NOT_MUSIC_LINK`. Without it, disabled/unconfigured
- * Qobuz URLs would look like unknown music services.
+ * Registry availability is a configuration gate because the manifest requires
+ * no variable. HTTP responses still decide request availability. The registry
+ * asks every plugin detector when classifying inactive links, independently of
+ * enabled state, so a disabled Qobuz URL remains recognizable.
  *
  * ## Full capability surface
  *
@@ -99,8 +84,8 @@ const API_BASE = "https://www.qobuz.com/api.json/0.2";
 
 // --- App ID management ---
 
-// Chromecast app_id from Qobuz web bundle. The web-player app_ids are blocked
-// from /user/login (401), so we use this one instead. Override via env if needed.
+// Existing consumer app identifier. Configuration can override it; a chosen
+// identifier does not guarantee API access or a successful account login.
 const DEFAULT_APP_ID = "425621600";
 let cachedAppId: string = process.env.QOBUZ_APP_ID || DEFAULT_APP_ID;
 if (process.env.QOBUZ_APP_ID) log.debug("Qobuz", "Using QOBUZ_APP_ID from environment");
@@ -363,19 +348,6 @@ function mapTrack(data: QobuzTrack): NormalizedTrack {
     webUrl: `https://open.qobuz.com/track/${trackId}`,
   };
 }
-
-// Eagerly authenticate on import so the first user request doesn't pay the latency.
-getAuthToken().catch((error) =>
-  log.deviation(
-    {
-      component: "Qobuz",
-      errorCode: "MC-AUTH-2401",
-      operation: "qobuz_token_prewarm",
-      outcome: "lazy_request_retry",
-    },
-    error,
-  ),
-);
 
 // --- Adapter ---
 

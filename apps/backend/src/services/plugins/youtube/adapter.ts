@@ -60,6 +60,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
 
 // Matches YouTube channel/artist URLs:
 //   youtube.com/@handle, youtube.com/channel/UCxxxx, music.youtube.com/channel/UCxxxx
@@ -218,7 +219,7 @@ export const youtubeAdapter: ServiceAdapter = {
     }
 
     const data = await response.json();
-    const items: YouTubeVideoResource[] = data.items ?? [];
+    const items = requireProviderCollection<YouTubeVideoResource>(data.items, Service.YouTube, "video lookup");
 
     if (items.length === 0) {
       throw serviceNotFoundError(Service.YouTube, ResourceKind.Track, videoId);
@@ -245,7 +246,7 @@ export const youtubeAdapter: ServiceAdapter = {
     }
 
     const data = await response.json();
-    const items: YouTubeSearchItem[] = data.items ?? [];
+    const items = requireProviderCollection<YouTubeSearchItem>(data.items, Service.YouTube, "video search");
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };
@@ -258,7 +259,11 @@ export const youtubeAdapter: ServiceAdapter = {
       throw serviceHttpError(Service.YouTube, detailsResponse.status, ResourceKind.Track, videoIds);
     }
     const detailsData = await detailsResponse.json();
-    const videos: YouTubeVideoResource[] = detailsData.items ?? [];
+    const videos = requireProviderCollection<YouTubeVideoResource>(
+      detailsData.items,
+      Service.YouTube,
+      "search video details",
+    );
 
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
@@ -316,7 +321,7 @@ export const youtubeAdapter: ServiceAdapter = {
     }
 
     const data = await response.json();
-    const channels: YouTubeChannelResource[] = data.items ?? [];
+    const channels = requireProviderCollection<YouTubeChannelResource>(data.items, Service.YouTube, "channel lookup");
 
     if (channels.length === 0) {
       throw serviceNotFoundError(Service.YouTube, ResourceKind.Artist, artistId);
@@ -334,7 +339,11 @@ export const youtubeAdapter: ServiceAdapter = {
     }
 
     const data = await response.json();
-    const items: Array<{ id: { channelId: string }; snippet: YouTubeSnippet }> = data.items ?? [];
+    const items = requireProviderCollection<{ id: { channelId: string }; snippet: YouTubeSnippet }>(
+      data.items,
+      Service.YouTube,
+      "channel search",
+    );
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };
@@ -347,7 +356,11 @@ export const youtubeAdapter: ServiceAdapter = {
       throw serviceHttpError(Service.YouTube, detailsResponse.status, ResourceKind.Artist, channelIds);
     }
     const detailsData = await detailsResponse.json();
-    const channels: YouTubeChannelResource[] = detailsData.items ?? [];
+    const channels = requireProviderCollection<YouTubeChannelResource>(
+      detailsData.items,
+      Service.YouTube,
+      "search channel details",
+    );
 
     let bestMatch: NormalizedArtist | null = null;
     let bestConfidence = 0;

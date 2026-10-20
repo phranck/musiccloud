@@ -11,10 +11,10 @@
  *   private key (PKCS#8 PEM). Line breaks can be `\n`-escaped when
  *   the env var is set from a config UI; the loader handles both.
  *
- * The token is signed here with `jose` using ES256, valid for 180
- * days, and cached in-process. See `warmAppleMusicToken` which is
- * called once at server startup so the first real request does not
- * pay the JWT-sign cost.
+ * `generateToken` signs with `jose`/ES256 or uses `APPLE_MUSIC_TOKEN`.
+ * `getDevToken` owns the in-process cache and coalesces refreshes; its lifetime
+ * and refresh margin are the constants beside that implementation, not a
+ * catalog-cache lifetime. `warmAppleMusicToken` can prepare it at startup.
  *
  * ## Storefront-specific IDs
  *
@@ -40,11 +40,14 @@
  *
  * ## Full capability surface
  *
- * Track, album (with UPC + track listing), and artist resolves are
- * all supported. ISRC lookup (`findByIsrc`) works via the search
- * endpoint with exact-ISRC filter. This makes Apple Music a primary
- * source in the cross-service resolve pipeline along with Spotify
- * and Deezer.
+ * Track, album and artist retrieval/search are implemented. Album responses
+ * retain UPC metadata and included tracks, but no UPC lookup is implemented.
+ * `findByIsrc` uses the catalog songs endpoint with `filter[isrc]`, not text
+ * search. A missing search category inside a valid `results` object is empty;
+ * an absent root or malformed collection is an upstream failure. Regional 404
+ * fallback may end in a completed miss if another storefront answers. Other
+ * failed storefronts prevent clean negatives; retained positives log one partial
+ * deviation. Required payload errors still throw at their decoder.
  *
  * ## No previews
  *
@@ -62,15 +65,17 @@
  * adapter leaves it out as well. The same section of the agreement allows
  * Apple Music artwork only together with MusicKit playback, which musiccloud
  * does not offer. The resolvers borrow the cover of another matched service
- * through `pickArtworkUrl` in `services/artwork.ts`, and show none where no
+ * through `pickRecordingArtworkUrl` in `services/artwork.ts`, and show none where no
  * other service has one. Decided in issue #622.
  */
 import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { importPKCS8, SignJWT } from "jose";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
+import { log } from "../../../lib/infra/logger";
 import { ResolveError } from "../../../lib/resolve/errors";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AdapterCapabilities,
   AlbumCapabilities,
@@ -88,6 +93,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { requireProviderCollection, requireProviderObject } from "../_shared/provider-response.js";
 
 /**
  * Apple Music URL regex - URL-based flows (detectUrl / detectAlbumUrl).
@@ -125,7 +131,7 @@ const DEFAULT_STOREFRONT = "us";
  * Apple Music track / album / artist IDs are **storefront-specific**: the same
  * numeric ID may exist in one country's catalog and return 404 in another.
  * Resolving a URL against the wrong storefront therefore fails with a confusing
- * "not found" - even though the item is perfectly legal in its own region.
+ * "not found" even though the item exists in its own storefront.
  *
  * Flow:
  * 1. `detectUrl` / `detectAlbumUrl` / `detectArtistUrl` extract the storefront
@@ -153,15 +159,14 @@ function parseStorefrontId(input: string): { storefront: string; id: string } {
 /**
  * Fallback storefronts for cross-service queries that have no URL-derived
  * storefront (i.e. {@link findByIsrc}, {@link searchTrack}, {@link searchAlbum},
- * {@link searchArtist}). Ordered by global catalog size; the cascade is bounded
- * to keep latency predictable.
+ * {@link searchArtist}). This is an explicit fallback sequence, not a claim
+ * about catalog-size ranking. The attempt count is bounded.
  */
 const FALLBACK_STOREFRONTS = ["us", "gb", "de", "jp", "fr"] as const;
 
 /**
- * Maximum number of storefronts to query in a cascade. Each step costs one
- * sequential API round-trip (~150-300ms), so 5 caps worst-case latency at
- * ~1-2s. Most queries hit on the first store and never reach the cap.
+ * Maximum storefront attempts. Request timeouts belong to appleMusicFetch;
+ * this bounds request count, not a guaranteed end-to-end latency.
  */
 const STOREFRONT_CASCADE_LIMIT = 5;
 
@@ -176,10 +181,9 @@ const STOREFRONT_CASCADE_LIMIT = 5;
  * 3. {@link FALLBACK_STOREFRONTS} (large global catalogs)
  *
  * Notes:
- * - ISRC country codes are ISO 3166-1 alpha-2, matching Apple's storefront
- *   codes 1:1 for the common cases (DE, US, GB, JP, FR, …). Synthetic prefixes
- *   like `QM*`/`ZA*` are accepted but the API will simply return no results
- *   for unknown storefronts; the cascade then falls through to the next entry.
+ * - An ISRC registrant prefix is only a lookup hint, not proof of regional
+ *   availability or a supported Apple storefront. Unavailable storefronts
+ *   fall through under StorefrontCascadeOutcome's status rules.
  * - The list is deduped (case-insensitive) and capped at
  *   {@link STOREFRONT_CASCADE_LIMIT}.
  */
@@ -333,29 +337,53 @@ function appleMusicHttpError(status: number, kind: ResourceKind, id: string, sto
 }
 
 /**
- * Tracks whether any storefront of a cascade answered. A storefront that
- * answered with nothing is a real "not here"; when every storefront failed,
- * the cascade is an outage and must throw, because the resolver remembers a
- * miss for a month and a rate limit is not one.
+ * Keeps positive evidence without manufacturing a complete negative from a failed cascade.
+ * A 404 storefront may be unavailable while another storefront answers; an
+ * authentication, quota or server failure still prevents caching a clean miss.
  */
 class StorefrontCascadeOutcome {
   private answered = false;
   private lastFailure: { status: number; storefront: string } | null = null;
 
-  /** @returns Whether the storefront answered and its body may be read. */
+  /** Records response status and returns whether its document may be decoded. */
   record(response: Response, storefront: string): boolean {
     if (response.ok) {
       this.answered = true;
       return true;
     }
-    this.lastFailure = { status: response.status, storefront };
+    if (!this.lastFailure || response.status !== 404) {
+      this.lastFailure = { status: response.status, storefront };
+    }
     return false;
   }
 
-  /** @throws The last storefront's error when no storefront answered. */
-  throwIfNoStorefrontAnswered(kind: ResourceKind, id: string): void {
-    if (!this.answered && this.lastFailure) {
-      throw appleMusicHttpError(this.lastFailure.status, kind, id, this.lastFailure.storefront);
+  /**
+   * Rejects incomplete negative evidence while retaining a validated positive match.
+   * @param kind - Resource being matched.
+   * @param id - Public lookup identifier or search title.
+   * @param matched - Whether a qualifying resource was found despite another failure.
+   * @throws The provider failure when no positive evidence resolves the uncertainty.
+   */
+  throwIfUnresolved(kind: ResourceKind, id: string, matched = false): void {
+    if (!this.lastFailure) return;
+    const { status, storefront } = this.lastFailure;
+    if (!matched && (!this.answered || status !== 404)) {
+      throw appleMusicHttpError(status, kind, id, storefront);
+    }
+    if (matched && status !== 404) {
+      log.deviation(
+        {
+          component: "Apple Music",
+          adapterId: Service.AppleMusic,
+          errorCode: "MC-API-0004",
+          operation: "storefront_catalog_lookup",
+          outcome: "positive_partial_storefronts",
+          status,
+          storefront,
+          kind,
+        },
+        appleMusicHttpError(status, kind, id, storefront),
+      );
     }
   }
 }
@@ -407,6 +435,24 @@ interface AppleMusicAlbumResource {
       }>;
     };
   };
+}
+
+/**
+ * Reads Apple's valid empty result object without accepting a missing search envelope.
+ * @param results - Search results, where an absent category means no matching resources.
+ * @param category - Requested resource category, whose present data must be an array.
+ * @returns Reported resources or an empty list for an omitted category.
+ * @throws When the root result object or a present category's collection is malformed.
+ */
+function searchResources<Resource>(
+  results: Record<string, { data?: Resource[] }> | undefined,
+  category: "songs" | "albums" | "artists",
+): Resource[] {
+  const root = requireProviderObject(results, Service.AppleMusic, `${category} search`);
+  const resources = root[category];
+  return resources === undefined
+    ? []
+    : requireProviderCollection(resources?.data, Service.AppleMusic, `${category} search`);
 }
 
 function mapTrack(raw: AppleMusicSongResource): NormalizedTrack {
@@ -468,7 +514,8 @@ const capabilities: AdapterCapabilities = {
 };
 
 const albumCapabilities: AlbumCapabilities = {
-  supportsUpc: true,
+  // Returning UPC metadata does not implement findAlbumByUpc.
+  supportsUpc: false,
   supportsAlbumSearch: true,
   supportsTrackListing: true,
 };
@@ -592,12 +639,14 @@ export const appleMusicAdapter: ServiceAdapter = {
       if (!cascade.record(response, storefront)) continue;
 
       const data = await response.json();
-      const songs: AppleMusicSongResource[] = data.data ?? [];
+      const songs = requireProviderCollection<AppleMusicSongResource>(data.data, Service.AppleMusic, "ISRC lookup");
       if (songs.length === 0) continue;
 
-      return mapTrack(songs[0]);
+      const track = mapTrack(songs[0]);
+      cascade.throwIfUnresolved(ResourceKind.Track, isrc, true);
+      return track;
     }
-    cascade.throwIfNoStorefrontAnswered(ResourceKind.Track, isrc);
+    cascade.throwIfUnresolved(ResourceKind.Track, isrc);
     return null;
   },
 
@@ -619,7 +668,7 @@ export const appleMusicAdapter: ServiceAdapter = {
       if (!cascade.record(response, storefront)) continue;
 
       const data = await response.json();
-      const songs: AppleMusicSongResource[] = data.results?.songs?.data ?? [];
+      const songs = searchResources<AppleMusicSongResource>(data.results, "songs");
 
       for (let index = 0; index < songs.length; index++) {
         const track = mapTrack(songs[index]);
@@ -633,9 +682,13 @@ export const appleMusicAdapter: ServiceAdapter = {
 
       if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
     }
-    cascade.throwIfNoStorefrontAnswered(ResourceKind.Track, query.title);
+    cascade.throwIfUnresolved(
+      ResourceKind.Track,
+      query.title,
+      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
+    );
 
-    if (!bestMatch || bestConfidence < 0.6) {
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }
 
@@ -686,7 +739,7 @@ export const appleMusicAdapter: ServiceAdapter = {
       if (!cascade.record(response, storefront)) continue;
 
       const data = await response.json();
-      const albums: AppleMusicAlbumResource[] = data.results?.albums?.data ?? [];
+      const albums = searchResources<AppleMusicAlbumResource>(data.results, "albums");
 
       for (const album of albums) {
         const normalized = mapAlbum(album);
@@ -700,9 +753,13 @@ export const appleMusicAdapter: ServiceAdapter = {
 
       if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
     }
-    cascade.throwIfNoStorefrontAnswered(ResourceKind.Album, query.title);
+    cascade.throwIfUnresolved(
+      ResourceKind.Album,
+      query.title,
+      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
+    );
 
-    if (!bestMatch || bestConfidence < 0.6) {
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }
 
@@ -762,7 +819,7 @@ export const appleMusicAdapter: ServiceAdapter = {
       if (!cascade.record(response, storefront)) continue;
 
       const data = await response.json();
-      const artists: AppleMusicArtistResource[] = data.results?.artists?.data ?? [];
+      const artists = searchResources<AppleMusicArtistResource>(data.results, "artists");
 
       for (const raw of artists) {
         const artist = mapArtist(raw);
@@ -776,9 +833,13 @@ export const appleMusicAdapter: ServiceAdapter = {
 
       if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
     }
-    cascade.throwIfNoStorefrontAnswered(ResourceKind.Artist, query.name);
+    cascade.throwIfUnresolved(
+      ResourceKind.Artist,
+      query.name,
+      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
+    );
 
-    if (!bestMatch || bestConfidence < 0.6) {
+    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }
 

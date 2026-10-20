@@ -1,0 +1,14 @@
+[
+  {
+    "service": "audiomack",
+    "path": "/ti-blaze/song/round-one-elle-mummy-6276266",
+    "status": 200,
+    "tags": ["<meta property=\"og:title\" content=\"Round One (Elle Mummy) by T.I BLAZE: Listen on Audiomack\"/>"]
+  },
+  {
+    "service": "audiomack",
+    "path": "/folapondis/album/9-4108363",
+    "status": 200,
+    "tags": ["<meta property=\"og:title\" content=\"9 by FOLA: Listen on Audiomack\"/>"]
+  }
+]

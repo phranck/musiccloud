@@ -80,6 +80,47 @@ describe("Beatport: searchTrack", () => {
   });
 });
 
+/** Serializes a synthetic hydration envelope to exercise protocol robustness, not live coverage. */
+function searchPage(nextData: unknown): Response {
+  return new Response(`<script id="__NEXT_DATA__" type="application/json">${JSON.stringify(nextData)}</script>`);
+}
+
+for (const control of [
+  { name: "track", run: () => beatportAdapter.searchTrack({ title: "Strobe", artist: "deadmau5" }), key: "tracks" },
+  { name: "ISRC", run: () => beatportAdapter.findByIsrc("GBUM71029604"), key: "tracks" },
+  { name: "album", run: () => beatportAdapter.searchAlbum?.({ title: "Test", artist: "Test" }), key: "releases" },
+]) {
+  describe(`Beatport: ${control.name} nested search contract`, () => {
+    it.each([
+      {},
+      { props: { pageProps: { dehydratedState: { queries: [{ state: { data: {} } }] } } } },
+    ])("rejects hydration without the requested result collection (%j)", async (payload) => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(searchPage(payload));
+      await expect(control.run()).rejects.toThrow();
+    });
+
+    it("rejects unrecognized result rows instead of claiming absence", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        searchPage({
+          props: { pageProps: { dehydratedState: { queries: [{ state: { data: { [control.key]: [{}] } } }] } } },
+        }),
+      );
+      await expect(control.run()).rejects.toThrow();
+    });
+
+    it("accepts an explicit completed empty collection", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        searchPage({
+          props: { pageProps: { dehydratedState: { queries: [{ state: { data: { [control.key]: [] } } }] } } },
+        }),
+      );
+      const result = await control.run();
+      if (control.name === "ISRC") expect(result).toBeNull();
+      else expect(result).toMatchObject({ found: false });
+    });
+  });
+}
+
 describe("Beatport: adapter metadata", () => {
   it("should have correct id", () => {
     expect(beatportAdapter.id).toBe("beatport");

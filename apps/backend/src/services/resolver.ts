@@ -49,9 +49,11 @@
  * ISRC before text. A failed identifier request is an upstream failure, while
  * an actual empty identifier result permits text fallback. Adapters own their
  * HTTP contracts and candidate validation. `plugins/_shared/confidence.ts`
- * owns free-text interpretation and scoring; `track-search-query.ts` owns the
- * bounded credit-free alternatives and identity guards used by catalogue
- * fallbacks. Original display titles, artist, duration, and version survive.
+ * owns free-text interpretation, bounded title interpretations and recording
+ * guards. `track-search-query.ts` builds requests from that same policy.
+ * `recordingSearchQuery` applies verified provider artist-label interpretations
+ * to lookup values only. `resolveViaSearch` checks accepted adapter results
+ * again before link or negative-cache persistence. Canonical metadata survives.
  * `confidence.ts` interprets match methods; `constants.ts` owns acceptance gates.
  *
  * `normalizeTrackLinks` runs after source assembly and on completed deadline
@@ -104,6 +106,7 @@ import { getRepository } from "../db/index.js";
 import { createSingleFlight } from "../lib/concurrency.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
+import { UpstreamUnavailableError } from "../lib/infra/upstream-unavailable.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
 import { youtubeVideoId } from "../lib/platform/youtube-video.js";
 import { getPreviewExpiry, pickPreferredPreview } from "../lib/preview-url.js";
@@ -129,6 +132,7 @@ import {
   identifyService,
   isPluginAvailable,
 } from "./index.js";
+import { artistNameForSearch } from "./plugins/_shared/artists.js";
 import { isTrackSearchFallbackMatch } from "./plugins/_shared/track-search-query.js";
 import { keepRecordingArtwork } from "./recording-artwork.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
@@ -1273,8 +1277,9 @@ interface CrossServiceLinks {
 }
 
 /**
- * Turns per-service results into links and logs each outcome. A result that is
- * `undefined` belongs to a service still running and is skipped.
+ * Turns per-service results into links and logs fulfilled outcomes. Failures
+ * are already logged by resolveOnServiceWithTimeout for fresh and cached paths.
+ * An undefined result belongs to a service still running and is skipped.
  *
  * @param adapters - The services, in the same order as `results`.
  * @param results - One settled result, or `undefined`, per service.
@@ -1295,11 +1300,6 @@ function collectMatchedLinks(
       links.push(result.value);
     } else if (result.status === "fulfilled") {
       log.debug("Resolver", `[${adapter.id}] no match found`);
-    } else {
-      log.error(
-        "Resolver",
-        `[${adapter.id}] resolve failed: ${result.reason instanceof Error ? result.reason.message : result.reason}`,
-      );
     }
   }
   return links;
@@ -1375,9 +1375,37 @@ function resolveOnServiceWithTimeout(
   const timeout = new Promise<never>((_, reject) => {
     timeoutTimer = setTimeout(() => reject(new Error(`Timeout after ${ADAPTER_TIMEOUT_MS}ms`)), ADAPTER_TIMEOUT_MS);
   });
-  return Promise.race([resolveOnService(adapter, sourceTrack, knownLink), timeout]).finally(() =>
-    clearTimeout(timeoutTimer),
-  );
+  return Promise.race([resolveOnService(adapter, sourceTrack, knownLink), timeout])
+    .catch((error) => {
+      log.deviation(
+        {
+          component: "Resolver",
+          adapterId: adapter.id,
+          errorCode: "MC-API-0004",
+          operation: "resolve_recording_destination",
+          outcome: "destination_not_added",
+        },
+        error,
+      );
+      throw error;
+    })
+    .finally(() => clearTimeout(timeoutTimer));
+}
+
+/**
+ * Builds lookup metadata without replacing a canonical provider display credit.
+ * @param sourceTrack - Confirmed source recording and its provider provenance.
+ * @returns A fresh query with published artist-name interpretations and original recording evidence.
+ */
+function recordingSearchQuery(sourceTrack: NormalizedTrack): SearchQuery {
+  const artists = sourceTrack.artists.map((artist) => artistNameForSearch(artist, sourceTrack.sourceService));
+  return {
+    title: sourceTrack.title,
+    artist: artists[0] ?? "",
+    artists,
+    album: sourceTrack.albumName,
+    durationMs: sourceTrack.durationMs,
+  };
 }
 
 /**
@@ -1398,17 +1426,7 @@ async function resolveOnService(
     const sourceId = adapter.detectUrl(knownLink.url);
     if (sourceId) {
       const track = await adapter.getTrack(sourceId);
-      if (
-        !isTrackSearchFallbackMatch(
-          {
-            title: sourceTrack.title,
-            artist: sourceTrack.artists[0] ?? "",
-            artists: sourceTrack.artists,
-            durationMs: sourceTrack.durationMs,
-          },
-          track,
-        )
-      ) {
+      if (!isTrackSearchFallbackMatch(recordingSearchQuery(sourceTrack), track)) {
         log.deviation(
           {
             component: "Resolver",
@@ -1441,16 +1459,21 @@ async function resolveOnService(
   return resolveViaSearch(adapter, sourceTrack);
 }
 
+/**
+ * Accepts structured text matches only when they retain the confirmed recording identity.
+ * @param adapter - Provider being queried through its existing search operation.
+ * @param sourceTrack - Original recording, never rewritten by lookup normalization.
+ * @returns A compatible link or null for a completed clean miss.
+ * @throws Provider failures and incompatible claimed positives, neither of which is a catalog miss.
+ */
 async function resolveViaSearch(adapter: ServiceAdapter, sourceTrack: NormalizedTrack): Promise<ResolvedLink | null> {
-  const result: MatchResult = await adapter.searchTrack({
-    title: sourceTrack.title,
-    artist: sourceTrack.artists[0] ?? "",
-    artists: sourceTrack.artists,
-    album: sourceTrack.albumName,
-    durationMs: sourceTrack.durationMs,
-  });
+  const query = recordingSearchQuery(sourceTrack);
+  const result: MatchResult = await adapter.searchTrack(query);
 
-  if (!result.found || !result.track) return null;
+  if (!result.found) return null;
+  if (!result.track || !isTrackSearchFallbackMatch(query, result.track)) {
+    throw new UpstreamUnavailableError(adapter.id, "track search returned incompatible recording metadata");
+  }
 
   return resolvedTrackLink(
     adapter,

@@ -43,9 +43,10 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { splitArtistNames } from "../_shared/artists.js";
-import { throwIfNoCandidateAnswered } from "../_shared/candidates.js";
+import { throwIfSearchIncomplete } from "../_shared/candidates.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
+import { readProviderHtml } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -116,7 +117,7 @@ async function searchForTrackIds(query: string): Promise<string[]> {
     throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Track, query, Operation.Search);
   }
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Bugs, "track search");
 
   // Extract track IDs from href="/track/{id}" patterns
   const trackIds: string[] = [];
@@ -174,7 +175,7 @@ async function searchBugsAlbumIds(query: string): Promise<string[]> {
     throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Album, query, Operation.Search);
   }
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Bugs, "album search");
   const albumIds: string[] = [];
   const seen = new Set<string>();
   const idMatches = html.matchAll(/\/album\/(\d+)/g);
@@ -227,7 +228,6 @@ export const bugsAdapter: ServiceAdapter = {
 
     // Fetch track pages in parallel
     const trackResults = await Promise.allSettled(trackIds.map((id) => fetchTrackById(id)));
-    throwIfNoCandidateAnswered(trackResults);
 
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
@@ -250,6 +250,7 @@ export const bugsAdapter: ServiceAdapter = {
       }
     }
 
+    throwIfSearchIncomplete(trackResults, Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE), Service.Bugs);
     if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       log.debug("Bugs!", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
@@ -291,7 +292,6 @@ export const bugsAdapter: ServiceAdapter = {
     log.debug("Bugs!", `Album search returned ${albumIds.length} IDs for: ${q}`);
 
     const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
-    throwIfNoCandidateAnswered(albumResults);
     let bestMatch: NormalizedAlbum | null = null;
     let bestConfidence = 0;
 
@@ -306,6 +306,7 @@ export const bugsAdapter: ServiceAdapter = {
       }
     }
 
+    throwIfSearchIncomplete(albumResults, Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE), Service.Bugs);
     if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }

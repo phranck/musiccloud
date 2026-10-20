@@ -19,23 +19,22 @@
  *
  * KKBOX URLs include two locale segments (`/tw/en/song/{id}`).
  * The track regex allows any two-letter codes to match all shipped
- * locales without explicit enumeration. On the output side we fall
- * back to `/tw/en/...` URLs if the API does not include a canonical
- * one.
+ * locales without explicit enumeration. Output mappers
+ * prefer the API's canonical URL. The mappers own their fallback URL forms;
+ * configuration alone does not establish a fallback's live availability.
  *
  * ## ISRC via search endpoint
  *
- * KKBOX has no direct ISRC-to-track endpoint, so `findByIsrc`
- * queries the regular search endpoint with the ISRC as the query
- * string. KKBOX indexes ISRC as searchable metadata, so the top
- * result is usually the right track when a match exists.
+ * findByIsrc sends the documented isrc: query prefix to regular search, then
+ * accepts only a returned exact ISRC match. Provider rank alone is not identity
+ * evidence. The territory still constrains this catalog request.
  *
  * ## Album track listing
  *
  * Album pages need a separate `/albums/{id}/tracks` call in addition
  * to `/albums/{id}` because KKBOX does not inline track listings.
- * Failure of the track-listing call is tolerated (empty array
- * fallback); the album still resolves but without per-track ISRCs,
+ * Failure of the track-listing call emits a structured deviation and omits
+ * the listing. The positive album remains usable without per-track ISRCs,
  * so downstream ISRC-based inference skips it.
  *
  * ## Failure versus no match
@@ -68,6 +67,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
 
 const API_BASE = "https://api.kkbox.com/v1.1";
 
@@ -217,10 +217,9 @@ async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
     const tracksResponse = await kkboxFetch(
       `/albums/${encodeURIComponent(albumId)}/tracks?territory=${territory}&limit=50`,
     );
-    if (tracksResponse.ok) {
-      const tracksData: KkboxAlbumTracksResponse = await tracksResponse.json();
-      tracks = tracksData.data ?? [];
-    }
+    if (!tracksResponse.ok) throw serviceHttpError(Service.KKBox, tracksResponse.status, ResourceKind.Album, albumId);
+    const tracksData: KkboxAlbumTracksResponse = await tracksResponse.json();
+    tracks = requireProviderCollection(tracksData.data, Service.KKBox, "album track listing");
   } catch (error) {
     // Track listing is optional
     log.deviation(

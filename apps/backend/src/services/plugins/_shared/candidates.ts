@@ -1,22 +1,38 @@
 /**
- * @file Telling a search with no readable candidate from a search with no match.
+ * @file Completeness of negative evidence from bounded candidate-page searches.
  *
- * A scraping adapter finds candidate ids on a search page and then fetches each
- * candidate's own page. One page failing costs one candidate. Every page
- * failing means the service did not answer, and the adapter contract
- * (`ServiceAdapter.findByIsrc` in `services/types.ts`) requires a throw for
- * that rather than "not found", because the resolver remembers a miss for a
- * month and skips the service for that long.
+ * A validated positive recording can survive an unrelated candidate failure.
+ * Without that match, any rejected candidate leaves the search incomplete, even
+ * when another page answered 404 or described a different recording. Returning
+ * a clean miss there would suppress the provider through the resolver's miss cache.
  */
 
+import type { ServiceId } from "@musiccloud/shared";
+import { log } from "../../../lib/infra/logger.js";
+
 /**
- * Throws when every candidate fetch of a search failed.
- *
- * @param results - The settled candidate fetches. An empty list is not a
- *   failure: the search page itself answered with no candidates.
- * @throws The first fetch's error, when none of them succeeded.
+ * Rejects incomplete negative evidence after the adapter has scored its candidates.
+ * @param results - Settled candidate requests; an empty array is a valid completed search.
+ * @param matched - Whether the adapter accepted a qualifying recording or album.
+ * @param service - Provider attached to a recoverable partial-result deviation.
+ * @throws The first candidate failure when no positive match resolves the uncertainty.
  */
-export function throwIfNoCandidateAnswered(results: readonly PromiseSettledResult<unknown>[]): void {
-  const firstFailure = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
-  if (firstFailure && results.every((result) => result.status === "rejected")) throw firstFailure.reason;
+export function throwIfSearchIncomplete(
+  results: readonly PromiseSettledResult<unknown>[],
+  matched: boolean,
+  service: ServiceId,
+): void {
+  const failure = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+  if (!failure) return;
+  if (!matched) throw failure.reason;
+  log.deviation(
+    {
+      component: "Adapter",
+      adapterId: service,
+      errorCode: "MC-API-0004",
+      operation: "catalog_candidate_fetch",
+      outcome: "positive_partial_candidates",
+    },
+    failure.reason,
+  );
 }

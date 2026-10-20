@@ -1,22 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { throwIfNoCandidateAnswered } from "../candidates.js";
+import { throwIfSearchIncomplete } from "../candidates.js";
 
-const answered: PromiseSettledResult<string | null> = { status: "fulfilled", value: null };
-const failed = (reason: string): PromiseSettledResult<string | null> => ({
-  status: "rejected",
-  reason: new Error(reason),
-});
+const absent: PromiseSettledResult<string | null> = { status: "fulfilled", value: null };
+const candidate: PromiseSettledResult<string | null> = { status: "fulfilled", value: "candidate" };
 
-describe("throwIfNoCandidateAnswered", () => {
-  it("throws the first failure when every candidate fetch failed", () => {
-    expect(() => throwIfNoCandidateAnswered([failed("first"), failed("second")])).toThrow("first");
+/** Constructs a rejected mocked candidate without any provider or repository operation. */
+function failed(reason: string): PromiseSettledResult<string | null> {
+  return { status: "rejected", reason: new Error(reason) };
+}
+
+describe("throwIfSearchIncomplete", () => {
+  it("throws the first failure when every candidate request failed", () => {
+    expect(() => throwIfSearchIncomplete([failed("first"), failed("second")], false, "melon")).toThrow("first");
   });
-
-  it("lets a search through when one candidate answered, even with nothing", () => {
-    expect(() => throwIfNoCandidateAnswered([failed("first"), answered])).not.toThrow();
+  it("does not turn another candidate's explicit absence into complete negative evidence", () => {
+    expect(() => throwIfSearchIncomplete([failed("first"), absent], false, "melon")).toThrow("first");
   });
-
-  it("lets a search with no candidates through, because the search page answered", () => {
-    expect(() => throwIfNoCandidateAnswered([])).not.toThrow();
+  it("does not treat a readable but incompatible candidate as a successful recording match", () => {
+    expect(() => throwIfSearchIncomplete([candidate, failed("second")], false, "melon")).toThrow("second");
+  });
+  it("retains an accepted positive despite another candidate failure", () => {
+    expect(() => throwIfSearchIncomplete([failed("first"), candidate], true, "melon")).not.toThrow();
+  });
+  it("permits a fully completed clean miss", () => {
+    expect(() => throwIfSearchIncomplete([absent, candidate], false, "melon")).not.toThrow();
+  });
+  it("permits an empty candidate list returned by the search endpoint", () => {
+    expect(() => throwIfSearchIncomplete([], false, "melon")).not.toThrow();
   });
 });
