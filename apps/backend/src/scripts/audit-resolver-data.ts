@@ -1,7 +1,7 @@
 /** @file Local-only CLI for private, version-pinned resolver evidence. */
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { lstat, mkdir, readFile, realpath, rmdir, unlink, writeFile } from "node:fs/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs, parseEnv } from "node:util";
 import { Client, type ClientConfig } from "pg";
@@ -12,7 +12,12 @@ import {
   type AuditSource,
   captureResolverEvidence,
 } from "./resolver-data-audit.js";
-import { fileSha256, isPrivateOwnedEntry } from "./resolver-repair/private-files.js";
+import {
+  fileSha256,
+  isPrivateOwnedEntry,
+  PrivatePublicationError,
+  publishPrivateDirectory,
+} from "./resolver-repair/private-files.js";
 
 /** Driver boundary used by the local-only command; clients never become application pools. */
 interface AuditClient extends AuditDatabase {
@@ -88,28 +93,19 @@ async function requireAbsent(output: string): Promise<void> {
  * @param database - Verified local database name, kept out of portable selectors.
  */
 async function publishBundle(output: string, bundle: AuditBundle, database: string): Promise<void> {
-  await mkdir(output, { mode: 0o700 });
-  const files = ["evidence.json", "evidence.sha256", "capture.json"];
+  const receipt = { complete: true, capturedAt: new Date().toISOString(), database, evidenceSha256: bundle.sha256 };
   try {
-    await writeFile(path.join(output, files[0]), bundle.content, { mode: 0o600, flag: "wx" });
-    await writeFile(path.join(output, files[1]), `${bundle.sha256}  evidence.json\n`, { mode: 0o600, flag: "wx" });
-    await writeFile(
-      path.join(output, files[2]),
-      `${JSON.stringify({ complete: true, capturedAt: new Date().toISOString(), database, evidenceSha256: bundle.sha256 })}\n`,
-      { mode: 0o600, flag: "wx" },
+    await publishPrivateDirectory(output, [
+      { name: "evidence.json", content: bundle.content },
+      { name: "evidence.sha256", content: `${bundle.sha256}  evidence.json\n` },
+      { name: "capture.json", content: `${JSON.stringify(receipt)}\n` },
+    ]);
+  } catch (error) {
+    throw new AuditFailure(
+      error instanceof PrivatePublicationError && !error.cleanedUp
+        ? "AUDIT_OUTPUT_CLEANUP_FAILED"
+        : "AUDIT_OUTPUT_FAILED",
     );
-  } catch {
-    try {
-      for (const name of files) {
-        await unlink(path.join(output, name)).catch((error: unknown) => {
-          if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
-        });
-      }
-      await rmdir(output);
-    } catch {
-      throw new AuditFailure("AUDIT_OUTPUT_CLEANUP_FAILED");
-    }
-    throw new AuditFailure("AUDIT_OUTPUT_FAILED");
   }
 }
 

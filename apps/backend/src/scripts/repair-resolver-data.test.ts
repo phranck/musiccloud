@@ -3,14 +3,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  REPAIRABLE_TABLES,
   type RepairConnection,
   type RepairRuntime,
+  type RunnerRevision,
   runRepairCommand,
 } from "./repair-resolver-data.js";
 import { MemoryRowStore, MIGRATION_HASH, manifestOf } from "./resolver-repair/__tests__/memory-row-store.js";
 import type { RowStore } from "./resolver-repair/engine.js";
 import { type RepairOperation, sealManifest } from "./resolver-repair/manifest.js";
+import { REPAIRABLE_TABLES } from "./resolver-repair/repairable-tables.js";
 import type { TargetIdentity } from "./resolver-repair/target.js";
 
 const COPY = "musiccloud_repair_20261021000000_abcdef";
@@ -64,7 +65,12 @@ async function fixture() {
 }
 
 /** A connection over memory that records how often it was opened and closed. */
-function memoryRuntime(store: MemoryRowStore, url: string, identity: Partial<TargetIdentity> = {}) {
+function memoryRuntime(
+  store: MemoryRowStore,
+  url: string,
+  identity: Partial<TargetIdentity> = {},
+  revision: RunnerRevision = { commit: "c".repeat(40), clean: true },
+) {
   const calls = { connected: 0, closed: 0, modes: [] as string[] };
   const database = new URL(url).pathname.slice(1);
   const connection: RepairConnection = {
@@ -89,6 +95,7 @@ function memoryRuntime(store: MemoryRowStore, url: string, identity: Partial<Tar
       calls.connected++;
       return connection;
     },
+    revision: () => revision,
   };
   return { runtime, calls };
 }
@@ -223,6 +230,40 @@ describe("refusing to start", () => {
       expect(calls.connected).toBe(0);
       const outcome = await runRepairCommand([...argv, "--confirm", files.sha256], runtime);
       expect(outcome).toMatchObject({ status: "applied", target: "production" });
+    } finally {
+      await files.cleanup();
+    }
+  });
+
+  it("records the revision the command ran from in its outcome and report", async () => {
+    const files = await fixture();
+    try {
+      const { runtime } = memoryRuntime(liveStore(), COPY_URL);
+      const outcome = await runRepairCommand(
+        ["apply", "--manifest", files.manifest, "--target-env", "REPAIR_DATABASE_URL", "--report", files.report],
+        runtime,
+      );
+      expect(outcome.runner).toEqual({ commit: "c".repeat(40), clean: true });
+      expect(JSON.parse(await readFile(files.report, "utf8")).runner).toEqual({ commit: "c".repeat(40), clean: true });
+    } finally {
+      await files.cleanup();
+    }
+  });
+
+  it("refuses production writes from a checkout with uncommitted changes, but lets a rehearsal copy run", async () => {
+    const files = await fixture();
+    try {
+      const dirty = { commit: "c".repeat(40), clean: false };
+      const production = memoryRuntime(liveStore(), PRODUCTION_URL, {}, dirty);
+      const argv = ["apply", "--manifest", files.manifest, "--target-env", "REPAIR_DATABASE_URL"];
+      expect(await codeOf(runRepairCommand([...argv, "--confirm", files.sha256], production.runtime))).toBe(
+        "REPAIR_DIRTY_RUNNER",
+      );
+      expect(production.calls.connected).toBe(0);
+      const verified = await runRepairCommand(["verify", ...argv.slice(1)], production.runtime);
+      expect(verified).toMatchObject({ status: "verified", runner: dirty });
+      const rehearsal = memoryRuntime(liveStore(), COPY_URL, {}, dirty);
+      expect((await runRepairCommand(argv, rehearsal.runtime)).status).toBe("applied");
     } finally {
       await files.cleanup();
     }
