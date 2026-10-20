@@ -83,6 +83,7 @@ WHATS-NEXT.md
 !/docs/crawler-architecture.md
 !/docs/postgres-migration-safety.md
 !/docs/resolver-data-audit.md
+!/docs/resolver-repair.md
 !/docs/service-brand-assets.md
 !/docs/resolve-flow/
 !/docs/resolve-flow/**
