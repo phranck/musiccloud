@@ -3,10 +3,12 @@
  *
  * Every share URL is a short id resolved against six tables, and the share
  * route answers with the first entity it finds. An id therefore has to be
- * unique across all six, not only in the table it is written to. No database
- * constraint spans the tables, so this module is what makes it true: it
- * checks every table for a candidate before writing it, under a lock that
- * makes a concurrent allocation of the same candidate wait.
+ * unique across all six, not only in the table it is written to. Two further
+ * tables hold alias ids of tracks and albums that absorbed duplicate records;
+ * an id must differ from those as well. No database constraint spans the
+ * tables, so this module is what makes it true: it checks every table for a
+ * candidate before writing it, under a lock that makes a concurrent allocation
+ * of the same candidate wait.
  *
  * Within one table two rules apply as well. Each table holds the id as its
  * primary key and carries a unique index on the column referencing the
@@ -39,6 +41,21 @@ const SHORT_URL_FOREIGN_KEYS = {
 
 /** A table that maps short ids to entities. */
 export type ShortUrlTable = keyof typeof SHORT_URL_FOREIGN_KEYS;
+
+/**
+ * The tables that hold further short ids for an entity, with the column that references it and the table that holds
+ * its canonical id. They exist for entities that absorbed duplicate records: the id of a record that was merged away
+ * still has to open the page of the record that stays.
+ *
+ * Kept as a closed map for the same reason as {@link SHORT_URL_FOREIGN_KEYS}: names are interpolated into statements.
+ */
+const SHORT_URL_ALIASES = {
+  track_short_url_aliases: { entityColumn: "track_id", canonicalTable: "short_urls" },
+  album_short_url_aliases: { entityColumn: "album_id", canonicalTable: "album_short_urls" },
+} as const;
+
+/** A table that holds alias short ids. */
+export type ShortUrlAliasTable = keyof typeof SHORT_URL_ALIASES;
 
 /**
  * How many candidates are offered before allocation gives up.
@@ -85,16 +102,17 @@ async function lockShortIdCandidate(client: PoolClient, candidate: string): Prom
   await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`short-id:${candidate}`]);
 }
 
-/** One statement that asks every short-url table for an id, built from the closed map. */
-const SHORT_ID_TAKEN_QUERY = `${Object.keys(SHORT_URL_FOREIGN_KEYS)
+/** One statement that asks every short-url and alias table for an id, built from the closed maps. */
+const SHORT_ID_TAKEN_QUERY = `${[...Object.keys(SHORT_URL_FOREIGN_KEYS), ...Object.keys(SHORT_URL_ALIASES)]
   .map((table) => `SELECT 1 FROM ${table} WHERE id = $1`)
   .join(" UNION ALL ")} LIMIT 1`;
 
 /**
- * Whether any of the six short-url tables already holds an id.
+ * Whether any short-url or alias table already holds an id.
  *
- * The share route looks an id up in all six and answers with the first entity
- * it finds, so an id taken in one table must not be issued in another.
+ * The share route looks an id up in all six short-url tables and falls back to
+ * the alias tables, and answers with the first entity it finds, so an id taken
+ * in one table must not be issued in another.
  *
  * @param client - Active transaction client.
  * @param candidate - The short id to look for.
@@ -103,6 +121,32 @@ const SHORT_ID_TAKEN_QUERY = `${Object.keys(SHORT_URL_FOREIGN_KEYS)
 async function isShortIdTaken(client: PoolClient, candidate: string): Promise<boolean> {
   const result = await client.query(SHORT_ID_TAKEN_QUERY, [candidate]);
   return result.rows.length > 0;
+}
+
+/**
+ * Finds the canonical short id behind an alias.
+ *
+ * A lookup by short id calls this when the primary table does not hold the id. The caller then loads the page by the
+ * returned canonical id, so an alias never has a code path of its own: it opens exactly the page the canonical id opens.
+ *
+ * @param queryable - A pool or a client.
+ * @param aliasTable - The alias table of the entity kind.
+ * @param shortId - The id that the primary table did not know.
+ * @returns The canonical short id of the entity the alias addresses, or `null` when the id is no alias.
+ */
+export async function findCanonicalShortId(
+  queryable: Pick<PoolClient, "query">,
+  aliasTable: ShortUrlAliasTable,
+  shortId: string,
+): Promise<string | null> {
+  const { entityColumn, canonicalTable } = SHORT_URL_ALIASES[aliasTable];
+  const result = await queryable.query<{ id: string }>(
+    `SELECT canonical.id FROM ${aliasTable} AS alias
+       JOIN ${canonicalTable} AS canonical ON canonical.${entityColumn} = alias.${entityColumn}
+      WHERE alias.id = $1`,
+    [shortId],
+  );
+  return result.rows[0]?.id ?? null;
 }
 
 /**

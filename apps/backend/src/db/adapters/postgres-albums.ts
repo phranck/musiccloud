@@ -46,7 +46,7 @@ import {
   safeParseArtistCredits,
   upsertServiceLinks,
 } from "./postgres-shared.js";
-import { mintShortUrl } from "./short-url.js";
+import { findCanonicalShortId, mintShortUrl } from "./short-url.js";
 
 // ============================================================================
 // ROW TYPES
@@ -560,7 +560,10 @@ export async function loadAlbumByShortId(pool: Pool, shortId: string): Promise<S
     [shortId],
   );
 
-  if (result.rows.length === 0) return null;
+  if (result.rows.length === 0) {
+    const canonicalShortId = await findCanonicalShortId(pool, "album_short_url_aliases", shortId);
+    return canonicalShortId ? loadAlbumByShortId(pool, canonicalShortId) : null;
+  }
 
   const firstRow = result.rows[0] as AlbumShareRow;
   const artists = safeParseArray(firstRow.artists);

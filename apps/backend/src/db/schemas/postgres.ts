@@ -234,6 +234,25 @@ export const shortUrls = pgTable(
 );
 
 /**
+ * Further short ids that address a track, next to the one in `short_urls`.
+ *
+ * `short_urls` holds exactly one id per track, and many queries join it on the track, so a second id there would
+ * return the track twice. When duplicate records of one recording are merged, the short id of the record that goes
+ * is kept here instead. A lookup by short id falls back to this table and answers with the canonical track.
+ */
+export const trackShortUrlAliases = pgTable(
+  "track_short_url_aliases",
+  {
+    id: text("id").primaryKey(),
+    trackId: text("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("idx_track_short_url_aliases_track_id").on(table.trackId)],
+);
+
+/**
  * Canonical album records resolved from streaming-service inputs.
  * Stores source metadata, album-level identifiers and admin sort timestamps;
  * links, previews, external ids and credits live in sibling tables.
@@ -355,6 +374,19 @@ export const albumShortUrls = pgTable(
     index("idx_album_short_urls_album_id").on(table.albumId),
     uniqueIndex("uq_album_short_urls_album_id").on(table.albumId),
   ],
+);
+
+/** Further short ids that address an album, for the same reason as {@link trackShortUrlAliases}. */
+export const albumShortUrlAliases = pgTable(
+  "album_short_url_aliases",
+  {
+    id: text("id").primaryKey(),
+    albumId: text("album_id")
+      .notNull()
+      .references(() => albums.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("idx_album_short_url_aliases_album_id").on(table.albumId)],
 );
 
 /**

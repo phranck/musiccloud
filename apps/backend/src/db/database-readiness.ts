@@ -54,6 +54,8 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "short_urls",
   "album_short_urls",
   "artist_short_urls",
+  "track_short_url_aliases",
+  "album_short_url_aliases",
   "service_links",
   "track_previews",
   "album_previews",
