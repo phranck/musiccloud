@@ -38,7 +38,7 @@ Only counts and the artifact checksum are printed. Errors print a static operati
 
 ## From evidence to an approved repair
 
-Evidence is not a repair manifest. Issues #767, #768 and #769 own the reviewed before/after operations and their execution runners. Each repair must pin its relevant keys, expected values, exact changes, code/schema prerequisites and rollback data.
+Evidence is not a repair manifest. Issues #767, #768 and #769 own the reviewed before/after operations, and `docs/resolver-repair.md` describes the runner that executes them. Each manifest pins its relevant keys, expected values, exact changes and schema prerequisite, and its inverse is the rollback.
 
 The same immutable repair package must be rehearsed on a separately approved repair copy and then used unchanged for an explicitly approved live execution. The analysis snapshot is not that writable rehearsal copy. Unit/integration tests use synthetic fixtures.
 

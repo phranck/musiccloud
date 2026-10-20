@@ -2,9 +2,9 @@
  * @file Read-only resolver evidence with environment-neutral selectors and hashes.
  * Findings retain observed values and keys. They are not executable repair plans.
  */
-import { createHash } from "node:crypto";
 import { isAppleArtworkUrl, isYouTubeArtworkUrl } from "../services/artwork.js";
 import { SERVICE_MISS_TTL_MS } from "../services/constants.js";
+import { canonicalJson, sha256Hex } from "./resolver-repair/canonical-json.js";
 
 /** A safe operational code that never includes driver messages or stored values. */
 export class AuditFailure extends Error {
@@ -193,39 +193,12 @@ function findingDefinitions(options: AuditOptions): FindingDefinition[] {
 }
 
 /**
- * Canonicalizes JSON keys without changing meaningful array order or stored values.
- * @param value - JSON-compatible observation, including PostgreSQL Date objects.
- * @returns A deterministic JSON value; unsupported or nonfinite values fail closed.
- */
-function canonicalValue(value: unknown): unknown {
-  if (value instanceof Date) return value.toISOString();
-  if (Array.isArray(value)) return value.map(canonicalValue);
-  if (value !== null && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-        .map(([key, item]) => [key, canonicalValue(item)]),
-    );
-  }
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    (typeof value === "number" && Number.isFinite(value))
-  )
-    return value;
-  throw new Error("AUDIT_NON_JSON_VALUE");
-}
-
-/**
  * Hashes deterministic JSON rather than driver object order.
  * @param value - JSON-compatible content to identify.
  * @returns A lowercase SHA-256 digest with no embedded record values.
  */
 function digest(value: unknown): string {
-  return createHash("sha256")
-    .update(JSON.stringify(canonicalValue(value)))
-    .digest("hex");
+  return sha256Hex(canonicalJson(value));
 }
 
 /**
@@ -235,8 +208,8 @@ function digest(value: unknown): string {
  */
 function orderedRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
   return rows.slice().sort((left, right) => {
-    const leftText = JSON.stringify(canonicalValue(left));
-    const rightText = JSON.stringify(canonicalValue(right));
+    const leftText = canonicalJson(left);
+    const rightText = canonicalJson(right);
     return leftText < rightText ? -1 : leftText > rightText ? 1 : 0;
   });
 }
@@ -332,11 +305,11 @@ export async function captureResolverEvidence(database: AuditDatabase, options: 
       definitionsSha256: digest(definitions),
       findings,
     };
-    const content = `${JSON.stringify(canonicalValue(payload))}\n`;
+    const content = `${canonicalJson(payload)}\n`;
     await database.query("COMMIT");
     return {
       content,
-      sha256: createHash("sha256").update(content).digest("hex"),
+      sha256: sha256Hex(content),
       summary: Object.fromEntries(Object.entries(findings).map(([id, finding]) => [id, finding.rows.length])),
     };
   } catch (error) {
