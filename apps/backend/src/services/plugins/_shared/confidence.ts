@@ -46,6 +46,19 @@ function recordingVersionQualifier(title: string): string | undefined {
 }
 
 /**
+ * Whether two durations can belong to one recording.
+ * A missing duration is no evidence either way. The bound is a hard identity limit that the matching guard and the
+ * repair planners share, so a stored destination is judged by the rule that would reject it today.
+ *
+ * @param wantedMs - The requested recording's duration, when known.
+ * @param actualMs - The candidate's duration, when known.
+ * @returns False only when both are known and differ by more than 10 seconds.
+ */
+export function recordingDurationsAgree(wantedMs: number | undefined, actualMs: number | undefined): boolean {
+  return !wantedMs || !actualMs || Math.abs(wantedMs - actualMs) <= MAX_FALLBACK_DURATION_DIFFERENCE_MS;
+}
+
+/**
  * Reads the free-text marker without confusing a known self-titled recording.
  *
  * @param query - Search metadata; a nonempty artist list identifies structured input.
@@ -113,10 +126,7 @@ export function isTrackSearchFallbackMatch(query: SearchQuery, candidate: Normal
   );
   const wantedVersion = recordingVersionQualifier(query.title);
   const actualVersion = recordingVersionQualifier(candidate.title);
-  const sameDuration =
-    !query.durationMs ||
-    !candidate.durationMs ||
-    Math.abs(query.durationMs - candidate.durationMs) <= MAX_FALLBACK_DURATION_DIFFERENCE_MS;
+  const sameDuration = recordingDurationsAgree(query.durationMs, candidate.durationMs);
   return sameArtist && sameTitle && wantedVersion === actualVersion && sameDuration;
 }
 
