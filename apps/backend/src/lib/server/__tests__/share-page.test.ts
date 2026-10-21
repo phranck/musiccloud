@@ -56,6 +56,19 @@ function albumRow(releaseDate: string | null) {
   };
 }
 
+describe("loadAlbumByShortId opened through an alias", () => {
+  beforeEach(() => loadAlbumByShortId.mockReset());
+
+  it("reports the canonical short URL the repository resolved to", async () => {
+    loadAlbumByShortId.mockResolvedValue(albumRow(null));
+
+    const page = await loadAlbumSharePage("alias-of-abc12", "https://musiccloud.io");
+
+    expect(page?.shortId).toBe("abc12");
+    expect(page?.og.ogUrl).toBe("https://musiccloud.io/abc12");
+  });
+});
+
 describe("read-only stored recording artwork", () => {
   const video = "https://i.ytimg.com/vi/ImX2w6Ufj4w/maxresdefault.jpg";
 
