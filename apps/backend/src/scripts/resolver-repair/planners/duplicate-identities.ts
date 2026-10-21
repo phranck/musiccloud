@@ -180,10 +180,16 @@ function candidateGroups(kind: RecordKind, records: readonly RowValues[]): RowVa
   return [...groups.values()].filter((group) => group.length > 1);
 }
 
-/** The credit names, roles and positions of a record, which must agree between twins. */
+/**
+ * The credit names, roles and positions of a record, which must agree between twins.
+ * The rows are put in a fixed order first, because the database returns them by their random ids, and the same
+ * credits of two twins arrive in different orders.
+ */
 function creditSignature(credits: readonly RowValues[] | undefined): string {
   return canonicalJson(
-    (credits ?? []).map((credit) => [credit.credit_name, credit.credit_role, credit.credit_position]),
+    (credits ?? [])
+      .map((credit) => canonicalJson([credit.credit_position, credit.credit_role, credit.credit_name]))
+      .sort(),
   );
 }
 

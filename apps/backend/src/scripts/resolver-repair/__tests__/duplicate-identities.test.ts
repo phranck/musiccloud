@@ -55,12 +55,12 @@ const preview = (trackId: string, service: string): RowValues => ({
   expires_at: null,
   observed_at: OLDER,
 });
-const credit = (trackId: string, entity: string, name = "Devin Townsend"): RowValues => ({
+const credit = (trackId: string, entity: string, name = "Devin Townsend", position = 0): RowValues => ({
   id: `${trackId}-credit-${entity}`,
   track_id: trackId,
   artist_entity_id: entity,
   credit_name: name,
-  credit_position: 0,
+  credit_position: position,
   credit_role: "main",
   created_at: OLDER,
 });
@@ -217,6 +217,17 @@ describe("merging a pair of exact twins", () => {
     expect(result.manifest.operations.map((operation) => `${operation.table}/${operation.keyValue}`)).toContain(
       "service_link_misses/new-tidal",
     );
+  });
+
+  it("recognizes twins whose credits arrive in another row order", async () => {
+    const data = twinTracks();
+    data.track_artist_credits = [
+      credit("old", "entity-a", "First Artist", 0),
+      credit("old", "entity-b", "Second Artist", 1),
+      credit("new", "entity-b", "Second Artist", 1),
+      credit("new", "entity-a", "First Artist", 0),
+    ];
+    expect(groupsOf(await plan(data))[0].result).toBe("merged");
   });
 
   it("names artist entities that only the removed record's credits referenced, without merging them", async () => {
