@@ -12,6 +12,7 @@ import { ManifestError } from "./resolver-repair/manifest.js";
 import { planDuplicateIdentities } from "./resolver-repair/planners/duplicate-identities.js";
 import { planRecordingArtwork } from "./resolver-repair/planners/recording-artwork.js";
 import { planRecordingLinks } from "./resolver-repair/planners/recording-links.js";
+import { planUnusedArtistEntities } from "./resolver-repair/planners/unused-artist-entities.js";
 import {
   type PlanContext,
   PlanFailure,
@@ -43,6 +44,7 @@ const PLANNERS: Readonly<Record<string, Planner>> = {
   "duplicate-identities": planDuplicateIdentities,
   "recording-artwork": planRecordingArtwork,
   "recording-links": planRecordingLinks,
+  "unused-artist-entities": planUnusedArtistEntities,
 };
 
 /** Options a planner reads from the command line, as repeated values. */
