@@ -6,6 +6,7 @@ import {
 import type { NormalizedTrack, SearchQuery } from "../../../services/types.js";
 import type { JsonValue } from "../canonical-json.js";
 import type { DeleteRowOperation, RowValues } from "../manifest.js";
+import { deletion, textOf } from "../planner-rows.js";
 import { PlanFailure, type Planner, type PlanPorts } from "../planning.js";
 
 /** The name this repair carries in its manifest. */
@@ -46,12 +47,6 @@ export interface LinkEvaluation {
     | "lookup-failed";
   /** What the service reports right now, when it answered. */
   observed?: { title: string; artists: string[]; durationMs: number | null };
-}
-
-function textOf(row: RowValues, column: string): string {
-  const value = row[column];
-  if (typeof value !== "string") throw new PlanFailure("PLAN_ROW_MISSING");
-  return value;
 }
 
 function optionalTextOf(row: RowValues, column: string): string | null {
@@ -112,10 +107,6 @@ export async function evaluateLink(query: SearchQuery, link: RowValues, ports: P
   if (!recordingDurationsAgree(query.durationMs, candidate.durationMs))
     return { ...base, verdict: "incompatible", reason: "duration-differs", observed };
   return { ...base, verdict: "unproven", reason: "guard-rejected-duration-agrees", observed };
-}
-
-function deletion(table: string, row: RowValues): DeleteRowOperation {
-  return { kind: "delete-row", table, keyColumn: "id", keyValue: textOf(row, "id"), row };
 }
 
 /**

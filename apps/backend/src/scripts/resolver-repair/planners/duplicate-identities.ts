@@ -1,6 +1,7 @@
 import { canonicalJson, type JsonValue } from "../canonical-json.js";
 import type { RepairOperation, RowValues } from "../manifest.js";
-import { PlanFailure, type Planner } from "../planning.js";
+import { deletion, groupBy, textOf } from "../planner-rows.js";
+import type { Planner } from "../planning.js";
 
 /** The name this repair carries in its manifest. */
 export const DUPLICATE_IDENTITIES_REPAIR = "duplicate-identities";
@@ -107,26 +108,6 @@ interface Children {
   previews: Map<string, RowValues[]>;
   credits: Map<string, RowValues[]>;
   misses: Map<string, RowValues[]>;
-}
-
-function textOf(row: RowValues, column: string): string {
-  const value = row[column];
-  if (typeof value !== "string") throw new PlanFailure("PLAN_ROW_MISSING");
-  return value;
-}
-
-/** Groups rows by the record they reference, in the order they arrive. */
-function groupBy(rows: readonly RowValues[], foreignKey: string): Map<string, RowValues[]> {
-  const grouped = new Map<string, RowValues[]>();
-  for (const row of rows) {
-    const owner = textOf(row, foreignKey);
-    grouped.set(owner, [...(grouped.get(owner) ?? []), row]);
-  }
-  return grouped;
-}
-
-function deletion(table: string, row: RowValues): RepairOperation {
-  return { kind: "delete-row", table, keyColumn: "id", keyValue: textOf(row, "id"), row };
 }
 
 function insertion(table: string, row: RowValues): RepairOperation {

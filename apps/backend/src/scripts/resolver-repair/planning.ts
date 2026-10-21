@@ -12,7 +12,8 @@ export type PlanFailureCode =
   | "PLAN_SNAPSHOT_MISMATCH"
   | "PLAN_TARGET_NOT_A_COPY"
   | "PLAN_PRIVATE_PATH_REQUIRED"
-  | "PLAN_OUTPUT_INVALID";
+  | "PLAN_OUTPUT_INVALID"
+  | "PLAN_REFERENCE_UNSUPPORTED";
 
 /** Planning ended without a manifest. The message is the static code. */
 export class PlanFailure extends Error {
