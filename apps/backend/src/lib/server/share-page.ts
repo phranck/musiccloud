@@ -184,7 +184,7 @@ export async function loadAlbumByShortId(
     releaseDate: album.releaseDate ?? undefined,
     // Empty string lets generateAlbumOGMeta apply its absolute default-image fallback.
     albumArtUrl: album.artworkUrl ?? "",
-    shortId,
+    shortId: data.shortId,
     availablePlatforms,
     origin,
   });
