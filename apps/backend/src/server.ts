@@ -152,15 +152,13 @@ const UPSTREAM_HEALTH_TIMEOUT_MS = 5000;
 
 /**
  * Liveness check for an upstream MusicCloud app (public site / developer portal /
- * dashboard), powering the `GET /health/frontend`, `/health/developer` and
- * `/health/dashboard` probes that the public status page monitors.
+ * dashboard), behind the `GET /health/frontend`, `/health/developer` and
+ * `/health/dashboard` probes.
  *
- * Probing THROUGH the backend serves two ends: it keeps every service on the
- * consistent `api.musiccloud.io/health/<service>` URL, and it lets the IPv4-only
- * GitHub-Actions monitor reach the IPv6-only `developer.*` / `dashboard.*` Zerops
- * subdomains, which it cannot hit directly. Any non-5xx response within the
- * timeout means the app is serving (a 3xx login redirect still counts as up;
- * `fetch` follows it).
+ * Probing THROUGH the backend keeps every service on the consistent
+ * `api.musiccloud.io/health/<service>` URL, so a monitor needs no route of its
+ * own to each app. Any non-5xx response within the timeout means the app is
+ * serving (a 3xx login redirect still counts as up; `fetch` follows it).
  *
  * @param url - the upstream origin to probe (from `PUBLIC_URL` / `DEVELOPER_URL` / `DASHBOARD_URL`)
  * @returns true when the upstream answers with a non-5xx status before the timeout
@@ -372,8 +370,7 @@ async function buildApp(options: BuildAppOptions = {}) {
 
   // Email subsystem readiness (no auth) — confirms the SMTP2GO transport is
   // configured and the provider host is reachable. Sends no mail and uses no
-  // send quota, so it is safe on a per-minute monitoring cadence. Powers the
-  // "Email" service on the public status page.
+  // send quota, so it is safe on a per-minute monitoring cadence.
   app.get(
     "/health/email",
     {
@@ -395,10 +392,8 @@ async function buildApp(options: BuildAppOptions = {}) {
     },
   );
 
-  // Developer-portal liveness (no auth). The status-page monitor (IPv4-only
-  // GitHub Actions) cannot reach the IPv6-only developer.musiccloud.io, so it
-  // probes it THROUGH the backend, which shares the dual-stack Zerops network.
-  // Powers the "Developer Site" service on the public status page.
+  // Developer-portal liveness (no auth), probed THROUGH the backend for the
+  // reason `isUpstreamReachable` gives.
   app.get(
     "/health/developer",
     {
@@ -426,8 +421,7 @@ async function buildApp(options: BuildAppOptions = {}) {
   );
 
   // Dashboard liveness (no auth). Same backend-proxy rationale as
-  // /health/developer above — reaches the IPv6-only dashboard.musiccloud.io on
-  // the monitor's behalf. Powers the "Dashboard" service on the status page.
+  // /health/developer above.
   app.get(
     "/health/dashboard",
     {
@@ -455,8 +449,7 @@ async function buildApp(options: BuildAppOptions = {}) {
   );
 
   // Frontend liveness (no auth). Probes the public site (PUBLIC_URL) from the
-  // backend, completing the consistent api.musiccloud.io/health/<service> set the
-  // status page monitors. Powers the "Frontend" service.
+  // backend, completing the consistent api.musiccloud.io/health/<service> set.
   app.get(
     "/health/frontend",
     {
@@ -484,8 +477,8 @@ async function buildApp(options: BuildAppOptions = {}) {
   );
 
   // Backend liveness (no auth). Returns 200 whenever the Fastify process is
-  // alive and serving requests, under the consistent /health/<service> naming
-  // the status page uses. Powers "Backend".
+  // alive and serving requests, under the consistent /health/<service> naming.
+  // The backend deploy probes it after every push.
   app.get(
     "/health/backend",
     {
@@ -511,7 +504,6 @@ async function buildApp(options: BuildAppOptions = {}) {
   // container healthCheck in zerops.yml) and external monitoring can mark the
   // container un-ready. The response remains a safe public error envelope;
   // operators retrieve the detailed checks from the correlated `errorId` log.
-  // Powers the "Database" service on the status page.
   app.get(
     "/health/db",
     {
