@@ -359,7 +359,7 @@ describe("backfillContextualContent", () => {
       listAdminNavItems: async (navId: "header" | "footer") =>
         navId === "header"
           ? [navItem({ pageSlug: "privacy", url: null, label: "Privacy" })]
-          : [navItem({ id: 11, navId: "footer", url: "https://status.musiccloud.io", label: "Status" })],
+          : [navItem({ id: 11, navId: "footer", url: "https://github.com/phranck/musiccloud", label: "Source code" })],
       replaceNavigationConfiguration,
     } as unknown as AdminRepository;
 

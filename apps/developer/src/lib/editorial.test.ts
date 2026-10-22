@@ -161,7 +161,7 @@ describe("Developer Portal editorial client", () => {
       href: "/docs/api?search=1",
       behavior: "open-api-search",
     });
-    expect(footer.map((item) => item.label)).toEqual(["Terms", "Privacy", "Status"]);
+    expect(footer.map((item) => item.label)).toEqual(["Terms", "Privacy"]);
   });
 
   it("rejects malformed navigation payloads as typed failures", async () => {

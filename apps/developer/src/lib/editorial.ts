@@ -234,7 +234,7 @@ const STATIC_FOOTER_FALLBACK: DeveloperPortalNavigationItem[] = FOOTER_LINKS.map
   id: `fallback-footer-${index}`,
   label: item.label,
   href: item.href,
-  target: item.external ? NavTarget.Blank : NavTarget.Self,
+  target: NavTarget.Self,
   targetKind: NavigationTargetKind.Url,
   systemKey: null,
   behavior: "navigate",

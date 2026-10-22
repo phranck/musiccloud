@@ -36,7 +36,6 @@ interface PortalGateCopy {
   description: string;
   heading: string;
   metaTitle: string;
-  statusLabel: string;
 }
 
 const GATE_COPY: Record<PortalGateMode, PortalGateCopy> = {
@@ -45,14 +44,12 @@ const GATE_COPY: Record<PortalGateMode, PortalGateCopy> = {
     description:
       "Public API access and developer tools for musiccloud are on the way. Build music-sharing experiences on the musiccloud platform.",
     heading: "coming soon",
-    statusLabel: "System status",
   },
   [PortalGateMode.Maintenance]: {
     metaTitle: "musiccloud for developers · maintenance",
     description:
       "The musiccloud Developer Portal is temporarily unavailable for maintenance. The API reference remains available.",
     heading: "maintenance",
-    statusLabel: "System status",
   },
 };
 
@@ -221,14 +218,6 @@ const GATE_PAGE_CSS = `
         background: color-mix(in srgb, var(--mc-color-accent), transparent 72%);
       }
 
-      .dot {
-        width: var(--mc-space-2);
-        height: var(--mc-space-2);
-        border-radius: 50%;
-        background: var(--mc-color-success);
-        box-shadow: 0 0 10px 1px color-mix(in srgb, var(--mc-color-success), transparent 40%);
-      }
-
       footer {
         padding: var(--mc-space-6);
         text-align: center;
@@ -353,7 +342,6 @@ export function renderPortalGateHtml(mode: PortalGateMode): string {
 
       <div class="actions">
         <a class="btn primary" href="/docs/api">View API reference</a>
-        <a class="btn" href="${SITE_ORIGIN.status}"><span class="dot"></span> ${copy.statusLabel}</a>
         <a class="btn" href="${SITE_ORIGIN.site}">Back to musiccloud</a>
       </div>
     </main>

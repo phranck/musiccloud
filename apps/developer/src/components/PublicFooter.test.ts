@@ -22,9 +22,9 @@ describe("PublicFooter", () => {
       props: {
         navigation: [
           {
-            id: "status",
-            label: "Service status",
-            href: "https://status.musiccloud.io",
+            id: "source",
+            label: "Source code",
+            href: "https://github.com/phranck/musiccloud",
             target: "_blank",
             targetKind: NavigationTargetKind.Url,
             systemKey: null,
@@ -43,8 +43,8 @@ describe("PublicFooter", () => {
       },
     });
 
-    expect(html).toContain('href="https://status.musiccloud.io" target="_blank" rel="noopener noreferrer"');
-    expect(html).toContain("Service status");
+    expect(html).toContain('href="https://github.com/phranck/musiccloud" target="_blank" rel="noopener noreferrer"');
+    expect(html).toContain("Source code");
     expect(html).toContain('data-public-search-command="true"');
     expect(html).toContain("Search docs");
     expect(html).not.toContain(">Terms<");
