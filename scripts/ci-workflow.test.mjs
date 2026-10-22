@@ -32,12 +32,11 @@ test("uses read-only GITHUB_TOKEN permissions with one scoped job exception", ()
   assert.equal((workflow.match(/^\s+contents: write$/gm) ?? []).length, 0);
   assert.doesNotMatch(deployJobs, /^ {4}permissions:/m);
   // Every deploy job hands its secrets to the one deploy workflow, which reads
-  // the deploy and status tokens and never the GITHUB_TOKEN.
+  // the deploy token and never the GITHUB_TOKEN.
   assert.equal((deployJobs.match(/^ {4}uses: \.\/\.github\/workflows\/deploy-service\.yml$/gm) ?? []).length, 4);
   assert.equal((deployJobs.match(/^ {4}secrets: inherit$/gm) ?? []).length, 4);
   assert.match(deployService, /\npermissions:\n {2}contents: read\n/);
   assert.doesNotMatch(deployService, /\$\{\{ github\.token \}\}/);
-  assert.match(deployService, /STATUS_TOKEN: \$\{\{ secrets\.STATUS_DISPATCH_TOKEN \}\}/);
   assert.match(deployService, /ZEROPS_TOKEN: \$\{\{ secrets\.ZEROPS_TOKEN \}\}/);
 });
 
@@ -178,11 +177,4 @@ test("names the pnpm version in package.json alone", () => {
   ]) {
     assert.doesNotMatch(text, /pnpm@\d/, file);
   }
-});
-
-test("explains the status banner once", () => {
-  const sentence = "A status-page banner is a convenience, a deploy is not.";
-  const occurrences = [workflow, deployService].join("\n").split(sentence).length - 1;
-
-  assert.equal(occurrences, 1);
 });

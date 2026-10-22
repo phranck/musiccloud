@@ -224,7 +224,7 @@ jobs:
 
   # Each deploy job calls .github/workflows/deploy-service.yml with the values
   # that differ between the services. The called workflow keeps `contents:
-  # read` and takes the deploy and status secrets from here.
+  # read` and takes the deploy secrets from here.
   deploy-backend:
     name: Deploy Backend
     needs: detect-changes
@@ -234,7 +234,6 @@ jobs:
     with:
       app: backend
       service-name: Backend
-      service-slug: backend
       host: api.musiccloud.io
       # The backend's runtime health boundary, so a crash during startup fails
       # the deployment.
@@ -250,7 +249,6 @@ jobs:
     with:
       app: frontend
       service-name: Frontend
-      service-slug: frontend
       host: musiccloud.io
       probe-paths: /
       zerops-service-id: bMY4g66BRDOfq1AAi8Q85A
@@ -264,7 +262,6 @@ jobs:
     with:
       app: developer
       service-name: Developer Site
-      service-slug: developer-site
       host: developer.musiccloud.io
       probe-paths: /
       zerops-service-id: snJHAWsxR32xetGASY33cQ
@@ -286,7 +283,6 @@ jobs:
     with:
       app: dashboard
       service-name: Dashboard
-      service-slug: dashboard
       host: dashboard.musiccloud.io
       # The page comes from disk. setup-status goes through the proxy to the
       # backend, so a stale upstream fails the deployment instead of passing.

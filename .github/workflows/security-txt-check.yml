@@ -32,5 +32,4 @@ jobs:
           domains: |
             musiccloud.io
           ignore: |
-            status.musiccloud.io: Velvet status page living in its own repository
             link.musiccloud.io: SMTP2GO link tracking, no place of ours to put a file
