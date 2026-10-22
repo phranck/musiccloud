@@ -22,6 +22,4 @@ export const SITE_ORIGIN = {
   api: "https://api.musiccloud.io",
   /** The admin dashboard. */
   dashboard: "https://dashboard.musiccloud.io",
-  /** The status page. */
-  status: "https://status.musiccloud.io",
 } as const;
