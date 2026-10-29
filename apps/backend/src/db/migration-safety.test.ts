@@ -15,6 +15,18 @@ describe("assertSafeMigrationIdentity", () => {
     ).not.toThrow();
   });
 
+  it("treats the development database server as local", () => {
+    expect(() =>
+      assertSafeMigrationIdentity({
+        connectionHost: "macserver.local",
+        currentDatabase: "musiccloud",
+        currentUser: "musiccloud",
+        expectedRemoteRole: undefined,
+        isSuperuser: true,
+      }),
+    ).not.toThrow();
+  });
+
   it("allows the configured non-superuser role on a remote database", () => {
     expect(() =>
       assertSafeMigrationIdentity({

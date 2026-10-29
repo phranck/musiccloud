@@ -98,17 +98,20 @@ async function captureFixture() {
 function captureRuntime(port = "5433") {
   let connected = false;
   const commands: string[] = [];
+  const clientHosts: string[] = [];
   return {
     commands,
     execute(command: string, arguments_: string[]) {
       commands.push(command);
-      if (command.endsWith("docker"))
+      if (command.endsWith("docker") || command === "ssh")
         return JSON.stringify({ running: true, ports: { "5432/tcp": [{ HostPort: port }] } });
       if (arguments_.includes("status")) return "";
       if (arguments_.includes("--git-common-dir")) return path.join(tmpdir(), "audit-fixture-repo", ".git");
       return "b".repeat(40);
     },
-    createClient() {
+    clientHosts,
+    createClient(configuration: { host?: string }) {
+      clientHosts.push(String(configuration.host));
       return {
         ...fixtureDatabase("musiccloud_snapshot_20260101000000_abcdef"),
         async connect() {
@@ -224,6 +227,31 @@ describe("local audit capture entry point", () => {
       const runtime = captureRuntime();
       await runAuditCapture(fixture.argv, runtime);
       expect(runtime.commands.filter((command) => command.endsWith("docker"))).toEqual(["docker"]);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it("inspects the container on the development database server over SSH and connects to that host", async () => {
+    const fixture = await captureFixture();
+    try {
+      await writeFile(
+        fixture.environment,
+        "DATABASE_URL=postgresql://fixture:synthetic-password@macserver.local:5433/development\n",
+      );
+      const runtime = captureRuntime();
+      const calls: string[][] = [];
+      const execute = runtime.execute;
+      runtime.execute = (command, arguments_) => {
+        if (command === "ssh") calls.push(arguments_);
+        return execute(command, arguments_);
+      };
+      await runAuditCapture(fixture.argv, runtime);
+      expect(runtime.commands).not.toContain("docker");
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toContain("macserver.local");
+      expect(calls[0].at(-1)).toMatch(/^\.orbstack\/bin\/docker inspect --format '\{.*\}' musiccloud$/);
+      expect(runtime.clientHosts).toEqual(["macserver.local"]);
     } finally {
       await fixture.cleanup();
     }

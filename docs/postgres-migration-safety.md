@@ -10,7 +10,7 @@ The incident repair changed only the table owner from `postgres` to `db`, then v
 
 ## Connection policy
 
-- Local development and tests use the local PostgreSQL URL in `apps/backend/.env.local`.
+- Local development and tests use the PostgreSQL URL in `apps/backend/.env.local`. It points at the container `musiccloud` in OrbStack on `macserver.local`, port 5433.
 - Zerops runtime and migrations use `DATABASE_URL: ${postgres_connectionString}`.
 - Zerops sets `DB_MIGRATION_ROLE: "db"`.
 - Admin connections are never consumed by application code, Drizzle config, `scripts/migrate.mjs` or Zerops `initCommands`.
@@ -31,7 +31,7 @@ Before Drizzle runs against a non-local host, `migration-safety.ts` checks:
 2. `pg_roles.rolsuper` for that role;
 3. the exact expected `DB_MIGRATION_ROLE`.
 
-The runner aborts before the first migration when the expected role is missing, the connected role is `postgres`, the role is a superuser, or the role differs from `DB_MIGRATION_ROLE`. Localhost remains usable with the project-local development role.
+The runner aborts before the first migration when the expected role is missing, the connected role is `postgres`, the role is a superuser, or the role differs from `DB_MIGRATION_ROLE`. Loopback hosts and `macserver.local` stay usable with the project-local development role. `apps/backend/src/db/development-hosts.ts` is the one list of these hosts, which the repair and audit commands read as well.
 
 Migrations are generated and applied exclusively through Drizzle. Migration SQL, snapshots and Drizzle history are never created, edited or backfilled manually.
 

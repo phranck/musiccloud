@@ -55,14 +55,14 @@ The command prints counts, the manifest checksum and the commit it runs from. It
 
 The target comes from an environment variable whose name starts with `REPAIR_`. `DATABASE_URL` is never read.
 
-- A local URL must name a database restored from a dump, never the development database. `verify` accepts `musiccloud_snapshot_<14 digits>_<6 hex>` and `musiccloud_repair_<14 digits>_<6 hex>`. `apply` and `rollback` accept only `musiccloud_repair_...`, so an analysis snapshot is never written.
+- A development URL (loopback or `macserver.local`) must name a database restored from a dump, never the development database. `verify` accepts `musiccloud_snapshot_<14 digits>_<6 hex>` and `musiccloud_repair_<14 digits>_<6 hex>`. `apply` and `rollback` accept only `musiccloud_repair_...`, so an analysis snapshot is never written.
 - A remote URL must reach the production database `db` as the role `db` on `postgresql`, `postgresql.zerops` or a private `10.x.x.x` address. The server has to confirm that the role is not a superuser, which is the same rule as for migrations in `docs/postgres-migration-safety.md`. The backup credential is never used here.
 - On production, `apply` and `rollback` need `--confirm <manifest checksum>`.
 - No connection option other than `sslmode=disable` is accepted.
 
 ## Rehearsal
 
-1. Restore the dump the manifest was planned from into a new database named `musiccloud_repair_<UTC timestamp>_<6 hex>` in the local container. A restore sets the database read-only by default, and the command opens its write transaction as read-write.
+1. Restore the dump the manifest was planned from into a new database named `musiccloud_repair_<UTC timestamp>_<6 hex>` in the `musiccloud` container on `macserver.local`. A restore sets the database read-only by default, and the command opens its write transaction as read-write.
 2. `verify` the manifest. Every operation should be `before`.
 3. `apply` it, then `apply` it again. The second run has to write nothing.
 4. Compare the copy before and after, table by table. The difference has to be the manifest and nothing else.

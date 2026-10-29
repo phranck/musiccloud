@@ -1,4 +1,5 @@
 import type { ClientBase, ClientConfig } from "pg";
+import { isDevelopmentDatabaseHost } from "../../db/development-hosts.js";
 
 /** What a command does to the target. `apply` and `rollback` write. */
 export type RepairMode = "verify" | "apply" | "rollback";
@@ -13,7 +14,7 @@ export function isRepairMode(value: unknown): value is RepairMode {
   return value === "verify" || value === "apply" || value === "rollback";
 }
 
-/** The two places a repair may run: a restored copy on this machine, or the production database. */
+/** The two places a repair may run: a restored copy on the development database server, or the production database. */
 export type RepairTargetKind = "rehearsal-copy" | "production";
 
 /** Why the runner refused to start. None of these codes contains a connection value or a row. */
@@ -56,8 +57,6 @@ export interface TargetIdentity {
   recovery: boolean;
 }
 
-const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
-
 /**
  * Hosts of the production database as the private network names it: the service name, with or without its zone, or
  * an address of the private 10.0.0.0/8 range. A public name never matches, so a mistyped URL cannot reach another server.
@@ -96,7 +95,7 @@ export function resolveRepairTarget(connectionUrl: string, mode: RepairMode): Re
 
   const database = decodeURIComponent(url.pathname.slice(1));
   const role = decodeURIComponent(url.username);
-  const local = LOCAL_HOSTS.includes(url.hostname);
+  const local = isDevelopmentDatabaseHost(url.hostname);
   let kind: RepairTargetKind;
   if (local) {
     const pattern = mode === "verify" ? SNAPSHOT_COPY_PATTERN : REPAIR_COPY_PATTERN;
