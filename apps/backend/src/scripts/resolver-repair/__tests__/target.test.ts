@@ -23,9 +23,9 @@ describe("which databases a command may connect to", () => {
   it.each([
     { url: `postgresql://dev:secret@localhost:5433/${COPY}`, mode: "apply", expected: "ok rehearsal-copy" },
     { url: `postgresql://dev:secret@127.0.0.1:5433/${COPY}`, mode: "rollback", expected: "ok rehearsal-copy" },
-    { url: `postgresql://dev:secret@macserver.local:5433/${COPY}`, mode: "apply", expected: "ok rehearsal-copy" },
+    { url: `postgresql://dev:secret@macserver.fritz.box:5433/${COPY}`, mode: "apply", expected: "ok rehearsal-copy" },
     {
-      url: "postgresql://dev:secret@macserver.local:5433/musiccloud",
+      url: "postgresql://dev:secret@macserver.fritz.box:5433/musiccloud",
       mode: "apply",
       expected: "REPAIR_TARGET_NOT_A_REPAIR_COPY",
     },

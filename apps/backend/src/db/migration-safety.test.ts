@@ -18,7 +18,7 @@ describe("assertSafeMigrationIdentity", () => {
   it("treats the development database server as local", () => {
     expect(() =>
       assertSafeMigrationIdentity({
-        connectionHost: "macserver.local",
+        connectionHost: "macserver.fritz.box",
         currentDatabase: "musiccloud",
         currentUser: "musiccloud",
         expectedRemoteRole: undefined,

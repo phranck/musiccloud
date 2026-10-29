@@ -1,5 +1,5 @@
 /** The LAN server whose OrbStack runs the development database container. */
-export const DEVELOPMENT_DATABASE_SERVER = "macserver.local";
+export const DEVELOPMENT_DATABASE_SERVER = "macserver.fritz.box";
 
 /** Host names as `URL.hostname` reports them, which keeps the brackets of an IPv6 address. */
 const LOOPBACK_DATABASE_HOSTS = ["localhost", "127.0.0.1", "::1", "[::1]"];

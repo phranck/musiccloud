@@ -237,7 +237,7 @@ describe("local audit capture entry point", () => {
     try {
       await writeFile(
         fixture.environment,
-        "DATABASE_URL=postgresql://fixture:synthetic-password@macserver.local:5433/development\n",
+        "DATABASE_URL=postgresql://fixture:synthetic-password@macserver.fritz.box:5433/development\n",
       );
       const runtime = captureRuntime();
       const calls: string[][] = [];
@@ -249,9 +249,9 @@ describe("local audit capture entry point", () => {
       await runAuditCapture(fixture.argv, runtime);
       expect(runtime.commands).not.toContain("docker");
       expect(calls).toHaveLength(1);
-      expect(calls[0]).toContain("macserver.local");
+      expect(calls[0]).toContain("macserver.fritz.box");
       expect(calls[0].at(-1)).toMatch(/^\.orbstack\/bin\/docker inspect --format '\{.*\}' musiccloud$/);
-      expect(runtime.clientHosts).toEqual(["macserver.local"]);
+      expect(runtime.clientHosts).toEqual(["macserver.fritz.box"]);
     } finally {
       await fixture.cleanup();
     }
