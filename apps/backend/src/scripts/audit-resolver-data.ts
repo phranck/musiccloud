@@ -5,6 +5,7 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs, parseEnv } from "node:util";
 import { Client, type ClientConfig } from "pg";
+import { DEVELOPMENT_DATABASE_SERVER, isDevelopmentDatabaseHost } from "../db/development-hosts.js";
 import {
   type AuditBundle,
   type AuditDatabase,
@@ -110,23 +111,42 @@ async function publishBundle(output: string, bundle: AuditBundle, database: stri
   }
 }
 
+const CONTAINER_NAME = "musiccloud";
+const CONTAINER_INSPECT_FORMAT = '{"running":{{json .State.Running}},"ports":{{json .NetworkSettings.Ports}}}';
+
 /**
- * Reads the running state and published ports of the local `musiccloud` container.
- * The command is looked up on the search path, so Docker Desktop, OrbStack or any other product that provides `docker` answers.
- * @param execute - Process port that returns the standard output of a command.
- * @returns The inspected container, still untrusted.
- * @throws {AuditFailure} `AUDIT_CONTAINER_RUNTIME_MISSING` when no `docker` executable exists, and `AUDIT_CONTAINER_IDENTITY` when the runtime cannot report the container.
+ * The OrbStack `docker` on the development server, relative to the login directory. A non-interactive SSH session
+ * does not have `~/.orbstack/bin` on its search path.
  */
-function inspectLocalContainer(execute: (command: string, arguments_: string[]) => string): unknown {
+const DEVELOPMENT_SERVER_DOCKER = ".orbstack/bin/docker";
+
+/**
+ * Reads the running state and published ports of the `musiccloud` container that the database URL points at.
+ * On the machine running the code, the command is looked up on the search path, so Docker Desktop, OrbStack or any
+ * other product that provides `docker` answers. For the development database server, the same command runs there over SSH.
+ * @param execute - Process port that returns the standard output of a command.
+ * @param hostname - The host of the database URL.
+ * @returns The inspected container, still untrusted.
+ * @throws {AuditFailure} `AUDIT_CONTAINER_RUNTIME_MISSING` when no `docker` or `ssh` executable exists, and `AUDIT_CONTAINER_IDENTITY` when the runtime cannot report the container.
+ */
+function inspectDevelopmentContainer(
+  execute: (command: string, arguments_: string[]) => string,
+  hostname: string,
+): unknown {
   try {
-    return JSON.parse(
-      execute("docker", [
+    const inspect = ["inspect", "--format", CONTAINER_INSPECT_FORMAT, CONTAINER_NAME];
+    if (hostname === DEVELOPMENT_DATABASE_SERVER) {
+      // ssh passes one string to the remote shell, which would split the format on its quotes and braces.
+      const remoteCommand = [
+        DEVELOPMENT_SERVER_DOCKER,
         "inspect",
         "--format",
-        '{"running":{{json .State.Running}},"ports":{{json .NetworkSettings.Ports}}}',
-        "musiccloud",
-      ]),
-    );
+        `'${CONTAINER_INSPECT_FORMAT}'`,
+        CONTAINER_NAME,
+      ];
+      return JSON.parse(execute("ssh", ["-o", "BatchMode=yes", DEVELOPMENT_DATABASE_SERVER, remoteCommand.join(" ")]));
+    }
+    return JSON.parse(execute("docker", inspect));
   } catch (error) {
     const missing = error instanceof Error && "code" in error && error.code === "ENOENT";
     throw new AuditFailure(missing ? "AUDIT_CONTAINER_RUNTIME_MISSING" : "AUDIT_CONTAINER_IDENTITY");
@@ -157,10 +177,7 @@ export async function runAuditCapture(argv: string[], runtime: AuditRuntime = {}
   const environment = parseEnv(await readFile(values["env-file"], "utf8"));
   if (!environment.DATABASE_URL) throw new AuditFailure("AUDIT_LOCAL_TARGET_REQUIRED");
   const url = new URL(environment.DATABASE_URL);
-  if (
-    !["postgres:", "postgresql:"].includes(url.protocol) ||
-    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
-  )
+  if (!["postgres:", "postgresql:"].includes(url.protocol) || !isDevelopmentDatabaseHost(url.hostname))
     throw new AuditFailure("AUDIT_LOCAL_TARGET_REQUIRED");
   if (url.hash || [...url.searchParams].some(([key, value]) => key !== "sslmode" || value !== "disable"))
     throw new AuditFailure("AUDIT_CONNECTION_OPTIONS");
@@ -215,7 +232,7 @@ export async function runAuditCapture(argv: string[], runtime: AuditRuntime = {}
   const archiveInformation = await requirePrivatePath(archive);
   if (!archiveInformation.isFile() || archiveInformation.size === 0 || (await fileSha256(archive)) !== manifest.sha256)
     throw new AuditFailure("AUDIT_ARCHIVE_MISMATCH");
-  const container = inspectLocalContainer(execute);
+  const container = inspectDevelopmentContainer(execute, url.hostname);
   if (!isRecord(container) || container.running !== true || !isRecord(container.ports))
     throw new AuditFailure("AUDIT_CONTAINER_IDENTITY");
   const bindings = container.ports["5432/tcp"];
@@ -237,7 +254,7 @@ export async function runAuditCapture(argv: string[], runtime: AuditRuntime = {}
     migrations: manifest.migrations,
   };
   const client = (runtime.createClient ?? ((configuration: ClientConfig) => new Client(configuration)))({
-    host: url.hostname === "[::1]" ? "::1" : "127.0.0.1",
+    host: url.hostname === "[::1]" ? "::1" : url.hostname,
     port: Number(url.port || "5432"),
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),

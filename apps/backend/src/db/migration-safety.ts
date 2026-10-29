@@ -1,4 +1,4 @@
-const LOCAL_DATABASE_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+import { isDevelopmentDatabaseHost } from "./development-hosts.js";
 
 export interface MigrationIdentity {
   connectionHost: string;
@@ -19,7 +19,7 @@ interface MigrationIdentityClient {
 }
 
 export function assertSafeMigrationIdentity(identity: MigrationIdentity): void {
-  if (LOCAL_DATABASE_HOSTS.has(identity.connectionHost)) return;
+  if (isDevelopmentDatabaseHost(identity.connectionHost)) return;
 
   if (!identity.expectedRemoteRole) {
     throw new Error("DB_MIGRATION_ROLE is required for migrations against a remote database.");

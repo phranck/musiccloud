@@ -87,7 +87,7 @@ down to its meaningful inner slots.
 
 ## PostgreSQL migration and error boundaries
 
-- Local commands use only the local PostgreSQL URL from `apps/backend/.env.local`. Never alias a production or administrative URL to `DATABASE_URL` for local testing or migrations.
+- Local commands use only the development PostgreSQL URL from `apps/backend/.env.local`, the container `musiccloud` in OrbStack on `macserver.fritz.box`. Never alias a production or administrative URL to `DATABASE_URL` for local testing or migrations.
 - Zerops migrations must pass `apps/backend/src/db/migration-safety.ts` before Drizzle runs. Remote roles must be non-superuser and exactly match `DB_MIGRATION_ROLE`.
 - Administrative ownership repairs are not migrations. They require explicit approval and before/after owner and privilege verification.
 - `/health/db` must verify required tables, effective runtime privileges and the current Drizzle migration hash. Do not reduce it to connectivity or table-existence checks.
