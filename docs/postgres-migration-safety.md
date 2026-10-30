@@ -10,7 +10,7 @@ The incident repair changed only the table owner from `postgres` to `db`, then v
 
 ## Connection policy
 
-- Local development and tests use the PostgreSQL URL in `apps/backend/.env.local`. It points at the container `musiccloud` in OrbStack on `macserver.fritz.box`, port 5433.
+- Local development and tests use the PostgreSQL URL in `apps/backend/.env.local`. It points at the container `musiccloud-staging` in OrbStack on `macserver.fritz.box`, port 5433.
 - Zerops runtime and migrations use `DATABASE_URL: ${postgres_connectionString}`.
 - Zerops sets `DB_MIGRATION_ROLE: "db"`.
 - Admin connections are never consumed by application code, Drizzle config, `scripts/migrate.mjs` or Zerops `initCommands`.
