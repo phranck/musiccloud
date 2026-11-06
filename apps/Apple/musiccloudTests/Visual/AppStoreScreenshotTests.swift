@@ -14,7 +14,16 @@ import AppKit
 
 @MainActor @Suite(.serialized) struct AppStoreScreenshotTests {
     #if os(iOS)
-    @Test func captureIPhoneHome() async throws {
+    @Test func captureIPhoneHomeLight() async throws { try await captureIPhoneHome(darkMode: false) }
+    @Test func captureIPhoneHomeDark() async throws { try await captureIPhoneHome(darkMode: true) }
+    @Test func captureIPhoneSettingsLight() async throws { try await captureIPhoneSettings(darkMode: false) }
+    @Test func captureIPhoneSettingsDark() async throws { try await captureIPhoneSettings(darkMode: true) }
+    @Test func captureIPadHistoryLight() async throws { try await captureIPadHistory(darkMode: false) }
+    @Test func captureIPadHistoryDark() async throws { try await captureIPadHistory(darkMode: true) }
+    @Test func captureIPadSettingsLight() async throws { try await captureIPadSettings(darkMode: false) }
+    @Test func captureIPadSettingsDark() async throws { try await captureIPadSettings(darkMode: true) }
+
+    private func captureIPhoneHome(darkMode: Bool) async throws {
         let container = try AppStoreScreenshotFixtures.makeContainer()
         try await AppStoreScreenshotFixtures.populate(in: container.mainContext)
         let history = HistoryManager(modelContext: container.mainContext)
@@ -25,12 +34,13 @@ import AppKit
             history: history,
             monitor: monitor,
             size: CGSize(width: 440, height: 956),
-            scale: 3
+            scale: 3,
+            darkMode: darkMode
         )
-        try record(png, name: "iphone-home.png", width: 1320, height: 2868)
+        try record(png, name: "iphone-home-\(darkMode ? "dark" : "light").png", width: 1320, height: 2868)
     }
 
-    @Test func captureIPhoneSettings() async throws {
+    private func captureIPhoneSettings(darkMode: Bool) async throws {
         StreamingServices.setAllEnabled(true)
         let container = try AppStoreScreenshotFixtures.makeContainer()
         let history = HistoryManager(modelContext: container.mainContext)
@@ -41,12 +51,13 @@ import AppKit
             history: history,
             monitor: monitor,
             size: CGSize(width: 440, height: 956),
-            scale: 3
+            scale: 3,
+            darkMode: darkMode
         )
-        try record(png, name: "iphone-settings.png", width: 1320, height: 2868)
+        try record(png, name: "iphone-settings-\(darkMode ? "dark" : "light").png", width: 1320, height: 2868)
     }
 
-    @Test func captureIPadHistory() async throws {
+    private func captureIPadHistory(darkMode: Bool) async throws {
         let container = try AppStoreScreenshotFixtures.makeContainer()
         try await AppStoreScreenshotFixtures.populate(in: container.mainContext)
         let history = HistoryManager(modelContext: container.mainContext)
@@ -57,12 +68,13 @@ import AppKit
             history: history,
             monitor: monitor,
             size: CGSize(width: 1032, height: 1376),
-            scale: 2
+            scale: 2,
+            darkMode: darkMode
         )
-        try record(png, name: "ipad-history.png", width: 2064, height: 2752)
+        try record(png, name: "ipad-history-\(darkMode ? "dark" : "light").png", width: 2064, height: 2752)
     }
 
-    @Test func captureIPadSettings() async throws {
+    private func captureIPadSettings(darkMode: Bool) async throws {
         StreamingServices.setAllEnabled(true)
         let container = try AppStoreScreenshotFixtures.makeContainer()
         let history = HistoryManager(modelContext: container.mainContext)
@@ -73,21 +85,27 @@ import AppKit
             history: history,
             monitor: monitor,
             size: CGSize(width: 1032, height: 1376),
-            scale: 2
+            scale: 2,
+            darkMode: darkMode
         )
-        try record(png, name: "ipad-settings.png", width: 2064, height: 2752)
+        try record(png, name: "ipad-settings-\(darkMode ? "dark" : "light").png", width: 2064, height: 2752)
     }
     #else
-    @Test func captureMacHistory() async throws {
+    @Test func captureMacHistoryLight() async throws { try await captureMacHistory(darkMode: false) }
+    @Test func captureMacHistoryDark() async throws { try await captureMacHistory(darkMode: true) }
+    @Test func captureMacSettingsLight() async throws { try await captureMacSettings(darkMode: false) }
+    @Test func captureMacSettingsDark() async throws { try await captureMacSettings(darkMode: true) }
+
+    private func captureMacHistory(darkMode: Bool) async throws {
         let container = try AppStoreScreenshotFixtures.makeContainer()
         try await AppStoreScreenshotFixtures.populate(in: container.mainContext)
         let history = HistoryManager(modelContext: container.mainContext)
         let monitor = ClipboardMonitor(historyManager: history)
-        let png = try await renderMac(DashboardView(), container: container, history: history, monitor: monitor)
-        try record(png, name: "mac-history.png", width: 2880, height: 1800)
+        let png = try await renderMac(DashboardView(), container: container, history: history, monitor: monitor, darkMode: darkMode)
+        try record(png, name: "mac-history-\(darkMode ? "dark" : "light").png", width: 2880, height: 1800)
     }
 
-    @Test func captureMacSettings() async throws {
+    private func captureMacSettings(darkMode: Bool) async throws {
         StreamingServices.setAllEnabled(true)
         let suiteName = "io.musiccloud.musiccloudTests.screenshots"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -96,8 +114,14 @@ import AppKit
         let container = try AppStoreScreenshotFixtures.makeContainer()
         let history = HistoryManager(modelContext: container.mainContext)
         let monitor = ClipboardMonitor(historyManager: history)
-        let png = try await renderMac(SettingsView().defaultAppStorage(defaults), container: container, history: history, monitor: monitor)
-        try record(png, name: "mac-settings.png", width: 2880, height: 1800)
+        let png = try await renderMac(
+            SettingsView().defaultAppStorage(defaults),
+            container: container,
+            history: history,
+            monitor: monitor,
+            darkMode: darkMode
+        )
+        try record(png, name: "mac-settings-\(darkMode ? "dark" : "light").png", width: 2880, height: 1800)
     }
     #endif
 
@@ -119,6 +143,18 @@ import AppKit
             #expect(ArtworkThumbnailCache.shared.image(forKey: key) != nil)
         }
     }
+
+    @Test func fixtureCacheIsReusedWithoutRewriting() async throws {
+        let container = try AppStoreScreenshotFixtures.makeContainer()
+        try await AppStoreScreenshotFixtures.populate(in: container.mainContext)
+        let directory = AppStoreScreenshotFixtures.cacheDirectory
+        let files = (0..<5).map { directory.appendingPathComponent("\($0).json") }
+        #expect(files.allSatisfy { FileManager.default.fileExists(atPath: $0.path) })
+        let dates = try files.map { try $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }
+        try await AppStoreScreenshotFixtures.populate(in: container.mainContext)
+        let unchanged = try files.map { try $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }
+        #expect(dates == unchanged)
+    }
 }
 
 #if os(iOS)
@@ -129,7 +165,8 @@ private extension AppStoreScreenshotTests {
         history: HistoryManager,
         monitor: ClipboardMonitor,
         size: CGSize,
-        scale: CGFloat
+        scale: CGFloat,
+        darkMode: Bool
     ) async throws -> Data {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
@@ -138,7 +175,9 @@ private extension AppStoreScreenshotTests {
         let rootView = root.modelContainer(container).environment(history).environment(monitor)
         let controller = UIHostingController(rootView: rootView)
         controller.view.frame = window.bounds
+        controller.overrideUserInterfaceStyle = darkMode ? .dark : .light
         window.rootViewController = controller
+        #expect(controller.overrideUserInterfaceStyle == (darkMode ? .dark : .light))
         window.makeKeyAndVisible()
         await Task.yield()
         controller.view.layoutIfNeeded()
@@ -157,7 +196,8 @@ private extension AppStoreScreenshotTests {
         _ root: Content,
         container: ModelContainer,
         history: HistoryManager,
-        monitor: ClipboardMonitor
+        monitor: ClipboardMonitor,
+        darkMode: Bool
     ) async throws -> Data {
         let rootView = root.modelContainer(container).environment(history).environment(monitor)
         let controller = NSHostingController(rootView: rootView)
@@ -172,6 +212,8 @@ private extension AppStoreScreenshotTests {
         )
         window.contentViewController = controller
         window.setContentSize(frame.size)
+        window.appearance = NSAppearance(named: darkMode ? .darkAqua : .aqua)
+        #expect(window.appearance?.name == (darkMode ? .darkAqua : .aqua))
         window.makeKeyAndOrderFront(nil)
         await Task.yield()
         window.displayIfNeeded()

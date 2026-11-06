@@ -10,11 +10,15 @@
 		170DCCFF835C9EB8AE1CD81F /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07C91D3461C5C97C2F4AC0 /* MenuBarView.swift */; };
 		3740E6ECEB9CA883501A80B5 /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C16C63FE6CBA4D6FFEBA8 /* ClipboardMonitor.swift */; };
 		41A30941322C3370DF2766CC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 26E51532D490E1A2DE32DF3C /* Assets.xcassets */; };
+		553B2FF1EF0B75379A107C5B /* 0.json in Resources */ = {isa = PBXBuildFile; fileRef = 02538A9209E5597D7DEA6B8B /* 0.json */; };
 		70D1CD76014DA3C080FDF231 /* AppStoreScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E7FA9CB1F9D724DF678451 /* AppStoreScreenshotTests.swift */; };
 		769A0D50AC6FC83DE76D5000 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */; };
 		7BF3DC5D2349EDF131DF8E45 /* StreamingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121F8EA83B3E06119BA82118 /* StreamingServices.swift */; };
+		7DD2339FB3D62F6F3C2C1D13 /* 1.json in Resources */ = {isa = PBXBuildFile; fileRef = A2226BE2A274C086C7C5248D /* 1.json */; };
+		7F80F61DE799499246099952 /* 4.json in Resources */ = {isa = PBXBuildFile; fileRef = 64485C648AEDF8322305CE31 /* 4.json */; };
 		8B76C213DB85A0116DCD1056 /* MusicCloudAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C57CFCB667F74AE91357D9 /* MusicCloudAPI.swift */; };
 		9A9801B1FB2A3DF4A408B543 /* AppStoreScreenshotFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5260A6CA2377FED970A08A1 /* AppStoreScreenshotFixtures.swift */; };
+		9EAE242F1FE9A5C539630B68 /* 3.json in Resources */ = {isa = PBXBuildFile; fileRef = D5A8F485B4574B7DB998BDBF /* 3.json */; };
 		AA00000000000001 /* PanelMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000002 /* PanelMetrics.swift */; };
 		AA00000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000004 /* ContentView.swift */; };
 		AA00000000000050 /* PanelActionItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000051 /* PanelActionItem.swift */; };
@@ -46,6 +50,7 @@
 		DD00000000000005 /* ResultCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000015 /* ResultCardView.swift */; };
 		DD00000000000006 /* OpenInServiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000016 /* OpenInServiceSheet.swift */; };
 		DD00000000000007 /* HistoryGridCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00000000000017 /* HistoryGridCard.swift */; };
+		DEEF455DF174F36DBE576BB8 /* 2.json in Resources */ = {isa = PBXBuildFile; fileRef = 3EA3EEECD75AE999D21A31D2 /* 2.json */; };
 		EE00000000000001 /* ConvertStreamingURLIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE00000000000011 /* ConvertStreamingURLIntent.swift */; };
 		EE00000000000002 /* MusicCloudShortcutsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE00000000000012 /* MusicCloudShortcutsProvider.swift */; };
 		EF00000000000101 /* BuildChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001A /* BuildChannel.swift */; };
@@ -58,6 +63,7 @@
 		EF00000000000402 /* InstallID.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001D /* InstallID.swift */; };
 		EF00000000000501 /* DiagnosticsExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001E /* DiagnosticsExporter.swift */; };
 		EF00000000000502 /* DiagnosticsExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000001E /* DiagnosticsExporter.swift */; };
+		FCF9B02171240DE232CABC2E /* sources.json in Resources */ = {isa = PBXBuildFile; fileRef = D905E8A713C479617495CC16 /* sources.json */; };
 		FD05A1022F82A00100000001 /* MediaEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1012F82A00100000001 /* MediaEntry.swift */; };
 		FD05A1042F83700100000001 /* ServiceLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1032F83700100000001 /* ServiceLink.swift */; };
 		FD05A1062F83800100000001 /* MediaFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD05A1052F83800100000001 /* MediaFilter.swift */; };
@@ -300,14 +306,18 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		02538A9209E5597D7DEA6B8B /* 0.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; path = 0.json; sourceTree = "<group>"; };
 		121F8EA83B3E06119BA82118 /* StreamingServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingServices.swift; sourceTree = "<group>"; };
 		1FFBDF887282094D7C460AE5 /* NSView+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSView+Extensions.swift"; sourceTree = "<group>"; };
 		26E51532D490E1A2DE32DF3C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2A6D1FBF4C2BE51299104362 /* musiccloud.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = musiccloud.entitlements; sourceTree = "<group>"; };
 		3D07C91D3461C5C97C2F4AC0 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
+		3EA3EEECD75AE999D21A31D2 /* 2.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; path = 2.json; sourceTree = "<group>"; };
 		4C1DB8B7EAE84BEDEE9F0546 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		56B89EA2B7FB649CF35C1DC8 /* musiccloud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = musiccloud.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		64485C648AEDF8322305CE31 /* 4.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; path = 4.json; sourceTree = "<group>"; };
 		65D30DA29D8EB6E7A8D6EF3C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A2226BE2A274C086C7C5248D /* 1.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; path = 1.json; sourceTree = "<group>"; };
 		AA00000000000002 /* PanelMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelMetrics.swift; sourceTree = "<group>"; };
 		AA00000000000004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA00000000000051 /* PanelActionItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelActionItem.swift; sourceTree = "<group>"; };
@@ -324,6 +334,8 @@
 		CC00000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CC00000000000003 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		CC00000000000004 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D5A8F485B4574B7DB998BDBF /* 3.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; path = 3.json; sourceTree = "<group>"; };
+		D905E8A713C479617495CC16 /* sources.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; path = sources.json; sourceTree = "<group>"; };
 		DC000000000000000000A004 /* AppShortcuts.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = AppShortcuts.xcstrings; sourceTree = "<group>"; };
 		DC0000000000000F0 /* DefaultsKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultsKey.swift; sourceTree = "<group>"; };
 		DC0000000000001F0 /* TelemetryClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryClientTests.swift; sourceTree = "<group>"; };
@@ -516,6 +528,7 @@
 			children = (
 				F2E7FA9CB1F9D724DF678451 /* AppStoreScreenshotTests.swift */,
 				B5260A6CA2377FED970A08A1 /* AppStoreScreenshotFixtures.swift */,
+				A49DA794304714948DC8A157 /* Fixtures */,
 			);
 			name = Visual;
 			path = Visual;
@@ -531,6 +544,20 @@
 				FDDC7E1C2F805B3C005D779F /* Supporting Files */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		A49DA794304714948DC8A157 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				02538A9209E5597D7DEA6B8B /* 0.json */,
+				A2226BE2A274C086C7C5248D /* 1.json */,
+				3EA3EEECD75AE999D21A31D2 /* 2.json */,
+				D5A8F485B4574B7DB998BDBF /* 3.json */,
+				64485C648AEDF8322305CE31 /* 4.json */,
+				D905E8A713C479617495CC16 /* sources.json */,
+			);
+			name = Fixtures;
+			path = ../../../../.tmp/ScreenshotFixtures;
 			sourceTree = "<group>";
 		};
 		A8800C23A7862F67E68038E7 = {
@@ -1101,6 +1128,7 @@
 			buildConfigurationList = BB00000000000060 /* Build configuration list for PBXNativeTarget "musiccloudTests" */;
 			buildPhases = (
 				BB00000000000040 /* Sources */,
+				DB16201DEDF549882BEAD092 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -1185,6 +1213,19 @@
 				FD8BCE772F85225D00EC883B /* sound2.mp3 in Resources */,
 				FD8BCE782F85225D00EC883B /* sound4.mp3 in Resources */,
 				FD8BCE792F85225D00EC883B /* sound6.mp3 in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DB16201DEDF549882BEAD092 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				553B2FF1EF0B75379A107C5B /* 0.json in Resources */,
+				7DD2339FB3D62F6F3C2C1D13 /* 1.json in Resources */,
+				DEEF455DF174F36DBE576BB8 /* 2.json in Resources */,
+				9EAE242F1FE9A5C539630B68 /* 3.json in Resources */,
+				7F80F61DE799499246099952 /* 4.json in Resources */,
+				FCF9B02171240DE232CABC2E /* sources.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
