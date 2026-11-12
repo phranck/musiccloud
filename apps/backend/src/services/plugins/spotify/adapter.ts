@@ -213,15 +213,36 @@ function buildArtistSearchTerms(query: SearchQuery): string[] {
   return artists;
 }
 
+/**
+ * Joins Spotify field filters for the fields a search names.
+ *
+ * A field left out, such as the title of a search for an artist alone, gets no
+ * filter, because an empty `track:` asks for something nobody typed.
+ *
+ * @param title - Track title, or an empty string when the search names none.
+ * @param artist - Artist name, or an empty string when the search names none.
+ * @param album - Optional album title.
+ * @returns The `track:`, `artist:` and `album:` filters that have a value, in that order.
+ */
+function spotifyFieldFilters(title: string, artist: string, album?: string): string {
+  return [title.trim() && `track:${title}`, artist.trim() && `artist:${artist}`, album?.trim() && `album:${album}`]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * Builds the bounded query alternatives the one-shot track search tries in turn.
+ *
+ * @param query - Free text, or structured metadata that may leave out the title or the artist.
+ * @returns The free text alone, or up to six filtered and plain variants across the artist credits, without empty filters.
+ */
 function buildSpotifyTrackSearchQueries(query: SearchQuery): string[] {
   if (isFreeTextSearch(query)) return [query.title];
 
   const variants: string[] = [];
   for (const artist of buildArtistSearchTerms(query)) {
-    const scoped = [`track:${query.title}`, `artist:${artist}`];
-    if (query.album) scoped.push(`album:${query.album}`);
-    pushUnique(variants, scoped.join(" "));
-    pushUnique(variants, `track:${query.title} artist:${artist}`);
+    pushUnique(variants, spotifyFieldFilters(query.title, artist, query.album));
+    pushUnique(variants, spotifyFieldFilters(query.title, artist));
     pushUnique(variants, `${query.title} ${artist}`);
   }
   pushUnique(variants, query.album ? `${query.title} ${query.album}` : query.title);
@@ -364,19 +385,9 @@ export const spotifyAdapter = {
   async searchTrackWithCandidates(query: SearchQuery): Promise<SearchResultWithCandidates> {
     log.debug("Spotify", "searchTrackWithCandidates called with:", query);
     const isFreeText = isFreeTextSearch(query);
-    let q: string;
-
-    if (isFreeText) {
-      q = encodeURIComponent(query.title);
-    } else {
-      const parts: string[] = [];
-      parts.push(`track:${query.title}`);
-      parts.push(`artist:${query.artist}`);
-      if (query.album) {
-        parts.push(`album:${query.album}`);
-      }
-      q = encodeURIComponent(parts.join(" "));
-    }
+    const q = encodeURIComponent(
+      isFreeText ? query.title : spotifyFieldFilters(query.title, query.artist, query.album),
+    );
 
     log.debug("Spotify", "Search query string:", q);
 

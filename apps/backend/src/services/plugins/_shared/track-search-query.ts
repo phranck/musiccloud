@@ -38,9 +38,11 @@ export function recordingSearchQuery(sourceTrack: NormalizedTrack): SearchQuery 
  * Builds bounded plain-text alternatives without changing free-text semantics.
  *
  * @param query - Structured recording metadata or the resolver's free-text marker.
- * @returns At most two artist/title queries, or the original free text alone.
+ * @returns At most two artist/title queries, the artist alone for a search naming no title, or the original free text alone.
  */
 export function trackSearchTexts(query: SearchQuery): string[] {
   if (isFreeTextSearch(query)) return [query.title];
-  return trackSearchTitles(query.title).map((title) => `${query.artist} ${title}`.trim());
+  const titles = trackSearchTitles(query.title);
+  if (titles.length === 0) return query.artist.trim() ? [query.artist.trim()] : [];
+  return titles.map((title) => `${query.artist} ${title}`.trim());
 }

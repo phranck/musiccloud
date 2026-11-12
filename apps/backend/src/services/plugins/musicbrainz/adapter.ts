@@ -397,7 +397,7 @@ export const musicbrainzAdapter = {
     const queryString = isFreeText
       ? escapeLucene(query.title)
       : [
-          buildSearchClause("recording", query.title),
+          query.title ? buildSearchClause("recording", query.title) : "",
           query.artist ? buildSearchClause("artist", query.artist) : "",
           query.album ? buildSearchClause("release", query.album) : "",
         ]
