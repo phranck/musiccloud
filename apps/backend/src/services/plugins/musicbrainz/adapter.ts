@@ -47,7 +47,7 @@ import type {
   SearchQuery,
   SearchResultWithCandidates,
 } from "../../types.js";
-import { isFreeTextSearch, scoreSearchCandidate } from "../_shared/confidence.js";
+import { isFreeTextSearch, namesRecording, scoreSearchCandidate } from "../_shared/confidence.js";
 import { acquireMusicBrainzSlot } from "./rate-limit.js";
 
 const API_BASE = "https://musicbrainz.org/ws/2";
@@ -326,12 +326,19 @@ function mapArtist(artist: MbArtist): NormalizedArtist {
  * Combines relevance only after shared recording identity permits the candidate.
  * Provider ranking cannot revive a rejected performer or recording version.
  *
+ * MusicBrainz scores its best text hits at `100`, which is above
+ * `AUTO_SELECT_THRESHOLD`. Its score therefore counts only for a search that
+ * names a recording. Free text and a search naming only a title or only an
+ * artist keep the shared score, which lists candidates rather than resolving one.
+ *
+ * @param query - The search the candidate answers.
  * @param mbScore - MusicBrainz relevance in its percentage scale.
  * @param projectScore - Shared score, including an explicit identity rejection at zero.
- * @returns Zero for a rejected recording, otherwise the stronger accepted score.
+ * @returns Zero for a rejected recording, the shared score for a search that
+ *   names no recording, otherwise the stronger of the two scores.
  */
-function combinedConfidence(mbScore: number | undefined, projectScore: number): number {
-  if (projectScore === 0) return 0;
+function combinedConfidence(query: SearchQuery, mbScore: number | undefined, projectScore: number): number {
+  if (projectScore === 0 || !namesRecording(query)) return projectScore;
   const normalizedMb = typeof mbScore === "number" ? Math.max(0, Math.min(1, mbScore / 100)) : 0;
   return Math.max(normalizedMb, projectScore);
 }
@@ -424,7 +431,7 @@ export const musicbrainzAdapter = {
     const scored = recordings.map((rec, i) => {
       const track = mapRecording(rec);
       const projectScore = scoreSearchCandidate(query, track, i);
-      const confidence = combinedConfidence(rec.score, projectScore);
+      const confidence = combinedConfidence(query, rec.score, projectScore);
       return { track, confidence };
     });
 

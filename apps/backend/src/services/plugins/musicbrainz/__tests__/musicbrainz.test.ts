@@ -1,5 +1,6 @@
 import { PLATFORM_CONFIG } from "@musiccloud/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AUTO_SELECT_THRESHOLD } from "../../../constants.js";
 import { musicbrainzAdapter } from "../adapter";
 import { musicbrainzPlugin } from "../index";
 import { _resetMusicBrainzGate } from "../rate-limit";
@@ -253,6 +254,28 @@ describe("MusicBrainz: searchTrackWithCandidates", () => {
     expect(query).not.toContain("recording:");
     expect(query).toContain("Yello");
     expect(result.candidates.map((candidate) => candidate.track.title)).toEqual(["Oh Yeah"]);
+  });
+
+  it.each([
+    ["free text", { title: "Yello", artist: "Yello" }],
+    ["an artist alone", { title: "", artist: "Yello" }],
+  ])("keeps a top-scored recording below auto-selection for %s", async (_label, query) => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        recordings: [
+          {
+            id: RECORDING_MBID,
+            title: "Oh Yeah",
+            score: 100,
+            "artist-credit": [{ name: "Yello", artist: { id: ARTIST_MBID, name: "Yello" } }],
+          },
+        ],
+      }),
+    );
+
+    const result = await musicbrainzAdapter.searchTrackWithCandidates(query);
+
+    expect(result.candidates[0]?.confidence).toBeLessThan(AUTO_SELECT_THRESHOLD);
   });
 
   it("returns found:false when no recordings", async () => {
