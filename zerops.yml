@@ -9,7 +9,6 @@ zerops:
         - pnpm --filter @musiccloud/backend build
       deployFiles:
         - apps/backend/dist
-        - apps/backend/public
         - apps/backend/src/db/migrations
     run:
       base: alpine/nodejs@22
@@ -193,7 +192,6 @@ zerops:
         - cp apps/dashboard/site_config.tmpl .
       deployFiles:
         - index.html
-        - .well-known
         - assets
         - fonts
         - icons

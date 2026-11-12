@@ -2,7 +2,7 @@ name: Deploy service
 
 # One service's deploy, called by the four deploy jobs in ci.yml with the
 # values that differ between them. The steps are the same for every service:
-# security.txt, the Zerops push and a probe of the public host.
+# the Zerops push and a probe of the public host.
 on:
   workflow_call:
     inputs:
@@ -38,13 +38,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Add security.txt
-        uses: phranck/security-txt-action@v1
-        with:
-          host: ${{ inputs.host }}
-          output: apps/${{ inputs.app }}/public/.well-known
-          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
-          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
       - name: Install Zerops CLI
         run: |
           curl -fsSL https://github.com/zeropsio/zcli/releases/latest/download/zcli-linux-amd64 -o /usr/local/bin/zcli
