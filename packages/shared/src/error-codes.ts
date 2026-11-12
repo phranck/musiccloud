@@ -466,6 +466,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     internalNote: "Cross-service resolution produced no matches above the quality threshold.",
     source: "apps/backend/src/services/resolver.ts resolveAcrossServices",
   },
+  "MC-RES-0004": {
+    code: "MC-RES-0004",
+    httpStatus: 404,
+    userMessage: "Nothing matches this search. Try other words or fewer fields.",
+    internalNote:
+      "A text or structured search was answered by at least one service and none returned a usable candidate. Distinct from MC-RES-0001, which describes a link whose track the source service no longer has.",
+    source: "apps/backend/src/lib/resolve/errors.ts searchExhaustedError",
+  },
 
   // ─── External API / network ────────────────────────────────────────────────
   "MC-API-0001": {

@@ -368,7 +368,7 @@ describe("AlbumResolver: resolveAlbumTextSearch", () => {
     expect(mockDeezerAdapter.searchAlbum).toHaveBeenCalled();
   });
 
-  it("should throw TRACK_NOT_FOUND when no adapter finds an album", async () => {
+  it("reports a search without result when no adapter finds an album", async () => {
     mockSpotifyAdapter.searchAlbum.mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" });
     mockDeezerAdapter.searchAlbum.mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" });
     mockTidalAdapter.searchAlbum.mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" });

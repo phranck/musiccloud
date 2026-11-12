@@ -446,7 +446,7 @@ describe("resolveTextSearchWithDisambiguation", () => {
     expect(result.result?.sourceTrack.title).toBe("Bohemian Rhapsody");
   });
 
-  it("should throw TRACK_NOT_FOUND when no adapter returns results", async () => {
+  it("reports a search without result when no adapter returns results", async () => {
     const spotifyAdapter = createMockAdapter({
       id: "spotify",
       displayName: "Spotify",
@@ -463,7 +463,7 @@ describe("resolveTextSearchWithDisambiguation", () => {
     try {
       await resolveTextSearchWithDisambiguation("xyznonexistent123");
     } catch (err) {
-      expect((err as ResolveError).code).toBe("TRACK_NOT_FOUND");
+      expect((err as ResolveError).code).toBe("MC-RES-0004");
     }
   });
 
@@ -1137,7 +1137,7 @@ describe("resolveQuery: error handling", () => {
     expect(spotifyLink?.confidence).toBe(1.0);
   });
 
-  it("should throw TRACK_NOT_FOUND when text search finds nothing on any adapter", async () => {
+  it("reports a search without result when text search finds nothing on any adapter", async () => {
     const spotifyAdapter = createMockAdapter({
       id: "spotify",
       displayName: "Spotify",
@@ -1155,7 +1155,7 @@ describe("resolveQuery: error handling", () => {
     try {
       await resolveQuery("totally nonexistent track xyz");
     } catch (err) {
-      expect((err as ResolveError).code).toBe("TRACK_NOT_FOUND");
+      expect((err as ResolveError).code).toBe("MC-RES-0004");
     }
   });
 

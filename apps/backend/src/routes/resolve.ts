@@ -138,7 +138,11 @@ export default async function resolveRoutes(app: FastifyInstance) {
             $ref: "ErrorResponse#",
           },
           401: { description: "Missing, invalid, or revoked API key.", $ref: "ErrorResponse#" },
-          404: { description: "URL is valid but the track/album/artist could not be found.", $ref: "ErrorResponse#" },
+          404: {
+            description:
+              "The URL is valid but its track, album or artist could not be found, or a text or structured search found nothing on any service (`MC-RES-0004`).",
+            $ref: "ErrorResponse#",
+          },
           408: { description: "Upstream service timed out before a match could be confirmed.", $ref: "ErrorResponse#" },
           429: {
             description:
