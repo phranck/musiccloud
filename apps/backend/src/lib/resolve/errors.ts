@@ -66,15 +66,17 @@ export class ResolveError extends Error {
  * A search where every service it asked failed instead of answering is an
  * outage, not an empty catalogue, so it reports `ALL_DOWN` (a retryable 503)
  * rather than "not found", which would tell the visitor the music does not
- * exist.
+ * exist. A search that was answered and found nothing reports `MC-RES-0004`,
+ * whose message speaks of the search rather than of a vanished track.
  *
  * @param asked - How many services the search asked.
  * @param failed - How many of them threw instead of answering.
  * @param notFoundMessage - The message for a search that was answered and found nothing.
+ * @returns `ALL_DOWN` when every service failed, otherwise `MC-RES-0004`.
  */
 export function searchExhaustedError(asked: number, failed: number, notFoundMessage: string): ResolveError {
   if (asked > 0 && failed === asked) {
     return new ResolveError("ALL_DOWN", `All ${asked} services failed the search`);
   }
-  return new ResolveError("TRACK_NOT_FOUND", notFoundMessage);
+  return new ResolveError("MC-RES-0004", notFoundMessage);
 }

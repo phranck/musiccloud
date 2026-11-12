@@ -234,6 +234,27 @@ describe("MusicBrainz: searchTrackWithCandidates", () => {
     expect(result.bestMatch.confidence).toBeGreaterThanOrEqual(0.6);
   });
 
+  it("asks for the artist alone when the search names no title", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        recordings: [
+          {
+            id: RECORDING_MBID,
+            title: "Oh Yeah",
+            "artist-credit": [{ name: "Yello", artist: { id: ARTIST_MBID, name: "Yello" } }],
+          },
+        ],
+      }),
+    );
+
+    const result = await musicbrainzAdapter.searchTrackWithCandidates({ title: "", artist: "Yello" });
+
+    const query = new URL(fetchMock.mock.calls[0]?.[0] as string).searchParams.get("query") ?? "";
+    expect(query).not.toContain("recording:");
+    expect(query).toContain("Yello");
+    expect(result.candidates.map((candidate) => candidate.track.title)).toEqual(["Oh Yeah"]);
+  });
+
   it("returns found:false when no recordings", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ recordings: [] }));
     const result = await musicbrainzAdapter.searchTrackWithCandidates({

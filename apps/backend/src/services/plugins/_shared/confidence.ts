@@ -23,6 +23,31 @@ import { artistIdentityNames, artistNameForSearch } from "./artists.js";
 
 /** Exact artist names and their leading-"The" equivalents qualify for a catalog match. */
 const MIN_FALLBACK_ARTIST_CONFIDENCE = 0.9;
+/**
+ * Score of the provider's first free-text result. Each later position loses
+ * {@link PROVIDER_RANK_STEP} down to {@link PROVIDER_RANK_FLOOR}. It stays below
+ * `AUTO_SELECT_THRESHOLD`, so free text always lists candidates.
+ */
+const FREE_TEXT_TOP_CONFIDENCE = 0.85;
+/**
+ * Score of every free-text result whose title or artist is exactly the text
+ * typed. It sits above {@link FREE_TEXT_TOP_CONFIDENCE}, so such a result ranks
+ * ahead of a spelling the provider corrected the text to, and below
+ * `AUTO_SELECT_THRESHOLD`, so it is still offered rather than resolved. Equal
+ * scores keep the provider's order, because the adapters sort stably.
+ */
+const FREE_TEXT_EXACT_CONFIDENCE = 0.88;
+/**
+ * Score of the provider's first result for a structured search that names a
+ * title or an artist but not both. It stays below `MATCH_MIN_CONFIDENCE`, so
+ * such a search lists candidates and never identifies one recording on its own,
+ * whether in the disambiguation list or in a cross-service match.
+ */
+const PARTIAL_QUERY_TOP_CONFIDENCE = 0.55;
+/** Score lost per provider position for a ranking that trusts the provider. */
+const PROVIDER_RANK_STEP = 0.05;
+/** Lowest score a ranking that trusts the provider gives, equal to `CANDIDATE_MIN_CONFIDENCE`. */
+const PROVIDER_RANK_FLOOR = 0.4;
 /** Compare the full credit and its leading performer, never a guest alone. */
 const PRIMARY_ARTIST_NAME_COUNT = 2;
 /** The existing scorer's widest duration tier, applied as a hard identity bound. */
@@ -69,13 +94,54 @@ export function isFreeTextSearch(query: Pick<SearchQuery, "title" | "artist" | "
 }
 
 /**
+ * Reads a structured search that names a title or an artist but not both.
+ *
+ * @param query - Search metadata; a field left out is an empty or blank string.
+ * @returns `true` when exactly one of title and artist is blank, `false` for free
+ *   text, for a search naming both, and for one naming neither.
+ */
+function isPartialSearch(query: Pick<SearchQuery, "title" | "artist" | "artists">): boolean {
+  if (isFreeTextSearch(query)) return false;
+  return !query.title.trim() !== !query.artist.trim();
+}
+
+/**
+ * Scores a result by the provider's position alone.
+ *
+ * @param top - Score of the first position, `FREE_TEXT_TOP_CONFIDENCE` or `PARTIAL_QUERY_TOP_CONFIDENCE`.
+ * @param index - Zero-based provider position.
+ * @returns `top` less `PROVIDER_RANK_STEP` per position, never below `PROVIDER_RANK_FLOOR`.
+ */
+function providerRankConfidence(top: number, index: number): number {
+  return Math.max(PROVIDER_RANK_FLOOR, top - index * PROVIDER_RANK_STEP);
+}
+
+/**
+ * Says whether a result's title or one of its artists is exactly the free text typed.
+ *
+ * A title counts with and without a featured-artist suffix, and an artist counts
+ * by the same exact-name rule the identity guard applies.
+ *
+ * @param text - The free text as typed.
+ * @param track - Candidate with its display title and artist credits.
+ * @returns `true` when the title or an artist equals `text`, ignoring case and surrounding space.
+ */
+function namesTypedText(text: string, track: NormalizedTrack): boolean {
+  const typed = text.trim().toLowerCase();
+  if (trackSearchTitles(track.title).some((title) => title.toLowerCase() === typed)) return true;
+  return comparisonArtistNames(track.artists, track.sourceService).some(
+    (artist) => calculateArtistNameConfidence(text, artist) >= MIN_FALLBACK_ARTIST_CONFIDENCE,
+  );
+}
+
+/**
  * Builds provider search text without duplicating an unstructured query.
  *
  * @param query - A title and artist, or the resolver's free-text marker.
- * @returns The original free text or artist followed by title.
+ * @returns The original free text, or the artist followed by the title with a field the query leaves out omitted.
  */
 export function searchText(query: Pick<SearchQuery, "title" | "artist" | "artists">): string {
-  return isFreeTextSearch(query) ? query.title : `${query.artist} ${query.title}`;
+  return isFreeTextSearch(query) ? query.title : `${query.artist} ${query.title}`.trim();
 }
 
 /**
@@ -109,6 +175,8 @@ function comparisonArtistNames(artists: readonly string[], service?: NormalizedT
  * Provider ranking is not identity evidence for known metadata. The same guard
  * protects broadened queries, candidate scores, and cached enrichment. A genuine
  * free-text search has no known artist list and keeps its ranking semantics.
+ * A structured search that names only a title or only an artist is compared on
+ * that field alone, and a query that names neither matches nothing.
  *
  * @param query - Original structured metadata, not a broadened lookup string.
  * @param candidate - Provider recording with its original display metadata.
@@ -117,13 +185,19 @@ function comparisonArtistNames(artists: readonly string[], service?: NormalizedT
 export function isTrackSearchFallbackMatch(query: SearchQuery, candidate: NormalizedTrack): boolean {
   if (isFreeTextSearch(query) && !query.artists?.length) return true;
   const wantedArtists = artistIdentityNames(query.artist).slice(0, PRIMARY_ARTIST_NAME_COUNT);
+  const wantedTitles = trackSearchTitles(query.title);
+  if (wantedArtists.length === 0 && wantedTitles.length === 0) return false;
   const actualArtists = comparisonArtistNames(candidate.artists, candidate.sourceService);
-  const sameArtist = wantedArtists.some((wanted) =>
-    actualArtists.some((actual) => calculateArtistNameConfidence(wanted, actual) >= MIN_FALLBACK_ARTIST_CONFIDENCE),
-  );
-  const sameTitle = trackSearchTitles(query.title).some((wanted) =>
-    trackSearchTitles(candidate.title).some((actual) => stringSimilarity(wanted, actual) >= MATCH_MIN_CONFIDENCE),
-  );
+  const sameArtist =
+    wantedArtists.length === 0 ||
+    wantedArtists.some((wanted) =>
+      actualArtists.some((actual) => calculateArtistNameConfidence(wanted, actual) >= MIN_FALLBACK_ARTIST_CONFIDENCE),
+    );
+  const sameTitle =
+    wantedTitles.length === 0 ||
+    wantedTitles.some((wanted) =>
+      trackSearchTitles(candidate.title).some((actual) => stringSimilarity(wanted, actual) >= MATCH_MIN_CONFIDENCE),
+    );
   const wantedVersion = recordingVersionQualifier(query.title);
   const actualVersion = recordingVersionQualifier(candidate.title);
   const sameDuration = recordingDurationsAgree(query.durationMs, candidate.durationMs);
@@ -154,17 +228,27 @@ function queryArtistComparisonName(credit: string, candidates: readonly string[]
  *
  * Structured matching uses the existing confidence weights over the same bounded
  * title interpretations that query builders use. Identity guards run first so a
- * cover or live performance cannot outrank the requested studio recording. Free
- * text retains the provider-position decay and its existing floor.
+ * cover or live performance cannot outrank the requested studio recording.
+ *
+ * Free text and a structured search naming only a title or only an artist know
+ * no recording, so both trust the provider's order. Free text ranks a result
+ * whose title or artist is exactly the text typed ahead of the rest, because a
+ * provider answers `Yello` with songs called "Hello" first. A partial search
+ * stays below `MATCH_MIN_CONFIDENCE`.
  *
  * @param query - Original search metadata, never mutated.
  * @param track - Candidate retaining its display title and artist credits.
- * @param index - Zero-based provider rank, used only for free-text discovery.
+ * @param index - Zero-based provider rank, used for free text and partial searches only.
  * @returns Confidence in [0, 1], or zero for an incompatible recording.
  */
 export function scoreSearchCandidate(query: SearchQuery, track: NormalizedTrack, index: number): number {
   if (!isTrackSearchFallbackMatch(query, track)) return 0;
-  if (isFreeTextSearch(query)) return Math.max(0.4, 0.85 - index * 0.05);
+  if (isFreeTextSearch(query)) {
+    return namesTypedText(query.title, track)
+      ? FREE_TEXT_EXACT_CONFIDENCE
+      : providerRankConfidence(FREE_TEXT_TOP_CONFIDENCE, index);
+  }
+  if (isPartialSearch(query)) return providerRankConfidence(PARTIAL_QUERY_TOP_CONFIDENCE, index);
   const candidateArtistNames = comparisonArtistNames(track.artists, track.sourceService);
   const queryArtistNames = (query.artists?.length ? query.artists : [query.artist]).map((artist) =>
     queryArtistComparisonName(artist, candidateArtistNames),

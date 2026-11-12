@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AUTO_SELECT_THRESHOLD, CANDIDATE_MIN_CONFIDENCE } from "../../../constants.js";
 import type { NormalizedAlbum, NormalizedTrack } from "../../../types.js";
 import { isFreeTextSearch, scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../confidence.js";
 
@@ -137,6 +138,48 @@ describe("scoreSearchCandidate", () => {
     expect(scoreSearchCandidate(query, { ...track, title: "Souvlaki Space Station" }, 0)).toBeLessThan(
       scoreSearchCandidate(query, track, 0),
     );
+  });
+
+  describe("a structured search that names only one field", () => {
+    const yello = { ...track, sourceId: "131741644", title: "Oh Yeah", artists: ["Yello"] };
+    const adele = { ...track, sourceId: "138545995", title: "Hello", artists: ["Adele"] };
+
+    it("lists the artist's recordings for an artist alone, in the service's order", () => {
+      const query = { title: "", artist: "Yello" };
+      expect(scoreSearchCandidate(query, yello, 0)).toBeGreaterThanOrEqual(CANDIDATE_MIN_CONFIDENCE);
+      expect(scoreSearchCandidate(query, yello, 0)).toBeGreaterThan(scoreSearchCandidate(query, yello, 3));
+      expect(scoreSearchCandidate(query, adele, 0)).toBe(0);
+    });
+
+    it("lists the recordings of that title for a title alone", () => {
+      const query = { title: "Karma Police", artist: "" };
+      const karmaPolice = { ...track, title: "Karma Police", artists: ["Radiohead"] };
+      expect(scoreSearchCandidate(query, karmaPolice, 0)).toBeGreaterThanOrEqual(CANDIDATE_MIN_CONFIDENCE);
+      expect(scoreSearchCandidate(query, adele, 0)).toBe(0);
+    });
+
+    it("never resolves on its own, because nothing identifies one recording", () => {
+      expect(scoreSearchCandidate({ title: "", artist: "Yello" }, yello, 0)).toBeLessThan(AUTO_SELECT_THRESHOLD);
+    });
+  });
+
+  describe("a free-text search the service answered with a corrected spelling", () => {
+    const query = { title: "Yello", artist: "Yello" };
+    const hello = { ...track, sourceId: "138545995", title: "Hello", artists: ["Adele"] };
+    const yello = { ...track, sourceId: "131741644", title: "Oh Yeah (Remastered 2005)", artists: ["Yello"] };
+
+    it("ranks a recording by the artist typed ahead of the service's correction", () => {
+      expect(scoreSearchCandidate(query, yello, 17)).toBeGreaterThan(scoreSearchCandidate(query, hello, 0));
+    });
+
+    it("ranks a recording with the title typed ahead of the service's correction", () => {
+      const titled = { ...track, title: "yello", artists: ["Somebody"] };
+      expect(scoreSearchCandidate(query, titled, 20)).toBeGreaterThan(scoreSearchCandidate(query, hello, 0));
+    });
+
+    it("still lists candidates rather than resolving one", () => {
+      expect(scoreSearchCandidate(query, yello, 0)).toBeLessThan(AUTO_SELECT_THRESHOLD);
+    });
   });
 });
 

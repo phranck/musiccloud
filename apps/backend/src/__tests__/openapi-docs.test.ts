@@ -480,7 +480,8 @@ describe("OpenAPI docs", () => {
     for (const text of [
       "starts with `title:`, `artist:`, or `album:`",
       "resolves tracks only",
-      "`count:` — optional integer from `1` to `10`",
+      "never resolves one on its own",
+      "`count:` is an optional integer from `1` to `10`",
       "A missing comma before the next known field is tolerated",
       "Commas are field separators and are not escaped",
       "Duplicate fields, empty values, unknown fields",

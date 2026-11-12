@@ -181,13 +181,19 @@ function isDeezerError(data: unknown): data is DeezerErrorResponse {
  * Builds the Deezer `/search/track` query string. Deezer accepts both a
  * free-text q (when `title === artist` we treat the input as a single
  * blob) and a structured form using `artist:"…" track:"…" album:"…"`
- * field operators. `album:` is appended only when the resolver provided
- * one, mirroring the optional shape of `SearchQuery`.
+ * field operators. A field the query leaves out, such as the title of a
+ * search for an artist alone, gets no operator, because an empty
+ * `track:""` asks for a recording without a title.
  */
 function buildDeezerQ(query: SearchQuery): string {
   if (isFreeTextSearch(query)) return query.title;
-  const base = `artist:"${query.artist}" track:"${query.title}"`;
-  return query.album ? `${base} album:"${query.album}"` : base;
+  return [
+    query.artist.trim() && `artist:"${query.artist}"`,
+    query.title.trim() && `track:"${query.title}"`,
+    query.album?.trim() && `album:"${query.album}"`,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function mapTrack(raw: DeezerTrackResponse): NormalizedTrack {

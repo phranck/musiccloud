@@ -81,7 +81,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           "- **Free-text query** (e.g. `bohemian rhapsody queen`)\n" +
           `- **Structured search query** — ${STRUCTURED_SEARCH_OPENAPI_SECTION}\n\n` +
           `${STRUCTURED_SEARCH_GET_OPENAPI_NOTE}\n\n` +
-          "A successful request persists what it resolved and returns either `UnifiedResolveSuccess` or its canonical share URL. A URL is routed by what it points at, so a track, an album and an artist URL each return the matching variant, discriminated on `type`. Malformed input, ambiguous text, or text with no unambiguous match returns `400`. A valid streaming-service URL whose item cannot be found returns `404`.\n\n" +
+          "A successful request persists what it resolved and returns either `UnifiedResolveSuccess` or its canonical share URL. A URL is routed by what it points at, so a track, an album and an artist URL each return the matching variant, discriminated on `type`. Malformed input, ambiguous text, or text with no unambiguous match returns `400`. A valid streaming-service URL whose item cannot be found returns `404`, and so does a search that no service matched at all.\n\n" +
           "`genre:` discovery queries are not supported because they return candidate lists. Send those queries to `POST /api/v1/resolve`.",
         querystring: {
           type: "object",
@@ -129,7 +129,8 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
             $ref: "ErrorResponse#",
           },
           404: {
-            description: "The query is a valid streaming-service URL, but the referenced track could not be found.",
+            description:
+              "The query is a valid streaming-service URL whose item could not be found, or a text or structured search that no service matched (`MC-RES-0004`).",
             $ref: "ErrorResponse#",
           },
           408: { description: "Upstream service timed out.", $ref: "ErrorResponse#" },
