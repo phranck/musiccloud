@@ -94,15 +94,17 @@ export function isFreeTextSearch(query: Pick<SearchQuery, "title" | "artist" | "
 }
 
 /**
- * Reads a structured search that names a title or an artist but not both.
+ * Reads a structured search that names both a title and an artist, the only
+ * kind of search that identifies one recording. Free text and a search naming
+ * only one of the two list candidates instead, so a provider's own relevance
+ * score may raise confidence for this kind of search alone.
  *
  * @param query - Search metadata; a field left out is an empty or blank string.
- * @returns `true` when exactly one of title and artist is blank, `false` for free
- *   text, for a search naming both, and for one naming neither.
+ * @returns `true` when the search is structured and neither title nor artist is
+ *   blank, `false` for free text and for a search leaving either field out.
  */
-function isPartialSearch(query: Pick<SearchQuery, "title" | "artist" | "artists">): boolean {
-  if (isFreeTextSearch(query)) return false;
-  return !query.title.trim() !== !query.artist.trim();
+export function namesRecording(query: Pick<SearchQuery, "title" | "artist" | "artists">): boolean {
+  return !isFreeTextSearch(query) && query.title.trim() !== "" && query.artist.trim() !== "";
 }
 
 /**
@@ -248,7 +250,7 @@ export function scoreSearchCandidate(query: SearchQuery, track: NormalizedTrack,
       ? FREE_TEXT_EXACT_CONFIDENCE
       : providerRankConfidence(FREE_TEXT_TOP_CONFIDENCE, index);
   }
-  if (isPartialSearch(query)) return providerRankConfidence(PARTIAL_QUERY_TOP_CONFIDENCE, index);
+  if (!namesRecording(query)) return providerRankConfidence(PARTIAL_QUERY_TOP_CONFIDENCE, index);
   const candidateArtistNames = comparisonArtistNames(track.artists, track.sourceService);
   const queryArtistNames = (query.artists?.length ? query.artists : [query.artist]).map((artist) =>
     queryArtistComparisonName(artist, candidateArtistNames),
