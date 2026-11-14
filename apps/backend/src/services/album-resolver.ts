@@ -49,9 +49,8 @@
  * Album payloads carry a preview URL for the share page's inline
  * player. Deezer's `/search/album` endpoint does not return tracks,
  * so `resolveAlbumViaSearch` follows up with `getAlbum(sourceId)`
- * when the search result lacks a preview but the adapter can serve
- * full album detail. Without this, Deezer-matched albums would ship
- * a silent preview player.
+ * when the search result lacks a preview and the adapter supports previews.
+ * Without this, Deezer-matched albums would ship a silent preview player.
  *
  * ## YouTube Music derivation
  *
@@ -568,9 +567,9 @@ async function resolveAlbumViaSearch(
   if (!result.found || !result.album) return null;
 
   // Search endpoints (e.g. Deezer /search/album) don't return tracks, so topTrackPreviewUrl
-  // is missing. Fetch full album details when the adapter supports it.
+  // is missing. Fetch full album details only when the adapter can supply a preview.
   let album = result.album;
-  if (!album.topTrackPreviewUrl && adapter.getAlbum && album.sourceId) {
+  if (!album.topTrackPreviewUrl && adapter.capabilities.supportsPreview && adapter.getAlbum && album.sourceId) {
     try {
       const full = await adapter.getAlbum(album.sourceId);
       if (full.topTrackPreviewUrl) album = full;

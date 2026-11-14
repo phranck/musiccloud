@@ -702,10 +702,12 @@ describe("AlbumResolver: YouTube Music album destinations", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
     vi.mocked(getActiveAdapters).mockResolvedValue([mockDeezerAdapter, mockSpotifyAdapter, mockTidalAdapter] as never);
   });
 
-  it("adds YouTube Music exactly once for a resolved album", async () => {
+  it("adds YouTube Music exactly once for a resolved album without unused detail enrichment", async () => {
+    const getAlbumSpy = vi.spyOn(youtubeAdapter, "getAlbum");
     const result = await resolveAlbumTextSearch("Faderhead Legacy Code");
 
     const youtube = result.links.filter((link) => link.service === "youtube");
@@ -724,5 +726,6 @@ describe("AlbumResolver: YouTube Music album destinations", () => {
       confidence: 0.99,
       matchMethod: "search",
     });
+    expect(getAlbumSpy).not.toHaveBeenCalled();
   });
 });

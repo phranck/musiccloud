@@ -22,6 +22,11 @@ function hydration(path: "search" | "browse", data: unknown): string {
   return `<script>try {const initialData = [];initialData.push({path: '${escapedPath}', params: JSON.parse('\\x7b\\x7d'), data: '${hexEncodedJson(data)}'});ytcfg.set({'YTMUSIC_INITIAL_DATA': initialData});} catch (e) {}</script>`;
 }
 
+function rawSearchHydration(encodedData: string): string {
+  const escapedPath = String.raw`\/search`;
+  return `<script>try {const initialData = [];initialData.push({path: '${escapedPath}', params: JSON.parse('\\x7b\\x7d'), data: '${encodedData}'});ytcfg.set({'YTMUSIC_INITIAL_DATA': initialData});} catch (e) {}</script>`;
+}
+
 function htmlResponse(html: string): Response {
   return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
 }
@@ -251,6 +256,60 @@ describe("YouTube album search", () => {
     });
 
     expect(result).toEqual({ found: false, confidence: 0, matchMethod: "search" });
+  });
+
+  it("preserves non-Latin album metadata in hydration", async () => {
+    const title = "Legacy Code 東京";
+    mockAlbumSearch(searchDocument({ musicCardShelfRenderer: albumCard(title, "Faderhead", "2026", FADERHEAD_ID) }), [
+      playlistDetails(FADERHEAD_ID, title, 12),
+    ]);
+
+    const result = await youtubeAdapter.searchAlbum!({
+      title,
+      artist: "Faderhead",
+      year: "2026",
+      totalTracks: 12,
+    });
+
+    expect(result).toMatchObject({ found: true, confidence: 1, matchMethod: "search" });
+    expect(result.album).toMatchObject({ title, artists: ["Faderhead"], totalTracks: 12 });
+  });
+
+  it("decodes control escapes without evaluating code-like text", async () => {
+    const searchData = {
+      ...searchDocument({ musicCardShelfRenderer: albumCard("Legacy Code", "Faderhead", "2026", FADERHEAD_ID) }),
+      metadata: {
+        note: "first line\nsecond line\tend",
+        codeLikeText: "globalThis.__youtubeHydrationExecuted = true",
+      },
+    };
+    mockAlbumSearch(searchData, [playlistDetails(FADERHEAD_ID, "Legacy Code", 12)]);
+
+    const result = await youtubeAdapter.searchAlbum!({
+      title: "Legacy Code",
+      artist: "Faderhead",
+      year: "2026",
+      totalTracks: 12,
+    });
+
+    expect(result.found).toBe(true);
+    expect((globalThis as Record<string, unknown>).__youtubeHydrationExecuted).toBeUndefined();
+  });
+
+  it("rejects malformed hexadecimal hydration escapes", async () => {
+    request.mockResolvedValue(htmlResponse(rawSearchHydration("\\x7b\\x22title\\x22:\\x22\\xZZ\\x22\\x7d")));
+
+    await expect(youtubeAdapter.searchAlbum!({ title: "Legacy Code", artist: "Faderhead" })).rejects.toThrow(
+      /invalid hydration escapes/i,
+    );
+  });
+
+  it("rejects malformed JSON inside an otherwise valid hydration entry", async () => {
+    request.mockResolvedValue(htmlResponse(rawSearchHydration("\\x7b\\x22title\\x22")));
+
+    await expect(youtubeAdapter.searchAlbum!({ title: "Legacy Code", artist: "Faderhead" })).rejects.toThrow(
+      /invalid hydration JSON/i,
+    );
   });
 
   it("rejects a consent or gateway document instead of returning a clean miss", async () => {
