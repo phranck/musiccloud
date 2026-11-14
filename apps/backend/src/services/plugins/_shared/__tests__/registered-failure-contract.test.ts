@@ -63,8 +63,8 @@ for (const { adapter } of listPlugins()) {
   describe(`${adapter.id}: registered failure contract`, () => {
     it("implements each operation advertised by its capability declarations", () => {
       if (adapter.albumCapabilities) {
-        expect(adapter.detectAlbumUrl).toBeTypeOf("function");
-        expect(adapter.getAlbum).toBeTypeOf("function");
+        // Album search does not imply direct URL input. A detector, when present, requires its getter.
+        if (adapter.detectAlbumUrl) expect(adapter.getAlbum).toBeTypeOf("function");
         if (adapter.albumCapabilities.supportsUpc) expect(adapter.findAlbumByUpc).toBeTypeOf("function");
         if (adapter.albumCapabilities.supportsAlbumSearch) expect(adapter.searchAlbum).toBeTypeOf("function");
       }

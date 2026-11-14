@@ -1,3 +1,18 @@
+/**
+ * @file YouTube album discovery and detail validation.
+ *
+ * The official Data API reads known album playlists but does not discover
+ * every YouTube Music album through playlist search. Discovery therefore
+ * reads first-party search and album pages with US metadata, decodes their
+ * hydration as data, and accepts only OLAK5uy_ playlist ids. The Data API
+ * supplies the official item count used for edition matching. No youtubei
+ * endpoint, browser cookie, or JavaScript evaluation is involved.
+ *
+ * Only a recognized search document with no compatible album is a miss.
+ * HTTP failures, consent or gateway pages, malformed hydration, missing
+ * album details, and invalid item counts throw so negative cache entries
+ * cannot turn an incomplete provider answer into a month-long absence.
+ */
 import { Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
@@ -208,21 +223,6 @@ function albumUrl(albumId: string): string {
 
 function musicAlbumUrl(albumId: string): string {
   return `https://music.youtube.com/playlist?list=${albumId}&gl=US&hl=en`;
-}
-
-/** Extracts an album playlist id from a supported YouTube or YouTube Music URL. */
-export function detectYouTubeAlbumUrl(input: string): string | null {
-  try {
-    const url = new URL(/^[a-z][a-z\d+.-]*:/i.test(input) ? input : `https://${input}`);
-    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return null;
-    const hostname = url.hostname.replace(/\.$/, "");
-    if (!["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com"].includes(hostname)) return null;
-    if (url.pathname !== "/playlist") return null;
-    const id = url.searchParams.get("list");
-    return id && ALBUM_ID_PATTERN.test(id) ? id : null;
-  } catch {
-    return null;
-  }
 }
 
 /** Retrieves album identity from its first-party page and validates its size through the Data API. */

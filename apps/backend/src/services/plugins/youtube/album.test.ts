@@ -260,7 +260,7 @@ describe("YouTube album search", () => {
   });
 });
 
-describe("YouTube album retrieval and URL detection", () => {
+describe("YouTube album retrieval and capabilities", () => {
   it("maps album-page identity and the official item count without using playlist creation as the release date", async () => {
     request.mockImplementation(async (input: string) => {
       const url = String(input);
@@ -290,23 +290,8 @@ describe("YouTube album retrieval and URL detection", () => {
     expect(album.releaseDate).not.toBe("2026-09-28T17:23:21.787872Z");
   });
 
-  it.each([
-    ["https://music.youtube.com/playlist?feature=share&list=OLAK5uy_abc123", "OLAK5uy_abc123"],
-    ["https://www.youtube.com/playlist?list=OLAK5uy_abc123&feature=share", "OLAK5uy_abc123"],
-    ["music.youtube.com/playlist?list=OLAK5uy_abc123", "OLAK5uy_abc123"],
-  ])("detects an album playlist independently of parameter order: %s", (url, expected) => {
-    expect(youtubeAdapter.detectAlbumUrl!(url)).toBe(expected);
-  });
-
-  it.each([
-    "https://music.youtube.com/playlist?list=PLQpHaPWy4ISk",
-    "https://music.youtube.com/search?list=OLAK5uy_abc123",
-    "https://example.com/playlist?list=OLAK5uy_abc123",
-  ])("rejects a non-album or lookalike URL: %s", (url) => {
-    expect(youtubeAdapter.detectAlbumUrl!(url)).toBeNull();
-  });
-
-  it("declares only the implemented album operations", () => {
+  it("declares album search without claiming direct album URL input", () => {
+    expect(youtubeAdapter.detectAlbumUrl).toBeUndefined();
     expect(youtubeAdapter.albumCapabilities).toEqual({
       supportsUpc: false,
       supportsAlbumSearch: true,

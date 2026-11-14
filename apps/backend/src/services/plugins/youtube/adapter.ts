@@ -1,19 +1,25 @@
 /**
- * @file YouTube adapter: video-as-track + channel-as-artist resolves.
+ * @file YouTube adapter: video, album-playlist, and channel resolves.
  *
  * Credentialed: requires `YOUTUBE_API_KEY` (Google Cloud Console, YouTube
  * Data API v3), which its manifest lists as `requiredEnv`. Missing the key
  * makes the plugin unavailable, and it is skipped across resolves.
  *
- * ## Track = video (no album support)
+ * ## Track = video, album = playlist
  *
- * YouTube has no native album concept. We treat each video as a track,
- * and every search pins `videoCategoryId=10` ("Music") so the API
- * does not return unrelated content like tutorials or commentary. The
- * `" official"` suffix on the query string biases the search towards
- * official music videos over covers or reaction uploads. Album
- * resolution is handled by the album resolver via the OLAK5uy_
- * playlist derivation, not here.
+ * We treat each video as a track, and every track search pins
+ * `videoCategoryId=10` ("Music") so the API does not return unrelated
+ * content like tutorials or commentary. The `" official"` suffix on the
+ * query string biases the search towards official music videos over covers
+ * or reaction uploads.
+ *
+ * `album.ts` owns album discovery through first-party YouTube Music pages
+ * with US metadata. It accepts only OLAK5uy_ album playlists and validates
+ * their item counts through the official Data API. The adapter returns the
+ * canonical YouTube playlist URL, and the album resolver derives YouTube
+ * Music from it. Direct album-input validation stays unchanged in
+ * `lib/platform/url.ts`. A recognized empty search is a miss; HTTP errors,
+ * consent pages, malformed hydration, and missing required details throw.
  *
  * ## Free-form titles, heuristic title parsing
  *
@@ -60,7 +66,7 @@ import type {
 } from "../../types.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
-import { detectYouTubeAlbumUrl, getYouTubeAlbum, searchYouTubeAlbum } from "./album.js";
+import { getYouTubeAlbum, searchYouTubeAlbum } from "./album.js";
 import { youtubeFetch } from "./api.js";
 
 // Matches YouTube channel/artist URLs:
@@ -207,7 +213,6 @@ export const youtubeAdapter: ServiceAdapter = {
     return youtubeVideoId(url);
   },
 
-  detectAlbumUrl: detectYouTubeAlbumUrl,
   getAlbum: getYouTubeAlbum,
   searchAlbum: searchYouTubeAlbum,
 
