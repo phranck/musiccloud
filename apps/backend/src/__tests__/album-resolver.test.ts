@@ -702,12 +702,10 @@ describe("AlbumResolver: YouTube Music album destinations", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
-    vi.restoreAllMocks();
     vi.mocked(getActiveAdapters).mockResolvedValue([mockDeezerAdapter, mockSpotifyAdapter, mockTidalAdapter] as never);
   });
 
   it("adds YouTube Music exactly once for a resolved album without unused detail enrichment", async () => {
-    const getAlbumSpy = vi.spyOn(youtubeAdapter, "getAlbum");
     const result = await resolveAlbumTextSearch("Faderhead Legacy Code");
 
     const youtube = result.links.filter((link) => link.service === "youtube");
@@ -726,6 +724,126 @@ describe("AlbumResolver: YouTube Music album destinations", () => {
       confidence: 0.99,
       matchMethod: "search",
     });
-    expect(getAlbumSpy).not.toHaveBeenCalled();
+    expect(
+      providerRequest.mock.calls.filter(([url]) => String(url).startsWith("https://music.youtube.com/playlist?")),
+    ).toHaveLength(0);
+  });
+
+  it("derives and persists YouTube Music when cached album resolution gains YouTube", async () => {
+    mockRepo.findAlbumByUrl.mockResolvedValue({
+      album: {
+        ...MOCK_SOURCE_ALBUM,
+        upc: "700573869966",
+        title: "Legacy Code",
+        artists: ["Faderhead"],
+        releaseDate: "2026-11-13",
+        totalTracks: 12,
+        tracks: undefined,
+      },
+      albumId: "cached-youtube-id",
+      shortId: "fsdMxeI5",
+      updatedAt: Date.now(),
+      links: [
+        {
+          service: "spotify",
+          url: "https://open.spotify.com/album/7JmfeMfEH8vNdQJBgj1fLU",
+          confidence: 1,
+          matchMethod: "source",
+        },
+      ],
+    });
+
+    const result = await resolveAlbumUrl("https://open.spotify.com/album/7JmfeMfEH8vNdQJBgj1fLU");
+
+    expect(result.shortId).toBe("fsdMxeI5");
+    expect(result.links.filter((link) => link.service === "youtube")).toHaveLength(1);
+    expect(result.links.filter((link) => link.service === "youtube-music")).toHaveLength(1);
+    expect(mockRepo.addLinksToAlbum).toHaveBeenCalledWith(
+      "cached-youtube-id",
+      expect.arrayContaining([
+        expect.objectContaining({ service: "youtube", externalId: playlistId }),
+        expect.objectContaining({
+          service: "youtube-music",
+          url: `https://music.youtube.com/playlist?list=${playlistId}`,
+          externalId: playlistId,
+        }),
+      ]),
+    );
+    expect(vi.mocked(mockRepo.addLinksToAlbum).mock.calls[0]?.[1]).toHaveLength(2);
+  });
+
+  it("derives and persists YouTube Music from an already cached YouTube link with no other missing service", async () => {
+    vi.mocked(getActiveAdapters).mockResolvedValue([mockSpotifyAdapter, youtubeAdapter] as never);
+    mockRepo.findAlbumByUrl.mockResolvedValue({
+      album: {
+        ...MOCK_SOURCE_ALBUM,
+        upc: "700573869966",
+        title: "Legacy Code",
+        artists: ["Faderhead"],
+        releaseDate: "2026-11-13",
+        totalTracks: 12,
+        tracks: undefined,
+      },
+      albumId: "cached-youtube-id",
+      shortId: "fsdMxeI5",
+      updatedAt: Date.now(),
+      links: [
+        {
+          service: "spotify",
+          url: "https://open.spotify.com/album/7JmfeMfEH8vNdQJBgj1fLU",
+          confidence: 1,
+          matchMethod: "source",
+        },
+        {
+          service: "youtube",
+          url: `https://www.youtube.com/playlist?list=${playlistId}`,
+          confidence: 0.99,
+          matchMethod: "search",
+        },
+      ],
+    });
+
+    const result = await resolveAlbumUrl("https://open.spotify.com/album/7JmfeMfEH8vNdQJBgj1fLU");
+
+    expect(result.shortId).toBe("fsdMxeI5");
+    expect(result.links.filter((link) => link.service === "youtube-music")).toHaveLength(1);
+    expect(mockRepo.addLinksToAlbum).toHaveBeenCalledWith("cached-youtube-id", [
+      expect.objectContaining({
+        service: "youtube-music",
+        url: `https://music.youtube.com/playlist?list=${playlistId}`,
+        confidence: 0.99,
+        matchMethod: "search",
+        externalId: playlistId,
+      }),
+    ]);
+  });
+
+  it("does not derive or persist YouTube Music while its parent service is unavailable", async () => {
+    vi.mocked(getActiveAdapters).mockResolvedValue([mockSpotifyAdapter] as never);
+    mockRepo.findAlbumByUrl.mockResolvedValue({
+      album: { ...MOCK_SOURCE_ALBUM, title: "Legacy Code", artists: ["Faderhead"], tracks: undefined },
+      albumId: "cached-youtube-id",
+      shortId: "fsdMxeI5",
+      updatedAt: Date.now(),
+      links: [
+        {
+          service: "spotify",
+          url: "https://open.spotify.com/album/7JmfeMfEH8vNdQJBgj1fLU",
+          confidence: 1,
+          matchMethod: "source",
+        },
+        {
+          service: "youtube",
+          url: `https://www.youtube.com/playlist?list=${playlistId}`,
+          confidence: 0.99,
+          matchMethod: "search",
+        },
+      ],
+    });
+
+    const result = await resolveAlbumUrl("https://open.spotify.com/album/7JmfeMfEH8vNdQJBgj1fLU");
+
+    expect(result.links.filter((link) => link.service === "youtube-music")).toHaveLength(0);
+    expect(mockRepo.addLinksToAlbum).not.toHaveBeenCalled();
   });
 });
