@@ -235,6 +235,24 @@ describe("YouTube album search", () => {
     expect(result).toEqual({ found: false, confidence: 0, matchMethod: "search" });
   });
 
+  it.each([
+    { title: "Legacy Code", artist: "Another Artist" },
+    { title: "Another Album", artist: "Faderhead" },
+  ])("rejects a single identity mismatch while year and track count match: %j", async ({ title, artist }) => {
+    mockAlbumSearch(searchDocument({ musicCardShelfRenderer: albumCard(title, artist, "2026", FADERHEAD_ID) }), [
+      playlistDetails(FADERHEAD_ID, title, 12),
+    ]);
+
+    const result = await youtubeAdapter.searchAlbum!({
+      title: "Legacy Code",
+      artist: "Faderhead",
+      year: "2026",
+      totalTracks: 12,
+    });
+
+    expect(result).toEqual({ found: false, confidence: 0, matchMethod: "search" });
+  });
+
   it("rejects a consent or gateway document instead of returning a clean miss", async () => {
     request.mockResolvedValue(htmlResponse("<html>Before you continue</html>"));
 
@@ -257,6 +275,45 @@ describe("YouTube album search", () => {
     await expect(
       youtubeAdapter.searchAlbum!({ title: "Legacy Code", artist: "Faderhead", year: "2026", totalTracks: 12 }),
     ).rejects.toThrow(/playlist detail/i);
+  });
+
+  it("rejects an equal-size detail response that substitutes an unrelated playlist", async () => {
+    mockAlbumSearch(
+      searchDocument({ musicCardShelfRenderer: albumCard("Legacy Code", "Faderhead", "2026", FADERHEAD_ID) }),
+      [playlistDetails("OLAK5uy_substitute", "Legacy Code", 12)],
+    );
+
+    await expect(
+      youtubeAdapter.searchAlbum!({ title: "Legacy Code", artist: "Faderhead", year: "2026", totalTracks: 12 }),
+    ).rejects.toThrow(/playlist detail/i);
+  });
+
+  it("returns a validated album when an unrelated candidate lacks details", async () => {
+    mockAlbumSearch(
+      searchDocument(
+        { musicCardShelfRenderer: albumCard("Legacy Code", "Faderhead", "2026", FADERHEAD_ID) },
+        { musicCardShelfRenderer: albumCard("Legacy Code Deluxe", "Faderhead", "2026", ANNA_ID) },
+      ),
+      [playlistDetails(FADERHEAD_ID, "Legacy Code", 12)],
+    );
+
+    const result = await youtubeAdapter.searchAlbum!({
+      title: "Legacy Code",
+      artist: "Faderhead",
+      year: "2026",
+      totalTracks: 12,
+    });
+
+    expect(result).toMatchObject({ found: true, confidence: 1, matchMethod: "search" });
+    expect(result.album).toMatchObject({ sourceId: FADERHEAD_ID, totalTracks: 12 });
+  });
+
+  it("rejects a partial search shell instead of returning a clean miss", async () => {
+    mockAlbumSearch({ contents: { tabbedSearchResultsRenderer: {} } });
+
+    await expect(youtubeAdapter.searchAlbum!({ title: "Legacy Code", artist: "Faderhead" })).rejects.toThrow(
+      /search document/i,
+    );
   });
 });
 

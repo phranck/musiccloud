@@ -15,16 +15,21 @@
  */
 import { Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
+import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
+import { calculateArtistNameConfidence, stringSimilarity } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type { AlbumMatchResult, AlbumSearchQuery, NormalizedAlbum } from "../../types.js";
-import { scoreAlbumCandidate, searchText } from "../_shared/confidence.js";
+import { artistIdentityNames } from "../_shared/artists.js";
+import { isFreeTextSearch, scoreAlbumCandidate, searchText } from "../_shared/confidence.js";
 import { readProviderHtml, requireProviderCollection } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 import { youtubeFetch } from "./api.js";
 
 const ALBUM_ID_PATTERN = /^OLAK5uy_[a-zA-Z0-9_-]+$/;
+const MIN_ALBUM_ARTIST_CONFIDENCE = 0.9;
+const PRIMARY_ARTIST_NAME_COUNT = 2;
 const HYDRATION_ENTRY_PATTERN =
   /initialData\.push\(\{path: '((?:\\.|[^'])*)', params: JSON\.parse\('((?:\\.|[^'])*)'\), data: '((?:\\.|[^'])*)'\}\);/g;
 
@@ -182,9 +187,30 @@ function searchCandidates(data: unknown): AlbumCandidate[] {
   return [...new Map(candidates.map((candidate) => [candidate.sourceId, candidate])).values()];
 }
 
+function albumIdentityMatches(query: AlbumSearchQuery, candidate: AlbumCandidate): boolean {
+  if (isFreeTextSearch(query)) return true;
+  if (stringSimilarity(query.title, candidate.title) < MATCH_MIN_CONFIDENCE) return false;
+  const wantedArtists = artistIdentityNames(query.artist).slice(0, PRIMARY_ARTIST_NAME_COUNT);
+  return wantedArtists.some((wanted) =>
+    candidate.artists.some((actual) => calculateArtistNameConfidence(wanted, actual) >= MIN_ALBUM_ARTIST_CONFIDENCE),
+  );
+}
+
 function requireSearchRoot(data: unknown): void {
   if (!isObject(data) || !isObject(data.contents) || !isObject(data.contents.tabbedSearchResultsRenderer)) {
     throw new UpstreamUnavailableError("youtube", "YouTube Music search document lacks its expected result root");
+  }
+  const tabs = data.contents.tabbedSearchResultsRenderer.tabs;
+  if (!Array.isArray(tabs)) {
+    throw new UpstreamUnavailableError("youtube", "YouTube Music search document lacks its result tabs");
+  }
+  const hasResultContents = tabs.some((tab) => {
+    if (!isObject(tab) || !isObject(tab.tabRenderer) || !isObject(tab.tabRenderer.content)) return false;
+    const sectionList = tab.tabRenderer.content.sectionListRenderer;
+    return isObject(sectionList) && Array.isArray(sectionList.contents);
+  });
+  if (!hasResultContents) {
+    throw new UpstreamUnavailableError("youtube", "YouTube Music search document lacks its result collections");
   }
 }
 
@@ -283,17 +309,18 @@ export async function searchYouTubeAlbum(query: AlbumSearchQuery): Promise<Album
       Operation.Search,
     ),
   );
-  if (details.size !== candidates.length) {
-    throw new UpstreamUnavailableError(
-      "youtube",
-      "YouTube playlist detail response lacks a discovered album or its item count",
-    );
-  }
 
   let best: AlbumCandidate | undefined;
   let bestConfidence = 0;
+  let missingDetails = 0;
   for (const candidate of candidates) {
-    const complete = { ...candidate, totalTracks: details.get(candidate.sourceId) };
+    if (!albumIdentityMatches(query, candidate)) continue;
+    const totalTracks = details.get(candidate.sourceId);
+    if (totalTracks === undefined) {
+      missingDetails++;
+      continue;
+    }
+    const complete = { ...candidate, totalTracks };
     const confidence = scoreAlbumCandidate(query, { ...complete, sourceService: "youtube" });
     if (confidence > bestConfidence) {
       best = complete;
@@ -301,7 +328,23 @@ export async function searchYouTubeAlbum(query: AlbumSearchQuery): Promise<Album
     }
   }
   if (!best || bestConfidence < MATCH_MIN_CONFIDENCE) {
+    if (missingDetails > 0) {
+      throw new UpstreamUnavailableError(
+        "youtube",
+        "YouTube playlist detail response lacks a discovered album or its item count",
+      );
+    }
     return { found: false, confidence: 0, matchMethod: "search" };
+  }
+  if (missingDetails > 0) {
+    log.deviation({
+      adapterId: "youtube",
+      component: "YouTube",
+      errorCode: "MC-API-0004",
+      operation: "album_playlist_details",
+      outcome: "positive_partial_details",
+      missingDetails,
+    });
   }
   return {
     found: true,
