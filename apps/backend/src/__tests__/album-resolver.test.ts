@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const providerRequest = vi.fn();
+vi.mock("../lib/infra/fetch", () => ({
+  fetchWithTimeout: (...args: unknown[]) => providerRequest(...args),
+}));
+
 // ─── Mock: repository ─────────────────────────────────────────────────────────
 
 const mockRepo = {
@@ -130,6 +135,7 @@ vi.mock("../services/index.js", () => ({
 // Import AFTER mocks are set up
 const { resolveAlbumUrl, resolveAlbumTextSearch } = await import("../services/album-resolver.js");
 const { findInactiveServiceFor, getActiveAdapters } = await import("../services/index.js");
+const { youtubeAdapter } = await import("../services/plugins/youtube/adapter.js");
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -580,5 +586,143 @@ describe("AlbumResolver: Apple artwork", () => {
     const result = await resolveAlbumUrl(APPLE_ALBUM_URL);
 
     expect(result.sourceAlbum.artworkUrl).toBeUndefined();
+  });
+});
+
+describe("AlbumResolver: YouTube Music album destinations", () => {
+  const playlistId = "OLAK5uy_k-hEURafyudUOfdMDqalsXn4G6ci_5yeM";
+  const artistCredit = {
+    text: "Faderhead",
+    navigationEndpoint: {
+      browseEndpoint: {
+        browseEndpointContextSupportedConfigs: {
+          browseEndpointContextMusicConfig: { pageType: "MUSIC_PAGE_TYPE_ARTIST" },
+        },
+      },
+    },
+  };
+
+  function hexEncodedJson(value: unknown): string {
+    return JSON.stringify(value).replace(/[\s\S]/g, (character) => {
+      const code = character.charCodeAt(0);
+      return code <= 0xff ? `\\x${code.toString(16).padStart(2, "0")}` : character;
+    });
+  }
+
+  function hydration(path: "search" | "browse", data: unknown): string {
+    const escapedPath = String.raw`\/${path}`;
+    return `<script>try {const initialData = [];initialData.push({path: '${escapedPath}', params: JSON.parse('\\x7b\\x7d'), data: '${hexEncodedJson(data)}'});ytcfg.set({'YTMUSIC_INITIAL_DATA': initialData});} catch (e) {}</script>`;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    providerRequest.mockReset();
+    vi.stubEnv("YOUTUBE_API_KEY", "unit-key");
+    mockRepo.findAlbumByUpc.mockResolvedValue(null);
+    mockRepo.findAlbumPreviews.mockResolvedValue([]);
+    vi.mocked(getActiveAdapters).mockResolvedValue([mockSpotifyAdapter, youtubeAdapter] as never);
+    mockSpotifyAdapter.searchAlbum.mockResolvedValue({
+      found: true,
+      album: {
+        ...MOCK_SOURCE_ALBUM,
+        upc: undefined,
+        title: "Legacy Code",
+        artists: ["Faderhead"],
+        releaseDate: "2026-11-13",
+        totalTracks: 12,
+        tracks: undefined,
+      },
+      confidence: 1,
+      matchMethod: "search",
+    });
+
+    const searchData = {
+      contents: {
+        tabbedSearchResultsRenderer: {
+          tabs: [
+            {
+              tabRenderer: {
+                content: {
+                  sectionListRenderer: {
+                    contents: [
+                      {
+                        musicCardShelfRenderer: {
+                          title: { runs: [{ text: "Legacy Code" }] },
+                          subtitle: {
+                            runs: [{ text: "Album" }, { text: " • " }, artistCredit, { text: " • " }, { text: "2026" }],
+                          },
+                          buttons: [{ buttonRenderer: { command: { watchPlaylistEndpoint: { playlistId } } } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    };
+    const albumData = {
+      contents: {
+        musicResponsiveHeaderRenderer: {
+          title: { runs: [{ text: "Legacy Code" }] },
+          subtitle: { runs: [{ text: "Album" }, { text: " • " }, { text: "2026" }] },
+          straplineTextOne: { runs: [artistCredit] },
+          secondSubtitle: { runs: [{ text: "12 songs" }, { text: " • " }, { text: "49 minutes" }] },
+        },
+      },
+    };
+    const details = {
+      id: playlistId,
+      snippet: {
+        title: "Album - Legacy Code",
+        channelId: "UCBR8-60-B28hp2BmDPdntcQ",
+        channelTitle: "YouTube",
+        description: "",
+        publishedAt: "2026-09-28T17:23:21.787872Z",
+      },
+      contentDetails: { itemCount: 12 },
+    };
+
+    providerRequest.mockImplementation(async (input: string) => {
+      const url = String(input);
+      if (url.startsWith("https://music.youtube.com/search?")) {
+        return new Response(hydration("search", searchData), { headers: { "content-type": "text/html" } });
+      }
+      if (url.startsWith("https://music.youtube.com/playlist?")) {
+        return new Response(hydration("browse", albumData), { headers: { "content-type": "text/html" } });
+      }
+      if (url.startsWith("https://www.googleapis.com/youtube/v3/playlists?")) {
+        return Response.json({ kind: "youtube#playlistListResponse", items: [details] });
+      }
+      throw new Error("Unexpected provider request");
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.mocked(getActiveAdapters).mockResolvedValue([mockDeezerAdapter, mockSpotifyAdapter, mockTidalAdapter] as never);
+  });
+
+  it("adds YouTube Music exactly once for a resolved album", async () => {
+    const result = await resolveAlbumTextSearch("Faderhead Legacy Code");
+
+    const youtube = result.links.filter((link) => link.service === "youtube");
+    const youtubeMusic = result.links.filter((link) => link.service === "youtube-music");
+    expect(youtube).toHaveLength(1);
+    expect(youtubeMusic).toHaveLength(1);
+    expect(youtube[0]).toMatchObject({
+      url: `https://www.youtube.com/playlist?list=${playlistId}`,
+      externalId: playlistId,
+      confidence: 1,
+      matchMethod: "search",
+    });
+    expect(youtubeMusic[0]).toMatchObject({
+      url: `https://music.youtube.com/playlist?list=${playlistId}`,
+      externalId: playlistId,
+      confidence: 1,
+      matchMethod: "search",
+    });
   });
 });
