@@ -41,15 +41,14 @@
  * player falls back to other services.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { youtubeVideoId } from "../../../lib/platform/youtube-video.js";
-import { ResolveError } from "../../../lib/resolve/errors";
 import { calculateArtistNameConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { stripYouTubeTopicSuffix } from "../../../lib/youtube-topic.js";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AdapterCapabilities,
+  AlbumCapabilities,
   ArtistCapabilities,
   ArtistMatchResult,
   ArtistSearchQuery,
@@ -61,13 +60,13 @@ import type {
 } from "../../types.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import { detectYouTubeAlbumUrl, getYouTubeAlbum, searchYouTubeAlbum } from "./album.js";
+import { youtubeFetch } from "./api.js";
 
 // Matches YouTube channel/artist URLs:
 //   youtube.com/@handle, youtube.com/channel/UCxxxx, music.youtube.com/channel/UCxxxx
 const YOUTUBE_ARTIST_HANDLE_REGEX = /(?:https?:\/\/)?(?:www\.)?youtube\.com\/@([^/?]+)/;
 const YOUTUBE_ARTIST_CHANNEL_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:music\.)?youtube\.com\/channel\/([a-zA-Z0-9_-]+)/;
-
-const API_BASE = "https://www.googleapis.com/youtube/v3";
 
 interface YouTubeSnippet {
   title: string;
@@ -132,16 +131,6 @@ function parseArtistFromTitle(title: string): { artist: string; trackTitle: stri
   return { artist: "", trackTitle: normalizeTitle(title, "youtube") };
 }
 
-async function youtubeFetch(endpoint: string): Promise<Response> {
-  const apiKey = process.env.YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY;
-  if (!apiKey) {
-    throw new ResolveError("MC-CFG-6001", "YOUTUBE_API_KEY must be set");
-  }
-
-  const separator = endpoint.includes("?") ? "&" : "?";
-  return fetchWithTimeout(`${API_BASE}${endpoint}${separator}key=${apiKey}`, {}, 5000);
-}
-
 function mapVideoToTrack(video: YouTubeVideoResource): NormalizedTrack {
   const { artist, trackTitle } = parseArtistFromTitle(video.snippet.title);
 
@@ -165,6 +154,12 @@ const capabilities: AdapterCapabilities = {
 
 const artistCapabilities: ArtistCapabilities = {
   supportsArtistSearch: true,
+};
+
+const albumCapabilities: AlbumCapabilities = {
+  supportsUpc: false,
+  supportsAlbumSearch: true,
+  supportsTrackListing: false,
 };
 
 interface YouTubeChannelResource {
@@ -200,6 +195,7 @@ export const youtubeAdapter: ServiceAdapter = {
   id: "youtube",
   displayName: getPlatformLabel("youtube"),
   capabilities,
+  albumCapabilities,
   artistCapabilities,
 
   /**
@@ -210,6 +206,10 @@ export const youtubeAdapter: ServiceAdapter = {
   detectUrl(url: string): string | null {
     return youtubeVideoId(url);
   },
+
+  detectAlbumUrl: detectYouTubeAlbumUrl,
+  getAlbum: getYouTubeAlbum,
+  searchAlbum: searchYouTubeAlbum,
 
   async getTrack(videoId: string): Promise<NormalizedTrack> {
     const response = await youtubeFetch(`/videos?part=snippet,contentDetails&id=${encodeURIComponent(videoId)}`);

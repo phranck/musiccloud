@@ -192,6 +192,21 @@ describe("YouTube album search", () => {
     });
   });
 
+  it("deduplicates repeated album renderers before validating official details", async () => {
+    const card = { musicCardShelfRenderer: albumCard("Legacy Code", "Faderhead", "2026", FADERHEAD_ID) };
+    mockAlbumSearch(searchDocument(card, card), [playlistDetails(FADERHEAD_ID, "Legacy Code", 12)]);
+
+    const result = await youtubeAdapter.searchAlbum!({
+      title: "Legacy Code",
+      artist: "Faderhead",
+      year: "2026",
+      totalTracks: 12,
+    });
+
+    expect(result).toMatchObject({ found: true, confidence: 1, matchMethod: "search" });
+    expect(result.album).toMatchObject({ sourceId: FADERHEAD_ID, totalTracks: 12 });
+  });
+
   it("returns a clean miss when the valid search contains only ordinary playlists", async () => {
     mockAlbumSearch(
       searchDocument({

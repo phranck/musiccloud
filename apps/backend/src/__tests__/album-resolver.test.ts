@@ -715,13 +715,13 @@ describe("AlbumResolver: YouTube Music album destinations", () => {
     expect(youtube[0]).toMatchObject({
       url: `https://www.youtube.com/playlist?list=${playlistId}`,
       externalId: playlistId,
-      confidence: 1,
+      confidence: 0.99,
       matchMethod: "search",
     });
     expect(youtubeMusic[0]).toMatchObject({
       url: `https://music.youtube.com/playlist?list=${playlistId}`,
       externalId: playlistId,
-      confidence: 1,
+      confidence: 0.99,
       matchMethod: "search",
     });
   });
