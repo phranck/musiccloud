@@ -1,19 +1,25 @@
 /**
- * @file YouTube adapter: video-as-track + channel-as-artist resolves.
+ * @file YouTube adapter: video, album-playlist, and channel resolves.
  *
  * Credentialed: requires `YOUTUBE_API_KEY` (Google Cloud Console, YouTube
  * Data API v3), which its manifest lists as `requiredEnv`. Missing the key
  * makes the plugin unavailable, and it is skipped across resolves.
  *
- * ## Track = video (no album support)
+ * ## Track = video, album = playlist
  *
- * YouTube has no native album concept. We treat each video as a track,
- * and every search pins `videoCategoryId=10` ("Music") so the API
- * does not return unrelated content like tutorials or commentary. The
- * `" official"` suffix on the query string biases the search towards
- * official music videos over covers or reaction uploads. Album
- * resolution is handled by the album resolver via the OLAK5uy_
- * playlist derivation, not here.
+ * We treat each video as a track, and every track search pins
+ * `videoCategoryId=10` ("Music") so the API does not return unrelated
+ * content like tutorials or commentary. The `" official"` suffix on the
+ * query string biases the search towards official music videos over covers
+ * or reaction uploads.
+ *
+ * `album.ts` owns album discovery through first-party YouTube Music pages
+ * with US metadata. It accepts only OLAK5uy_ album playlists and validates
+ * their item counts through the official Data API. The adapter returns the
+ * canonical YouTube playlist URL, and the album resolver derives YouTube
+ * Music from it. Direct album-input validation stays unchanged in
+ * `lib/platform/url.ts`. A recognized empty search is a miss; HTTP errors,
+ * consent pages, malformed hydration, and missing required details throw.
  *
  * ## Free-form titles, heuristic title parsing
  *
@@ -41,15 +47,14 @@
  * player falls back to other services.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { youtubeVideoId } from "../../../lib/platform/youtube-video.js";
-import { ResolveError } from "../../../lib/resolve/errors";
 import { calculateArtistNameConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { stripYouTubeTopicSuffix } from "../../../lib/youtube-topic.js";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AdapterCapabilities,
+  AlbumCapabilities,
   ArtistCapabilities,
   ArtistMatchResult,
   ArtistSearchQuery,
@@ -61,13 +66,13 @@ import type {
 } from "../../types.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import { getYouTubeAlbum, searchYouTubeAlbum } from "./album.js";
+import { youtubeFetch } from "./api.js";
 
 // Matches YouTube channel/artist URLs:
 //   youtube.com/@handle, youtube.com/channel/UCxxxx, music.youtube.com/channel/UCxxxx
 const YOUTUBE_ARTIST_HANDLE_REGEX = /(?:https?:\/\/)?(?:www\.)?youtube\.com\/@([^/?]+)/;
 const YOUTUBE_ARTIST_CHANNEL_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:music\.)?youtube\.com\/channel\/([a-zA-Z0-9_-]+)/;
-
-const API_BASE = "https://www.googleapis.com/youtube/v3";
 
 interface YouTubeSnippet {
   title: string;
@@ -132,16 +137,6 @@ function parseArtistFromTitle(title: string): { artist: string; trackTitle: stri
   return { artist: "", trackTitle: normalizeTitle(title, "youtube") };
 }
 
-async function youtubeFetch(endpoint: string): Promise<Response> {
-  const apiKey = process.env.YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY;
-  if (!apiKey) {
-    throw new ResolveError("MC-CFG-6001", "YOUTUBE_API_KEY must be set");
-  }
-
-  const separator = endpoint.includes("?") ? "&" : "?";
-  return fetchWithTimeout(`${API_BASE}${endpoint}${separator}key=${apiKey}`, {}, 5000);
-}
-
 function mapVideoToTrack(video: YouTubeVideoResource): NormalizedTrack {
   const { artist, trackTitle } = parseArtistFromTitle(video.snippet.title);
 
@@ -165,6 +160,12 @@ const capabilities: AdapterCapabilities = {
 
 const artistCapabilities: ArtistCapabilities = {
   supportsArtistSearch: true,
+};
+
+const albumCapabilities: AlbumCapabilities = {
+  supportsUpc: false,
+  supportsAlbumSearch: true,
+  supportsTrackListing: false,
 };
 
 interface YouTubeChannelResource {
@@ -200,6 +201,7 @@ export const youtubeAdapter: ServiceAdapter = {
   id: "youtube",
   displayName: getPlatformLabel("youtube"),
   capabilities,
+  albumCapabilities,
   artistCapabilities,
 
   /**
@@ -210,6 +212,9 @@ export const youtubeAdapter: ServiceAdapter = {
   detectUrl(url: string): string | null {
     return youtubeVideoId(url);
   },
+
+  getAlbum: getYouTubeAlbum,
+  searchAlbum: searchYouTubeAlbum,
 
   async getTrack(videoId: string): Promise<NormalizedTrack> {
     const response = await youtubeFetch(`/videos?part=snippet,contentDetails&id=${encodeURIComponent(videoId)}`);
