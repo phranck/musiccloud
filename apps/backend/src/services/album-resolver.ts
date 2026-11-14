@@ -60,6 +60,8 @@
  * `music.youtube.com/playlist?list=OLAK5uy_...`. If YouTube matched
  * via its playlist endpoint, we synthesise the YouTube Music link
  * from the same playlist ID instead of running a separate search.
+ * Fresh results and cached gap fills share this derivation, and newly
+ * derived cached links are persisted through `addLinksToAlbum`.
  *
  * ## Recording artwork and completion
  *
@@ -201,7 +203,61 @@ async function tryAlbumCache(lookup: {
   }
 }
 
+function deriveYouTubeMusicAlbumLink(links: ResolvedAlbumLink[]): ResolvedAlbumLink | null {
+  const youtubeLink = links.find((link) => link.service === "youtube");
+  if (!youtubeLink || links.some((link) => link.service === "youtube-music")) return null;
+  const playlistMatch = /[?&]list=(OLAK5uy_[^&]+)/.exec(youtubeLink.url);
+  if (!playlistMatch) return null;
+  return {
+    service: "youtube-music",
+    displayName: getPlatformLabel("youtube-music"),
+    url: `https://music.youtube.com/playlist?list=${playlistMatch[1]}`,
+    confidence: youtubeLink.confidence,
+    matchMethod: youtubeLink.matchMethod,
+    externalId: youtubeLink.externalId ?? playlistMatch[1],
+  };
+}
+
+async function deriveCachedYouTubeMusicLink(
+  cached: AlbumResolutionResult,
+  youtubeAvailable: boolean,
+): Promise<AlbumResolutionResult> {
+  if (!youtubeAvailable) return cached;
+  const derived = deriveYouTubeMusicAlbumLink(cached.links);
+  if (!derived) return cached;
+  if (cached.albumId) {
+    try {
+      const repo = await getRepository();
+      await repo.addLinksToAlbum(cached.albumId, [
+        {
+          service: derived.service,
+          url: derived.url,
+          confidence: derived.confidence,
+          matchMethod: derived.matchMethod,
+          externalId: derived.externalId,
+        },
+      ]);
+    } catch (error) {
+      log.deviation(
+        {
+          component: "AlbumResolver",
+          errorCode: "MC-DB-0004",
+          operation: "album_gap_fill_persist",
+          outcome: "response_without_cache_update",
+        },
+        error,
+      );
+    }
+  }
+  return { ...cached, links: [...cached.links, derived] };
+}
+
 async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<AlbumResolutionResult> {
+  const active = await getActiveAdapters();
+  cached = await deriveCachedYouTubeMusicLink(
+    cached,
+    active.some((adapter) => adapter.id === "youtube"),
+  );
   cached = {
     ...cached,
     sourceAlbum: {
@@ -210,7 +266,6 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
     },
   };
   const coveredServices = new Set(cached.links.map((l) => l.service));
-  const active = await getActiveAdapters();
 
   const missingAdapters = active.filter(
     (a) => Boolean(a.albumCapabilities) && !coveredServices.has(a.id) && a.id !== cached.sourceAlbum.sourceService,
@@ -267,6 +322,8 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
 
   if (newLinks.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
+  const derived = deriveYouTubeMusicAlbumLink(newLinks);
+  if (derived) newLinks.push(derived);
   const genuinelyNewLinks = newLinks.filter((l) => !coveredServices.has(l.service));
 
   if (cached.albumId && genuinelyNewLinks.length > 0) {
@@ -649,25 +706,8 @@ async function resolveAlbumAcrossServices(
     }
   }
 
-  // Task 2.4: Derive YouTube Music album link from YouTube Music playlist result
-  // YouTube Music album URLs use the OLAK5uy_ playlist format, no separate derivation needed.
-  // The YouTube Music adapter (if present) handles this natively.
-  // If YouTube found a result via its playlist endpoint, also add it as youtube-music link.
-  const youtubeLink = links.find((l) => l.service === "youtube");
-  if (youtubeLink && !links.some((l) => l.service === "youtube-music")) {
-    // YouTube album playlists map directly to YouTube Music
-    const playlistMatch = /[?&]list=(OLAK5uy_[^&]+)/.exec(youtubeLink.url);
-    if (playlistMatch) {
-      links.push({
-        service: "youtube-music",
-        displayName: getPlatformLabel("youtube-music"),
-        url: `https://music.youtube.com/playlist?list=${playlistMatch[1]}`,
-        confidence: youtubeLink.confidence,
-        matchMethod: youtubeLink.matchMethod,
-        externalId: youtubeLink.externalId,
-      });
-    }
-  }
+  const derived = deriveYouTubeMusicAlbumLink(links);
+  if (derived) links.push(derived);
 
   // Sort by confidence (highest first)
   links.sort((a, b) => b.confidence - a.confidence);
