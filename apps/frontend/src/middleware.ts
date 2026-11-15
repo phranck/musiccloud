@@ -50,13 +50,33 @@ function completeContentPolicy(headers: Headers, designTokensCss: string | undef
  * surface that refuses framing outright.
  */
 export const onRequest = defineMiddleware(async (context, next) => {
-  if (rendersLayout(context.url.pathname)) {
-    context.locals.designTokensCss = designTokensToCss(await fetchDesignTokens(context.clientAddress));
+  const startedAt = performance.now();
+  let response: Response | undefined;
+  try {
+    if (rendersLayout(context.url.pathname)) {
+      context.locals.designTokensCss = designTokensToCss(await fetchDesignTokens(context.clientAddress));
+    }
+    response = await next();
+    completeContentPolicy(response.headers, context.locals.designTokensCss);
+    applySecurityHeaders(response.headers, SurfaceExposure.Public);
+    return response;
+  } finally {
+    const shareTiming = context.locals.shareTiming;
+    if (shareTiming) {
+      console.info(
+        JSON.stringify({
+          component: "SharePage",
+          operation: "share_ssr",
+          correlationId: shareTiming.correlationId,
+          route: "/[shortId]",
+          statusCode: response?.status ?? 500,
+          contentFetchMs: shareTiming.contentFetchMs ?? 0,
+          shareFetchMs: shareTiming.shareFetchMs ?? 0,
+          totalSsrMs: Math.max(0, Math.round(performance.now() - startedAt)),
+        }),
+      );
+    }
   }
-  const response = await next();
-  completeContentPolicy(response.headers, context.locals.designTokensCss);
-  applySecurityHeaders(response.headers, SurfaceExposure.Public);
-  return response;
 });
 
 /**

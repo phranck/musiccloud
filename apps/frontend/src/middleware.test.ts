@@ -1,6 +1,6 @@
 import { DESIGN_TOKENS_DEFAULTS } from "@musiccloud/shared";
 import { inlineBlockHash } from "@musiccloud/shared/node";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ fetchDesignTokens: vi.fn() }));
 
@@ -11,9 +11,21 @@ import { SITE_INLINE_SCRIPT_HASHES } from "@/lib/inline-scripts";
 import { onRequest } from "./middleware";
 
 /** Runs the middleware for a path whose route answers with the given headers. */
-async function request(pathname: string, routeHeaders: Record<string, string> = {}) {
-  const locals: { designTokensCss?: string } = {};
-  const next = vi.fn(async () => new Response("page", { headers: routeHeaders }));
+async function request(
+  pathname: string,
+  routeHeaders: Record<string, string> = {},
+  shareTiming?: { correlationId: string; contentFetchMs?: number; shareFetchMs?: number },
+  nextError?: Error,
+) {
+  const locals: {
+    designTokensCss?: string;
+    shareTiming?: { correlationId: string; contentFetchMs?: number; shareFetchMs?: number };
+  } = {};
+  if (shareTiming) locals.shareTiming = shareTiming;
+  const next = vi.fn(async () => {
+    if (nextError) throw nextError;
+    return new Response("page", { headers: routeHeaders });
+  });
   const response = (await onRequest(
     { url: new URL(`https://musiccloud.test${pathname}`), clientAddress: "203.0.113.7", locals } as never,
     next,
@@ -26,6 +38,10 @@ const ASTRO_POLICY = "script-src 'self' 'sha256-astro-script'; style-src 'self' 
 beforeEach(() => {
   mocks.fetchDesignTokens.mockReset();
   mocks.fetchDesignTokens.mockResolvedValue(DESIGN_TOKENS_DEFAULTS);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("site middleware", () => {
@@ -54,5 +70,46 @@ describe("site middleware", () => {
     expect(mocks.fetchDesignTokens).not.toHaveBeenCalled();
     expect(locals.designTokensCss).toBeUndefined();
     expect(response.headers.get("content-security-policy-report-only")).toContain("script-src 'self'");
+  });
+
+  it("logs correlated share SSR timings without public timing headers", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    const { response } = await request(
+      "/sXfnNvip",
+      {},
+      {
+        correlationId: "corr-123",
+        contentFetchMs: 12,
+        shareFetchMs: 20,
+      },
+    );
+
+    const record = JSON.parse(String(infoSpy.mock.calls[0]?.[0]));
+    expect(record).toMatchObject({
+      component: "SharePage",
+      operation: "share_ssr",
+      correlationId: "corr-123",
+      route: "/[shortId]",
+      statusCode: 200,
+      contentFetchMs: 12,
+      shareFetchMs: 20,
+      totalSsrMs: expect.any(Number),
+    });
+    expect(response.headers.has("server-timing")).toBe(false);
+  });
+
+  it("logs total SSR time when rendering throws", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const failure = new Error("render failed");
+
+    await expect(request("/sXfnNvip", {}, { correlationId: "corr-error" }, failure)).rejects.toThrow("render failed");
+
+    const record = JSON.parse(String(infoSpy.mock.calls[0]?.[0]));
+    expect(record).toMatchObject({
+      correlationId: "corr-error",
+      statusCode: 500,
+      totalSsrMs: expect.any(Number),
+    });
   });
 });

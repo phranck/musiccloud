@@ -97,6 +97,17 @@ describe("fetchShareData", () => {
       statusCode: 503,
     });
   });
+
+  it("forwards the correlation id on the internal share read", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ type: "track" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchShareData } = await import("./client");
+
+    await fetchShareData("abc", undefined, undefined, "corr-123");
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(new Headers(init?.headers).get("x-mc-correlation-id")).toBe("corr-123");
+  });
 });
 
 describe("fetchPublicContentPage", () => {

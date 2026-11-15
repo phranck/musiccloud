@@ -1,5 +1,6 @@
 import {
   type ApiErrorResponse,
+  CORRELATION_ID_HEADER,
   createApiErrorBody,
   DESIGN_TOKENS_DEFAULTS,
   type DesignTokens,
@@ -179,11 +180,16 @@ export async function fetchShareData(
   shortId: string,
   clientIp?: string,
   requestHeaders?: Headers,
+  correlationId?: string,
 ): Promise<BackendFetchResult<SharePageResponse>> {
   try {
+    const correlationHeader: Record<string, string> = correlationId ? { [CORRELATION_ID_HEADER]: correlationId } : {};
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.share(shortId)),
-      { headers: internalHeaders(shareRequestExtra(clientIp, requestHeaders)), cache: "no-store" },
+      {
+        headers: internalHeaders({ ...shareRequestExtra(clientIp, requestHeaders), ...correlationHeader }),
+        cache: "no-store",
+      },
       // CC shares are mirrored live from Jamendo (several throttled API calls per
       // open), so their SSR routinely takes a few seconds — well past a 5s budget
       // under any Jamendo latency. The caller turns a null into a /404 redirect,

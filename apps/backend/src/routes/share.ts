@@ -42,8 +42,14 @@
  * and sets `confidence: 1`, `matchMethod: "cache"`. Original resolver match
  * metadata is meaningful for fresh resolves, not for a trusted cache read.
  */
-import { ROUTE_TEMPLATES, type SharePageResponse } from "@musiccloud/shared";
-import type { FastifyInstance } from "fastify";
+import {
+  CORRELATION_ID_HEADER,
+  CORRELATION_ID_MAX_LENGTH,
+  CORRELATION_ID_PATTERN,
+  ROUTE_TEMPLATES,
+  type SharePageResponse,
+} from "@musiccloud/shared";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { getRepository } from "../db/index.js";
 import { shareCodeSchema } from "../docs/public-response-schema.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
@@ -56,7 +62,45 @@ import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/s
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { readCachedAlbumVinylLayout } from "../services/track-vinyl-layout.js";
 
+type ShareEntity = "track" | "album" | "artist" | "cc";
+
+interface ShareRequestTiming {
+  startedAt: number;
+  correlationId?: string;
+  resultType: SharePageResponse["type"] | "none" | "error";
+  entityLoadMs: Partial<Record<ShareEntity, number>>;
+  optionalWorkMs?: number;
+}
+
+const shareRequestTimings = new WeakMap<FastifyRequest, ShareRequestTiming>();
+
+function elapsedMs(startedAt: number): number {
+  return Math.max(0, Math.round(performance.now() - startedAt));
+}
+
 export default async function shareRoutes(app: FastifyInstance) {
+  app.addHook("onResponse", async (request, reply) => {
+    const timing = shareRequestTimings.get(request);
+    if (!timing) return;
+    request.log.info(
+      {
+        component: "Share",
+        operation: "share_request",
+        requestId: request.id,
+        correlationId: timing.correlationId,
+        resultType: reply.statusCode >= 500 && timing.resultType === "none" ? "error" : timing.resultType,
+        statusCode: reply.statusCode,
+        route: request.routeOptions.url ?? ROUTE_TEMPLATES.v1.share,
+        shortId: (request.params as { shortId: string }).shortId,
+        entityLoadMs: timing.entityLoadMs,
+        optionalWorkMs: timing.optionalWorkMs ?? 0,
+        totalMs: elapsedMs(timing.startedAt),
+      },
+      "Share request timing",
+    );
+    shareRequestTimings.delete(request);
+  });
+
   app.get<{ Params: { shortId: string } }>(
     ROUTE_TEMPLATES.v1.share,
     {
@@ -78,6 +122,17 @@ export default async function shareRoutes(app: FastifyInstance) {
             ),
           },
           additionalProperties: false,
+        },
+        headers: {
+          type: "object",
+          properties: {
+            [CORRELATION_ID_HEADER]: {
+              type: "string",
+              maxLength: CORRELATION_ID_MAX_LENGTH,
+              pattern: CORRELATION_ID_PATTERN.source,
+              description: "Optional opaque token used only to correlate frontend and backend timing logs.",
+            },
+          },
         },
         response: {
           200: {
@@ -108,6 +163,15 @@ export default async function shareRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
+      const correlationHeader = request.headers[CORRELATION_ID_HEADER];
+      const timing: ShareRequestTiming = {
+        startedAt: performance.now(),
+        correlationId: typeof correlationHeader === "string" ? correlationHeader : undefined,
+        resultType: "none",
+        entityLoadMs: {},
+      };
+      shareRequestTimings.set(request, timing);
+
       if (!isInternalRequest(request)) {
         const rateLimit = apiRateLimiter.check(request.ip);
         if (rateLimit.limited) {
@@ -125,36 +189,58 @@ export default async function shareRoutes(app: FastifyInstance) {
       // serial waterfall (track → album → artist) that cost up to three
       // round-trips for artist-type IDs. Cost: up to two extra queries
       // that return null fast — cheap on indexed shortId lookups.
-      const [trackData, albumData, artistData, ccData] = await Promise.all([
-        loadByShortId(shortId, origin, appleMusicStorefront),
-        loadAlbumByShortId(shortId, origin, appleMusicStorefront),
-        loadArtistByShortId(shortId, origin, appleMusicStorefront),
-        loadCcByShortId(shortId, origin),
+      const timeEntity = async <T>(entity: ShareEntity, pending: Promise<T>): Promise<T> => {
+        const startedAt = performance.now();
+        try {
+          return await pending;
+        } finally {
+          timing.entityLoadMs[entity] = elapsedMs(startedAt);
+        }
+      };
+      const [trackResult, albumResult, artistResult, ccResult] = await Promise.allSettled([
+        timeEntity("track", loadByShortId(shortId, origin, appleMusicStorefront)),
+        timeEntity("album", loadAlbumByShortId(shortId, origin, appleMusicStorefront)),
+        timeEntity("artist", loadArtistByShortId(shortId, origin, appleMusicStorefront)),
+        timeEntity("cc", loadCcByShortId(shortId, origin)),
       ]);
+      const unwrap = <T>(result: PromiseSettledResult<T>): T => {
+        if (result.status === "rejected") throw result.reason;
+        return result.value;
+      };
+      const trackData = unwrap(trackResult);
+      const albumData = unwrap(albumResult);
+      const artistData = unwrap(artistResult);
+      const ccData = unwrap(ccResult);
 
       if (trackData) {
+        timing.resultType = "track";
         let vinylLayout = null;
         const albumName = trackData.track.albumName ?? undefined;
-        if (albumName) {
-          try {
-            vinylLayout = await readCachedAlbumVinylLayout(await getRepository(), {
-              artists: trackData.artists,
-              title: albumName,
-            });
-          } catch (error) {
-            // Layout metadata is optional enhancement for an otherwise valid share page,
-            // but the deviation remains correlated with this request in production logs.
-            request.log.warn(
-              {
-                err: error,
-                errorCode: "MC-SYS-0001",
-                operation: "share_vinyl_layout_read",
-                outcome: "layout_omitted",
-                shortId,
-              },
-              "optional share vinyl layout failed",
-            );
+        const optionalStartedAt = performance.now();
+        try {
+          if (albumName) {
+            try {
+              vinylLayout = await readCachedAlbumVinylLayout(await getRepository(), {
+                artists: trackData.artists,
+                title: albumName,
+              });
+            } catch (error) {
+              // Layout metadata is optional enhancement for an otherwise valid share page,
+              // but the deviation remains correlated with this request in production logs.
+              request.log.warn(
+                {
+                  err: error,
+                  errorCode: "MC-SYS-0001",
+                  operation: "share_vinyl_layout_read",
+                  outcome: "layout_omitted",
+                  shortId,
+                },
+                "optional share vinyl layout failed",
+              );
+            }
           }
+        } finally {
+          timing.optionalWorkMs = elapsedMs(optionalStartedAt);
         }
         const response: SharePageResponse = {
           type: "track",
@@ -187,6 +273,7 @@ export default async function shareRoutes(app: FastifyInstance) {
       }
 
       if (albumData) {
+        timing.resultType = "album";
         const response: SharePageResponse = {
           type: "album",
           og: {
@@ -217,6 +304,7 @@ export default async function shareRoutes(app: FastifyInstance) {
       }
 
       if (artistData) {
+        timing.resultType = "artist";
         const response: SharePageResponse = {
           type: "artist",
           og: {
@@ -242,6 +330,7 @@ export default async function shareRoutes(app: FastifyInstance) {
       // full cc-* SharePageResponse, so it is sent verbatim. Every CC variant
       // answers from persisted data, so it caches like the commercial ones.
       if (ccData) {
+        timing.resultType = ccData.type;
         reply.header("Cache-Control", "private, max-age=3600");
         return reply.send(ccData);
       }
