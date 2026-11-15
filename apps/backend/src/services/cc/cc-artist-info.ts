@@ -101,10 +101,17 @@ export async function buildCcArtistInfo(
 ): Promise<CcArtistInfoResponse> {
   const seed = columnTracks[0];
 
+  const [similarResult, profileResult] = await Promise.allSettled([
+    seed ? getSimilarCcTracks(seed.jamendoId, CC_SIMILAR_POOL_SIZE) : Promise.resolve([]),
+    getCcArtistMusicInfo(jamendoArtistId),
+  ]);
+
   let similarArtistTracks: CcSimilarArtistTrack[] = [];
   try {
-    const similarPool = seed ? await getSimilarCcTracks(seed.jamendoId, CC_SIMILAR_POOL_SIZE) : [];
-    const candidates = dedupeByArtist(similarPool.filter((track) => track.jamendoArtistId !== seed?.jamendoArtistId));
+    if (similarResult.status === "rejected") throw similarResult.reason;
+    const candidates = dedupeByArtist(
+      similarResult.value.filter((track) => track.jamendoArtistId !== seed?.jamendoArtistId),
+    );
     similarArtistTracks = stratifiedSample(candidates, CC_SIMILAR_TRACKS_LIMIT).map((track) => ({
       artistName: track.artistName,
       track: toArtistTopTrack(track),
@@ -125,7 +132,8 @@ export async function buildCcArtistInfo(
 
   let profile: CcArtistProfile | null = null;
   try {
-    const musicInfo = await getCcArtistMusicInfo(jamendoArtistId);
+    if (profileResult.status === "rejected") throw profileResult.reason;
+    const musicInfo = profileResult.value;
     profile = musicInfo
       ? {
           imageUrl: musicInfo.imageUrl,
