@@ -4,7 +4,6 @@ import { inlineBlockHash } from "@musiccloud/shared/node";
 import { describe, expect, it } from "vitest";
 import {
   DAYNESS_SEED_SCRIPT,
-  SHARE_LOADING_TIMEOUT_SCRIPT,
   SHARE_MEDIA_VIEW_SCRIPT,
   SHARE_REDIRECT_SCRIPT,
   SITE_INLINE_SCRIPT_HASHES,
@@ -24,7 +23,6 @@ const SCRIPTS = {
   DAYNESS_SEED_SCRIPT,
   SHARE_REDIRECT_SCRIPT,
   SHARE_MEDIA_VIEW_SCRIPT,
-  SHARE_LOADING_TIMEOUT_SCRIPT,
 };
 
 describe("the site's inline scripts", () => {

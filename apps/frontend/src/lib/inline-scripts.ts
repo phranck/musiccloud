@@ -80,34 +80,9 @@ export const SHARE_MEDIA_VIEW_SCRIPT = `(function () {
   } catch (e) {}
 })();`;
 
-/**
- * How long a share page opened directly waits for its server island before the
- * loading state offers a reload. It sits above the 20 s the island gives the
- * backend, because within that budget the island answers with an error page of
- * its own.
- */
-const SHARE_ISLAND_TIMEOUT_MS = 25000;
-
-/**
- * Wires the reload button of the share loading state and turns the spinner into
- * the timeout message after {@link SHARE_ISLAND_TIMEOUT_MS}. Astro's island
- * loader keeps the fallback silently when the island fails, so without this a
- * failed island leaves the visitor looking at a logo.
- */
-export const SHARE_LOADING_TIMEOUT_SCRIPT = `(function () {
-  var state = document.querySelector("[data-share-loading]");
-  if (!state) return;
-  var reload = state.querySelector("[data-share-reload]");
-  if (reload) reload.addEventListener("click", function () { location.reload(); });
-  setTimeout(function () {
-    if (state.isConnected) state.setAttribute("data-timed-out", "true");
-  }, ${SHARE_ISLAND_TIMEOUT_MS});
-})();`;
-
 /** The hashes of every script above, for the site's content policy. */
 export const SITE_INLINE_SCRIPT_HASHES: readonly string[] = [
   DAYNESS_SEED_SCRIPT,
   SHARE_REDIRECT_SCRIPT,
   SHARE_MEDIA_VIEW_SCRIPT,
-  SHARE_LOADING_TIMEOUT_SCRIPT,
 ].map(inlineBlockHash);

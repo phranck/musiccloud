@@ -6,8 +6,7 @@
  * {@link ShareLayout} streams in behind a `Suspense` boundary, and so the hero's
  * loading state can reserve the same space. It is `opacity-0` and
  * `pointer-events-none` on purpose — its only job is layout stability, not a
- * visible skeleton. The Astro sibling `share/ShareResultPlaceholder.astro` keeps
- * the SSR shells byte-aligned with this.
+ * visible skeleton.
  */
 export function ShareResultPlaceholder() {
   return (
