@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { log } from "../../../lib/infra/logger.js";
 import { buildCcArtistInfo } from "../cc-artist-info.js";
 import * as client from "../jamendo/client.js";
 import type { CcTrack } from "../jamendo/types.js";
@@ -14,6 +15,16 @@ function makeTrack(id: string, artistId: string, name: string): CcTrack {
     streamUrl: `https://prod.storage.jamendo.com/?trackid=${id}`,
     downloadAllowed: false,
   };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -81,5 +92,55 @@ describe("buildCcArtistInfo", () => {
     expect(similarSpy).not.toHaveBeenCalled();
     expect(info.topTracks).toEqual([]);
     expect(info.similarArtistTracks).toEqual([]);
+  });
+
+  it("starts similar-track and profile requests before either one resolves", async () => {
+    const similar = deferred<CcTrack[]>();
+    const profile = deferred<null>();
+    const similarSpy = vi.spyOn(client, "getSimilarCcTracks").mockReturnValue(similar.promise);
+    const profileSpy = vi.spyOn(client, "getCcArtistMusicInfo").mockReturnValue(profile.promise);
+
+    const pending = buildCcArtistInfo("Artist One", "a1", [makeTrack("1", "a1", "Artist One")]);
+
+    expect(similarSpy).toHaveBeenCalledOnce();
+    expect(profileSpy).toHaveBeenCalledOnce();
+
+    similar.resolve([]);
+    profile.resolve(null);
+    await pending;
+  });
+
+  it("keeps the profile when similar-track discovery fails", async () => {
+    const deviationSpy = vi.spyOn(log, "deviation").mockImplementation(() => {});
+    vi.spyOn(client, "getSimilarCcTracks").mockRejectedValue(new Error("similar failed"));
+    vi.spyOn(client, "getCcArtistMusicInfo").mockResolvedValue({
+      imageUrl: "https://usercontent.jamendo.com/artist.jpg",
+      genres: ["jazz"],
+      bioSummary: "An English bio.",
+    });
+
+    const info = await buildCcArtistInfo("Artist One", "a1", [makeTrack("1", "a1", "Artist One")]);
+
+    expect(info.profile?.bioSummary).toBe("An English bio.");
+    expect(info.similarArtistTracks).toEqual([]);
+    expect(deviationSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: "cc_similar_tracks", outcome: "empty_similar_tracks" }),
+      expect.any(Error),
+    );
+  });
+
+  it("keeps similar tracks when the profile request fails", async () => {
+    const deviationSpy = vi.spyOn(log, "deviation").mockImplementation(() => {});
+    vi.spyOn(client, "getSimilarCcTracks").mockResolvedValue([makeTrack("s2", "a2", "Artist Two")]);
+    vi.spyOn(client, "getCcArtistMusicInfo").mockRejectedValue(new Error("profile failed"));
+
+    const info = await buildCcArtistInfo("Artist One", "a1", [makeTrack("1", "a1", "Artist One")]);
+
+    expect(info.profile).toBeNull();
+    expect(info.similarArtistTracks).toHaveLength(1);
+    expect(deviationSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: "cc_artist_profile", outcome: "profile_omitted" }),
+      expect.any(Error),
+    );
   });
 });

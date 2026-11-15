@@ -101,15 +101,21 @@ export async function buildCcArtistInfo(
 ): Promise<CcArtistInfoResponse> {
   const seed = columnTracks[0];
 
+  const [similarResult, profileResult] = await Promise.allSettled([
+    seed ? getSimilarCcTracks(seed.jamendoId, CC_SIMILAR_POOL_SIZE) : Promise.resolve([]),
+    getCcArtistMusicInfo(jamendoArtistId),
+  ]);
+
   let similarArtistTracks: CcSimilarArtistTrack[] = [];
-  try {
-    const similarPool = seed ? await getSimilarCcTracks(seed.jamendoId, CC_SIMILAR_POOL_SIZE) : [];
-    const candidates = dedupeByArtist(similarPool.filter((track) => track.jamendoArtistId !== seed?.jamendoArtistId));
+  if (similarResult.status === "fulfilled") {
+    const candidates = dedupeByArtist(
+      similarResult.value.filter((track) => track.jamendoArtistId !== seed?.jamendoArtistId),
+    );
     similarArtistTracks = stratifiedSample(candidates, CC_SIMILAR_TRACKS_LIMIT).map((track) => ({
       artistName: track.artistName,
       track: toArtistTopTrack(track),
     }));
-  } catch (error) {
+  } else {
     log.deviation(
       {
         component: "CcArtistInfo",
@@ -118,14 +124,13 @@ export async function buildCcArtistInfo(
         operation: "cc_similar_tracks",
         outcome: "empty_similar_tracks",
       },
-      error,
+      similarResult.reason,
     );
-    similarArtistTracks = [];
   }
 
   let profile: CcArtistProfile | null = null;
-  try {
-    const musicInfo = await getCcArtistMusicInfo(jamendoArtistId);
+  if (profileResult.status === "fulfilled") {
+    const musicInfo = profileResult.value;
     profile = musicInfo
       ? {
           imageUrl: musicInfo.imageUrl,
@@ -137,7 +142,7 @@ export async function buildCcArtistInfo(
           similarArtists: [],
         }
       : null;
-  } catch (error) {
+  } else {
     log.deviation(
       {
         component: "CcArtistInfo",
@@ -146,9 +151,8 @@ export async function buildCcArtistInfo(
         operation: "cc_artist_profile",
         outcome: "profile_omitted",
       },
-      error,
+      profileResult.reason,
     );
-    profile = null;
   }
 
   return {
