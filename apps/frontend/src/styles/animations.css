@@ -6,17 +6,14 @@
    before an island hydrates, where a JS-driven entrance would either never
    play or start with a visible delay:
 
-   - slide-up:       Astro server-island templates (DeferredShareContent) —
-                     streamed HTML without hydration. Also the entrance of the
-                     genre browse grid, which rises as one element
-                     (GenreBrowseGrid): the browser runs it off the main thread
-                     while some 250 tiles mount, where a GSAP tween would be
-                     driven from it.
-   - fade-in:        SharePageShell's share enter — a client:load island
-                     inside the server:defer stream; CSS plays from parse,
-                     before hydration.
+   - slide-up:       Astro-rendered content and the genre browse grid, which
+                     rises as one element (GenreBrowseGrid): the browser runs it
+                     off the main thread while some 250 tiles mount, where a
+                     GSAP tween would be driven from it.
+   - fade-in:        SharePageShell's share enter; CSS plays from parse, before
+                     hydration.
    - zoom-in:        Media/Services cards rendered in the share SSR stream
-                     (bot-visible enter; transform+opacity only).
+                     (transform+opacity only).
    - slide-down-in:  PageHeader enter — the island is client:idle, the SSR
                      markup animates from parse.
    - slide-up-in:    DeferredFooter server island, same reasoning as slide-up.
@@ -413,65 +410,6 @@ html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-s
 .mc-cover-drop-in {
   animation: mc-cover-drop-in 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
   will-change: transform;
-}
-
-/* Loading state of a share page opened directly (ShareLoadingState.astro). The
-   spinner fades in only after 300 ms, so a fast load never flashes it. When the
-   island has not arrived by its timeout, the spinner fades out and the reload
-   message fades in on the same spot. */
-.mc-share-loading {
-  display: grid;
-  justify-items: center;
-  padding-top: 6rem;
-}
-
-.mc-share-loading > * {
-  grid-area: 1 / 1;
-}
-
-.mc-share-loading__progress {
-  opacity: 0;
-  animation: mc-share-loading-in 200ms ease-out 300ms forwards;
-}
-
-.mc-share-loading__slow {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 200ms ease-out,
-    visibility 0s linear 200ms;
-}
-
-.mc-share-loading[data-timed-out] .mc-share-loading__progress {
-  animation: mc-share-loading-out 200ms ease-out forwards;
-}
-
-.mc-share-loading[data-timed-out] .mc-share-loading__slow {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 200ms ease-out 200ms;
-}
-
-@keyframes mc-share-loading-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes mc-share-loading-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
 }
 
 /* The artist track row that shows the track the share page's player holds

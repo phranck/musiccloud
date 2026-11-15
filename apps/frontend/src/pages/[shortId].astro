@@ -1,38 +1,29 @@
 ---
 /**
- * Share Page - SSR rendered with two render paths.
+ * Share or public content page, synchronously rendered for every client.
  *
- * Bots (link-preview crawlers) get the full synchronous SSR path: we
- * await the share/content-page fetches so the response carries OG and
- * Twitter meta tags in `<head>` for preview scrapers.
- *
- * Browsers get an instant shell (background + placeholder logo) and the
- * content streams in via `DeferredShareContent` (server:defer). This
- * removes the cold-start wait the synchronous path imposes on users who
- * never read the OG tags anyway.
+ * The same response carries the rendered body and the canonical, OpenGraph and
+ * Twitter metadata. Crawlers and browsers therefore never depend on a deferred
+ * share-island request or a user-agent classifier to obtain the document data.
  */
 export const prerender = false;
 
 import { type ApiErrorResponse, type PublicContentPage, type SharePageResponse, SITE_ORIGIN } from "@musiccloud/shared";
-import { fetchPublicContentPage, fetchShareData } from "@/api/client";
+import { fetchPublicContentPage, fetchRandomExample, fetchShareData } from "@/api/client";
+import { RecessedCard } from "@/components/cards/RecessedCard";
+import { LandingPage } from "@/components/landing/LandingPage";
 import DeferredFooter from "@/components/layout/DeferredFooter.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import { SegmentedPageFullscreen } from "@/components/layout/SegmentedPageFullscreen";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
-import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CcSharePageShell } from "@/components/share/CcSharePageShell";
-import DeferredShareContent from "@/components/share/DeferredShareContent.astro";
 import { ShareErrorShell } from "@/components/share/ShareErrorShell";
-import ShareLoadingState from "@/components/share/ShareLoadingState.astro";
-import ShareLogoHeader from "@/components/share/ShareLogoHeader.astro";
-import ShareResultPlaceholder from "@/components/share/ShareResultPlaceholder.astro";
-import { ShareLayout } from "@/components/share/ShareLayout";
+import { SharePageShell } from "@/components/share/SharePageShell";
 import { commonCopy } from "@/copy/common";
 import { shareCopy } from "@/copy/share";
 import { SHARE_MEDIA_VIEW_SCRIPT } from "@/lib/inline-scripts";
 import { isBot } from "@/lib/isBot";
 import { resolveShortRouteResults } from "@/lib/share/short-route-result";
-import BaseLayout from "@/layouts/BaseLayout.astro";
 import {
   buildCcSharePageProps,
   type CcSharePageProps,
@@ -40,6 +31,7 @@ import {
   isCcSharePageResponse,
   type ShareViewModel,
 } from "@/lib/share/share-view";
+import BaseLayout from "@/layouts/BaseLayout.astro";
 
 const { shortId } = Astro.params;
 
@@ -47,11 +39,18 @@ if (!shortId) {
   return Astro.redirect("/");
 }
 
-const userAgent = Astro.request.headers.get("user-agent") ?? "";
-const treatAsBot = isBot(userAgent);
+const renderStaticContent = isBot(Astro.request.headers.get("user-agent"));
+const clientIp = Astro.clientAddress;
+const [contentResult, shareResult] = await Promise.all([
+  fetchPublicContentPage(shortId, clientIp),
+  fetchShareData(shortId, clientIp, Astro.request.headers),
+]);
+const routeResult = resolveShortRouteResults(contentResult, shareResult);
 
-// Bot path only: synchronous fetches + full derivation so OG meta lands
-// in <head>. Browsers skip this entirely — see DeferredShareContent.
+if (routeResult.kind === "not-found") {
+  return Astro.redirect("/404", 302);
+}
+
 let contentPage: PublicContentPage | null = null;
 let data: SharePageResponse | null = null;
 let routeError: ApiErrorResponse | null = null;
@@ -74,62 +73,50 @@ const errorLabels = {
   title: shareCopy.error.title,
 };
 
-if (treatAsBot) {
-  const clientIp = Astro.clientAddress;
-  const [cp, sd] = await Promise.all([
-    fetchPublicContentPage(shortId, clientIp),
-    fetchShareData(shortId, clientIp, Astro.request.headers),
-  ]);
-  const routeResult = resolveShortRouteResults(cp, sd);
-
-  if (routeResult.kind === "not-found") {
-    return Astro.redirect("/404", 302);
-  }
-
-  if (routeResult.kind === "error") {
-    Astro.response.status = routeResult.statusCode;
-    routeError = routeResult.error;
-    pageTitle = errorLabels.title;
-  } else if (routeResult.kind === "content") {
-    contentPage = routeResult.data;
-  } else {
-    data = routeResult.data;
-  }
-
-  if (data && isCcSharePageResponse(data)) {
-    // CC entities render through their own shell; derive the OG inputs from the
-    // CC props (the commercial share-view builder rejects CC responses).
-    ccPageProps = buildCcSharePageProps(data);
-    isAlbum = data.type === "cc-album";
-    isArtist = data.type === "cc-artist";
-    og = data.og;
-    artworkUrl = ccPageProps.artworkUrl;
-    displayTitle = ccPageProps.config.title;
-    artistDisplay = ccPageProps.config.artist;
-    pageTitle = ccPageProps.pageTitle;
-  } else {
-    shareView = data ? buildShareViewFromSharePageResponse(data, shortId) : null;
-    isAlbum = shareView?.isAlbum ?? false;
-    isArtist = shareView?.isArtist ?? false;
-    og = data?.og ?? null;
-    artworkUrl = shareView?.artworkUrl;
-    displayTitle = shareView?.displayTitle ?? "";
-    artistDisplay = shareView?.artistDisplay ?? "";
-    pageTitle = contentPage ? `${contentPage.title} - musiccloud` : (shareView?.pageTitle ?? "musiccloud");
-  }
+if (routeResult.kind === "error") {
+  Astro.response.status = routeResult.statusCode;
+  routeError = routeResult.error;
+  pageTitle = errorLabels.title;
+} else if (routeResult.kind === "content") {
+  contentPage = routeResult.data;
+} else {
+  data = routeResult.data;
 }
+
+if (data && isCcSharePageResponse(data)) {
+  ccPageProps = buildCcSharePageProps(data);
+  isAlbum = data.type === "cc-album";
+  isArtist = data.type === "cc-artist";
+  og = data.og;
+  artworkUrl = ccPageProps.artworkUrl;
+  displayTitle = ccPageProps.config.title;
+  artistDisplay = ccPageProps.config.artist;
+  pageTitle = ccPageProps.pageTitle;
+} else {
+  shareView = data ? buildShareViewFromSharePageResponse(data, shortId) : null;
+  isAlbum = shareView?.isAlbum ?? false;
+  isArtist = shareView?.isArtist ?? false;
+  og = data?.og ?? null;
+  artworkUrl = shareView?.artworkUrl;
+  displayTitle = shareView?.displayTitle ?? "";
+  artistDisplay = shareView?.artistDisplay ?? "";
+  pageTitle = contentPage ? `${contentPage.title} - musiccloud` : (shareView?.pageTitle ?? "musiccloud");
+}
+
+const overlayMode = !!contentPage && contentPage.displayMode !== "fullscreen";
+const exampleShortId = overlayMode ? ((await fetchRandomExample(clientIp))?.shortId ?? null) : null;
 ---
 
 <BaseLayout
   title={pageTitle}
-  canonicalUrl={treatAsBot ? (contentPage ? `${SITE_ORIGIN.site}/${contentPage.slug}` : og?.url) : undefined}
-  preloadImage={treatAsBot ? (artworkUrl ?? undefined) : undefined}
+  canonicalUrl={contentPage ? `${SITE_ORIGIN.site}/${contentPage.slug}` : og?.url}
+  preloadImage={artworkUrl ?? undefined}
 >
   <Fragment slot="head">
     <script is:inline set:html={SHARE_MEDIA_VIEW_SCRIPT}></script>
   </Fragment>
 
-  {treatAsBot && og && (
+  {og && (
     <Fragment slot="head">
       <meta property="og:type" content={isArtist ? "profile" : isAlbum ? "music.album" : "music.song"} />
       <meta property="og:title" content={og.title} />
@@ -155,109 +142,80 @@ if (treatAsBot) {
   </a>
 
   <div class="min-h-dvh flex flex-col">
-    {treatAsBot ? (
-      <>
-        {routeError && <ShareErrorShell client:load error={routeError} labels={errorLabels} />}
+    {routeError && <ShareErrorShell client:load error={routeError} labels={errorLabels} />}
 
-        {contentPage && contentPage.displayMode === "fullscreen" && (
-          <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12">
-            {contentPage.showTitle && contentPage.pageType !== "segmented" && (
-              <h1
-                class:list={[
-                  "text-3xl sm:text-4xl font-bold tracking-[-0.04em] mb-8",
-                  {
-                    "text-left": contentPage.titleAlignment === "left",
-                    "text-center": contentPage.titleAlignment === "center",
-                    "text-right": contentPage.titleAlignment === "right",
-                  },
-                ]}
-              >
-                {contentPage.title}
-              </h1>
-            )}
-            {contentPage.pageType === "segmented" ? (
-              <SegmentedPageFullscreen client:load page={contentPage} />
-            ) : contentPage.contentCardStyle === "recessed" ? (
-              <RecessedCard client:load className="px-6 py-6">
-                <MarkdownHtml html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
-              </RecessedCard>
-            ) : (
-              <MarkdownHtml client:load html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
-            )}
-          </main>
+    {contentPage && contentPage.displayMode === "fullscreen" && (
+      <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12 animate-slide-up">
+        {contentPage.showTitle && contentPage.pageType !== "segmented" && (
+          <h1
+            class:list={[
+              "text-3xl sm:text-4xl font-bold tracking-[-0.04em] mb-8",
+              {
+                "text-left": contentPage.titleAlignment === "left",
+                "text-center": contentPage.titleAlignment === "center",
+                "text-right": contentPage.titleAlignment === "right",
+              },
+            ]}
+          >
+            {contentPage.title}
+          </h1>
         )}
+        {contentPage.pageType === "segmented" ? (
+          <SegmentedPageFullscreen client:load page={contentPage} />
+        ) : contentPage.contentCardStyle === "recessed" ? (
+          <RecessedCard client:load className="px-6 py-6">
+            <MarkdownHtml html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
+          </RecessedCard>
+        ) : (
+          <MarkdownHtml client:load html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
+        )}
+      </main>
+    )}
 
-        {contentPage && contentPage.displayMode !== "fullscreen" && (
-          <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12">
-            {/* Bots get the content statically — the overlay island never
-                hydrates without JS, so crawlers would otherwise index nothing.
-                Segmented pages emit every section so the full text is present. */}
-            {contentPage.pageType === "segmented" ? (
-              contentPage.segments.map((seg) => (
-                <MarkdownHtml html={seg.contentHtml} className="prose prose-invert max-w-none mb-8" />
-              ))
-            ) : (
-              <MarkdownHtml html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
-            )}
-          </main>
+    {contentPage && overlayMode && renderStaticContent && (
+      <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12">
+        {contentPage.pageType === "segmented" ? (
+          contentPage.segments.map((segment) => (
+            <MarkdownHtml html={segment.contentHtml} className="prose prose-invert max-w-none mb-8" />
+          ))
+        ) : (
+          <MarkdownHtml html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
         )}
+      </main>
+    )}
 
-        {!contentPage && ccPageProps && (
-          <CcSharePageShell
-            client:load
-            config={ccPageProps.config}
-            artistName={ccPageProps.artistName}
-            artistInfo={ccPageProps.artistInfo}
-            labels={ccPageProps.labels}
-          />
-        )}
+    {contentPage && overlayMode && !renderStaticContent && (
+      <Fragment>
+        <main id="main-content" class="flex-1 flex flex-col">
+          <LandingPage client:idle showFooter={false} exampleShortId={exampleShortId} />
+        </main>
+        <PageOverlayIsland client:load initialPage={contentPage} />
+      </Fragment>
+    )}
 
-        {!contentPage && !ccPageProps && shareView && (
-          <main id="main-content" class="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
-            <ShareLogoHeader />
-            <ShareLayout
-              client:load
-              config={shareView.config}
-              artistName={shareView.artistName}
-              artistInfoContext={shareView.artistInfoContext}
-            />
-          </main>
-        )}
-      </>
-    ) : (
-      <DeferredShareContent server:defer shortId={shortId}>
-        <Fragment slot="fallback">
-          {/* Instant shell painted during SSR; stays on screen while the
-              deferred island fetches share/content data. Astro swaps this
-              fallback out for the island's rendered <main> as soon as the
-              sub-request finishes. */}
-          <main id="main-content" class="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
-            <ShareLogoHeader />
-            <div class="relative w-full mt-6 sm:mt-8">
-              <ShareResultPlaceholder />
-              <div class="absolute inset-x-0 top-0">
-                <ShareLoadingState />
-              </div>
-            </div>
-          </main>
-        </Fragment>
-      </DeferredShareContent>
+    {!contentPage && ccPageProps && (
+      <CcSharePageShell
+        client:load
+        config={ccPageProps.config}
+        artistName={ccPageProps.artistName}
+        artistInfo={ccPageProps.artistInfo}
+        labels={ccPageProps.labels}
+      />
+    )}
+
+    {!contentPage && !ccPageProps && shareView && (
+      <SharePageShell
+        client:load
+        config={shareView.config}
+        artistName={shareView.artistName}
+        artistInfoContext={shareView.artistInfoContext}
+      />
     )}
 
     <DeferredFooter server:defer />
   </div>
 
-  <script>
-    // Acts on the markers the deferred share content leaves. A bot render has none.
-    import { watchShareIslandMarkers } from "@/lib/share/share-island-document";
-    watchShareIslandMarkers();
-  </script>
-
-  {/* Always-on overlay host so nav clicks on overlay-mode pages open
-      client-side without a full reload. Bot path needs it here (symmetric
-      with the old layout); browser path gets it from DeferredShareContent
-      once the island resolves. */}
-  {treatAsBot && !routeError && (!contentPage || contentPage.displayMode === "fullscreen") && (
+  {!routeError && (!contentPage || contentPage.displayMode === "fullscreen") && (
     <PageOverlayIsland client:load initialPage={null} />
   )}
 </BaseLayout>

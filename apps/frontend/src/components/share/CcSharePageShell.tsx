@@ -58,8 +58,7 @@ export function CcSharePageShell({ config, artistName, artistInfo, labels }: CcS
   return (
     <main id="main-content" className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
       <ShareLogoHeader onLogoClick={handleLogoClick} />
-      {/* See SharePageShell: CSS fade is deliberate here (client:load inside a
-          server:defer stream plays the enter before hydration). */}
+      {/* See SharePageShell: CSS fade plays from the initial HTML before hydration. */}
       <div className="w-full animate-fade-in">
         <ShareLayout
           config={config}
