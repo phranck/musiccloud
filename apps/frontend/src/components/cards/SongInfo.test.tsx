@@ -1,9 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import gsap from "gsap";
+import { StrictMode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { Turntable } from "@/components/vinyl/Turntable";
 import { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
+import { COVER_NUDGE_SUPPRESSED_KEY, COVER_NUDGE_VISITS_KEY } from "@/lib/share/cover-nudge-state";
+import { createLocalStorageMock } from "@/test/localStorageMock";
 
 /**
  * The deck node `MediaCardHead` hands to `SongInfo` for the turntable view. The
@@ -30,6 +34,14 @@ function turntableStageNode(spinState: VinylSpinState) {
     />
   );
 }
+
+afterEach(() => {
+  gsap.globalTimeline.getChildren(true, true, true).forEach((animation) => animation.kill());
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  delete document.documentElement.dataset.shareMediaView;
+  document.body.replaceChildren();
+});
 
 describe("SongInfo media stage", () => {
   it("exposes the share media surface as a native button toggle", () => {
@@ -165,5 +177,83 @@ describe("SongInfo deck painting", () => {
       />,
     );
     expect(container.querySelector(".mc-share-media-screen")).toHaveAttribute("data-deck-painted");
+  });
+});
+
+describe("SongInfo cover nudge", () => {
+  interface NudgeViewOptions {
+    strict?: boolean;
+    view?: ShareMediaView;
+    reducedMotion?: boolean;
+    visits?: string;
+  }
+
+  function renderNudgeView(options: NudgeViewOptions = {}) {
+    const storage = createLocalStorageMock();
+    if (options.visits !== undefined) storage.setItem(COVER_NUDGE_VISITS_KEY, options.visits);
+    vi.stubGlobal("localStorage", storage);
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query === "(prefers-reduced-motion: reduce)" ? options.reducedMotion === true : false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    const onMediaViewToggle = vi.fn();
+    const content = (
+      <SongInfo
+        title="Blue Train"
+        artist="John Coltrane"
+        albumArtUrl="/covers/blue-train.jpg"
+        mediaViewToggleLabel="Toggle cover and turntable view"
+        onMediaViewToggle={onMediaViewToggle}
+        shareMediaView={options.view ?? ShareMediaView.Cover}
+        turntableStage={turntableStageNode(VinylSpinState.Idle)}
+      />
+    );
+    const result = render(options.strict ? <StrictMode>{content}</StrictMode> : content);
+    const stage = result.container.querySelector<HTMLElement>("[data-media-stage='cover']");
+    expect(stage).not.toBeNull();
+    return { ...result, storage, stage: stage!, onMediaViewToggle };
+  }
+
+  it("starts the spring timeline on the second eligible cover visit", () => {
+    const { storage, stage } = renderNudgeView({ visits: "1" });
+
+    expect(storage.getItem(COVER_NUDGE_VISITS_KEY)).toBe("2");
+    expect(gsap.getTweensOf(stage).length).toBeGreaterThan(0);
+  });
+
+  it("permanently suppresses and stops the nudge when the cover is clicked", () => {
+    const { storage, stage, onMediaViewToggle } = renderNudgeView({ visits: "1" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle cover and turntable view" }));
+
+    expect(onMediaViewToggle).toHaveBeenCalledOnce();
+    expect(storage.getItem(COVER_NUDGE_SUPPRESSED_KEY)).toBe("1");
+    expect(gsap.getTweensOf(stage)).toHaveLength(0);
+    expect(stage.style.transform).toBe("");
+    expect(stage.style.transition).toBe("");
+  });
+
+  it("does not consume a visit when the turntable is restored", () => {
+    const { storage, stage } = renderNudgeView({ view: ShareMediaView.Turntable, visits: "1" });
+
+    expect(storage.getItem(COVER_NUDGE_VISITS_KEY)).toBe("1");
+    expect(gsap.getTweensOf(stage)).toHaveLength(0);
+  });
+
+  it("does not consume a visit when reduced motion is requested", () => {
+    const { storage, stage } = renderNudgeView({ reducedMotion: true, visits: "1" });
+
+    expect(storage.getItem(COVER_NUDGE_VISITS_KEY)).toBe("1");
+    expect(gsap.getTweensOf(stage)).toHaveLength(0);
+  });
+
+  it("registers one visit when StrictMode replays mount effects", () => {
+    const { storage } = renderNudgeView({ strict: true });
+
+    expect(storage.getItem(COVER_NUDGE_VISITS_KEY)).toBe("1");
   });
 });
