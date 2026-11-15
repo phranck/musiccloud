@@ -30,6 +30,12 @@ describe("share route error entrypoints", () => {
     );
   });
 
+  it("correlates the frontend SSR record with the backend share read", () => {
+    expect(routeSource).toContain("crypto.randomUUID()");
+    expect(routeSource).toContain("Astro.locals.shareTiming = shareTiming");
+    expect(routeSource).toContain("Astro.request.headers, correlationId");
+  });
+
   it("preserves backend error payloads and status codes in the content proxy", () => {
     expect(contentProxySource).toContain('result.kind === "error"');
     expect(contentProxySource).toContain("result.error");

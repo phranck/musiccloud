@@ -36,6 +36,7 @@ export * from "./overlay-geometry.js";
 export * from "./platform.js";
 export * from "./plugins.js";
 export * from "./public-error-catalog.js";
+export * from "./request-correlation.js";
 export * from "./safe-url.js";
 export * from "./security-headers.js";
 export * from "./services.js";

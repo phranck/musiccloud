@@ -41,9 +41,18 @@ if (!shortId) {
 
 const renderStaticContent = isBot(Astro.request.headers.get("user-agent"));
 const clientIp = Astro.clientAddress;
+const correlationId = crypto.randomUUID();
+const shareTiming = { correlationId, contentFetchMs: 0, shareFetchMs: 0 };
+Astro.locals.shareTiming = shareTiming;
+const contentStartedAt = performance.now();
+const shareStartedAt = performance.now();
 const [contentResult, shareResult] = await Promise.all([
-  fetchPublicContentPage(shortId, clientIp),
-  fetchShareData(shortId, clientIp, Astro.request.headers),
+  fetchPublicContentPage(shortId, clientIp).finally(() => {
+    shareTiming.contentFetchMs = Math.max(0, Math.round(performance.now() - contentStartedAt));
+  }),
+  fetchShareData(shortId, clientIp, Astro.request.headers, correlationId).finally(() => {
+    shareTiming.shareFetchMs = Math.max(0, Math.round(performance.now() - shareStartedAt));
+  }),
 ]);
 const routeResult = resolveShortRouteResults(contentResult, shareResult);
 

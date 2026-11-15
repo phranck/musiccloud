@@ -7,5 +7,11 @@ declare namespace App {
      * request that renders no layout, such as an API route.
      */
     designTokensCss?: string;
+    /** Timing and correlation data for the synchronous share/content route, consumed by the middleware after rendering. */
+    shareTiming?: {
+      correlationId: string;
+      contentFetchMs?: number;
+      shareFetchMs?: number;
+    };
   }
 }
