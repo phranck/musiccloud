@@ -7,6 +7,16 @@ export const COVER_NUDGE_SUPPRESSED_KEY = "musiccloud:cover-nudge-suppressed";
 /** The nudge appears on every second eligible visit. */
 const COVER_NUDGE_INTERVAL = 2;
 
+/** Lifecycle of the single nudge available during one page visit. */
+export const CoverNudgePhase = {
+  Idle: "idle",
+  Armed: "armed",
+  Delay: "delay",
+  Requested: "requested",
+  Done: "done",
+} as const;
+export type CoverNudgePhase = (typeof CoverNudgePhase)[keyof typeof CoverNudgePhase];
+
 interface CoverVisitInput {
   storage: Storage;
   coverVisible: boolean;
@@ -38,5 +48,14 @@ export function suppressCoverNudge(storage: Storage): void {
     storage.setItem(COVER_NUDGE_SUPPRESSED_KEY, "1");
   } catch {
     // The current interaction still owns the view when persistent storage is blocked.
+  }
+}
+
+/** Reads browser storage without letting a blocked property getter interrupt the view interaction. */
+export function readCoverNudgeStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
   }
 }

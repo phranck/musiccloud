@@ -1,22 +1,40 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import { AudioStatus } from "@/components/audio/AudioStatus";
 import { ShareLayout } from "@/components/share/ShareLayout";
+import { COVER_NUDGE_VISITS_KEY } from "@/lib/share/cover-nudge-state";
 import { MediaCardContentTypeValue, type ShareContentConfiguration } from "@/lib/types/media-card";
 import { createLocalStorageMock } from "@/test/localStorageMock";
 
-// The media card is a stub whose buttons report a player status, so a test can
-// play, pause and end the preview without rendering the audio hub.
-vi.mock("@/components/cards/MediaSummaryCard", () => ({
-  MediaSummaryCard: ({ onPreviewStatusChange }: { onPreviewStatusChange: (status: string | null) => void }) => (
-    <div>
-      <button data-testid="player-play" onClick={() => onPreviewStatusChange("playing")} type="button" />
-      <button data-testid="player-pause" onClick={() => onPreviewStatusChange("paused")} type="button" />
-      <button data-testid="player-end" onClick={() => onPreviewStatusChange("ended")} type="button" />
-    </div>
-  ),
-}));
+// The media card is a stub whose buttons report the same intent and status as
+// the audio hub, so tests can drive playback without a media element.
+vi.mock("@/components/cards/MediaSummaryCard", async () => {
+  const { useCoverNudgeRequest } = await import("@/context/CoverNudgeContext");
+  return {
+    MediaSummaryCard: ({
+      onUserPlaybackIntent,
+      onPreviewStatusChange,
+    }: {
+      onUserPlaybackIntent?: () => void;
+      onPreviewStatusChange: (status: string | null) => void;
+    }) => {
+      const nudge = useCoverNudgeRequest();
+      const play = () => {
+        onUserPlaybackIntent?.();
+        onPreviewStatusChange("playing");
+      };
+      return (
+        <div data-testid="media-card" data-cover-nudge-requested={String(nudge?.requested ?? false)}>
+          <button data-testid="player-play" onClick={play} type="button" />
+          <button data-testid="player-pause" onClick={() => onPreviewStatusChange("paused")} type="button" />
+          <button data-testid="player-end" onClick={() => onPreviewStatusChange("ready")} type="button" />
+        </div>
+      );
+    },
+  };
+});
 vi.mock("@/components/share/SharePageCard", async () => {
   const { MediaSummaryCard } = await import("@/components/cards/MediaSummaryCard");
   return { SharePageCard: MediaSummaryCard };
@@ -110,12 +128,19 @@ function nowPlaying(): NowPlayingTrack | null {
   return JSON.parse(screen.getByTestId("artist-panel").getAttribute("data-now-playing") ?? "missing");
 }
 
+function coverNudgeRequested(): boolean {
+  return screen.getByTestId("media-card").getAttribute("data-cover-nudge-requested") === "true";
+}
+
 beforeEach(() => {
+  delete document.documentElement.dataset.shareMediaView;
   vi.stubGlobal("localStorage", createLocalStorageMock());
   stubViewport(true);
 });
 
 afterEach(() => {
+  vi.useRealTimers();
+  delete document.documentElement.dataset.shareMediaView;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -174,5 +199,53 @@ describe("ShareLayout hands the artist panel the track the player holds", () => 
     fireEvent.click(screen.getByTestId("player-play"));
 
     expect(nowPlaying()).toMatchObject({ status: AudioStatus.Playing, shortId: "blue" });
+  });
+});
+
+describe("ShareLayout cover nudge playback timing", () => {
+  it("waits for the play button and two full seconds on every second eligible visit", () => {
+    window.localStorage.setItem(COVER_NUDGE_VISITS_KEY, "1");
+    vi.useFakeTimers();
+    render(<ShareLayout config={SHARE_CONFIG} artistName="John Coltrane" animated={false} />);
+    expect(coverNudgeRequested()).toBe(false);
+
+    fireEvent.click(screen.getByTestId("player-play"));
+    act(() => vi.advanceTimersByTime(1999));
+    expect(coverNudgeRequested()).toBe(false);
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(coverNudgeRequested()).toBe(true);
+  });
+
+  it("cancels a pending nudge on pause and gives the next play a fresh delay", () => {
+    window.localStorage.setItem(COVER_NUDGE_VISITS_KEY, "1");
+    vi.useFakeTimers();
+    render(<ShareLayout config={SHARE_CONFIG} artistName="John Coltrane" animated={false} />);
+    expect(coverNudgeRequested()).toBe(false);
+
+    fireEvent.click(screen.getByTestId("player-play"));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByTestId("player-pause"));
+    act(() => vi.advanceTimersByTime(2000));
+    expect(coverNudgeRequested()).toBe(false);
+
+    fireEvent.click(screen.getByTestId("player-play"));
+    act(() => vi.advanceTimersByTime(1999));
+    expect(coverNudgeRequested()).toBe(false);
+    act(() => vi.advanceTimersByTime(1));
+    expect(coverNudgeRequested()).toBe(true);
+  });
+
+  it("cancels a pending nudge when the audio engine reports Ready after track end", () => {
+    window.localStorage.setItem(COVER_NUDGE_VISITS_KEY, "1");
+    vi.useFakeTimers();
+    render(<ShareLayout config={SHARE_CONFIG} artistName="John Coltrane" animated={false} />);
+
+    fireEvent.click(screen.getByTestId("player-play"));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByTestId("player-end"));
+    act(() => vi.advanceTimersByTime(2000));
+
+    expect(coverNudgeRequested()).toBe(false);
   });
 });

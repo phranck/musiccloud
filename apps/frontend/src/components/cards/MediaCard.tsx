@@ -26,6 +26,7 @@ interface MediaCardProps {
   animated?: boolean;
   mediaViewToggleLabel?: string;
   onMediaViewToggle?: () => void;
+  onUserPlaybackIntent?: () => void;
   onPreviewStatusChange?: (status: AudioStatus | null) => void;
   previewStatus?: AudioStatus | null;
   shareMediaView?: ShareMediaView;
@@ -37,6 +38,7 @@ export function MediaCard({
   animated = true,
   mediaViewToggleLabel,
   onMediaViewToggle,
+  onUserPlaybackIntent,
   onPreviewStatusChange,
   previewStatus,
   shareMediaView,
@@ -50,6 +52,7 @@ export function MediaCard({
       className={className}
       mediaViewToggleLabel={mediaViewToggleLabel}
       onMediaViewToggle={onMediaViewToggle}
+      onUserPlaybackIntent={onUserPlaybackIntent}
       onPreviewStatusChange={onPreviewStatusChange}
       previewStatus={previewStatus}
       shareMediaView={shareMediaView}

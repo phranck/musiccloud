@@ -22,10 +22,10 @@ export const MotionDuration = {
   SlideOut: 0.4,
   /** Album-artwork cover swap in SongInfo (was the `.mc-cover-slide-*` classes, 900ms). */
   CoverSwap: 0.9,
-  /** One spring-driven cover excursion in the share turntable hint. */
-  CoverNudge: 0.42,
-  /** Return to the resting cover position after a nudge. */
-  CoverNudgeReturn: 0.36,
+  /** Fast leftward cover swipe in the share turntable hint. */
+  CoverNudgeSwipe: 0.2,
+  /** Smooth overshoot return to the resting cover position after a swipe. */
+  CoverNudgeReturn: 0.56,
   /**
    * Collapsible section open/close (was CollapsibleSection's 680ms
    * grid-template-rows transition). Numerically equal to {@link MotionDuration.Swap}
@@ -57,8 +57,8 @@ export const MotionEase = {
    * `MC_FADE_BEZIER`.
    */
   McFade: "mcFade",
-  /** Elastic spring used for the two cover excursions. */
-  CoverNudge: "elastic.out(1.1,0.55)",
-  /** Elastic return that lets the cover settle into its resting position. */
-  CoverNudgeReturn: "elastic.out(1,0.65)",
+  /** Fast deceleration that makes each leftward cover movement feel like a finger swipe. */
+  CoverNudgeSwipe: "power3.out",
+  /** Single smooth overshoot that lets the cover settle without repeated oscillation. */
+  CoverNudgeReturn: "back.out(1.4)",
 } as const;

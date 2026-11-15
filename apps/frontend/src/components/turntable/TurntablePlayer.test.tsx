@@ -457,11 +457,11 @@ describe("TurntablePlayer compound", () => {
 const playedAudioElements: HTMLAudioElement[] = [];
 
 /** Renders the hub deck plus the analyzer remote (its playbutton) under one provider. */
-function renderHubDeck() {
+function renderHubDeck(onUserPlaybackIntent?: () => void) {
   return render(
     <TurntablePlayerProvider previewUrl="/preview.mp3" trackTitle="Blue Train">
       <TurntablePlayer record={RECORD} swapKey="tp-test" />
-      <TurntableAnalyzerSlot />
+      <TurntableAnalyzerSlot onUserPlaybackIntent={onUserPlaybackIntent} />
     </TurntablePlayerProvider>,
   );
 }
@@ -524,6 +524,19 @@ describe("TurntablePlayer deck reflects playback (display only)", () => {
     expect(playedAudioElements.length).toBe(1);
     expect(rotor(container)).toHaveStyle({ transform: "rotate(210deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.On);
+  });
+
+  it("reports a play-button start without reporting the following pause", async () => {
+    const onUserPlaybackIntent = vi.fn();
+    renderHubDeck(onUserPlaybackIntent);
+
+    fireEvent.click(screen.getByRole("button", { name: "Play preview" }));
+    await act(async () => {});
+    expect(onUserPlaybackIntent).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause preview" }));
+    await act(async () => {});
+    expect(onUserPlaybackIntent).toHaveBeenCalledOnce();
   });
 
   it("pausing at the playbutton returns the knob to Standby and powers off", async () => {

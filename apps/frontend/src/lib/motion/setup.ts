@@ -45,7 +45,7 @@ const LAG_THRESHOLD_MS = 500;
 const LAG_ADJUSTED_MS = 33;
 
 /** Media query that signals the user prefers reduced motion. */
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+export const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 /**
  * Guard that short-circuits redundant `setupMotion()` calls *within a single

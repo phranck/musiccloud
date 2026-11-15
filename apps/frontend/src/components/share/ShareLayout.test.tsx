@@ -1,7 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { act, type ReactNode, useRef } from "react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShareLayout } from "@/components/share/ShareLayout";
+import { ShareMediaView } from "@/components/share/ShareMediaView.types";
+import { useCoverNudge } from "@/hooks/useCoverNudge";
+import { COVER_NUDGE_SUPPRESSED_KEY, COVER_NUDGE_VISITS_KEY } from "@/lib/share/cover-nudge-state";
 import { MediaCardContentTypeValue, type ShareContentConfiguration } from "@/lib/types/media-card";
 import { createLocalStorageMock } from "@/test/localStorageMock";
 
@@ -22,21 +27,31 @@ vi.mock("@/components/cards/SongInfo", () => ({
     title: string;
     mediaViewToggleLabel?: string;
     onMediaViewToggle?: () => void;
-  }) => (
-    <button
-      aria-label={mediaViewToggleLabel}
-      data-testid="song-info-props"
-      data-media-view-toggle="true"
-      data-media-view={shareMediaView}
-      data-preview-status={previewStatus ?? "none"}
-      data-status-line={statusLine ?? ""}
-      data-status-pulsing={String(statusPulsing ?? false)}
-      onClick={onMediaViewToggle}
-      type="button"
-    >
-      {title}
-    </button>
-  ),
+  }) => {
+    const screenRef = useRef<HTMLButtonElement>(null);
+    useCoverNudge({
+      screenRef,
+      mediaView: shareMediaView === ShareMediaView.Turntable ? ShareMediaView.Turntable : ShareMediaView.Cover,
+      enabled: true,
+    });
+    return (
+      <button
+        ref={screenRef}
+        aria-label={mediaViewToggleLabel}
+        data-testid="song-info-props"
+        data-media-view-toggle="true"
+        data-media-view={shareMediaView}
+        data-preview-status={previewStatus ?? "none"}
+        data-status-line={statusLine ?? ""}
+        data-status-pulsing={String(statusPulsing ?? false)}
+        onClick={onMediaViewToggle}
+        type="button"
+      >
+        <span data-media-stage="cover" />
+        {title}
+      </button>
+    );
+  },
 }));
 
 // The analyzer slot is replaced by a probe of the turntable hub, so the test
@@ -321,5 +336,57 @@ describe("ShareLayout media view toggle", () => {
     fireEvent.keyDown(window, { key: "p", repeat: true });
 
     expectMediaView("cover");
+  });
+
+  it("registers one visit when SSR hydration includes both responsive layouts", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    container.innerHTML = renderToString(<ShareLayout config={SHARE_CONFIG} artistName="John Coltrane" />);
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, <ShareLayout config={SHARE_CONFIG} artistName="John Coltrane" />);
+      });
+
+      await waitFor(() => expect(window.localStorage.getItem(COVER_NUDGE_VISITS_KEY)).toBe("1"));
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+    }
+  });
+
+  it("does not consume another visit when the breakpoint changes", async () => {
+    let desktop = true;
+    let notifyMediaChange: (() => void) | undefined;
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        get matches() {
+          return query.includes("min-width") ? desktop : false;
+        },
+        addEventListener: vi.fn((_event: string, listener: () => void) => {
+          notifyMediaChange = listener;
+        }),
+        removeEventListener: vi.fn(),
+      })),
+    );
+
+    renderShareLayout();
+    await waitFor(() => expect(window.localStorage.getItem(COVER_NUDGE_VISITS_KEY)).toBe("1"));
+
+    await act(async () => {
+      desktop = false;
+      notifyMediaChange?.();
+    });
+
+    expect(window.localStorage.getItem(COVER_NUDGE_VISITS_KEY)).toBe("1");
+  });
+
+  it("permanently suppresses the nudge when P toggles the media view", () => {
+    renderShareLayout();
+
+    fireEvent.keyDown(window, { key: "p" });
+
+    expect(window.localStorage.getItem(COVER_NUDGE_SUPPRESSED_KEY)).toBe("1");
   });
 });

@@ -16,6 +16,7 @@ interface SharePageCardProps {
   animated?: boolean;
   mediaViewToggleLabel?: string;
   onMediaViewToggle?: () => void;
+  onUserPlaybackIntent?: () => void;
   onPreviewStatusChange?: (status: AudioStatus | null) => void;
   previewStatus?: AudioStatus | null;
   shareMediaView?: ShareMediaView;
@@ -26,6 +27,7 @@ export function SharePageCard({
   animated = false,
   mediaViewToggleLabel,
   onMediaViewToggle,
+  onUserPlaybackIntent,
   onPreviewStatusChange,
   previewStatus,
   shareMediaView,
@@ -36,6 +38,7 @@ export function SharePageCard({
       animated={animated}
       mediaViewToggleLabel={mediaViewToggleLabel}
       onMediaViewToggle={onMediaViewToggle}
+      onUserPlaybackIntent={onUserPlaybackIntent}
       onPreviewStatusChange={onPreviewStatusChange}
       previewStatus={previewStatus}
       shareMediaView={shareMediaView}

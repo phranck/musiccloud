@@ -2,33 +2,38 @@ import gsap from "gsap";
 import { MotionDuration, MotionEase } from "./constants";
 import { prefersReducedMotion, setupMotion } from "./setup";
 
-/** Horizontal distance of the first cover excursion. */
-export const COVER_NUDGE_DISTANCE_PX = 36;
+/** Leftward distance of the first cover swipe. */
+export const COVER_NUDGE_DISTANCE_PX = 84;
 
-/** Horizontal distance of the weaker second excursion. */
-export const COVER_NUDGE_REPEAT_DISTANCE_PX = 18;
+/** Leftward distance of the weaker second swipe. */
+export const COVER_NUDGE_REPEAT_DISTANCE_PX = 42;
 
 /**
- * Builds two spring-driven cover excursions with a complete return between them.
- * The stage transition is disabled while GSAP writes transforms so CSS easing cannot fight the spring.
+ * Builds two fast leftward swipes with one smooth overshoot return after each one.
+ * The stage transition is disabled while GSAP writes transforms so CSS easing cannot fight the motion.
  * Reduced motion writes no styles and returns null.
  */
-export function buildCoverNudgeTimeline(stage: HTMLElement): gsap.core.Timeline | null {
+export function buildCoverNudgeTimeline(stage: HTMLElement, onComplete?: () => void): gsap.core.Timeline | null {
   setupMotion();
   if (prefersReducedMotion()) return null;
 
   gsap.set(stage, { transition: "none" });
-  const timeline = gsap.timeline({ onComplete: () => stopCoverNudge(stage) });
+  const timeline = gsap.timeline({
+    onComplete: () => {
+      stopCoverNudge(stage);
+      onComplete?.();
+    },
+  });
   timeline.to(stage, {
     x: -COVER_NUDGE_DISTANCE_PX,
-    duration: MotionDuration.CoverNudge,
-    ease: MotionEase.CoverNudge,
+    duration: MotionDuration.CoverNudgeSwipe,
+    ease: MotionEase.CoverNudgeSwipe,
   });
   timeline.to(stage, { x: 0, duration: MotionDuration.CoverNudgeReturn, ease: MotionEase.CoverNudgeReturn });
   timeline.to(stage, {
     x: -COVER_NUDGE_REPEAT_DISTANCE_PX,
-    duration: MotionDuration.CoverNudge,
-    ease: MotionEase.CoverNudge,
+    duration: MotionDuration.CoverNudgeSwipe,
+    ease: MotionEase.CoverNudgeSwipe,
   });
   timeline.to(stage, { x: 0, duration: MotionDuration.CoverNudgeReturn, ease: MotionEase.CoverNudgeReturn });
   return timeline;

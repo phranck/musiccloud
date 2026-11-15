@@ -157,17 +157,20 @@ import { MobileArtistSheet } from "@/components/share/MobileArtistSheet";
 import { MobileShareLayout } from "@/components/share/MobileShareLayout";
 import { ShareBackLink } from "@/components/share/ShareBackLink";
 import { ShareMediaView, type ShareMediaView as ShareMediaViewType } from "@/components/share/ShareMediaView.types";
+import { CoverNudgeProvider } from "@/context/CoverNudgeContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { artistCopy } from "@/copy/artist";
 import { audioCopy } from "@/copy/audio";
 import { shareCopy } from "@/copy/share";
 import { ArtistLoadStatus, useArtistInfo } from "@/hooks/useArtistInfo";
+import { useCoverNudgeController } from "@/hooks/useCoverNudgeController";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
 import { sideForTrackTitle } from "@/lib/media/vinyl-side";
+import { REDUCED_MOTION_QUERY } from "@/lib/motion/setup";
 import { sameAlbum } from "@/lib/resolve/album-identity";
 import { preloadResolvedMedia } from "@/lib/resolve/preload-media";
 import { commercialTrackResolver, type TrackResolver } from "@/lib/resolve/track-resolver";
@@ -507,8 +510,20 @@ function ShareLayoutInner({
   // — critically — the per-frame style recalc the day/night cross-fade triggers.
   // 1080px mirrors `MobileShareLayout`'s `min-[1080px]:hidden` breakpoint.
   const isDesktop = useMediaQuery("(min-width: 1080px)");
+  const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY);
   const showDesktop = !mounted || isDesktop;
   const showMobile = !mounted || !isDesktop;
+  const {
+    requested: coverNudgeRequested,
+    onUserPlaybackIntent: handlePlaybackIntent,
+    onPlaybackStatusChange: handleCoverNudgePlaybackStatusChange,
+    onComplete: finishCoverNudge,
+    suppress: suppressNudge,
+  } = useCoverNudgeController({ reducedMotion, shareMediaView });
+  const toggleMediaView = useCallback(() => {
+    suppressNudge();
+    dispatchUi({ type: ShareUiActionType.MediaViewToggled });
+  }, [suppressNudge]);
 
   useEffect(() => {
     dispatchUi({
@@ -523,12 +538,12 @@ function ShareLayoutInner({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (shouldIgnoreShareMediaViewToggle(event)) return;
-      dispatchUi({ type: ShareUiActionType.MediaViewToggled });
+      toggleMediaView();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [toggleMediaView]);
 
   // Restore the persisted media view once after mount. The initial render uses
   // the server's `Cover` default (the server has no localStorage), so the SSR
@@ -617,10 +632,12 @@ function ShareLayoutInner({
     dispatchUi({ type: ShareUiActionType.OpenSheet });
   }, []);
   const closeSheet = useCallback(() => dispatchUi({ type: ShareUiActionType.CloseSheet }), []);
-  const toggleMediaView = useCallback(() => dispatchUi({ type: ShareUiActionType.MediaViewToggled }), []);
   const handlePreviewStatusChange = useCallback(
-    (status: AudioStatus | null) => dispatchUi({ type: ShareUiActionType.PreviewStatusChanged, status }),
-    [],
+    (status: AudioStatus | null) => {
+      dispatchUi({ type: ShareUiActionType.PreviewStatusChanged, status });
+      handleCoverNudgePlaybackStatusChange(status);
+    },
+    [handleCoverNudgePlaybackStatusChange],
   );
   useOverlayEscape({ enabled: sheetOpen, onEscape: closeSheet });
 
@@ -646,58 +663,62 @@ function ShareLayoutInner({
   });
 
   return (
-    <div className="w-full">
-      <ShareBackLink label={backLabel} onBack={onBack} />
-      {showDesktop && (
-        <DesktopShareLayout
-          animated={animated}
-          artistData={artistData}
-          artistLoadStatus={artistLoadStatus}
-          config={enrichedConfig}
-          isLoading={isLoading}
-          labels={artistLabels}
-          mediaViewToggleLabel={shareCopy.toggleMediaView}
-          nowPlaying={nowPlaying}
-          onArtistResolveStart={handleArtistResolveStart}
-          onMediaViewToggle={toggleMediaView}
-          onPreviewStatusChange={handlePreviewStatusChange}
-          onTrackResolve={resolveTrack}
-          previewStatus={previewStatus}
-          shareMediaView={shareMediaView}
-          userRegion={userRegion}
-        />
-      )}
-      {showMobile && (
-        <MobileShareLayout
-          animated={animated}
-          config={enrichedConfig}
-          label={artistCopy.mobileButton}
-          mediaViewToggleLabel={shareCopy.toggleMediaView}
-          onMediaViewToggle={toggleMediaView}
-          onOpenSheet={openSheet}
-          onPreviewStatusChange={handlePreviewStatusChange}
-          previewStatus={previewStatus}
-          shareMediaView={shareMediaView}
-        />
-      )}
-      {mounted &&
-        !isDesktop &&
-        createPortal(
-          <MobileArtistSheet
+    <CoverNudgeProvider requested={coverNudgeRequested} onComplete={finishCoverNudge}>
+      <div className="w-full">
+        <ShareBackLink label={backLabel} onBack={onBack} />
+        {showDesktop && (
+          <DesktopShareLayout
+            animated={animated}
             artistData={artistData}
             artistLoadStatus={artistLoadStatus}
-            closeLabel={artistCopy.closeInfo}
+            config={enrichedConfig}
             isLoading={isLoading}
             labels={artistLabels}
+            mediaViewToggleLabel={shareCopy.toggleMediaView}
             nowPlaying={nowPlaying}
             onArtistResolveStart={handleArtistResolveStart}
-            onClose={closeSheet}
+            onMediaViewToggle={toggleMediaView}
+            onUserPlaybackIntent={handlePlaybackIntent}
+            onPreviewStatusChange={handlePreviewStatusChange}
             onTrackResolve={resolveTrack}
-            open={sheetOpen}
+            previewStatus={previewStatus}
+            shareMediaView={shareMediaView}
             userRegion={userRegion}
-          />,
-          document.body,
+          />
         )}
-    </div>
+        {showMobile && (
+          <MobileShareLayout
+            animated={animated}
+            config={enrichedConfig}
+            label={artistCopy.mobileButton}
+            mediaViewToggleLabel={shareCopy.toggleMediaView}
+            onMediaViewToggle={toggleMediaView}
+            onUserPlaybackIntent={handlePlaybackIntent}
+            onOpenSheet={openSheet}
+            onPreviewStatusChange={handlePreviewStatusChange}
+            previewStatus={previewStatus}
+            shareMediaView={shareMediaView}
+          />
+        )}
+        {mounted &&
+          !isDesktop &&
+          createPortal(
+            <MobileArtistSheet
+              artistData={artistData}
+              artistLoadStatus={artistLoadStatus}
+              closeLabel={artistCopy.closeInfo}
+              isLoading={isLoading}
+              labels={artistLabels}
+              nowPlaying={nowPlaying}
+              onArtistResolveStart={handleArtistResolveStart}
+              onClose={closeSheet}
+              onTrackResolve={resolveTrack}
+              open={sheetOpen}
+              userRegion={userRegion}
+            />,
+            document.body,
+          )}
+      </div>
+    </CoverNudgeProvider>
   );
 }

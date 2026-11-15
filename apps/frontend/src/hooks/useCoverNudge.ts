@@ -1,10 +1,10 @@
 import { type RefObject, useCallback, useEffect, useRef } from "react";
 import { ShareMediaView, type ShareMediaView as ShareMediaViewType } from "@/components/share/ShareMediaView.types";
+import { useCoverNudgeRequest } from "@/context/CoverNudgeContext";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { buildCoverNudgeTimeline, stopCoverNudge } from "@/lib/motion/coverNudge";
-import { registerCoverVisit, suppressCoverNudge } from "@/lib/share/cover-nudge-state";
+import { REDUCED_MOTION_QUERY } from "@/lib/motion/setup";
 
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const COVER_STAGE_SELECTOR = "[data-media-stage='cover']";
 
 interface UseCoverNudgeOptions {
@@ -14,13 +14,13 @@ interface UseCoverNudgeOptions {
 }
 
 /**
- * Owns the cover-discovery visit and animation lifecycle. A turntable view or intentional toggle
- * permanently suppresses the nudge, while StrictMode and effect replays cannot consume a second visit.
+ * Runs the page owner's nudge request on the currently mounted cover stage. Visit registration stays
+ * outside this hook, so hydration and responsive layout changes cannot count or animate twice.
  */
 export function useCoverNudge({ screenRef, mediaView, enabled }: UseCoverNudgeOptions): () => void {
+  const request = useCoverNudgeRequest();
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY);
   const timelineRef = useRef<ReturnType<typeof buildCoverNudgeTimeline>>(null);
-  const visitRegisteredRef = useRef(false);
 
   const stop = useCallback(() => {
     timelineRef.current?.kill();
@@ -29,33 +29,23 @@ export function useCoverNudge({ screenRef, mediaView, enabled }: UseCoverNudgeOp
     if (stage) stopCoverNudge(stage);
   }, [screenRef]);
 
-  const suppress = useCallback(() => {
-    stop();
-    if (typeof window !== "undefined") suppressCoverNudge(window.localStorage);
-  }, [stop]);
-
   useEffect(() => {
-    if (!enabled) return;
     if (
+      !enabled ||
+      !request?.requested ||
+      reducedMotion ||
       mediaView === ShareMediaView.Turntable ||
       document.documentElement.dataset.shareMediaView === ShareMediaView.Turntable
     ) {
-      suppress();
+      stop();
       return;
     }
-    if (reducedMotion || visitRegisteredRef.current) return;
 
     const stage = screenRef.current?.querySelector<HTMLElement>(COVER_STAGE_SELECTOR);
     if (!stage) return;
-    visitRegisteredRef.current = true;
-    const shouldNudge = registerCoverVisit({
-      storage: window.localStorage,
-      coverVisible: true,
-      motionAllowed: true,
-    });
-    if (shouldNudge) timelineRef.current = buildCoverNudgeTimeline(stage);
+    timelineRef.current = buildCoverNudgeTimeline(stage, request.onComplete);
     return stop;
-  }, [enabled, mediaView, reducedMotion, screenRef, stop, suppress]);
+  }, [enabled, mediaView, reducedMotion, request, screenRef, stop]);
 
-  return suppress;
+  return stop;
 }
