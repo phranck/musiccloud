@@ -427,6 +427,36 @@ const SAMPLE_ARTIST: JamendoArtistRaw = {
   shareurl: "https://www.jamendo.com/artist/338723",
 };
 
+describe("Jamendo request throttle", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("starts a second request while the first response is still pending", async () => {
+    const answer = {
+      ok: true,
+      json: async () => ({
+        headers: { status: "success", code: 0, results_count: 1 },
+        results: [SAMPLE_ALBUM],
+      }),
+    } as Response;
+    let resolveFirst!: (response: Response) => void;
+    const firstResponse = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    fetchWithTimeoutMock.mockReturnValueOnce(firstResponse).mockResolvedValueOnce(answer);
+
+    const first = getCcAlbum("1");
+    const second = getCcAlbum("176136");
+
+    try {
+      await vi.waitFor(() => expect(fetchWithTimeoutMock).toHaveBeenCalledTimes(2), { timeout: 100 });
+    } finally {
+      resolveFirst(answer);
+      await Promise.allSettled([first, second]);
+    }
+  });
+});
+
 describe("getCcAlbum", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {

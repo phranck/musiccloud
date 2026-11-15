@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { log } from "../../../lib/infra/logger.js";
+import * as sampler from "../../genre-search/sampler.js";
 import { buildCcArtistInfo } from "../cc-artist-info.js";
 import * as client from "../jamendo/client.js";
 import type { CcTrack } from "../jamendo/types.js";
@@ -140,6 +141,39 @@ describe("buildCcArtistInfo", () => {
     expect(info.similarArtistTracks).toHaveLength(1);
     expect(deviationSpy).toHaveBeenCalledWith(
       expect.objectContaining({ operation: "cc_artist_profile", outcome: "profile_omitted" }),
+      expect.any(Error),
+    );
+  });
+
+  it("logs both provider failures without discarding either one", async () => {
+    const deviationSpy = vi.spyOn(log, "deviation").mockImplementation(() => {});
+    vi.spyOn(client, "getSimilarCcTracks").mockRejectedValue(new Error("similar failed"));
+    vi.spyOn(client, "getCcArtistMusicInfo").mockRejectedValue(new Error("profile failed"));
+
+    const info = await buildCcArtistInfo("Artist One", "a1", [makeTrack("1", "a1", "Artist One")]);
+
+    expect(info.profile).toBeNull();
+    expect(info.similarArtistTracks).toEqual([]);
+    expect(deviationSpy).toHaveBeenCalledTimes(2);
+    expect(deviationSpy.mock.calls.map(([context]) => context.operation)).toEqual([
+      "cc_similar_tracks",
+      "cc_artist_profile",
+    ]);
+  });
+
+  it("retains the similar-track fallback when result processing fails", async () => {
+    const deviationSpy = vi.spyOn(log, "deviation").mockImplementation(() => {});
+    vi.spyOn(client, "getSimilarCcTracks").mockResolvedValue([makeTrack("s2", "a2", "Artist Two")]);
+    vi.spyOn(client, "getCcArtistMusicInfo").mockResolvedValue(null);
+    vi.spyOn(sampler, "stratifiedSample").mockImplementation(() => {
+      throw new Error("sampling failed");
+    });
+
+    const info = await buildCcArtistInfo("Artist One", "a1", [makeTrack("1", "a1", "Artist One")]);
+
+    expect(info.similarArtistTracks).toEqual([]);
+    expect(deviationSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: "cc_similar_tracks", outcome: "empty_similar_tracks" }),
       expect.any(Error),
     );
   });

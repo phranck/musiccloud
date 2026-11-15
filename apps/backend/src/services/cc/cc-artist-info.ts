@@ -107,7 +107,8 @@ export async function buildCcArtistInfo(
   ]);
 
   let similarArtistTracks: CcSimilarArtistTrack[] = [];
-  if (similarResult.status === "fulfilled") {
+  try {
+    if (similarResult.status === "rejected") throw similarResult.reason;
     const candidates = dedupeByArtist(
       similarResult.value.filter((track) => track.jamendoArtistId !== seed?.jamendoArtistId),
     );
@@ -115,7 +116,7 @@ export async function buildCcArtistInfo(
       artistName: track.artistName,
       track: toArtistTopTrack(track),
     }));
-  } else {
+  } catch (error) {
     log.deviation(
       {
         component: "CcArtistInfo",
@@ -124,12 +125,14 @@ export async function buildCcArtistInfo(
         operation: "cc_similar_tracks",
         outcome: "empty_similar_tracks",
       },
-      similarResult.reason,
+      error,
     );
+    similarArtistTracks = [];
   }
 
   let profile: CcArtistProfile | null = null;
-  if (profileResult.status === "fulfilled") {
+  try {
+    if (profileResult.status === "rejected") throw profileResult.reason;
     const musicInfo = profileResult.value;
     profile = musicInfo
       ? {
@@ -142,7 +145,7 @@ export async function buildCcArtistInfo(
           similarArtists: [],
         }
       : null;
-  } else {
+  } catch (error) {
     log.deviation(
       {
         component: "CcArtistInfo",
@@ -151,8 +154,9 @@ export async function buildCcArtistInfo(
         operation: "cc_artist_profile",
         outcome: "profile_omitted",
       },
-      profileResult.reason,
+      error,
     );
+    profile = null;
   }
 
   return {
