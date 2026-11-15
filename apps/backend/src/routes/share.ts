@@ -79,6 +79,14 @@ function elapsedMs(startedAt: number): number {
 }
 
 export default async function shareRoutes(app: FastifyInstance) {
+  app.addHook("onRequest", async (request) => {
+    shareRequestTimings.set(request, {
+      startedAt: performance.now(),
+      resultType: "none",
+      entityLoadMs: {},
+    });
+  });
+
   app.addHook("onResponse", async (request, reply) => {
     const timing = shareRequestTimings.get(request);
     if (!timing) return;
@@ -148,7 +156,8 @@ export default async function shareRoutes(app: FastifyInstance) {
             $ref: "SharePage#",
           },
           400: {
-            description: "`shortId` failed validation (empty, too long, or contains disallowed characters).",
+            description:
+              "`shortId` or the optional correlation header failed validation (empty, too long, or contains disallowed characters).",
             $ref: "ErrorResponse#",
           },
           404: {
@@ -163,14 +172,9 @@ export default async function shareRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
+      const timing = shareRequestTimings.get(request)!;
       const correlationHeader = request.headers[CORRELATION_ID_HEADER];
-      const timing: ShareRequestTiming = {
-        startedAt: performance.now(),
-        correlationId: typeof correlationHeader === "string" ? correlationHeader : undefined,
-        resultType: "none",
-        entityLoadMs: {},
-      };
-      shareRequestTimings.set(request, timing);
+      timing.correlationId = typeof correlationHeader === "string" ? correlationHeader : undefined;
 
       if (!isInternalRequest(request)) {
         const rateLimit = apiRateLimiter.check(request.ip);
@@ -189,19 +193,19 @@ export default async function shareRoutes(app: FastifyInstance) {
       // serial waterfall (track → album → artist) that cost up to three
       // round-trips for artist-type IDs. Cost: up to two extra queries
       // that return null fast — cheap on indexed shortId lookups.
-      const timeEntity = async <T>(entity: ShareEntity, pending: Promise<T>): Promise<T> => {
+      const timeEntity = async <T>(entity: ShareEntity, load: () => Promise<T>): Promise<T> => {
         const startedAt = performance.now();
         try {
-          return await pending;
+          return await load();
         } finally {
           timing.entityLoadMs[entity] = elapsedMs(startedAt);
         }
       };
       const [trackResult, albumResult, artistResult, ccResult] = await Promise.allSettled([
-        timeEntity("track", loadByShortId(shortId, origin, appleMusicStorefront)),
-        timeEntity("album", loadAlbumByShortId(shortId, origin, appleMusicStorefront)),
-        timeEntity("artist", loadArtistByShortId(shortId, origin, appleMusicStorefront)),
-        timeEntity("cc", loadCcByShortId(shortId, origin)),
+        timeEntity("track", () => loadByShortId(shortId, origin, appleMusicStorefront)),
+        timeEntity("album", () => loadAlbumByShortId(shortId, origin, appleMusicStorefront)),
+        timeEntity("artist", () => loadArtistByShortId(shortId, origin, appleMusicStorefront)),
+        timeEntity("cc", () => loadCcByShortId(shortId, origin)),
       ]);
       const unwrap = <T>(result: PromiseSettledResult<T>): T => {
         if (result.status === "rejected") throw result.reason;

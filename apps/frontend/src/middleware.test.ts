@@ -16,6 +16,7 @@ async function request(
   routeHeaders: Record<string, string> = {},
   shareTiming?: { correlationId: string; contentFetchMs?: number; shareFetchMs?: number },
   nextError?: Error,
+  policyError?: Error,
 ) {
   const locals: {
     designTokensCss?: string;
@@ -24,7 +25,13 @@ async function request(
   if (shareTiming) locals.shareTiming = shareTiming;
   const next = vi.fn(async () => {
     if (nextError) throw nextError;
-    return new Response("page", { headers: routeHeaders });
+    const response = new Response("page", { headers: routeHeaders });
+    if (policyError) {
+      vi.spyOn(response.headers, "set").mockImplementation(() => {
+        throw policyError;
+      });
+    }
+    return response;
   });
   const response = (await onRequest(
     { url: new URL(`https://musiccloud.test${pathname}`), clientAddress: "203.0.113.7", locals } as never,
@@ -108,6 +115,22 @@ describe("site middleware", () => {
     const record = JSON.parse(String(infoSpy.mock.calls[0]?.[0]));
     expect(record).toMatchObject({
       correlationId: "corr-error",
+      statusCode: 500,
+      totalSsrMs: expect.any(Number),
+    });
+  });
+
+  it("logs a failed status when post-processing throws after a 200 response", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const failure = new Error("policy failed");
+
+    await expect(request("/sXfnNvip", {}, { correlationId: "corr-policy" }, undefined, failure)).rejects.toThrow(
+      "policy failed",
+    );
+
+    const record = JSON.parse(String(infoSpy.mock.calls[0]?.[0]));
+    expect(record).toMatchObject({
+      correlationId: "corr-policy",
       statusCode: 500,
       totalSsrMs: expect.any(Number),
     });

@@ -166,6 +166,35 @@ describe("share request timing", () => {
     expect(response.statusCode).toBe(400);
     expect(repository.loadByShortId).not.toHaveBeenCalled();
     expect(response.headers["server-timing"]).toBeUndefined();
+    expect(timingRecord(records)).toMatchObject({
+      resultType: "none",
+      statusCode: 400,
+      requestId: expect.any(String),
+      totalMs: expect.any(Number),
+    });
+    expect(timingRecord(records).correlationId).toBeUndefined();
+  });
+
+  it("logs an invalid shortcode without accepting correlation input", async () => {
+    const records: LogRecord[] = [];
+    const app = buildApp(records);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/share/bad%20value",
+      headers: { [CORRELATION_ID_HEADER]: CORRELATION_ID },
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(400);
+    expect(repository.loadByShortId).not.toHaveBeenCalled();
+    expect(timingRecord(records)).toMatchObject({
+      resultType: "none",
+      statusCode: 400,
+      requestId: expect.any(String),
+      totalMs: expect.any(Number),
+    });
+    expect(timingRecord(records).correlationId).toBeUndefined();
   });
 
   it("accepts a missing correlation id without inventing one", async () => {

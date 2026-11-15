@@ -52,6 +52,7 @@ function completeContentPolicy(headers: Headers, designTokensCss: string | undef
 export const onRequest = defineMiddleware(async (context, next) => {
   const startedAt = performance.now();
   let response: Response | undefined;
+  let statusCode = 500;
   try {
     if (rendersLayout(context.url.pathname)) {
       context.locals.designTokensCss = designTokensToCss(await fetchDesignTokens(context.clientAddress));
@@ -59,6 +60,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     response = await next();
     completeContentPolicy(response.headers, context.locals.designTokensCss);
     applySecurityHeaders(response.headers, SurfaceExposure.Public);
+    statusCode = response.status;
     return response;
   } finally {
     const shareTiming = context.locals.shareTiming;
@@ -69,7 +71,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
           operation: "share_ssr",
           correlationId: shareTiming.correlationId,
           route: "/[shortId]",
-          statusCode: response?.status ?? 500,
+          statusCode,
           contentFetchMs: shareTiming.contentFetchMs ?? 0,
           shareFetchMs: shareTiming.shareFetchMs ?? 0,
           totalSsrMs: Math.max(0, Math.round(performance.now() - startedAt)),
