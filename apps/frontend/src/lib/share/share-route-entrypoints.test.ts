@@ -24,6 +24,12 @@ describe("share route error entrypoints", () => {
     expect(routeSource).toContain("canonicalUrl={contentPage ?");
   });
 
+  it("preserves the fullscreen content entrance animation", () => {
+    expect(routeSource).toMatch(
+      /contentPage\.displayMode === "fullscreen"[\s\S]*?<main[^>]*class="[^"]*animate-slide-up/,
+    );
+  });
+
   it("preserves backend error payloads and status codes in the content proxy", () => {
     expect(contentProxySource).toContain('result.kind === "error"');
     expect(contentProxySource).toContain("result.error");
