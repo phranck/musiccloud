@@ -59,6 +59,8 @@ interface MediaCardHeadProps {
   animated?: boolean;
   /** Extra classes merged onto the outer embossed card. */
   className?: string;
+  /** Forwarded to the play button when the visitor starts playback. */
+  onUserPlaybackIntent?: () => void;
   /** Forwarded from the turntable hub so the caller can react to playback state. */
   onPreviewStatusChange?: (status: AudioStatus | null) => void;
   /** Current preview playback status, forwarded to the media visual stage. */
@@ -168,6 +170,7 @@ function MediaCardHeadStage({
  * @param content - The resolved media content configuration.
  * @param animated - When true, plays the shared zoom-in entrance.
  * @param className - Optional extra classes for the outer card.
+ * @param onUserPlaybackIntent - Synchronous playback-start callback from the play button.
  * @param onPreviewStatusChange - Forwarded playback-status callback (from the hub).
  * @param previewStatus - Current preview playback status from the owner.
  * @param shareMediaView - Share-only cover/turntable visual mode.
@@ -178,6 +181,7 @@ export function MediaCardHead({
   content,
   animated = true,
   className,
+  onUserPlaybackIntent,
   onPreviewStatusChange,
   mediaViewToggleLabel,
   onMediaViewToggle,
@@ -253,7 +257,7 @@ export function MediaCardHead({
             visible
             sectionClass="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)]"
           >
-            <TurntableAnalyzerSlot />
+            <TurntableAnalyzerSlot onUserPlaybackIntent={onUserPlaybackIntent} />
           </CollapsibleSection>
         </TurntablePlayerProvider>
       ) : (

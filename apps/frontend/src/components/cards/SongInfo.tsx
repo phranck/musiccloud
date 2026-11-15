@@ -8,6 +8,7 @@ import { ShareMediaView, type ShareMediaView as ShareMediaViewType } from "@/com
 import { TftScreen } from "@/components/ui/TftScreen";
 import type { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
 import { VfdInfoDisplay } from "@/components/ui/VfdInfoDisplay";
+import { useCoverNudge } from "@/hooks/useCoverNudge";
 import { buildCoverSwapTimeline } from "@/lib/motion/coverSwap";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +85,16 @@ export const SongInfo = memo(function SongInfo({
   const mediaView = shareMediaView ?? ShareMediaView.Cover;
   const showTurntableStage = shareMediaView !== undefined;
   const mediaViewInteractive = Boolean(mediaViewToggleLabel && onMediaViewToggle);
+  const mediaScreenRef = useRef<HTMLDivElement>(null);
+  const suppressNudge = useCoverNudge({
+    screenRef: mediaScreenRef,
+    mediaView,
+    enabled: showTurntableStage && mediaViewInteractive,
+  });
+  const handleMediaViewToggle = useCallback(() => {
+    suppressNudge();
+    onMediaViewToggle?.();
+  }, [onMediaViewToggle, suppressNudge]);
   // The hidden deck is painted once a visitor reaches for the view toggle, so the
   // switch itself does not have to paint it (see `data-deck-painted` in
   // animations.css). Setting the same value again is a no-op render.
@@ -176,6 +187,7 @@ export const SongInfo = memo(function SongInfo({
                 .mc-share-media-stage[data-media-stage="cover"]` selectors and the
                 turntable pre-paint override in animations.css keep matching. */}
             <div
+              ref={mediaScreenRef}
               className="mc-share-media-screen relative aspect-square w-full overflow-hidden rounded-[var(--neu-radius-inner)]"
               data-deck-painted={deckPainted ? "" : undefined}
               onPointerEnter={showTurntableStage ? paintDeck : undefined}
@@ -234,7 +246,7 @@ export const SongInfo = memo(function SongInfo({
                   aria-label={mediaViewToggleLabel}
                   className="absolute inset-0 z-50 cursor-pointer touch-manipulation border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-white/50"
                   data-media-view-toggle="true"
-                  onClick={onMediaViewToggle}
+                  onClick={handleMediaViewToggle}
                   onFocus={paintDeck}
                   type="button"
                 />

@@ -22,6 +22,8 @@ export interface MobileShareLayoutProps {
   onMediaViewToggle: () => void;
   /** Opens the artist-info bottom sheet. */
   onOpenSheet: () => void;
+  /** Reports a synchronous play-button intent to the owner. */
+  onUserPlaybackIntent?: () => void;
   /** Reports the share-card preview player's status to the owner. */
   onPreviewStatusChange: (status: AudioStatus | null) => void;
   /** Current preview playback status, forwarded to the media visual stage. */
@@ -47,6 +49,7 @@ export function MobileShareLayout({
   mediaViewToggleLabel,
   onMediaViewToggle,
   onOpenSheet,
+  onUserPlaybackIntent,
   onPreviewStatusChange,
   previewStatus,
   shareMediaView,
@@ -58,6 +61,7 @@ export function MobileShareLayout({
         animated={animated}
         mediaViewToggleLabel={mediaViewToggleLabel}
         onMediaViewToggle={onMediaViewToggle}
+        onUserPlaybackIntent={onUserPlaybackIntent}
         onPreviewStatusChange={onPreviewStatusChange}
         previewStatus={previewStatus}
         shareMediaView={shareMediaView}

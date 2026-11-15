@@ -37,6 +37,8 @@ export interface DesktopShareLayoutProps {
   onArtistResolveStart: () => void;
   /** Toggles between the cover and turntable media views. */
   onMediaViewToggle: () => void;
+  /** Reports a synchronous play-button intent to the owner. */
+  onUserPlaybackIntent?: () => void;
   /** Reports the media-card preview player's status to the owner. */
   onPreviewStatusChange: (status: AudioStatus | null) => void;
   /** Resolves a clicked artist-panel track row. */
@@ -70,6 +72,7 @@ export function DesktopShareLayout({
   nowPlaying,
   onArtistResolveStart,
   onMediaViewToggle,
+  onUserPlaybackIntent,
   onPreviewStatusChange,
   onTrackResolve,
   previewStatus,
@@ -85,6 +88,7 @@ export function DesktopShareLayout({
             animated={animated}
             mediaViewToggleLabel={mediaViewToggleLabel}
             onMediaViewToggle={onMediaViewToggle}
+            onUserPlaybackIntent={onUserPlaybackIntent}
             onPreviewStatusChange={onPreviewStatusChange}
             previewStatus={previewStatus}
             shareMediaView={shareMediaView}
