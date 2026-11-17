@@ -27,6 +27,7 @@ import { centsToEuroInput, euroInputToCents } from "@/features/sponsoring/sponso
  * @property receivedOn - The day the money arrived, `YYYY-MM-DD` as a date input gives it.
  * @property provider - The route it took.
  * @property note - Anything worth remembering about it.
+ * @property sponsorId - The annual sponsor it belongs to, or `null` for a free donation.
  */
 export interface DonationForm {
   name: string;
@@ -35,6 +36,7 @@ export interface DonationForm {
   receivedOn: string;
   provider: DonationProviderValue;
   note: string;
+  sponsorId: string | null;
 }
 
 /** A field of {@link DonationForm} the backend would refuse. */
@@ -57,7 +59,7 @@ export function localDay(now: Date = new Date()): string {
 
 /**
  * The form for a new donation: anonymous, unpublished, received today by bank
- * transfer, the route most donations take.
+ * transfer, the route most donations take, and not linked to a sponsor.
  *
  * @param today - The day to preset, `YYYY-MM-DD`.
  * @returns The empty form.
@@ -70,6 +72,7 @@ export function emptyDonationForm(today: string): DonationForm {
     receivedOn: today,
     provider: DonationProvider.BankTransfer,
     note: "",
+    sponsorId: null,
   };
 }
 
@@ -87,6 +90,7 @@ export function toDonationForm(donation: Donation): DonationForm {
     receivedOn: donation.receivedOn,
     provider: donation.provider,
     note: donation.note,
+    sponsorId: donation.sponsorId,
   };
 }
 
@@ -123,5 +127,6 @@ export function toDonationInput(form: DonationForm): DonationInput {
     receivedOn: form.receivedOn,
     provider: form.provider,
     note: form.note.trim(),
+    sponsorId: form.sponsorId,
   };
 }

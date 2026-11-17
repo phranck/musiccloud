@@ -7,6 +7,8 @@
  * so no two of them can disagree about what came in.
  */
 
+import { RECORD_ID_SCHEMA } from "./record-id.js";
+
 /**
  * The route a payment took.
  *
@@ -55,6 +57,9 @@ export const DAY_PATTERN = "^\\d{4}-\\d{2}-\\d{2}$";
  * @property receivedOn - The day the money arrived, `YYYY-MM-DD`.
  * @property provider - The route it took.
  * @property note - Anything the operator wants to remember about it.
+ * @property sponsorId - The annual sponsor this payment belongs to, or `null` for a free
+ *   donation. A linked payment adds to that sponsor's amount; the money counts towards
+ *   the year either way.
  */
 export interface DonationInput {
   name: string;
@@ -63,6 +68,7 @@ export interface DonationInput {
   receivedOn: string;
   provider: DonationProviderValue;
   note: string;
+  sponsorId: string | null;
 }
 
 /**
@@ -93,7 +99,7 @@ export interface Donation extends DonationInput {
 export const DONATION_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["name", "published", "amountCents", "receivedOn", "provider", "note"],
+  required: ["name", "published", "amountCents", "receivedOn", "provider", "note", "sponsorId"],
   properties: {
     name: { type: "string", maxLength: DONATION_LIMITS.nameMaxLength },
     published: { type: "boolean" },
@@ -101,6 +107,7 @@ export const DONATION_INPUT_SCHEMA = {
     receivedOn: { type: "string", pattern: DAY_PATTERN },
     provider: { type: "string", enum: DONATION_PROVIDERS },
     note: { type: "string", maxLength: DONATION_LIMITS.noteMaxLength },
+    sponsorId: { anyOf: [RECORD_ID_SCHEMA, { type: "null" }] },
   },
 } as const;
 

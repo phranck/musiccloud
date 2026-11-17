@@ -1,5 +1,6 @@
 /**
- * @file Requests for the sponsoring setting and the donations ledger.
+ * @file Requests for the sponsoring setting, the donations ledger and the
+ * annual sponsors.
  */
 
 import {
@@ -7,6 +8,8 @@ import {
   type DonationInput,
   type DonationTotals,
   ENDPOINTS,
+  type Sponsor,
+  type SponsorInput,
   type SponsoringConfig,
 } from "@musiccloud/shared";
 import { api } from "@/lib/api";
@@ -15,16 +18,24 @@ import { api } from "@/lib/api";
 export const SPONSORING_CONFIG_QUERY_KEY = ["admin", "sponsoring", "config"] as const;
 
 /**
- * The query key every ledger query starts with. Invalidating it refreshes the
- * list and the sums together, because a recorded donation changes both.
+ * The query key every donation and sponsor query starts with. Every write to
+ * either invalidates it, because they read each other: a sponsor's amount is
+ * summed from the donations linked to them, removing a sponsor turns their
+ * donations into free ones, and a recorded donation changes the sums.
  */
-export const DONATIONS_QUERY_KEY = ["admin", "sponsoring", "donations"] as const;
+export const LEDGER_QUERY_KEY = ["admin", "sponsoring", "ledger"] as const;
+
+/** The query key every donation query starts with. */
+export const DONATIONS_QUERY_KEY = [...LEDGER_QUERY_KEY, "donations"] as const;
 
 /** The query key of the ledger's rows. */
 export const DONATION_LIST_QUERY_KEY = [...DONATIONS_QUERY_KEY, "list"] as const;
 
 /** The query key of the ledger's sums. */
 export const DONATION_TOTALS_QUERY_KEY = [...DONATIONS_QUERY_KEY, "totals"] as const;
+
+/** The query key of the annual sponsors. */
+export const SPONSORS_QUERY_KEY = [...LEDGER_QUERY_KEY, "sponsors"] as const;
 
 /**
  * Reads the setting, with the defaults filled in for anything never saved.
@@ -91,4 +102,43 @@ export function updateDonation(id: string, input: DonationInput): Promise<Donati
  */
 export function deleteDonation(id: string): Promise<void> {
   return api.delete<void>(ENDPOINTS.admin.sponsoring.donationDetail(id));
+}
+
+/**
+ * Reads every annual sponsor, current or past, with the amount linked to each.
+ *
+ * @returns The sponsors, the most recent payment first.
+ */
+export function fetchSponsors(): Promise<Sponsor[]> {
+  return api.get<Sponsor[]>(ENDPOINTS.admin.sponsoring.sponsors);
+}
+
+/**
+ * Records an annual sponsor.
+ *
+ * @param input - The sponsor as entered.
+ * @returns The stored sponsor.
+ */
+export function createSponsor(input: SponsorInput): Promise<Sponsor> {
+  return api.post<Sponsor>(ENDPOINTS.admin.sponsoring.sponsors, input);
+}
+
+/**
+ * Replaces an annual sponsor's fields.
+ *
+ * @param id - The sponsor to change.
+ * @param input - Their new fields.
+ * @returns The stored sponsor.
+ */
+export function updateSponsor(id: string, input: SponsorInput): Promise<Sponsor> {
+  return api.put<Sponsor>(ENDPOINTS.admin.sponsoring.sponsorDetail(id), input);
+}
+
+/**
+ * Removes an annual sponsor. Their donations stay in the ledger as free ones.
+ *
+ * @param id - The sponsor to remove.
+ */
+export function deleteSponsor(id: string): Promise<void> {
+  return api.delete<void>(ENDPOINTS.admin.sponsoring.sponsorDetail(id));
 }

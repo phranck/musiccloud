@@ -36,6 +36,7 @@ import {
   ServicesPage,
   SetupPage,
   SponsoringSettingsPage,
+  SponsorsPage,
   SystemPage,
   TierEditorPage,
   TrackEditPage,
@@ -88,6 +89,7 @@ export const routes = createRoutesFromElements(
           <Route path="sponsoring/settings" element={lazyFallback(<SponsoringSettingsPage />)} />
           <Route path="sponsoring/donations" element={lazyFallback(<DonationsPage />)} />
           <Route path="sponsoring/income" element={lazyFallback(<IncomePage />)} />
+          <Route path="sponsoring/sponsors" element={lazyFallback(<SponsorsPage />)} />
           <Route path="developer/clients" element={lazyFallback(<ApiClientsPage />)} />
           <Route path="developer/clients/:id" element={lazyFallback(<ClientDetailPage />)} />
           <Route path="developer/accounts" element={lazyFallback(<DeveloperAccountsPage />)} />

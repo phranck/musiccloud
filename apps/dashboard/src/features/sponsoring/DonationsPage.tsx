@@ -2,8 +2,6 @@ import {
   type ColumnDef,
   DashboardActionButton,
   DashboardActionId,
-  DashboardActionStatus,
-  DashboardButtonVariant,
   DataTable,
   DataTableScroll,
 } from "@musiccloud/dashboard-ui";
@@ -17,39 +15,15 @@ import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { SaveErrorMessage } from "@/components/ui/SaveErrorMessage";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
-import {
-  DONATION_LIST_QUERY_KEY,
-  DONATIONS_QUERY_KEY,
-  deleteDonation,
-  fetchDonations,
-} from "@/features/sponsoring/api";
+import { DONATION_LIST_QUERY_KEY, deleteDonation, fetchDonations, LEDGER_QUERY_KEY } from "@/features/sponsoring/api";
 import { DonationEditCard } from "@/features/sponsoring/DonationEditCard";
-import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
+import { type EditTarget, EditTargetKind } from "@/features/sponsoring/editTarget";
+import { RemoveConfirmDialog } from "@/features/sponsoring/RemoveConfirmDialog";
 
 const messages = dashboardCopy;
 const sm = messages.sponsoring;
-
-/**
- * What the edit card shows.
- *
- * - `Closed`: no card.
- * - `New`: the card for a donation not yet recorded.
- * - `Existing`: the card for a stored donation.
- */
-const EditTargetKind = {
-  Closed: "closed",
-  New: "new",
-  Existing: "existing",
-} as const;
-
-/** Which donation the edit card shows, by {@link EditTargetKind}. */
-type EditTarget =
-  | { kind: typeof EditTargetKind.Closed }
-  | { kind: typeof EditTargetKind.New }
-  | { kind: typeof EditTargetKind.Existing; donation: Donation };
 
 /**
  * The ledger's columns, built once per set of callbacks.
@@ -143,19 +117,22 @@ function useDonationColumns(
 export function DonationsPage() {
   const queryClient = useQueryClient();
   const listQuery = useQuery({ queryKey: DONATION_LIST_QUERY_KEY, queryFn: fetchDonations });
-  const [editTarget, setEditTarget] = useState<EditTarget>({ kind: EditTargetKind.Closed });
+  const [editTarget, setEditTarget] = useState<EditTarget<Donation>>({ kind: EditTargetKind.Closed });
   const [removeTarget, setRemoveTarget] = useState<Donation | null>(null);
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => deleteDonation(id),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: DONATIONS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: LEDGER_QUERY_KEY });
       setRemoveTarget(null);
     },
   });
 
   const { reset: resetRemoval } = removeMutation;
-  const openEdit = useCallback((donation: Donation) => setEditTarget({ kind: EditTargetKind.Existing, donation }), []);
+  const openEdit = useCallback(
+    (donation: Donation) => setEditTarget({ kind: EditTargetKind.Existing, row: donation }),
+    [],
+  );
   const askRemoval = useCallback(
     (donation: Donation) => {
       resetRemoval();
@@ -214,48 +191,25 @@ export function DonationsPage() {
 
       {editTarget.kind !== EditTargetKind.Closed && (
         <DonationEditCard
-          donation={editTarget.kind === EditTargetKind.Existing ? editTarget.donation : null}
+          donation={editTarget.kind === EditTargetKind.Existing ? editTarget.row : null}
           onClose={() => setEditTarget({ kind: EditTargetKind.Closed })}
         />
       )}
 
-      <Dialog
-        open={removeTarget !== null}
+      <RemoveConfirmDialog
+        summary={
+          removeTarget &&
+          `${removeTarget.receivedOn} · ${removeTarget.name || sm.anonymous} · ${formatEuroCents(removeTarget.amountCents)}`
+        }
         title={sm.removeConfirmTitle}
-        titleIcon={<TrashIcon weight="duotone" className={dialogHeaderIconClass} />}
+        description={sm.removeConfirmDescription}
+        pending={removeMutation.isPending}
+        error={removeMutation.error}
+        onConfirm={() => {
+          if (removeTarget) removeMutation.mutate(removeTarget.id);
+        }}
         onClose={() => setRemoveTarget(null)}
-      >
-        <div className="px-6 py-3 space-y-2">
-          {removeTarget && (
-            <p className="text-sm font-medium text-[var(--ds-text)]">
-              {removeTarget.receivedOn} · {removeTarget.name || sm.anonymous} ·{" "}
-              {formatEuroCents(removeTarget.amountCents)}
-            </p>
-          )}
-          <p className="text-sm text-[var(--ds-text-muted)]">{sm.removeConfirmDescription}</p>
-          {removeMutation.isError && <SaveErrorMessage error={removeMutation.error} />}
-        </div>
-        <Dialog.Footer>
-          <DashboardActionButton
-            action={DashboardActionId.Cancel}
-            icon={false}
-            label={messages.common.cancel}
-            onClick={() => setRemoveTarget(null)}
-            type="button"
-            variant={DashboardButtonVariant.Neutral}
-          />
-          <DashboardActionButton
-            action={DashboardActionId.Delete}
-            icon={false}
-            label={messages.common.remove}
-            onClick={() => {
-              if (removeTarget) removeMutation.mutate(removeTarget.id);
-            }}
-            status={removeMutation.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
-            type="button"
-          />
-        </Dialog.Footer>
-      </Dialog>
+      />
     </PageLayout>
   );
 }

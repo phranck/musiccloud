@@ -6,13 +6,19 @@ import {
 } from "@musiccloud/dashboard-ui";
 import { DONATION_LIMITS, DONATION_PROVIDERS, type Donation, type DonationProviderValue } from "@musiccloud/shared";
 import { HandCoinsIcon } from "@phosphor-icons/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { Dropdown } from "@/components/ui/Dropdown";
 import { SaveErrorMessage } from "@/components/ui/SaveErrorMessage";
 import { dashboardCopy } from "@/copy/dashboard";
-import { createDonation, DONATIONS_QUERY_KEY, updateDonation } from "@/features/sponsoring/api";
+import {
+  createDonation,
+  fetchSponsors,
+  LEDGER_QUERY_KEY,
+  SPONSORS_QUERY_KEY,
+  updateDonation,
+} from "@/features/sponsoring/api";
 import {
   type DonationForm,
   donationFormProblems,
@@ -31,6 +37,12 @@ const sm = messages.sponsoring;
 
 /** The routes as the route picker lists them, in the ledger's order. */
 const PROVIDER_OPTIONS = DONATION_PROVIDERS.map((provider) => ({ value: provider, label: sm.provider[provider] }));
+
+/**
+ * The sponsor picker's value for a free donation. A picker holds strings, and
+ * a sponsor id is never empty, so the empty string cannot name a sponsor.
+ */
+const NO_SPONSOR = "";
 
 /** Props of {@link DonationEditCard}. */
 export interface DonationEditCardProps {
@@ -56,14 +68,22 @@ export function DonationEditCard({ donation, onClose }: DonationEditCardProps) {
   const [form, setForm] = useState<DonationForm>(() =>
     donation ? toDonationForm(donation) : emptyDonationForm(localDay()),
   );
+  const sponsorsQuery = useQuery({ queryKey: SPONSORS_QUERY_KEY, queryFn: fetchSponsors });
   const problems = donationFormProblems(form);
   const title = donation ? sm.donationEditTitle : sm.donationCreateTitle;
+  const sponsorOptions = [
+    { value: NO_SPONSOR, label: sm.donationSponsorNone },
+    ...(sponsorsQuery.data ?? []).map((sponsor) => ({
+      value: sponsor.id,
+      label: `${sponsor.name} · ${sponsor.paidOn}`,
+    })),
+  ];
 
   const saveMutation = useMutation({
     mutationFn: (next: DonationForm) =>
       donation ? updateDonation(donation.id, toDonationInput(next)) : createDonation(toDonationInput(next)),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: DONATIONS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: LEDGER_QUERY_KEY });
       onClose();
     },
   });
@@ -125,6 +145,16 @@ export function DonationEditCard({ donation, onClose }: DonationEditCardProps) {
           options={PROVIDER_OPTIONS}
           onChange={(provider) => change({ provider })}
         />
+
+        <div>
+          <Dropdown<string>
+            label={sm.donationSponsorLabel}
+            value={form.sponsorId ?? NO_SPONSOR}
+            options={sponsorOptions}
+            onChange={(sponsorId) => change({ sponsorId: sponsorId === NO_SPONSOR ? null : sponsorId })}
+          />
+          <p className="mt-1 text-xs text-[var(--ds-text-muted)]">{sm.donationSponsorHint}</p>
+        </div>
 
         <div>
           <FormLabel htmlFor="donation-donor">{sm.donorLabel}</FormLabel>

@@ -4,8 +4,9 @@
  *
  * Every route admits an owner or an admin, the roles that keep the books;
  * `authenticateAdmin` alone would admit moderators too. A body is held to the
- * shared request schema, and its day is checked against the calendar, because
- * a pattern cannot tell 2026-02-30 from a real day.
+ * shared request schema, its day is checked against the calendar, because a
+ * pattern cannot tell 2026-02-30 from a real day, and a linked sponsor must
+ * exist.
  */
 
 import {
@@ -13,6 +14,7 @@ import {
   type DonationInput,
   ENDPOINTS,
   isCalendarDay,
+  RECORD_ID_PARAMS_SCHEMA,
   ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
@@ -25,20 +27,22 @@ import {
   readDonationTotals,
   updateDonation,
 } from "../services/donations.js";
-
-/** Longest donation id the routes accept: 64 characters, well above a nanoid's 21. */
-const DONATION_ID_MAX_LENGTH = 64;
-
-/** The `:id` parameter: the characters a nanoid uses. */
-const donationParamsSchema = {
-  type: "object",
-  required: ["id"],
-  additionalProperties: false,
-  properties: { id: { type: "string", minLength: 1, maxLength: DONATION_ID_MAX_LENGTH, pattern: "^[A-Za-z0-9_-]+$" } },
-} as const;
+import { sponsorExists } from "../services/sponsors.js";
 
 /** The largest body a donation write accepts: 4 KiB, well above the longest note and name. */
 const DONATION_BODY_LIMIT_BYTES = 4 * 1024;
+
+/**
+ * Checks what the request schema cannot: that the day exists and that a
+ * linked sponsor does.
+ *
+ * @param input - A donation that already passed the request schema.
+ * @returns `true` when the donation may be stored.
+ */
+async function isDonationInputValid(input: DonationInput): Promise<boolean> {
+  if (!isCalendarDay(input.receivedOn)) return false;
+  return input.sponsorId === null || (await sponsorExists(input.sponsorId));
+}
 
 /**
  * Registers the ledger's routes on the admin scope, whose `authenticateAdmin`
@@ -66,7 +70,7 @@ export async function adminDonationRoutes(app: FastifyInstance) {
     async (request, reply) => {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
       const input = request.body as DonationInput;
-      if (!isCalendarDay(input.receivedOn)) return replyWithApiError(reply, "MC-REQ-0001");
+      if (!(await isDonationInputValid(input))) return replyWithApiError(reply, "MC-REQ-0001");
       return reply.status(201).send(await createDonation(input));
     },
   );
@@ -75,14 +79,14 @@ export async function adminDonationRoutes(app: FastifyInstance) {
   app.put(
     ROUTE_TEMPLATES.admin.sponsoring.donationDetail,
     {
-      schema: { params: donationParamsSchema, body: DONATION_INPUT_SCHEMA },
+      schema: { params: RECORD_ID_PARAMS_SCHEMA, body: DONATION_INPUT_SCHEMA },
       bodyLimit: DONATION_BODY_LIMIT_BYTES,
     },
     async (request, reply) => {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
       const { id } = request.params as { id: string };
       const input = request.body as DonationInput;
-      if (!isCalendarDay(input.receivedOn)) return replyWithApiError(reply, "MC-REQ-0001");
+      if (!(await isDonationInputValid(input))) return replyWithApiError(reply, "MC-REQ-0001");
       const donation = await updateDonation(id, input);
       if (!donation) return replyWithApiError(reply, "MC-RES-0003");
       return donation;
@@ -92,7 +96,7 @@ export async function adminDonationRoutes(app: FastifyInstance) {
   /** Removes a donation. */
   app.delete(
     ROUTE_TEMPLATES.admin.sponsoring.donationDetail,
-    { schema: { params: donationParamsSchema } },
+    { schema: { params: RECORD_ID_PARAMS_SCHEMA } },
     async (request, reply) => {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
       const { id } = request.params as { id: string };

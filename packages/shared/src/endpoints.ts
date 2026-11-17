@@ -301,6 +301,10 @@ export const ENDPOINTS = {
       donationDetail: (id: string) => `/api/admin/sponsoring/donations/${encodeURIComponent(id)}`,
       /** GET: the ledger's sums for the funding year, the last month and the income chart. Owner or admin. */
       donationTotals: "/api/admin/sponsoring/donations/totals",
+      /** GET: every annual sponsor with the amount linked to them, newest first / POST: record one. Owner or admin. */
+      sponsors: "/api/admin/sponsoring/sponsors",
+      /** PUT: change / DELETE: remove one annual sponsor. Owner or admin. */
+      sponsorDetail: (id: string) => `/api/admin/sponsoring/sponsors/${encodeURIComponent(id)}`,
     },
 
     plugins: {
@@ -623,6 +627,8 @@ export const ROUTE_TEMPLATES = {
     sponsoring: {
       /** Route template for ENDPOINTS.admin.sponsoring.donationDetail. */
       donationDetail: "/api/admin/sponsoring/donations/:id",
+      /** Route template for ENDPOINTS.admin.sponsoring.sponsorDetail. */
+      sponsorDetail: "/api/admin/sponsoring/sponsors/:id",
     },
     tracks: {
       detail: "/api/admin/tracks/:id",

@@ -27,13 +27,14 @@ interface DonationRow {
   provider: DonationProviderValue;
   note: string;
   external_ref: string | null;
+  sponsor_id: string | null;
   created_at: Date;
   updated_at: Date;
 }
 
 /** The columns every read selects, with the day as text so no time zone can move it. */
 const DONATION_COLUMNS = `id, name, published, amount_cents, to_char(received_on, 'YYYY-MM-DD') AS received_on,
-  provider, note, external_ref, created_at, updated_at`;
+  provider, note, external_ref, sponsor_id, created_at, updated_at`;
 
 /** Characters of an ISO timestamp that form the day. */
 const DAY_LENGTH = 10;
@@ -60,6 +61,7 @@ function toDonation(row: DonationRow): Donation {
     provider: row.provider,
     note: row.note,
     externalRef: row.external_ref,
+    sponsorId: row.sponsor_id,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
@@ -85,10 +87,19 @@ export async function listDonations(): Promise<Donation[]> {
  */
 export async function createDonation(input: DonationInput): Promise<Donation> {
   const result = await getDatabasePool().query<DonationRow>(
-    `INSERT INTO donations (id, name, published, amount_cents, received_on, provider, note)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO donations (id, name, published, amount_cents, received_on, provider, note, sponsor_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING ${DONATION_COLUMNS}`,
-    [nanoid(), input.name, input.published, input.amountCents, input.receivedOn, input.provider, input.note],
+    [
+      nanoid(),
+      input.name,
+      input.published,
+      input.amountCents,
+      input.receivedOn,
+      input.provider,
+      input.note,
+      input.sponsorId,
+    ],
   );
   return toDonation(result.rows[0] as DonationRow);
 }
@@ -105,10 +116,10 @@ export async function updateDonation(id: string, input: DonationInput): Promise<
   const result = await getDatabasePool().query<DonationRow>(
     `UPDATE donations
         SET name = $2, published = $3, amount_cents = $4, received_on = $5, provider = $6, note = $7,
-            updated_at = NOW()
+            sponsor_id = $8, updated_at = NOW()
       WHERE id = $1
       RETURNING ${DONATION_COLUMNS}`,
-    [id, input.name, input.published, input.amountCents, input.receivedOn, input.provider, input.note],
+    [id, input.name, input.published, input.amountCents, input.receivedOn, input.provider, input.note, input.sponsorId],
   );
   const row = result.rows[0];
   return row ? toDonation(row) : null;

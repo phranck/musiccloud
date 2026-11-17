@@ -2380,6 +2380,35 @@ export type TierRow = typeof tiers.$inferSelect;
 export type TierInsert = typeof tiers.$inferInsert;
 
 /**
+ * Annual sponsors: the people who carry a year of the running costs.
+ *
+ * A sponsor's year runs from `paid_on`, so the sponsors on the site are the
+ * rows whose year has not run out, and nothing is archived at a turn of the
+ * year. What a sponsor gave is not a column here: it is summed from the
+ * donations whose `sponsor_id` names them, because the ledger is the only
+ * place a payment is recorded. `links` holds the profile addresses in the
+ * order they were given, as a JSON array of strings. `published` records the
+ * sponsor's consent to be named and is `false` until the operator records it.
+ */
+export const sponsors = pgTable(
+  "sponsors",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    links: jsonb("links").$type<string[]>().notNull().default([]),
+    claim: text("claim").notNull().default(""),
+    published: boolean("published").notNull().default(false),
+    paidOn: date("paid_on", { mode: "string" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_sponsors_paid_on").on(table.paidOn)],
+);
+
+export type SponsorRow = typeof sponsors.$inferSelect;
+export type SponsorInsert = typeof sponsors.$inferInsert;
+
+/**
  * The donations ledger: one row per payment that reached musiccloud, whatever
  * route it took. Every funding figure on the site and in the dashboard is a sum
  * over these rows, so the ledger is the only place a payment is recorded.
@@ -2389,7 +2418,9 @@ export type TierInsert = typeof tiers.$inferInsert;
  * `external_ref` carries the bank's own reference for a payment the bank import
  * took in; its unique index is what keeps one transfer from being booked twice.
  * `received_on` is a calendar day, because a bank books a day rather than a
- * moment and the funding windows count days.
+ * moment and the funding windows count days. `sponsor_id` links a payment to
+ * the annual sponsor it belongs to; removing the sponsor sets it to `NULL`, so
+ * the money stays in the ledger as a free donation.
  */
 export const donations = pgTable(
   "donations",
@@ -2404,12 +2435,14 @@ export const donations = pgTable(
     provider: text("provider").notNull(),
     note: text("note").notNull().default(""),
     externalRef: text("external_ref"),
+    sponsorId: text("sponsor_id").references(() => sponsors.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex("uq_donations_external_ref").on(table.externalRef),
     index("idx_donations_received_on").on(table.receivedOn),
+    index("idx_donations_sponsor_id").on(table.sponsorId),
     check("chk_donations_amount", sql`${table.amountCents} > 0`),
     check("chk_donations_currency", sql`${table.currency} IN (${sqlValueList([DONATION_CURRENCY])})`),
     check("chk_donations_provider", sql`${table.provider} IN (${sqlValueList(DONATION_PROVIDERS)})`),
