@@ -20,6 +20,8 @@ export interface RemoveConfirmDialogProps {
   title: string;
   /** What removing the row does, said before it happens. */
   description: string;
+  /** The confirming button's caption. "Remove" (`common.remove`) by default; "Delete" where the screen calls it that. */
+  confirmLabel?: string;
   /** Whether the removal is running, which turns the remove button busy. */
   pending: boolean;
   /** The error the removal failed with, or `null` when it has not failed. */
@@ -42,6 +44,7 @@ export function RemoveConfirmDialog({
   summary,
   title,
   description,
+  confirmLabel = messages.common.remove,
   pending,
   error,
   onConfirm,
@@ -71,7 +74,7 @@ export function RemoveConfirmDialog({
         <DashboardActionButton
           action={DashboardActionId.Delete}
           icon={false}
-          label={messages.common.remove}
+          label={confirmLabel}
           onClick={onConfirm}
           status={pending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
           type="button"

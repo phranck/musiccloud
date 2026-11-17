@@ -6,6 +6,7 @@ import { RedirectIfAuthed } from "@/features/auth/RedirectIfAuthed";
 import { RequireArea } from "@/features/auth/RequireArea";
 import { RequireAuth } from "@/features/auth/RequireAuth";
 import { SetupGate } from "@/features/auth/SetupGate";
+import { SUPPORT_PROMPT_EDITOR_ROUTE, SUPPORT_PROMPTS_ROUTE } from "@/features/sponsoring/supportPromptPaths";
 import { RootLayout } from "@/RootLayout";
 import {
   AdminLayout,
@@ -38,6 +39,8 @@ import {
   SponsoringSettingsPage,
   SponsorshipRequestsPage,
   SponsorsPage,
+  SupportPromptEditorPage,
+  SupportPromptsPage,
   SystemPage,
   TierEditorPage,
   TrackEditPage,
@@ -92,6 +95,8 @@ export const routes = createRoutesFromElements(
           <Route path="sponsoring/income" element={lazyFallback(<IncomePage />)} />
           <Route path="sponsoring/sponsors" element={lazyFallback(<SponsorsPage />)} />
           <Route path="sponsoring/requests" element={lazyFallback(<SponsorshipRequestsPage />)} />
+          <Route path={SUPPORT_PROMPTS_ROUTE} element={lazyFallback(<SupportPromptsPage />)} />
+          <Route path={SUPPORT_PROMPT_EDITOR_ROUTE} element={lazyFallback(<SupportPromptEditorPage />)} />
           <Route path="developer/clients" element={lazyFallback(<ApiClientsPage />)} />
           <Route path="developer/clients/:id" element={lazyFallback(<ClientDetailPage />)} />
           <Route path="developer/accounts" element={lazyFallback(<DeveloperAccountsPage />)} />

@@ -19,6 +19,7 @@ import {
   LightningIcon,
   ListIcon,
   MedalIcon,
+  MegaphoneSimpleIcon,
   MicrophoneStageIcon,
   MusicNotesIcon,
   NotebookIcon,
@@ -50,6 +51,7 @@ import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import { isMetaDirty } from "@/features/content/state/slices/metaSlice";
 import { SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
+import { SUPPORT_PROMPTS_PATH } from "@/features/sponsoring/supportPromptPaths";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import { AdminArea, canAccessArea } from "@/shared/constants/domain";
 import type { AdminRole } from "@/shared/types/admin";
@@ -627,8 +629,9 @@ function SidebarDeveloperSection({
  *
  * Shown to every role that may open the Administration area. It links to the
  * income overview, the donations ledger, the annual sponsors, the sponsorship
- * requests waiting for their transfer, and the settings. The settings can be
- * read by an admin and changed by the owner alone, which the page itself says.
+ * requests waiting for their transfer, the support prompts, and the settings.
+ * The settings can be read by an admin and changed by the owner alone, which
+ * the page itself says.
  *
  * @param props.onItemClick - Called after a link is followed, so a mobile drawer can close.
  * @param props.s - The sidebar's labels.
@@ -675,6 +678,15 @@ function SidebarSponsoringSection({ onItemClick, s }: { onItemClick?: () => void
               <DashboardSection.Item
                 icon={<HourglassMediumIcon weight="duotone" className="w-4 h-4" />}
                 label={s.sponsorRequests}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to={SUPPORT_PROMPTS_PATH} onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<MegaphoneSimpleIcon weight="duotone" className="w-4 h-4" />}
+                label={s.supportPrompts}
                 active={isActive}
               />
             )}
