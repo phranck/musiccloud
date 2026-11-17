@@ -263,10 +263,17 @@ jobs:
   # Each deploy job calls .github/workflows/deploy-service.yml with the values
   # that differ between the services. The called workflow keeps `contents:
   # read` and takes the deploy secrets from here.
+  #
+  # Each condition names its status check. A condition without one gets an
+  # implicit `success()`, which also fails when any earlier job in the chain
+  # was skipped, and `typecheck` is skipped on a push its pull request already
+  # validated. Asking for `detect-changes` to have succeeded keeps a failed
+  # validation from deploying, because `detect-changes` only runs after a
+  # passed or skipped one.
   deploy-backend:
     name: Deploy Backend
     needs: detect-changes
-    if: needs.detect-changes.outputs.backend == 'true'
+    if: ${{ !cancelled() && needs.detect-changes.result == 'success' && needs.detect-changes.outputs.backend == 'true' }}
     uses: ./.github/workflows/deploy-service.yml
     secrets: inherit
     with:
@@ -281,7 +288,7 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend
     needs: detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true'
+    if: ${{ !cancelled() && needs.detect-changes.result == 'success' && needs.detect-changes.outputs.frontend == 'true' }}
     uses: ./.github/workflows/deploy-service.yml
     secrets: inherit
     with:
@@ -294,7 +301,7 @@ jobs:
   deploy-developer:
     name: Deploy Developer
     needs: detect-changes
-    if: needs.detect-changes.outputs.developer == 'true'
+    if: ${{ !cancelled() && needs.detect-changes.result == 'success' && needs.detect-changes.outputs.developer == 'true' }}
     uses: ./.github/workflows/deploy-service.yml
     secrets: inherit
     with:
@@ -310,7 +317,7 @@ jobs:
     # apps/dashboard/site_config.tmpl), so a backend deploy needs no dashboard
     # deploy and the dashboard waits for nothing but its own change detection.
     needs: detect-changes
-    if: needs.detect-changes.outputs.dashboard == 'true'
+    if: ${{ !cancelled() && needs.detect-changes.result == 'success' && needs.detect-changes.outputs.dashboard == 'true' }}
     uses: ./.github/workflows/deploy-service.yml
     secrets: inherit
     with:

@@ -71,19 +71,26 @@ test("probes every deployed host, because Zerops confirms the artifact and not t
   );
 });
 
-test("deploys the developer site without waiting on anything but its own change detection", () => {
-  const developerJob = job("deploy-developer");
+test("deploys every service on its own change, also after a skipped validation", () => {
+  for (const service of ["backend", "frontend", "developer", "dashboard"]) {
+    const deployJob = job(`deploy-${service}`);
 
-  assert.match(developerJob, /needs: detect-changes/);
-  assert.match(developerJob, /if: needs\.detect-changes\.outputs\.developer == 'true'/);
+    assert.match(deployJob, /needs: detect-changes\n/, service);
+    // Without a status function GitHub adds `success()`, which a skipped
+    // `typecheck` earlier in the chain fails, so every deploy would be skipped.
+    assert.match(
+      deployJob,
+      new RegExp(
+        `if: \\$\\{\\{ !cancelled\\(\\) && needs\\.detect-changes\\.result == 'success' && needs\\.detect-changes\\.outputs\\.${service} == 'true' \\}\\}\\n`,
+      ),
+      service,
+    );
+  }
 });
 
 test("deploys the dashboard on its own changes only, because its nginx resolves the backend per request", async () => {
-  const dashboardJob = job("deploy-dashboard");
   const siteConfig = await readFile(new URL("../apps/dashboard/site_config.tmpl", import.meta.url), "utf8");
 
-  assert.match(dashboardJob, /needs: detect-changes\n/);
-  assert.match(dashboardJob, /if: needs\.detect-changes\.outputs\.dashboard == 'true'\n/);
   // A proxy_pass naming the host resolves once at start, which is what forced
   // the redeploy. Every proxy goes through the variable instead.
   assert.match(siteConfig, /^ {4}resolver \S+ ipv6=off valid=\d+s;$/m);
