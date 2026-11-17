@@ -27,8 +27,7 @@ import {
 import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
 import * as React from "react";
 
-/** How long the copy button says it copied before going back. */
-const COPY_FEEDBACK_MS = 1500;
+import { useClipboardCopy } from "@/lib/hooks/useClipboardCopy";
 
 /**
  * Lengths already measured, keyed by the CSS they were written as.
@@ -198,21 +197,19 @@ function ShortcodeSource({ source, definitions }: { source: string; definitions:
   return <>{parts}</>;
 }
 
+/**
+ * A small button that copies an example and says so for `COPY_CONFIRMATION_MS`.
+ *
+ * @param props.text - What lands in the clipboard.
+ * @returns The button.
+ */
 function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
+  const { copied, copy } = useClipboardCopy();
 
   return (
     <button
       type="button"
-      onClick={() => {
-        void navigator.clipboard.writeText(text).then(() => setCopied(true));
-      }}
+      onClick={() => void copy(text)}
       className="inline-flex h-6 items-center gap-1 rounded-control border border-[var(--ds-border)] px-2 text-[0.6875rem] text-[var(--ds-text-muted)] transition-colors hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)]"
     >
       {copied ? (
