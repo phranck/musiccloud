@@ -190,4 +190,19 @@ describe.skipIf(!integrationDatabaseUrl())("sponsorship requests (integration)",
     ]);
     expect(left.rows.map((row) => row.id)).toEqual([young.id]);
   });
+
+  it("restarts the sixty days when a request is corrected", async () => {
+    const corrected = await announce({ claim: `${MARKER}-corrected` });
+    // Made long ago, so the sweep below would take it if the correction did not count.
+    await client.query("UPDATE pending_sponsorships SET created_at = '1990-01-01' WHERE id = $1", [corrected.id]);
+
+    const result = await updatePendingSponsorship(corrected.reference, { ...FORM, claim: `${MARKER}-again` });
+    if (!result.ok) throw new Error(`correction refused: ${result.reason}`);
+
+    // Sixty days before 1990-03-10 is 1990-01-09, which the original moment predates.
+    await expirePendingSponsorships(new Date("1990-03-10T00:00:00Z"));
+    const kept = await client.query("SELECT 1 FROM pending_sponsorships WHERE id = $1", [corrected.id]);
+    expect(kept.rowCount).toBe(1);
+    expect(new Date(result.value.createdAt).getTime()).toBeGreaterThan(new Date("1990-01-01T00:00:00Z").getTime());
+  });
 });

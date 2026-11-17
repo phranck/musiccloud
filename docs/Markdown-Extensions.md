@@ -131,7 +131,7 @@ The site mounts `SupportLadder` on the marker in `MarkdownHtml`. The GiroCode fo
 
 Every word the form shows is a parameter of the node, and every one is optional. The defaults, the parameter names and what each one labels are declared once in `packages/shared/src/sponsor-form.ts`, and the editor's reference lists them. The words are plain text rather than Markdown, at most 160 characters each. A refusal is worded by `failureRateLimited` when the site answers `429` and by `failureRejected` otherwise, and the backend's `MC-*` code and error ID follow that sentence, as in `That did not work. Please check your details and try again. (MC-REQ-0013) Error ID: …`.
 
-The reference lives in the visitor's browser for 60 days, which is how long the backend keeps an unclaimed request. Reloading the page therefore shows the same reference, and the form opens again on what was sent, so a correction rewrites the request under the same reference.
+The reference lives in the visitor's browser for 60 days, which is how long the backend keeps an unclaimed request. Reloading the page therefore shows the same reference, and the form opens again on what was sent, so a correction rewrites the request under the same reference. A correction starts the 60 days again, in the browser and in the backend alike.
 
 The form posts to `/api/sponsorships` and corrects through `/api/sponsorships/:reference` on the site's own origin. Those proxies refuse a body above 4 KiB and pass everything else on with the visitor's address, which the backend's limit of five requests an hour counts. The backend's status, its error envelope and `Retry-After` come back unchanged, and every answer carries `Cache-Control: no-store`.
 
