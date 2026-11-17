@@ -12,6 +12,7 @@ import {
   GearIcon,
   HandCoinsIcon,
   HandHeartIcon,
+  HourglassMediumIcon,
   HouseSimpleIcon,
   IdentificationCardIcon,
   KeyIcon,
@@ -625,8 +626,8 @@ function SidebarDeveloperSection({
  * the sponsors and the support prompts.
  *
  * Shown to every role that may open the Administration area. It links to the
- * income overview, the donations ledger, the annual sponsors and the settings.
- * The settings can be
+ * income overview, the donations ledger, the annual sponsors, the sponsorship
+ * requests waiting for their transfer, and the settings. The settings can be
  * read by an admin and changed by the owner alone, which the page itself says.
  *
  * @param props.onItemClick - Called after a link is followed, so a mobile drawer can close.
@@ -665,6 +666,15 @@ function SidebarSponsoringSection({ onItemClick, s }: { onItemClick?: () => void
               <DashboardSection.Item
                 icon={<MedalIcon weight="duotone" className="w-4 h-4" />}
                 label={s.sponsors}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to="/sponsoring/requests" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<HourglassMediumIcon weight="duotone" className="w-4 h-4" />}
+                label={s.sponsorRequests}
                 active={isActive}
               />
             )}

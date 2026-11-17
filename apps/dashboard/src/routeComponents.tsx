@@ -192,6 +192,12 @@ export const SponsorsPage = lazy(() =>
   })),
 );
 
+export const SponsorshipRequestsPage = lazy(() =>
+  import("@/features/sponsoring/SponsorshipRequestsPage").then((m) => ({
+    default: m.SponsorshipRequestsPage,
+  })),
+);
+
 export const IncomePage = lazy(() =>
   import("@/features/sponsoring/IncomePage").then((m) => ({
     default: m.IncomePage,

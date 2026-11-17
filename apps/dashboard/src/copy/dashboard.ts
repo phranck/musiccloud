@@ -71,6 +71,7 @@ export const dashboardCopy = {
       sectionSponsoring: "Sponsoring",
       donations: "Donations",
       sponsors: "Annual sponsors",
+      sponsorRequests: "Sponsor requests",
       income: "Income",
       clientsAndTokens: "API Keys",
       developerAccounts: "Developer Accounts",
@@ -246,6 +247,23 @@ export const dashboardCopy = {
     sponsorRemoveConfirmTitle: "Remove sponsor?",
     sponsorRemoveConfirmDescription:
       "They leave the support page. Their donations stay in the ledger as free donations. This cannot be undone.",
+    requestsTitle: "Sponsor requests",
+    requestsEmpty: "No open requests",
+    requestsEmptyHint:
+      "Somebody who fills in the sponsor form on the support page appears here with the reference their transfer carries. A request is deleted after {days} days unless it is taken over.",
+    colReference: "Reference",
+    colRequestedOn: "Requested",
+    colAnnounced: "Announced",
+    requestAmountNone: "None stated",
+    requestExpired: "Expired",
+    requestTakeOver: "Take over",
+    requestTakeOverTitle: "Take over as sponsor",
+    requestTakeOverHint:
+      "Enter what arrived and on which day, as the bank statement shows it. This records the sponsor and their donation together and removes the request.",
+    requestAmountInvalid: "Enter an amount in euros from 0.01 to {max}, such as 20 or 12.50.",
+    requestRemoveConfirmTitle: "Remove request?",
+    requestRemoveConfirmDescription:
+      "Everything this person entered is deleted, and a transfer quoting this reference can no longer be matched to them. This cannot be undone.",
   },
   dashboard: {
     overviewTitle: "Overview",
