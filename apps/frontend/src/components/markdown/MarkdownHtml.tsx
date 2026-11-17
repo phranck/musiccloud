@@ -1,9 +1,11 @@
+import { parseSupportLadderAttribute, SUPPORT_LADDER_ATTRIBUTE } from "@musiccloud/shared";
 import parse, { domToReact, type Element, type HTMLReactParserOptions, type Text } from "html-react-parser";
 
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { BioAnchor } from "@/components/markdown/BioAnchor";
 import { VideoEmbed } from "@/components/markdown/VideoEmbed";
+import { SupportLadder } from "@/components/support/SupportLadder";
 import { linkify } from "@/lib/linkify";
 
 /**
@@ -66,6 +68,9 @@ function anchorTextContent(el: Element): string {
  * `data-card-wrapped` sentinel so the prose class-maps can suppress the inner
  * `<pre>`'s own padding/background (the card now owns the geometry).
  *
+ * A `<div data-mc-support-ladder>` marker becomes the interactive
+ * `SupportLadder`, and a video link becomes a `VideoEmbed`.
+ *
  * When `linkifyText` is enabled, every plain-text run is additionally scanned for
  * URLs/emails which become `mc-cardlink` anchors (used for artist bios, whose
  * links arrive as escaped plain text). All other nodes pass through unchanged.
@@ -103,6 +108,15 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
             label={anchorTextContent(el)}
           />
         );
+      }
+
+      // The support ladder arrives as an empty element carrying its whole
+      // configuration. The attribute is read through the shared reader, which
+      // keeps only what fits the ladder's shape, so a hand-written marker that
+      // does not fit renders nothing.
+      if (el.name === "div" && el.attribs[SUPPORT_LADDER_ATTRIBUTE] !== undefined) {
+        const config = parseSupportLadderAttribute(el.attribs[SUPPORT_LADDER_ATTRIBUTE]);
+        return config ? <SupportLadder config={config} /> : <></>;
       }
 
       if (el.name !== "pre") return undefined;

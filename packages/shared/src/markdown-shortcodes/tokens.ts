@@ -43,6 +43,26 @@ export const ShortcodeToken = {
   Pdf: "pdf",
   /** An embedded YouTube video. */
   YouTube: "youtube",
+  /** The support page's giving block: tabs, amounts, the transfer and the routes out. */
+  SupportLadder: "support-ladder",
+  /** The ladder's transfer block. */
+  BankAccount: "bankaccount",
+  /** How the transfer block presents itself on one tab. */
+  Variant: "variant",
+  /** How the GiroCode looks. */
+  QrCode: "qrcode",
+  /** A notice inside the transfer card. */
+  Info: "info",
+  /** One tab of the ladder. */
+  Interval: "interval",
+  /** One suggested amount of a tab. */
+  Option: "option",
+  /** The free-amount field of a tab. */
+  Custom: "custom",
+  /** The PayPal.Me route. */
+  PaypalMe: "paypalme",
+  /** The GitHub Sponsors route. */
+  GhSponsor: "ghsponsor",
 } as const;
 
 /** One of the tokens in {@link ShortcodeToken}. */

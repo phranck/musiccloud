@@ -1,9 +1,9 @@
 import { render } from "@testing-library/react";
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { gridCornerStyle } from "@/components/cards/gridCornerStyle";
 import { GROUPED_CORNER_FULL as FULL, GROUPED_CORNER_INNER as INNER } from "@/components/cards/groupedCorners";
 import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
-import { gridCornerStyle } from "@/components/platform/gridCornerStyle";
 import type { PlatformLink } from "@/lib/types/platform";
 
 /** jsdom lacks `matchMedia`; the GSAP helpers read reduced-motion through it. */

@@ -171,6 +171,9 @@ export function EmbossedSegmentedControl<T extends string>({
               // keyboard focus (Tab/Enter) is unaffected (it sends no mousedown).
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onChange(key)}
+              // The sliding indicator is decoration, so the chosen segment is
+              // also announced as pressed rather than told apart by look alone.
+              aria-pressed={key === value}
               aria-label={hasVisibleText ? undefined : ariaLabel}
               title={title}
               className={cn(

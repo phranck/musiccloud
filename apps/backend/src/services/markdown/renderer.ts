@@ -1,8 +1,14 @@
-import { ContentContext, hasAllContextBits, type SingleContentContext } from "@musiccloud/shared";
+import {
+  ContentContext,
+  hasAllContextBits,
+  type SingleContentContext,
+  type SiteVariableValues,
+} from "@musiccloud/shared";
 import { Marked } from "marked";
 import { resetContainerDepth } from "./containers.js";
 import { MARKDOWN_EXTENSION_REGISTRY, type MarkdownExtensionRegistry } from "./extension-registry.js";
 import { resetHeadingIds } from "./heading-anchors.js";
+import { type MarkdownRenderOptions, SITE_VALUES_OPTION } from "./support-ladder-extension.js";
 import { MarkdownContextError, validateMarkdownForContexts } from "./validation.js";
 
 interface CachedMarkdownRenderer {
@@ -59,6 +65,7 @@ async function parseWithContextRenderer(
   markdown: string,
   context: SingleContentContext,
   registry: MarkdownExtensionRegistry,
+  siteValues: SiteVariableValues | undefined,
 ): Promise<string> {
   const cached = getCachedMarkdownRenderer(context, registry);
   const previousRender = cached.queue;
@@ -69,16 +76,33 @@ async function parseWithContextRenderer(
 
   await previousRender;
   try {
-    return await cached.renderer.parse(markdown, { async: true });
+    // The site variables travel as a parse option, which marked hands to every
+    // extension of this one render, so the renderer cached across renders
+    // carries none of them.
+    const options: MarkdownRenderOptions = { async: true, [SITE_VALUES_OPTION]: siteValues };
+    return await cached.renderer.parse(markdown, options);
   } finally {
     releaseQueue();
   }
 }
 
+/**
+ * Renders a page body to HTML for one surface.
+ *
+ * @param markdown - The body, with site variables already expanded.
+ * @param context - The one surface it is rendered for.
+ * @param registry - The extensions to render with, the production registry by default.
+ * @param siteValues - The render's site variables, which the support ladder
+ *   reads its payee and sponsor minimum from. Without them the ladder draws no
+ *   transfer card.
+ * @returns The HTML, not yet sanitized.
+ * @throws MarkdownContextError when the body uses a shortcode the surface does not allow.
+ */
 export async function renderMarkdown(
   markdown: string,
   context: SingleContentContext,
   registry: MarkdownExtensionRegistry = MARKDOWN_EXTENSION_REGISTRY,
+  siteValues?: SiteVariableValues,
 ): Promise<string> {
   assertSingleContentContext(context);
   if (!markdown || !markdown.trim()) return "";
@@ -95,7 +119,7 @@ export async function renderMarkdown(
   resetContainerDepth();
 
   try {
-    return await parseWithContextRenderer(markdown, context, registry);
+    return await parseWithContextRenderer(markdown, context, registry, siteValues);
   } catch (error) {
     console.error("[renderBody] marked.parse threw, falling back to escaped text:", error);
     return `<pre>${escapeHtml(markdown)}</pre>`;
