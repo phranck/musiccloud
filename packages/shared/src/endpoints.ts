@@ -292,6 +292,11 @@ export const ENDPOINTS = {
       base: "/api/admin/site-settings",
     },
 
+    sponsoring: {
+      /** GET: the running costs, payee and purposes (owner or admin) / PUT: replace them (owner only). */
+      config: "/api/admin/sponsoring/config",
+    },
+
     plugins: {
       /** GET: list all installed resolve plugins with their runtime state. */
       list: "/api/admin/plugins",

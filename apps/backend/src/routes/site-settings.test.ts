@@ -28,8 +28,11 @@ vi.mock("../services/site-settings.js", async (importOriginal) => ({
 
 import { getAllSettings, setSetting } from "../services/site-settings.js";
 
-/** The key of the one setting that today has a route of its own. */
+/** The key of the Creem selling mode, which has a route of its own. */
 const SELLING_MODE_KEY = "creem_selling_mode";
+
+/** The key of the sponsoring setting, which has a route of its own. */
+const SPONSORING_CONFIG_KEY = "sponsoring_config";
 
 let app: FastifyInstance;
 
@@ -111,6 +114,14 @@ describe("PATCH /api/admin/site-settings", () => {
     expect(res.json().error).toBe("MC-REQ-0010");
     expect(res.json().message).toContain(SELLING_MODE_KEY);
     // Nothing from a refused request is written, not even the ordinary key beside it.
+    expect(setSetting).not.toHaveBeenCalled();
+  });
+
+  it("refuses the sponsoring setting, whose own route admits the owner alone", async () => {
+    const res = await send("PATCH", "admin", { [SPONSORING_CONFIG_KEY]: '{"payeeIban":"XX"}' });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("MC-REQ-0010");
     expect(setSetting).not.toHaveBeenCalled();
   });
 });

@@ -9,6 +9,7 @@ import {
   FileMdIcon,
   FilesIcon,
   GearIcon,
+  HandHeartIcon,
   HouseSimpleIcon,
   IdentificationCardIcon,
   KeyIcon,
@@ -615,6 +616,43 @@ function SidebarDeveloperSection({
   );
 }
 
+/**
+ * The sidebar section for the support page's money: what running musiccloud
+ * costs, who is paid, and the screens that follow with the donations ledger,
+ * the sponsors and the support prompts.
+ *
+ * Shown to every role that may open the Administration area. The settings it
+ * links to can be read by an admin and changed by the owner alone, which the
+ * page itself says.
+ *
+ * @param props.onItemClick - Called after a link is followed, so a mobile drawer can close.
+ * @param props.s - The sidebar's labels.
+ * @returns The section.
+ */
+function SidebarSponsoringSection({ onItemClick, s }: { onItemClick?: () => void; s: SidebarLabels }) {
+  return (
+    <div className="mt-3">
+      <DashboardSection>
+        <DashboardSection.Header
+          icon={<HandHeartIcon weight="duotone" className="w-4 h-4" />}
+          title={s.sectionSponsoring}
+        />
+        <DashboardSection.Body className="!gap-0.5 !p-2">
+          <NavLink to="/sponsoring/settings" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<GearIcon weight="duotone" className="w-4 h-4" />}
+                label={s.settings}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+        </DashboardSection.Body>
+      </DashboardSection>
+    </div>
+  );
+}
+
 export function Sidebar({
   username,
   firstName,
@@ -765,6 +803,9 @@ export function Sidebar({
 
         {/* Developer */}
         {isAdmin && <SidebarDeveloperSection showSettings={showDeveloperSettings} onItemClick={onItemClick} s={s} />}
+
+        {/* Sponsoring */}
+        {isAdmin && <SidebarSponsoringSection onItemClick={onItemClick} s={s} />}
 
         {/* System */}
         {isAdmin && (
