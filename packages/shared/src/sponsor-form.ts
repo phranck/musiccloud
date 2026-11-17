@@ -66,7 +66,7 @@ export const SPONSOR_FORM_LABELS = {
     label: "The sentence under the fields",
   },
   linkInvalid: {
-    value: "We cannot link to that address. Please give a website or a profile.",
+    value: "We do not recognize that as an address. A website or a profile, please.",
     label: "What the form says about an address it cannot link to",
   },
   claimLabel: { value: "Your sentence", label: "Label of the sentence field" },
@@ -77,16 +77,16 @@ export const SPONSOR_FORM_LABELS = {
       { name: SPONSOR_FORM_REMAINING_PLACEHOLDER_NAME, description: "the number of characters still free" },
     ],
   },
-  publishedLabel: { value: "Show my name on the site", label: "Label of the switch for being named" },
-  submitLabel: { value: "Get my payment reference", label: "Label of the send button" },
+  publishedLabel: { value: "Appear on the page with my name", label: "Label of the switch for being named" },
+  submitLabel: { value: "Send details", label: "Label of the send button" },
   submitBusyLabel: { value: "One moment…", label: "What the send button says while sending" },
-  issuedTitle: { value: "Your details are in.", label: "Heading once the reference is issued" },
+  issuedTitle: { value: "Your details are ready.", label: "Heading once the reference is issued" },
   issuedText: {
-    value: "The transfer below now carries your reference. Once the money arrives, you join the sponsors.",
+    value: "The transfer below now carries your reference. As soon as the money arrives, you appear on the page.",
     label: "Text once the reference is issued",
   },
   changeLabel: { value: "Change my details", label: "Label of the button that opens the form again" },
-  failureTitle: { value: "That did not work", label: "Heading of the dialog a refusal opens" },
+  failureTitle: { value: "That went wrong", label: "Heading of the dialog a refusal opens" },
   failureClose: { value: "Got it", label: "Button that closes that dialog" },
   failureRateLimited: {
     value: "That was a few times just now. Please try again later.",
@@ -97,7 +97,7 @@ export const SPONSOR_FORM_LABELS = {
     label: "What the dialog says when the details were refused",
   },
   failureOffline: {
-    value: "The site could not be reached. Please check your connection and try again.",
+    value: "No connection to the server. Please check your connection.",
     label: "What the dialog says when the site could not be reached",
   },
 } as const satisfies Record<string, SponsorFormLabel>;

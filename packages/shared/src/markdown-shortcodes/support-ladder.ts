@@ -164,7 +164,7 @@ export const SUPPORT_LADDER_SPONSOR_FORM_SHORTCODE = {
   label: "Sponsor form",
   description:
     'The form that takes what a sponsor says about themselves and issues a payment reference before the transfer. Belongs inside [[variant key="sponsor"]]. Without this node no form appears.',
-  examples: ['[[sponsorform nameLabel="Name" submitLabel="Get my payment reference"]]'],
+  examples: ['[[sponsorform nameLabel="Name" submitLabel="Send details"]]'],
   params: SPONSOR_FORM_PARAMS,
 } as const satisfies ShortcodeDefinition;
 

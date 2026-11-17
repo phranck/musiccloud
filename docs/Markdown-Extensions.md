@@ -124,7 +124,7 @@ The site mounts `SupportLadder` on the marker in `MarkdownHtml`. The GiroCode fo
 ```text
 [[bankaccount
   [[variant key="sponsor" title="Bank transfer or GiroCode" icon="sepa"
-    [[sponsorform submitLabel="Get my payment reference"]]
+    [[sponsorform submitLabel="Send details"]]
   ]]
 ]]
 ```
