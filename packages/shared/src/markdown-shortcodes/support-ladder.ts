@@ -12,7 +12,7 @@
  */
 
 import { ContentContext } from "../content-context.js";
-import { SPONSOR_FORM_LABEL_KEYS, SPONSOR_FORM_LABELS } from "../sponsor-form.js";
+import { SPONSOR_FORM_LABEL_KEYS, SPONSOR_FORM_LABELS, type SponsorFormLabel } from "../sponsor-form.js";
 import {
   SUPPORT_INTERVAL_KEYS,
   SUPPORT_LADDER_LABEL_KEYS,
@@ -129,14 +129,21 @@ export const SUPPORT_LADDER_INFO_SHORTCODE = {
  * Every word of the sponsor form, as a parameter of the shortcode.
  *
  * Derived from the catalogue, as the ladder's own labels are, so a new word
- * reaches the editor's reference without being written a second time.
+ * and the placeholder a word declares reach the editor's reference without
+ * being written a second time.
  */
-const SPONSOR_FORM_PARAMS: readonly ShortcodeParamDefinition[] = SPONSOR_FORM_LABEL_KEYS.map((name) => ({
-  name,
-  type: ShortcodeParamType.String,
-  defaultLabel: SPONSOR_FORM_LABELS[name].value,
-  label: `${SPONSOR_FORM_LABELS[name].label}. Plain text`,
-}));
+const SPONSOR_FORM_PARAMS: readonly ShortcodeParamDefinition[] = SPONSOR_FORM_LABEL_KEYS.map((name) => {
+  // Widened on the way out, because only one entry declares a placeholder and
+  // reading the property off the literal union fails on the others.
+  const entry: SponsorFormLabel = SPONSOR_FORM_LABELS[name];
+  return {
+    name,
+    type: ShortcodeParamType.String,
+    defaultLabel: entry.value,
+    label: `${entry.label}. Plain text`,
+    placeholders: entry.placeholders,
+  };
+});
 
 /**
  * The form that takes what a transfer cannot carry.

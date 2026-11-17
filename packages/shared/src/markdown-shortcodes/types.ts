@@ -102,6 +102,27 @@ export type ShortcodeParamTypeValue = (typeof ShortcodeParamType)[keyof typeof S
 export type ShortcodeParamValue = boolean | number | string;
 
 /**
+ * A name in braces that one parameter's value accepts and nothing else does.
+ *
+ * It differs from a site variable, which is put in before the page is read and
+ * holds everywhere. A placeholder is replaced by the component that shows the
+ * value, so it means something in that one parameter only. It is declared on
+ * the parameter rather than explained in its label, so the reference panel can
+ * list it under the parameter instead of hiding it in a sentence somebody has
+ * to open the shortcode to read.
+ *
+ * @property name - The name without its braces, as a writer types it between
+ *   them, such as `n` for `{n}`.
+ * @property description - What is put in its place, in the words an editor
+ *   would use. The reference panel writes it after "is replaced by", so it
+ *   begins in lower case, such as "the number of characters still free".
+ */
+export interface ShortcodePlaceholder {
+  name: string;
+  description: string;
+}
+
+/**
  * One parameter a shortcode accepts.
  *
  * @property name - What the attribute is called, as it is written.
@@ -117,6 +138,9 @@ export type ShortcodeParamValue = boolean | number | string;
  *   the value, written as `var(--token)`, which the reference resolves against
  *   the page so it shows the figure without holding a copy of it.
  * @property label - The parameter's name in the words an editor would use.
+ * @property placeholders - The names in braces that this parameter's value
+ *   accepts and that the component showing it replaces, each with what it is
+ *   replaced by. Absent where the value is shown as it stands.
  * @property min - Lowest accepted value, for an integer.
  * @property max - Highest accepted value, for an integer.
  * @property required - Whether leaving it out is an error.
@@ -129,6 +153,7 @@ export interface ShortcodeParamDefinition {
   defaultValue?: ShortcodeParamValue;
   defaultLabel?: string;
   label?: string;
+  placeholders?: readonly ShortcodePlaceholder[];
   min?: number;
   max?: number;
   required?: boolean;

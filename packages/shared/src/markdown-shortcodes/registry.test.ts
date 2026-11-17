@@ -7,8 +7,10 @@ import {
   SHORTCODE_DEFINITIONS,
   shortcodesForContext,
 } from "./registry.js";
+import { ShortcodeToken } from "./tokens.js";
 import {
   type ShortcodeDefinition,
+  type ShortcodeParamDefinition,
   ShortcodeParamType,
   ShortcodePlacement,
   ShortcodeRenderMode,
@@ -65,6 +67,58 @@ describe("the registry", () => {
         }
       }
     }
+  });
+});
+
+/**
+ * Every parameter in the registry, nested shortcodes included, with the token it belongs to.
+ *
+ * @returns One entry per parameter, in declaration order.
+ */
+function everyParam(): { token: string; param: ShortcodeParamDefinition }[] {
+  const found: { token: string; param: ShortcodeParamDefinition }[] = [];
+  const walk = (definition: ShortcodeDefinition) => {
+    for (const param of definition.params) found.push({ token: definition.token, param });
+    for (const child of definition.children ?? []) walk(child);
+  };
+  for (const definition of SHORTCODE_DEFINITIONS) walk(definition);
+  return found;
+}
+
+/** How a placeholder's name is typed between its braces: a letter, then letters and digits. */
+const PLACEHOLDER_NAME = /^[a-zA-Z][a-zA-Z0-9]*$/;
+
+describe("shortcode parameter placeholders", () => {
+  it("names every placeholder as a plain word, the way it is typed", () => {
+    for (const { token, param } of everyParam()) {
+      for (const placeholder of param.placeholders ?? []) {
+        expect(
+          PLACEHOLDER_NAME.test(placeholder.name),
+          `[[${token}]] ${param.name} declares {${placeholder.name}}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("describes every placeholder as the phrase that follows 'is replaced by'", () => {
+    // The panel writes that phrase itself, so a description starting with a
+    // capital reads as a sentence broken in half.
+    for (const { token, param } of everyParam()) {
+      for (const placeholder of param.placeholders ?? []) {
+        expect(placeholder.description[0], `[[${token}]] ${param.name}: ${placeholder.description}`).toBe(
+          placeholder.description[0]?.toLowerCase(),
+        );
+      }
+    }
+  });
+
+  it("declares the sponsor form counter's {n} as a placeholder rather than in its label", () => {
+    const counter = everyParam().find(
+      ({ token, param }) => token === ShortcodeToken.SponsorForm && param.name === "claimRemaining",
+    );
+
+    expect(counter?.param.placeholders?.map((placeholder) => placeholder.name)).toEqual(["n"]);
+    expect(counter?.param.label).not.toMatch(/\{n\}/);
   });
 });
 
