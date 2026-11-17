@@ -48,6 +48,17 @@ const CLAIM_ROWS = 3;
 const TEXT_INPUT_CLASS = cn(LADDER_INPUT_CLASS, "h-10 px-3 font-semibold");
 
 /**
+ * Classes of the note under the name and address fields, which holds `linkHint`
+ * or, after a refused address, `linkInvalid`.
+ *
+ * It is set in the small print of a counter, and it takes back half of the
+ * form's row gap, so it reads as belonging to the fields above rather than as a
+ * row of its own. The gap is `--mc-gap-rowitem`, which the form's own stack
+ * uses, so the note follows that token.
+ */
+const LINK_NOTE_CLASS = "m-0 -mt-[calc(var(--mc-gap-rowitem,0.75rem)/2)] px-1 text-xs";
+
+/**
  * The status the site answers with when the form was sent too often: `429`.
  * It is answered with `failureRateLimited`, and every other refusal with
  * `failureRejected`.
@@ -328,7 +339,7 @@ function SponsorForm({ amountEur, earnsSponsorship, correcting, text, onIssued }
       <p
         id={linkNoteId}
         role={form.linkError ? "alert" : undefined}
-        className={cn("m-0 px-1 text-sm", form.linkError ? "text-error" : "text-text-secondary")}
+        className={cn(LINK_NOTE_CLASS, form.linkError ? "text-error" : "text-text-secondary")}
       >
         {form.linkError ?? text.linkHint}
       </p>

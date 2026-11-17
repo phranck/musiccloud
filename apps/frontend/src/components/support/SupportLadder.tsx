@@ -13,6 +13,8 @@ import {
 } from "@musiccloud/shared";
 import { type CSSProperties, useEffect, useEffectEvent, useReducer, useRef, useSyncExternalStore } from "react";
 
+import { nestedRecessedSurfaceStyle } from "@/components/cards/cardGeometry";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { prefersReducedMotion } from "@/lib/motion/setup";
 import {
@@ -86,9 +88,11 @@ export interface SupportLadderProps {
  * The monthly tab shows the same details as text.
  *
  * Where the page names a `[[sponsorform]]` in the transfer card's variant for
- * the tab in view, the tab asks for the sponsor's details between the amount
- * and the transfer, and from the sponsor minimum up the transfer carries the
- * payment reference the form issued in place of the purpose.
+ * the tab in view, the amount, the form and the tab's notice stand in one card
+ * in that order, and from the sponsor minimum up the transfer carries the
+ * payment reference the form issued in place of the purpose. Any other tab
+ * sets its notice above its amounts, or beside them in two columns from the
+ * `md` width up when it offers no suggested amounts.
  *
  * @param props - See {@link SupportLadderProps}.
  * @returns The ladder.
@@ -154,6 +158,15 @@ export function SupportLadder({ config }: SupportLadderProps) {
     else swapTimer.current = window.setTimeout(show, BODY_FADE_MS);
   }
 
+  /**
+   * Chooses one of the tab's suggested amounts.
+   *
+   * @param next - The amount, in euros.
+   */
+  function chooseAmount(next: number) {
+    dispatch({ type: SupportLadderActionType.ChooseAmount, amountEur: next });
+  }
+
   function enterCustom(value: string) {
     const cleaned = normalizeAmountInput(value);
     dispatch({
@@ -172,7 +185,10 @@ export function SupportLadder({ config }: SupportLadderProps) {
     label: entry.label,
   }));
   const intervalText = interval.text.replaceAll(YEARLY_TOTAL_PLACEHOLDER, formatEuro(amountEur * MONTHS_PER_YEAR));
-  const minimumNotice = interval.belowMinimum.replaceAll(MINIMUM_PLACEHOLDER, formatEuro(floorEur));
+  // Read only where the tab carries a form, which is the one place an amount
+  // can fall short of the sponsor minimum.
+  const minimumNotice = interval.belowMinimum.replaceAll(MINIMUM_PLACEHOLDER, formatEuro(minSponsorAmountEur));
+  const hasOptions = interval.options.length > 0;
 
   // A tab without a transfer block of its own borrows the single payment's,
   // which is the same transfer with a different purpose, and the code keeps
@@ -219,32 +235,68 @@ export function SupportLadder({ config }: SupportLadderProps) {
         )}
         style={{ "--mc-support-ladder-fade": `${BODY_FADE_MS}ms` } as CSSProperties}
       >
-        {interval.hint && (
-          <LadderNotice>
-            <LadderRichText html={interval.hint} />
-          </LadderNotice>
-        )}
+        {sponsorFormText ? (
+          // One card for everything the sponsor tab asks, because choosing the
+          // amount, saying who you are, and being told the reference is ready
+          // are three steps of one errand rather than three separate offers.
+          <RecessedCard>
+            <div className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]" style={nestedRecessedSurfaceStyle}>
+              <AmountGrid
+                // A fresh tab starts without a complaint about the tab before it.
+                key={shownKey}
+                interval={interval}
+                amountEur={amountEur}
+                customAmount={customAmount}
+                perMonthLabel={text.perMonth}
+                minimumEur={minSponsorAmountEur}
+                minimumNotice={minimumNotice}
+                onChoose={chooseAmount}
+                onCustom={enterCustom}
+              />
 
-        <AmountGrid
-          // A fresh tab starts without a complaint about the tab before it.
-          key={shownKey}
-          interval={interval}
-          amountEur={amountEur}
-          customAmount={customAmount}
-          perMonthLabel={text.perMonth}
-          minimumEur={floorEur}
-          minimumNotice={minimumNotice}
-          onChoose={(next) => dispatch({ type: SupportLadderActionType.ChooseAmount, amountEur: next })}
-          onCustom={enterCustom}
-        />
+              <SponsorStep
+                issued={issued}
+                amountEur={amountEur}
+                earnsSponsorship={earnsSponsorship}
+                text={sponsorFormText}
+              />
 
-        {sponsorFormText && (
-          <SponsorStep
-            issued={issued}
-            amountEur={amountEur}
-            earnsSponsorship={earnsSponsorship}
-            text={sponsorFormText}
-          />
+              {/* Last, because it is the thing to read once before acting
+                  rather than a step of its own. */}
+              {interval.hint && (
+                <LadderNotice>
+                  <LadderRichText html={interval.hint} />
+                </LadderNotice>
+              )}
+            </div>
+          </RecessedCard>
+        ) : (
+          // Every other tab keeps its blocks apart, since its amounts are read
+          // against each other. A tab with a single field has room to set the
+          // notice beside it, and the two are read together.
+          <div
+            className={cn("grid gap-[var(--mc-gap-rowitem,0.75rem)]", interval.hint && !hasOptions && "md:grid-cols-2")}
+          >
+            {interval.hint && (
+              <LadderNotice inset={!hasOptions}>
+                <LadderRichText html={interval.hint} />
+              </LadderNotice>
+            )}
+
+            <AmountGrid
+              key={shownKey}
+              interval={interval}
+              amountEur={amountEur}
+              customAmount={customAmount}
+              perMonthLabel={text.perMonth}
+              // Without a form nothing on this tab earns a sponsorship, so no
+              // amount falls short of one.
+              minimumEur={0}
+              minimumNotice=""
+              onChoose={chooseAmount}
+              onCustom={enterCustom}
+            />
+          </div>
         )}
 
         {bankAccount && variant && hasPayee && (

@@ -1,4 +1,5 @@
 import {
+  SPONSOR_FORM_DEFAULTS,
   SUPPORT_LADDER_ATTRIBUTE,
   SUPPORT_LADDER_LABEL_DEFAULTS,
   SupportIntervalKey,
@@ -134,6 +135,24 @@ function line(label: string): string {
   return term.nextElementSibling?.textContent ?? "";
 }
 
+/** The class of the element that holds a tab's blocks, one after another. */
+const LADDER_BODY_SELECTOR = ".mc-support-ladder__body";
+
+/**
+ * The block of the ladder's body that holds an element, which is the card or
+ * the grid it stands in.
+ *
+ * @param container - What the ladder was rendered into.
+ * @param element - An element inside the body.
+ * @returns The body's child that contains it.
+ */
+function blockHolding(container: HTMLElement, element: Element): Element {
+  const body = container.querySelector(LADDER_BODY_SELECTOR);
+  const block = [...(body?.children ?? [])].find((child) => child.contains(element));
+  if (!block) throw new Error("The element stands in no block of the ladder's body.");
+  return block;
+}
+
 /** Chooses a tab and waits for its body to replace the old one. */
 async function chooseTab(name: string, expectWhenShown: () => void) {
   fireEvent.click(screen.getByRole("button", { name }));
@@ -217,6 +236,45 @@ describe("SupportLadder", () => {
 
     expect(line("Purpose")).toBe(PURPOSE_DONATION);
     expect(screen.queryByText(SUPPORT_LADDER_LABEL_DEFAULTS.fieldReference, { selector: "dt" })).toBeNull();
+  });
+
+  it("stands the amount, the form and the notice in one card, in the order the errand runs", async () => {
+    const { container } = renderLadder();
+    await chooseTab("Sponsor", () => expect(screen.getByLabelText("Your sponsorship")).toBeTruthy());
+
+    const amount = screen.getByLabelText("Your sponsorship");
+    const form = screen.getByRole("form", { name: SPONSOR_FORM_DEFAULTS.submitLabel });
+    const notice = screen.getByText("Sponsors pay by transfer.");
+    const card = blockHolding(container, amount);
+
+    expect(card.contains(form)).toBe(true);
+    expect(card.contains(notice)).toBe(true);
+    expect(amount.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(form.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("sets the notice beside the free field on a tab without suggested amounts or a form", async () => {
+    const { container } = renderLadder(LADDER_WITHOUT_FORM);
+    await chooseTab("Sponsor", () => expect(screen.getByLabelText("Your sponsorship")).toBeTruthy());
+
+    const amount = screen.getByLabelText("Your sponsorship");
+    const notice = screen.getByText("Sponsors pay by transfer.");
+    const grid = blockHolding(container, amount);
+
+    expect(grid.contains(notice)).toBe(true);
+    expect(notice.compareDocumentPosition(amount) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(grid.className).toContain("md:grid-cols-2");
+  });
+
+  it("says nothing about the minimum on a sponsor tab without a form", async () => {
+    renderLadder(LADDER_WITHOUT_FORM);
+    await chooseTab("Sponsor", () => expect(screen.getByLabelText("Your sponsorship")).toBeTruthy());
+    const field = screen.getByLabelText("Your sponsorship");
+
+    fireEvent.change(field, { target: { value: "20" } });
+    fireEvent.blur(field);
+
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("turns a sponsorship below the minimum into a donation, and says so once the field is left", async () => {
