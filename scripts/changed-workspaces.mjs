@@ -43,8 +43,11 @@ const ROOT_TSCONFIG = /^tsconfig[^/]*\.json$/;
 /** Root files that change how every workspace is validated. */
 const VALIDATION_FILES = [".github/workflows/ci.yml", ".github/workflows/deploy-service.yml"];
 
-/** Root files that change how every service is deployed. */
-const DEPLOYMENT_FILES = ["zerops.yml"];
+/**
+ * Root files that change how every service is deployed. `.gitattributes`
+ * decides what `git archive` leaves out of the package `zcli push` uploads.
+ */
+const DEPLOYMENT_FILES = ["zerops.yml", ".gitattributes"];
 
 /**
  * Dependencies that no manifest declares, as package name to the packages
