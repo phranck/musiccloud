@@ -13,6 +13,7 @@ import {
   type DonationTotals,
   FundingWindowDays,
   fundingWindowStart,
+  utcDay,
 } from "@musiccloud/shared";
 import { nanoid } from "nanoid";
 import { getDatabasePool } from "../db/pool.js";
@@ -35,9 +36,6 @@ interface DonationRow {
 /** The columns every read selects, with the day as text so no time zone can move it. */
 const DONATION_COLUMNS = `id, name, published, amount_cents, to_char(received_on, 'YYYY-MM-DD') AS received_on,
   provider, note, external_ref, sponsor_id, created_at, updated_at`;
-
-/** Characters of an ISO timestamp that form the day. */
-const DAY_LENGTH = 10;
 
 /** Characters of a day that form its month, `YYYY-MM`. */
 const MONTH_LENGTH = 7;
@@ -168,9 +166,7 @@ function chartMonths(today: string): string[] {
  * @param today - The day the windows end on, `YYYY-MM-DD`. Defaults to today in UTC.
  * @returns The sums.
  */
-export async function readDonationTotals(
-  today: string = new Date().toISOString().slice(0, DAY_LENGTH),
-): Promise<DonationTotals> {
+export async function readDonationTotals(today: string = utcDay()): Promise<DonationTotals> {
   const pool = getDatabasePool();
   const yearStart = fundingWindowStart(today, FundingWindowDays.Year);
   const monthStart = fundingWindowStart(today, FundingWindowDays.Month);

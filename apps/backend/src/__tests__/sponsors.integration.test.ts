@@ -4,7 +4,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDatabasePool } from "../db/pool.js";
 import { createDonation, listDonations } from "../services/donations.js";
 import { readSponsorAvatar, storeSponsorAvatar } from "../services/sponsor-avatars.js";
-import { createSponsor, deleteSponsor, listSponsors, sponsorExists, updateSponsor } from "../services/sponsors.js";
+import {
+  createSponsor,
+  deleteSponsor,
+  listCurrentSponsors,
+  listSponsors,
+  sponsorExists,
+  updateSponsor,
+} from "../services/sponsors.js";
 import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from "./integration-database.js";
 
 /**
@@ -152,6 +159,20 @@ describe.skipIf(!integrationDatabaseUrl())("annual sponsors (integration)", () =
     expect(await readSponsorAvatar(kept)).not.toBeNull();
     expect(await readSponsorAvatar(pruned)).toBeNull();
     expect(await readSponsorAvatar(fresh)).not.toBeNull();
+  });
+
+  it("shows only published sponsors whose year still runs, the earliest payment first", async () => {
+    // A 365-day year ending on 2001-12-31 starts on 2001-01-01.
+    const today = "2001-12-31";
+    const first = await sponsor({ paidOn: "2001-01-01" });
+    const later = await sponsor({ paidOn: "2001-06-01" });
+    await sponsor({ paidOn: "2000-12-31" });
+    await sponsor({ paidOn: "2001-06-01", published: false });
+
+    const shown = (await listCurrentSponsors(today)).filter((row) => row.name === MARKER);
+
+    expect(shown.map((row) => row.id)).toEqual([first.id, later.id]);
+    expect(Object.keys(shown[0] ?? {}).sort()).toEqual(["avatarId", "claim", "id", "name", "paidOn", "socialMedia"]);
   });
 
   it("refuses a donation linked to a sponsor that does not exist", async () => {

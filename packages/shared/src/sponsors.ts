@@ -85,6 +85,32 @@ export interface Sponsor extends SponsorInput {
 }
 
 /**
+ * One sponsor as the site shows them: everything on their card and nothing
+ * else. No amount, because an amount beside a name turns a list of people
+ * into a ranking, and no consent flag, because only those who gave it are here.
+ */
+export type PublicSponsor = Pick<Sponsor, "id" | "name" | "socialMedia" | "avatarId" | "claim" | "paidOn">;
+
+/**
+ * What the public sponsors route answers, ported from lmaa.space's
+ * `SponsorsPayload` without its review costs, which musiccloud does not have.
+ *
+ * @property sponsors - The published sponsors whose year still runs, the earliest payment first.
+ * @property costsTotalCents - The year's running costs, the sum of every cost item.
+ * @property coveredCents - What came in over the last {@link SPONSOR_YEAR_DAYS} days, from
+ *   every route and every donor, uncapped. `fundingProgress` caps it at the costs.
+ * @property donatedMonthCents - What came in over the last month's window.
+ * @property minAmountCents - What a sponsor gives at least to be named for a year.
+ */
+export interface SponsorsPayload {
+  sponsors: PublicSponsor[];
+  costsTotalCents: number;
+  coveredCents: number;
+  donatedMonthCents: number;
+  minAmountCents: number;
+}
+
+/**
  * The request schema of a sponsor, for the backend route.
  *
  * Built from {@link SPONSOR_LIMITS}, so the route and the dashboard agree on
