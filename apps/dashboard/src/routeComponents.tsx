@@ -180,6 +180,18 @@ export const SponsoringSettingsPage = lazy(() =>
   })),
 );
 
+export const DonationsPage = lazy(() =>
+  import("@/features/sponsoring/DonationsPage").then((m) => ({
+    default: m.DonationsPage,
+  })),
+);
+
+export const IncomePage = lazy(() =>
+  import("@/features/sponsoring/IncomePage").then((m) => ({
+    default: m.IncomePage,
+  })),
+);
+
 export const DeveloperSettingsPage = lazy(() =>
   import("@/features/developer/DeveloperSettingsPage").then((m) => ({
     default: m.DeveloperSettingsPage,

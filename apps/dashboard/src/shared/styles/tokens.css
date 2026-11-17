@@ -325,6 +325,83 @@
   font-size: 12px;
 }
 
+/* A stacked chart numbers its series from one. Each number names one colour
+   in `--mc-usage-chart-series-color`, which the series' bars fill with and its
+   legend swatch shows, so a bar and its legend entry cannot disagree. A series
+   past the last number falls back to the accent. */
+.mc-usage-chart__series {
+  fill: var(--mc-usage-chart-series-color, var(--ds-accent));
+}
+
+.mc-usage-chart__series--1 {
+  --mc-usage-chart-series-color: var(--ds-badge-info-text);
+}
+
+.mc-usage-chart__series--2 {
+  --mc-usage-chart-series-color: var(--ds-badge-review-text);
+}
+
+.mc-usage-chart__series--3 {
+  --mc-usage-chart-series-color: var(--ds-badge-success-text);
+}
+
+.mc-usage-chart__series--4 {
+  --mc-usage-chart-series-color: var(--ds-badge-pending-text);
+}
+
+.mc-usage-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-top: 0.5rem;
+  color: var(--ds-text-muted);
+  font-size: 12px;
+}
+
+.mc-usage-chart__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.mc-usage-chart__swatch {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 2px;
+  background: var(--mc-usage-chart-series-color, var(--ds-accent));
+}
+
+/* A native `meter`, such as the funding bar on the Income page. Each engine
+   draws its own bar, so these rules replace WebKit's and Gecko's drawing with
+   the dashboard's track and fill. */
+.ds-meter {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 0.625rem;
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-bg-elevated);
+  overflow: hidden;
+}
+
+.ds-meter::-webkit-meter-bar {
+  height: 0.625rem;
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-bg-elevated);
+}
+
+.ds-meter::-webkit-meter-optimum-value {
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-accent);
+}
+
+.ds-meter::-moz-meter-bar {
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-accent);
+}
+
 /* The status badge of `@musiccloud/dashboard-ui` names no color either. One
    rule gives it its shape, and one per tone binds the tone to the dashboard's
    badge tokens; the portal binds the same names to its own. */

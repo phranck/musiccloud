@@ -18,6 +18,7 @@ export * from "./developer-access.js";
 export * from "./developer-limits.js";
 export * from "./developer-portal-invitations.js";
 export * from "./developer-portal-paths.js";
+export * from "./donations.js";
 export * from "./email-actions.js";
 export * from "./email-blocks.js";
 export * from "./email-variables.js";

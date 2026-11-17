@@ -12,9 +12,10 @@
  * limiter has already answered, and it would go quietly out of step with it.
  */
 
-import { deriveSupportAmounts, groupIban, type SiteVariableValues } from "@musiccloud/shared";
+import { deriveSupportAmounts, fundingProgress, groupIban, type SiteVariableValues } from "@musiccloud/shared";
 import { KEYLESS_RESOLVE_REQUESTS_PER_DAY, KEYLESS_RESOLVE_REQUESTS_PER_MINUTE } from "../lib/infra/rate-limiter.js";
 import { getMaxProjectsPerAccount, MAX_REGISTRATIONS_PER_PROJECT } from "./developer-limits.js";
+import { readDonationTotals } from "./donations.js";
 import { listSelfServiceAssignableTiers } from "./signup-tier.js";
 import { getSponsoringConfig } from "./sponsoring-config.js";
 
@@ -42,15 +43,17 @@ const UNKNOWN_LIMIT = 0;
  * the amount card beside it cannot disagree either.
  */
 export async function resolveSiteVariableValues(): Promise<SiteVariableValues> {
-  const [assignable, projectsPerAccount, sponsoring] = await Promise.all([
+  const [assignable, projectsPerAccount, sponsoring, donations] = await Promise.all([
     listSelfServiceAssignableTiers(),
     getMaxProjectsPerAccount(),
     getSponsoringConfig(),
+    readDonationTotals(),
   ]);
   // The plan a page calls free is the one a developer can sign up for, so
   // its limits come from the same answer the signup reads.
   const free = assignable[0];
   const amounts = deriveSupportAmounts(sponsoring);
+  const funding = fundingProgress(amounts.annualCostCents, donations.donatedYearCents);
 
   return {
     freeRequestsPerMinute: free?.requestsPerMinute ?? UNKNOWN_LIMIT,
@@ -61,6 +64,9 @@ export async function resolveSiteVariableValues(): Promise<SiteVariableValues> {
     keylessRequestsPerDay: KEYLESS_RESOLVE_REQUESTS_PER_DAY,
     annualCost: amounts.annualCostCents,
     monthlyCost: amounts.monthlyCostCents,
+    donatedYear: donations.donatedYearCents,
+    donatedMonth: donations.donatedMonthCents,
+    missingYear: funding.missingCents,
     amountWeek: amounts.weekEur,
     amountMonth: amounts.monthEur,
     amountQuarter: amounts.quarterEur,
