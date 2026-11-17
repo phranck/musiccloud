@@ -16,6 +16,7 @@
 
 import { DONATION_LIMITS } from "./donations.js";
 import { isSameSiteRelativePath } from "./safe-url.js";
+import { SPONSOR_FORM_LABEL_KEYS, type SponsorFormTexts } from "./sponsor-form.js";
 import { SPONSORING_LIMITS } from "./sponsoring.js";
 
 /** The attribute that carries the ladder's configuration: `data-mc-support-ladder`. */
@@ -128,6 +129,11 @@ export const SUPPORT_LADDER_LABELS = {
   fieldBic: { value: "BIC", label: "Label of the BIC line" },
   fieldPurpose: { value: "Purpose", label: "Label of the purpose line" },
   fieldAmount: { value: "Amount", label: "Label of the amount line" },
+  fieldReference: { value: "Reference", label: "Label of the payment reference line on the sponsor tab" },
+  referenceMissing: {
+    value: "Your payment reference appears here once you have sent your details above.",
+    label: "Spoken name of the reference line before a reference is issued",
+  },
   amountOpen: { value: "your choice", label: "What the amount line says while no amount is chosen" },
   copy: { value: "Copy", label: "Spoken name of a copy button" },
   copied: { value: "Copied", label: "What a copy button says once it has copied" },
@@ -182,6 +188,10 @@ export interface SupportLadderCustom {
  *   rendered HTML. `{min}` stands for the minimum. Empty when the page names none.
  * @property options - The suggested amounts, in order.
  * @property custom - The free-amount field, `null` when the tab has none.
+ * @property sponsorForm - The page's wording for the sponsor form, as plain
+ *   text. `null` when the tab names no `[[sponsorform]]`, which leaves the form
+ *   out. Only the sponsor tab keeps one, because no other tab earns a
+ *   sponsorship to announce.
  */
 export interface SupportLadderInterval {
   key: SupportIntervalKeyValue;
@@ -191,6 +201,7 @@ export interface SupportLadderInterval {
   belowMinimum: string;
   options: SupportLadderOption[];
   custom: SupportLadderCustom | null;
+  sponsorForm: SponsorFormTexts | null;
 }
 
 /**
@@ -484,6 +495,10 @@ function readIntervals(value: unknown): SupportLadderInterval[] {
       belowMinimum: readHtml(entry.belowMinimum),
       options,
       custom,
+      sponsorForm:
+        key === SupportIntervalKey.Sponsor && isObject(entry.sponsorForm)
+          ? readTextOverrides(entry.sponsorForm, SPONSOR_FORM_LABEL_KEYS)
+          : null,
     });
   }
   return intervals;
@@ -601,19 +616,22 @@ function readPayee(value: unknown): SupportLadderPayee {
 }
 
 /**
- * Reads the page's wording overrides.
+ * Reads a set of plain-text wording overrides, such as the ladder's labels or
+ * the sponsor form's words.
  *
  * @param value - The field.
- * @returns The overrides that are non-empty strings of a known label.
+ * @param keys - The words that may be overridden; any other key is dropped.
+ * @returns The overrides that are non-empty strings of at most
+ *   {@link SUPPORT_LADDER_LIMITS.maxLabelLength} characters, trimmed.
  */
-function readLabels(value: unknown): Partial<Record<SupportLadderLabelKey, string>> {
-  const labels: Partial<Record<SupportLadderLabelKey, string>> = {};
-  if (!isObject(value)) return labels;
-  for (const key of SUPPORT_LADDER_LABEL_KEYS) {
+function readTextOverrides<Key extends string>(value: unknown, keys: readonly Key[]): Partial<Record<Key, string>> {
+  const overrides: Partial<Record<Key, string>> = {};
+  if (!isObject(value)) return overrides;
+  for (const key of keys) {
     const written = readLabel(value[key]).trim();
-    if (written) labels[key] = written;
+    if (written) overrides[key] = written;
   }
-  return labels;
+  return overrides;
 }
 
 /**
@@ -636,7 +654,7 @@ export function readSupportLadderConfig(value: unknown): SupportLadderConfig | n
     routes: readRoutes(value.routes),
     payee: readPayee(value.payee),
     minSponsorAmountEur: minimum ?? 0,
-    labels: readLabels(value.labels),
+    labels: readTextOverrides(value.labels, SUPPORT_LADDER_LABEL_KEYS),
   };
 }
 

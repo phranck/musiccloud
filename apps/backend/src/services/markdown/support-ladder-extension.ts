@@ -26,6 +26,7 @@ import {
   type ShortcodeParamValue,
   ShortcodeToken,
   type SiteVariableValues,
+  SPONSOR_FORM_LABEL_KEYS,
   SUPPORT_LADDER_ATTRIBUTE,
   SUPPORT_LADDER_LABEL_KEYS,
   SUPPORT_LADDER_SHORTCODE,
@@ -113,6 +114,7 @@ export function buildSupportLadderConfig(
   return readSupportLadderConfig({
     intervals: childrenOf(ladder, ShortcodeToken.Interval).map((interval) => {
       const custom = childrenOf(interval, ShortcodeToken.Custom)[0];
+      const sponsorForm = childrenOf(interval, ShortcodeToken.SponsorForm)[0];
       return {
         key: interval.params.key,
         label: text(interval.params.label),
@@ -130,6 +132,11 @@ export function buildSupportLadderConfig(
               placeholder: text(custom.params.placeholder),
               text: text(custom.params.text),
             }
+          : null,
+        // Plain text rather than Markdown, because the site sets each word as
+        // text. The shared reader keeps it on the sponsor tab only.
+        sponsorForm: sponsorForm
+          ? Object.fromEntries(SPONSOR_FORM_LABEL_KEYS.map((key) => [key, text(sponsorForm.params[key])]))
           : null,
       };
     }),

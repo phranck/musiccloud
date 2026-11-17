@@ -12,7 +12,9 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { cn } from "@/lib/utils";
 
 import { formatEuro } from "./amountInput";
+import { LadderField } from "./LadderField";
 import { LadderRichText } from "./LadderRichText";
+import { LADDER_INPUT_CLASS, ladderFieldLabelId } from "./ladderFieldParts";
 
 /** The currency sign the free field stands behind. */
 const EURO_SIGN = "€";
@@ -103,15 +105,13 @@ export function AmountGrid({
 
       {interval.custom && (
         <div className="flex flex-col gap-2">
-          <label htmlFor={fieldId} className="text-sm font-semibold text-text-primary">
-            {interval.custom.label}
-          </label>
-          <RecessedCard className={cn(recessedControlInsetClassName, "flex items-center gap-2")}>
+          <LadderField controlId={fieldId} label={interval.custom.label} wellClassName="flex items-center gap-2">
             <span aria-hidden="true" className="pl-3 text-lg font-bold text-text-secondary">
               {EURO_SIGN}
             </span>
             <input
               id={fieldId}
+              aria-labelledby={ladderFieldLabelId(fieldId)}
               type="text"
               inputMode="decimal"
               autoComplete="off"
@@ -122,12 +122,12 @@ export function AmountGrid({
                 onCustom(event.target.value);
               }}
               onBlur={() => setLeftTheField(true)}
-              className="h-10 w-full min-w-0 flex-auto appearance-none border-0 bg-transparent pr-3 text-lg font-semibold tabular-nums text-text-primary outline-none"
+              className={cn(LADDER_INPUT_CLASS, "h-10 pr-3 text-lg font-semibold tabular-nums")}
             />
             {monthly && (
               <span className="pr-3 text-sm font-medium text-text-secondary whitespace-nowrap">{perMonthLabel}</span>
             )}
-          </RecessedCard>
+          </LadderField>
           <LadderRichText html={interval.custom.text} className="text-sm text-text-secondary" />
           {belowMinimum && minimumNotice && (
             <LadderRichText html={minimumNotice} role="status" className="text-sm text-secondary" />

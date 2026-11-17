@@ -8,10 +8,17 @@
  * cannot read.
  */
 
-import { formatEuroCents } from "@musiccloud/shared";
+import { CENTS_PER_EURO, formatEuroCents } from "@musiccloud/shared";
 
-/** Cents in a euro: 100. */
-const CENTS_PER_EURO = 100;
+/**
+ * Turns an amount in euros into whole cents, as the backend stores money.
+ *
+ * @param amountEur - The amount in euros.
+ * @returns The amount in cents, rounded to the nearest cent.
+ */
+export function eurosToCents(amountEur: number): number {
+  return Math.round(amountEur * CENTS_PER_EURO);
+}
 
 /**
  * Writes an amount in euros the way the site writes money.
@@ -20,7 +27,7 @@ const CENTS_PER_EURO = 100;
  * @returns Whole euros without decimals (`€20`), anything else with two (`€12.50`).
  */
 export function formatEuro(amountEur: number): string {
-  return formatEuroCents(Math.round(amountEur * CENTS_PER_EURO));
+  return formatEuroCents(eurosToCents(amountEur));
 }
 
 /** Digits after the decimal separator an amount may carry: 2. */

@@ -48,6 +48,7 @@ export * from "./services.js";
 export * from "./site-origins.js";
 export * from "./site-variables.js";
 export * from "./social-media.js";
+export * from "./sponsor-form.js";
 export * from "./sponsor-wall.js";
 export * from "./sponsoring.js";
 export * from "./sponsors.js";

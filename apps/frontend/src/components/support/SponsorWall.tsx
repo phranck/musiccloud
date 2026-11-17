@@ -9,6 +9,7 @@
  */
 
 import {
+  CENTS_PER_EURO,
   fundingProgress,
   type PublicSponsor,
   SPONSOR_WALL_DEFAULTS,
@@ -31,9 +32,6 @@ import { formatEuro } from "./amountInput";
 import { LadderRichText } from "./LadderRichText";
 import { SponsorCard } from "./SponsorCard";
 import { chooseSupportInterval } from "./supportLadderEvents";
-
-/** Cents in a euro: 100. */
-const CENTS_PER_EURO = 100;
 
 /**
  * How many cards fit across before the row starts to move: 2. Two and a half

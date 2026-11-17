@@ -12,6 +12,7 @@
  */
 
 import { ContentContext } from "../content-context.js";
+import { SPONSOR_FORM_LABEL_KEYS, SPONSOR_FORM_LABELS } from "../sponsor-form.js";
 import {
   SUPPORT_INTERVAL_KEYS,
   SUPPORT_LADDER_LABEL_KEYS,
@@ -193,6 +194,39 @@ export const SUPPORT_LADDER_CUSTOM_SHORTCODE = {
   ],
 } as const satisfies ShortcodeDefinition;
 
+/**
+ * Every word of the sponsor form, as a parameter of the shortcode.
+ *
+ * Derived from the catalogue, as the ladder's own labels are, so a new word
+ * reaches the editor's reference without being written a second time.
+ */
+const SPONSOR_FORM_PARAMS: readonly ShortcodeParamDefinition[] = SPONSOR_FORM_LABEL_KEYS.map((name) => ({
+  name,
+  type: ShortcodeParamType.String,
+  defaultLabel: SPONSOR_FORM_LABELS[name].value,
+  label: `${SPONSOR_FORM_LABELS[name].label}. Plain text`,
+}));
+
+/**
+ * The form that takes what a transfer cannot carry.
+ *
+ * It stands in the sponsor tab. Somebody who means to sponsor gives their name,
+ * one profile address, their sentence and whether they want to be named, and
+ * gets a payment reference back, which the GiroCode and the transfer card then
+ * carry in place of the purpose. Every word is optional and falls back to
+ * `SPONSOR_FORM_DEFAULTS`.
+ */
+export const SUPPORT_LADDER_SPONSOR_FORM_SHORTCODE = {
+  ...LADDER_PART,
+  token: ShortcodeToken.SponsorForm,
+  placement: ShortcodePlacement.Inline,
+  label: "Sponsor form",
+  description:
+    'The form on the sponsor tab that issues a payment reference before the transfer. Belongs inside [[interval key="sponsor"]]. Without this node the tab shows no form and the transfer carries the sponsorship purpose.',
+  examples: ['[[sponsorform nameLabel="Name" submitLabel="Get my payment reference"]]'],
+  params: SPONSOR_FORM_PARAMS,
+} as const satisfies ShortcodeDefinition;
+
 /** The transfer block, with one presentation per tab. */
 export const SUPPORT_LADDER_BANK_ACCOUNT_SHORTCODE = {
   ...LADDER_PART,
@@ -229,10 +263,10 @@ export const SUPPORT_LADDER_INTERVAL_SHORTCODE = {
   body: ShortcodeBodyRule.Children,
   label: "Tab",
   description:
-    "One tab of the ladder: once, monthly or sponsor. It holds option and custom. The sponsor tab needs no option and shows the free field alone.",
+    "One tab of the ladder: once, monthly or sponsor. It holds option and custom, and the sponsor tab also sponsorform. The sponsor tab needs no option and shows the free field alone.",
   examples: [
     '[[interval key="once" label="Once" text="A single payment."\n  [[option amount=20]]\n]]',
-    '[[interval key="sponsor" label="Become a sponsor" belowMinimum="Below {min} this is a donation."\n  [[custom label="Your amount"]]\n]]',
+    '[[interval key="sponsor" label="Become a sponsor" belowMinimum="Below {min} this is a donation."\n  [[custom label="Your amount"]]\n  [[sponsorform]]\n]]',
   ],
   params: [
     INTERVAL_KEY_PARAM,
@@ -250,7 +284,7 @@ export const SUPPORT_LADDER_INTERVAL_SHORTCODE = {
       label: "What the sponsor tab says below the sponsor minimum. Markdown. {min} stands for the minimum",
     },
   ],
-  children: [SUPPORT_LADDER_OPTION_SHORTCODE, SUPPORT_LADDER_CUSTOM_SHORTCODE],
+  children: [SUPPORT_LADDER_OPTION_SHORTCODE, SUPPORT_LADDER_CUSTOM_SHORTCODE, SUPPORT_LADDER_SPONSOR_FORM_SHORTCODE],
 } as const satisfies ShortcodeDefinition;
 
 /** The parameters a route out of the page takes. */
@@ -325,6 +359,10 @@ const SUPPORT_LADDER_EXAMPLE = [
   "  ]]",
   '  [[interval key="monthly" label="Monthly" text="{annualAmount} a year."',
   "    [[option amount={amountMonthQuarter}]]",
+  "  ]]",
+  '  [[interval key="sponsor" label="Become a sponsor"',
+  '    [[custom label="Your amount"]]',
+  "    [[sponsorform]]",
   "  ]]",
   '  [[paypalme url="https://paypal.me/…" title="PayPal" icon="paypal"]]',
   "]]",

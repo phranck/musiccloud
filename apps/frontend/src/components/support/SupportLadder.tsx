@@ -3,6 +3,7 @@
  */
 
 import {
+  SPONSOR_FORM_DEFAULTS,
   SUPPORT_LADDER_LABEL_DEFAULTS,
   SupportIntervalKey,
   type SupportIntervalKeyValue,
@@ -10,15 +11,21 @@ import {
   SupportRouteToken,
   type SupportRouteTokenValue,
 } from "@musiccloud/shared";
-import { type CSSProperties, useEffect, useEffectEvent, useReducer, useRef } from "react";
+import { type CSSProperties, useEffect, useEffectEvent, useReducer, useRef, useSyncExternalStore } from "react";
 
 import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { prefersReducedMotion } from "@/lib/motion/setup";
+import {
+  getIssuedSponsorship,
+  getServerIssuedSponsorship,
+  subscribeIssuedSponsorship,
+} from "@/lib/support/pending-sponsorship-store";
 import { cn } from "@/lib/utils";
 
 import { formatEuro, normalizeAmountInput, readAmountInput } from "./amountInput";
 import { LadderNotice } from "./LadderNotice";
 import { LadderRichText } from "./LadderRichText";
+import { SponsorStep } from "./SponsorForm";
 import { AmountGrid } from "./SupportLadderAmounts";
 import { RouteCard } from "./SupportLadderRoutes";
 import { TransferCard } from "./SupportLadderTransfer";
@@ -78,6 +85,11 @@ export interface SupportLadderProps {
  * EPC069-12 has no field for an interval and cannot express a standing order.
  * The monthly tab shows the same details as text.
  *
+ * Where the page names a `[[sponsorform]]` on the sponsor tab, the tab asks for
+ * the sponsor's details between the amount and the transfer, and from the
+ * sponsor minimum up the transfer carries the payment reference the form issued
+ * in place of the purpose.
+ *
  * @param props - See {@link SupportLadderProps}.
  * @returns The ladder.
  */
@@ -94,6 +106,11 @@ export function SupportLadder({ config }: SupportLadderProps) {
   const swapTimer = useRef<number | null>(null);
 
   const sectionRef = useRef<HTMLElement>(null);
+
+  // The reference this browser was given, if any. It lives in the browser
+  // rather than here, so the page renders on the server without it and a second
+  // tab of the site does not go on showing a reference this one replaced.
+  const issued = useSyncExternalStore(subscribeIssuedSponsorship, getIssuedSponsorship, getServerIssuedSponsorship);
 
   useEffect(
     () => () => {
@@ -169,6 +186,9 @@ export function SupportLadder({ config }: SupportLadderProps) {
     shownKey === SupportIntervalKey.Sponsor && minSponsorAmountEur > 0 && amountEur >= minSponsorAmountEur;
   const remittance =
     (earnsSponsorship ? bankAccount?.purposeSponsor : undefined) || (bankAccount?.purposeDonation ?? "");
+  // The page decides whether the sponsor tab asks for details, by naming a
+  // `[[sponsorform]]` in it. Only then does a sponsorship carry a reference.
+  const sponsorFormText = interval.sponsorForm ? { ...SPONSOR_FORM_DEFAULTS, ...interval.sponsorForm } : null;
 
   return (
     <section
@@ -215,6 +235,15 @@ export function SupportLadder({ config }: SupportLadderProps) {
           onCustom={enterCustom}
         />
 
+        {sponsorFormText && (
+          <SponsorStep
+            issued={issued}
+            amountEur={amountEur}
+            earnsSponsorship={earnsSponsorship}
+            text={sponsorFormText}
+          />
+        )}
+
         {bankAccount && variant && hasPayee && (
           <TransferCard
             variant={variant}
@@ -224,6 +253,8 @@ export function SupportLadder({ config }: SupportLadderProps) {
             amountText={formatEuro(amountEur)}
             monthly={shownKey === SupportIntervalKey.Monthly}
             remittance={remittance}
+            referenceLine={sponsorFormText !== null && earnsSponsorship}
+            issued={issued}
             showQr={shownKey !== SupportIntervalKey.Monthly}
             text={text}
           />

@@ -149,6 +149,25 @@ describe("readSupportLadderConfig", () => {
     });
   });
 
+  it("keeps the sponsor form's known words on the sponsor tab and drops everything else", () => {
+    const config = readSupportLadderConfig({
+      ...COMPLETE,
+      intervals: [
+        { ...COMPLETE.intervals[0], sponsorForm: { nameLabel: "Name" } },
+        {
+          ...COMPLETE.intervals[1],
+          sponsorForm: { nameLabel: "  Your name  ", submitLabel: "", injected: "<script>", linkHint: "x".repeat(161) },
+        },
+      ],
+    });
+
+    expect(config?.intervals.map((interval) => interval.sponsorForm)).toEqual([null, { nameLabel: "Your name" }]);
+  });
+
+  it("leaves the form out of a tab that names none", () => {
+    expect(readSupportLadderConfig(COMPLETE)?.intervals.map((interval) => interval.sponsorForm)).toEqual([null, null]);
+  });
+
   it("empties a payee field that is not in the shape a transfer carries", () => {
     const config = readSupportLadderConfig({ ...COMPLETE, payee: { name: "Frank", iban: "AT61 1904", bic: "x" } });
 
@@ -237,5 +256,22 @@ describe("SUPPORT_LADDER_SHORTCODE", () => {
       { text: "Check it." },
     ]);
     expect(ladder?.children[1]?.children[0]?.params).toEqual({ amount: "20", recommended: true });
+  });
+
+  it("resolves the sponsor form inside a tab, with every word it names", () => {
+    const [ladder] = parseShortcodes(
+      [
+        "[[support-ladder",
+        '  [[interval key="sponsor" [[custom label="Amount"]] [[sponsorform nameLabel="Who" issuedTitle="Done."]]]]',
+        "]]",
+      ].join("\n"),
+      [SUPPORT_LADDER_SHORTCODE],
+    );
+
+    expect(ladder?.issues).toEqual([]);
+    const form = ladder?.children[0]?.children[1];
+    expect(form?.token).toBe("sponsorform");
+    expect(form?.issues).toEqual([]);
+    expect(form?.params).toEqual({ nameLabel: "Who", issuedTitle: "Done." });
   });
 });

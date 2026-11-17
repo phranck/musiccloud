@@ -406,8 +406,9 @@ export async function fetchGenreArtwork(genreKey: string, clientIp?: string): Pr
 }
 
 /**
- * How long the site waits for a sponsor's picture or the sponsors list: 5
- * seconds, since both are stored rows read without anything generated.
+ * How long the site waits for a sponsor's picture, the sponsors list or a
+ * sponsorship request: 5 seconds, since each reads or writes one stored row
+ * without anything generated or fetched elsewhere.
  */
 const SPONSORING_FETCH_TIMEOUT_MS = 5000;
 
@@ -438,6 +439,47 @@ export async function fetchSponsors(clientIp?: string): Promise<Response> {
   return fetchWithTimeout(
     backendUrl(ENDPOINTS.v1.sponsors),
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    SPONSORING_FETCH_TIMEOUT_MS,
+  );
+}
+
+/**
+ * Forward a sponsorship request to the backend, so it issues a payment
+ * reference for it, for the Astro proxy at `pages/api/sponsorships.ts`.
+ *
+ * The body is passed on as the visitor sent it, because the backend is the side
+ * that validates it. The visitor's address goes with it, because the backend
+ * allows five requests an hour per address and the count has to follow the
+ * visitor rather than the frontend container.
+ *
+ * @param body - The request body, already bounded by the proxy.
+ * @param clientIp - The visitor's address, forwarded as `X-Forwarded-For`.
+ * @returns The backend's response, unread, or the error envelope of
+ *   {@link forwardToBackend} when the backend did not answer.
+ */
+export async function createSponsorshipRequest(body: string, clientIp?: string): Promise<Response> {
+  return forwardToBackend(
+    backendUrl(ENDPOINTS.v1.sponsorships),
+    { method: "POST", headers: internalHeaders(forwardedForExtra(clientIp)), body },
+    SPONSORING_FETCH_TIMEOUT_MS,
+  );
+}
+
+/**
+ * Forward a correction of a sponsorship request to the backend, for the Astro
+ * proxy at `pages/api/sponsorships/[reference].ts`. The reference stays the
+ * one the visitor was given, because it may already stand in a banking app.
+ *
+ * @param reference - The reference, already normalized by the proxy.
+ * @param body - The request body, already bounded by the proxy.
+ * @param clientIp - The visitor's address, forwarded as `X-Forwarded-For`.
+ * @returns The backend's response, unread, or the error envelope of
+ *   {@link forwardToBackend} when the backend did not answer.
+ */
+export async function updateSponsorshipRequest(reference: string, body: string, clientIp?: string): Promise<Response> {
+  return forwardToBackend(
+    backendUrl(ENDPOINTS.v1.sponsorshipDetail(reference)),
+    { method: "PUT", headers: internalHeaders(forwardedForExtra(clientIp)), body },
     SPONSORING_FETCH_TIMEOUT_MS,
   );
 }
