@@ -18,16 +18,18 @@ function job(name) {
   return next === -1 ? workflow.slice(start) : workflow.slice(start, start + 1 + next);
 }
 
-test("uses read-only GITHUB_TOKEN permissions with one scoped job exception", () => {
+test("uses read-only GITHUB_TOKEN permissions with two scoped job exceptions", () => {
   const workflowPrelude = workflow.slice(0, workflow.indexOf("\njobs:\n"));
   const detectChangesJob = job("detect-changes");
+  const detectValidationJob = job("detect-validation-changes");
   const deployJobs = workflow.slice(workflow.indexOf("  deploy-backend:"));
   const jobLevelPermissionBlocks = workflow.match(/^ {4}permissions:\n(?:^ {6}[a-z-]+: (?:read|write)\n?)+/gm) ?? [];
 
   assert.match(workflowPrelude, /\npermissions:\n {2}contents: read\n$/);
-  assert.equal(jobLevelPermissionBlocks.length, 1);
+  assert.equal(jobLevelPermissionBlocks.length, 2);
   assert.match(detectChangesJob, /permissions:\n {6}contents: read\n {6}actions: read\n/);
-  assert.doesNotMatch(detectChangesJob, /^ {6}[a-z-]+: write$/m);
+  assert.match(detectValidationJob, /permissions:\n {6}contents: read\n {6}actions: read\n {6}pull-requests: read\n/);
+  for (const block of jobLevelPermissionBlocks) assert.doesNotMatch(block, /: write$/m);
   // Nothing writes to the repository any more, so no job may ask for it.
   assert.equal((workflow.match(/^\s+contents: write$/gm) ?? []).length, 0);
   assert.doesNotMatch(deployJobs, /^ {4}permissions:/m);
@@ -122,6 +124,26 @@ test("validates only affected workspaces after early path detection", () => {
   assert.match(typecheckJob, /outputs\.dashboard_ui == 'true'/);
   assert.match(typecheckJob, /node --test scripts\/\*\.test\.mjs/);
   assert.match(typecheckJob, /needs\.detect-validation-changes\.outputs\.shared == 'true'/);
+});
+
+test("validates on main only what the merged pull request did not already validate", () => {
+  const detectValidationJob = job("detect-validation-changes");
+
+  // The base is the pull request's head only when that head passed this workflow.
+  assert.match(detectValidationJob, /gh api "repos\/\$REPOSITORY\/commits\/\$HEAD_SHA\/pulls"/);
+  assert.match(detectValidationJob, /--commit "\$pull_head" --event pull_request --status success/);
+  assert.match(detectValidationJob, /\[ "\$\(git rev-parse FETCH_HEAD\)" = "\$pull_head" \]/);
+  assert.match(detectValidationJob, /any: \$\{\{ steps\.filter\.outputs\.any \}\}/);
+  // A pull request always validates, a push only when something is left to.
+  assert.match(
+    job("typecheck"),
+    /if: github\.event_name == 'pull_request' \|\| needs\.detect-validation-changes\.outputs\.any == 'true'/,
+  );
+  // Deploying follows a skipped validation, never a failed one.
+  const deployCondition = job("detect-changes").match(/if: >-\n([\s\S]*?)\n {4}[a-z]/)?.[1] ?? "";
+  assert.match(deployCondition, /needs\.lint\.result == 'success'/);
+  assert.match(deployCondition, /needs\.typecheck\.result == 'success' \|\| needs\.typecheck\.result == 'skipped'/);
+  assert.doesNotMatch(deployCondition, /failure/);
 });
 
 test("runs the backend's integration tests against a database of the job's own", () => {
