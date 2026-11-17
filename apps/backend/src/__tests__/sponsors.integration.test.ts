@@ -2,7 +2,7 @@ import { DonationProvider, type SponsorInput } from "@musiccloud/shared";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDatabasePool } from "../db/pool.js";
-import { createDonation, listDonations } from "../services/donations.js";
+import { createDonation, listDonations, readDonationTotals } from "../services/donations.js";
 import { readSponsorAvatar, storeSponsorAvatar } from "../services/sponsor-avatars.js";
 import {
   createSponsor,
@@ -63,12 +63,12 @@ describe.skipIf(!integrationDatabaseUrl())("annual sponsors (integration)", () =
     return created;
   }
 
-  async function donate(amountCents: number, sponsorId: string | null) {
+  async function donate(amountCents: number, sponsorId: string | null, receivedOn = "2001-03-01") {
     const donation = await createDonation({
       name: MARKER,
       published: false,
       amountCents,
-      receivedOn: "2001-03-01",
+      receivedOn,
       provider: DonationProvider.BankTransfer,
       note: "",
       sponsorId,
@@ -176,6 +176,20 @@ describe.skipIf(!integrationDatabaseUrl())("annual sponsors (integration)", () =
 
     expect(shown.map((row) => row.id)).toEqual([first.id, later.id]);
     expect(Object.keys(shown[0] ?? {}).sort()).toEqual(["avatarId", "claim", "id", "name", "paidOn", "socialMedia"]);
+  });
+
+  it("splits a month's income into the part linked to sponsors and the free donations", async () => {
+    // A month no other case of the run books into, so its sums are this case's alone.
+    const created = await sponsor({ paidOn: "1999-07-01" });
+    await donate(4_000, created.id, "1999-07-10");
+    await donate(1_500, null, "1999-07-20");
+
+    const july = (await readDonationTotals("1999-07-31")).byMonth.at(-1);
+    const total = Object.values(july?.byProvider ?? {}).reduce((sum, cents) => sum + (cents ?? 0), 0);
+
+    expect(july?.month).toBe("1999-07");
+    expect(july?.sponsoredCents).toBe(4_000);
+    expect(total).toBe(5_500);
   });
 
   it("refuses a donation linked to a sponsor that does not exist", async () => {
