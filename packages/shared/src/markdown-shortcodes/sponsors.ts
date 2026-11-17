@@ -9,7 +9,7 @@
  */
 
 import { ContentContext } from "../content-context.js";
-import { SPONSOR_WALL_MISSING_PLACEHOLDER } from "../sponsor-wall.js";
+import { SPONSOR_WALL_MISSING_PLACEHOLDER_NAME } from "../sponsor-wall.js";
 import { ShortcodeToken } from "./tokens.js";
 import {
   type ShortcodeDefinition,
@@ -47,7 +47,13 @@ export const SPONSORS_SHORTCODE = {
     {
       name: "missing",
       type: ShortcodeParamType.String,
-      label: `What it says while they are not. Markdown. ${SPONSOR_WALL_MISSING_PLACEHOLDER} stands for the amount still outstanding`,
+      label: "What it says while they are not. Markdown",
+      placeholders: [
+        {
+          name: SPONSOR_WALL_MISSING_PLACEHOLDER_NAME,
+          description: "the amount still missing to reach the year's costs",
+        },
+      ],
     },
     {
       name: "empty",

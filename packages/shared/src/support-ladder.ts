@@ -23,6 +23,20 @@ import { SPONSORING_LIMITS } from "./sponsoring.js";
 export const SUPPORT_LADDER_ATTRIBUTE = "data-mc-support-ladder";
 
 /**
+ * The name of the placeholder a tab's `text` accepts for the yearly total of
+ * the chosen amount: `annualAmount`, written `{annualAmount}`. The site
+ * replaces it, and the `[[interval]]` shortcode declares it.
+ */
+export const SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME = "annualAmount";
+
+/**
+ * The name of the placeholder a tab's `belowMinimum` accepts for the sponsor
+ * minimum: `min`, written `{min}`. The site replaces it, and the `[[interval]]`
+ * shortcode declares it.
+ */
+export const SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME = "min";
+
+/**
  * What one tab of the ladder stands for.
  *
  * - `Once`: a single payment, with a GiroCode.

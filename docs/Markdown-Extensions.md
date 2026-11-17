@@ -106,7 +106,7 @@ The identifier is read out of whatever the page wrote, and the embed address is 
 `[[support-ladder … ]]` is the giving block of the support page, and only the site renders it. It holds four kinds of child:
 
 - `bankaccount` holds one `variant` per tab, and a variant holds a `qrcode` for the look of its GiroCode and an `info` for the notice under the payee lines. The sponsor variant may also hold a `sponsorform`, described below.
-- `interval` is one tab, `once`, `monthly` or `sponsor`. It holds its suggested amounts as `option` children and its free amount field as `custom`.
+- `interval` is one tab, `once`, `monthly` or `sponsor`. It holds its suggested amounts as `option` children and its free amount field as `custom`. In its `text`, `{annualAmount}` stands for the sum the tab comes to over a year, and in its `belowMinimum`, `{min}` stands for the sponsor minimum. Both are declared as placeholders of those parameters, so the editor's reference shows them there.
 - `paypalme` and `ghsponsor` are the two routes out. Each address must be `https` and on the route's own host, and the route is dropped otherwise.
 
 A page writes its amounts with the sponsoring site variables, such as `amount={amountMonth}`. Variables are put in before the page is parsed, so the suggested amounts follow the running costs entered in the dashboard.
@@ -119,17 +119,17 @@ The site mounts `SupportLadder` on the marker in `MarkdownHtml`. The GiroCode fo
 
 ## The sponsor form
 
-`[[sponsorform]]` stands inside `[[variant key="sponsor"]]` of the `bankaccount` and turns the sponsor tab into a request for a payment reference. The ladder shows the form on the tab whose transfer card carries one, so the page decides where the form belongs. Somebody who means to sponsor gives their name, one profile address, their own sentence and whether they want to be named on the site. The switch for being named starts on. The site answers with an ISO 11649 reference that opens with `RF`, two check digits and `MCSP`. The transfer card and the GiroCode then carry that reference in place of the sponsorship purpose, because a transfer carries one of the two and never both. Without the node no form appears and the transfer carries the purpose as before. Inside `[[interval]]` the node is dropped.
+`[[sponsorform]]` stands inside `[[variant key="sponsor"]]` of the `bankaccount` and turns the sponsor tab into a request for a payment reference. The ladder shows the form on the tab whose transfer card carries one, so the page decides where the form belongs. Somebody who means to sponsor gives their name, one profile address, their own sentence and whether they want to be named on the site. The switch for being named starts on. The site answers with an ISO 11649 reference that opens with `RF`, two check digits and `MCSP`. The transfer card and the GiroCode then carry that reference in place of the sponsorship purpose, because a transfer carries one of the two and never both. Without the node no form appears, and the transfer carries the donation purpose at any amount, because only a tab with a form announces a sponsorship. Inside `[[interval]]` the node is dropped.
 
 ```text
 [[bankaccount
   [[variant key="sponsor" title="Bank transfer or GiroCode" icon="sepa"
-    [[sponsorform submitLabel="Get my payment reference"]]
+    [[sponsorform submitLabel="Send details"]]
   ]]
 ]]
 ```
 
-Every word the form shows is a parameter of the node, and every one is optional. The defaults, the parameter names and what each one labels are declared once in `packages/shared/src/sponsor-form.ts`, and the editor's reference lists them. The words are plain text rather than Markdown, at most 160 characters each. A refusal is worded by `failureRateLimited` when the site answers `429` and by `failureRejected` otherwise, and the backend's `MC-*` code and error ID follow that sentence, as in `That did not work. Please check your details and try again. (MC-REQ-0013) Error ID: …`.
+Every word the form shows is a parameter of the node, and every one is optional. The defaults, the parameter names and what each one labels are declared once in `packages/shared/src/sponsor-form.ts`, and the editor's reference lists them. In `claimRemaining`, `{n}` stands for the number of characters still free. It is declared as that parameter's placeholder, so the reference shows it under the parameter. The words are plain text rather than Markdown, at most 160 characters each. A refusal is worded by `failureRateLimited` when the site answers `429` and by `failureRejected` otherwise, and the backend's `MC-*` code and error ID follow that sentence, as in `That did not work. Please check your details and try again. (MC-REQ-0013) Error ID: …`.
 
 The reference lives in the visitor's browser for 60 days, which is how long the backend keeps an unclaimed request. Reloading the page therefore shows the same reference, and the form opens again on what was sent, so a correction rewrites the request under the same reference. A correction starts the 60 days again, in the browser and in the backend alike.
 
@@ -137,7 +137,7 @@ The form posts to `/api/sponsorships` and corrects through `/api/sponsorships/:r
 
 ## The sponsor wall
 
-`[[sponsors]]` shows who carries this year's running costs, and only the site renders it. It has a card for every published sponsor whose year still runs, and a sentence under the cards on how much of the year is covered. A page writes the texts around the cards and nothing about the sponsors, who are entered in the dashboard. Every text is optional and the site has a default for each one: `text` introduces the block, `covered` and `missing` are the two versions of the sentence under the cards, and `empty` with `emptyAction` fill the placeholder card that stands while nobody is on the wall. In `missing`, `{missing}` stands for the amount still outstanding.
+`[[sponsors]]` shows who carries this year's running costs, and only the site renders it. It has a card for every published sponsor whose year still runs, and a sentence under the cards on how much of the year is covered. A page writes the texts around the cards and nothing about the sponsors, who are entered in the dashboard. Every text is optional and the site has a default for each one: `text` introduces the block, `covered` and `missing` are the two versions of the sentence under the cards, and `empty` with `emptyAction` fill the placeholder card that stands while nobody is on the wall. In `missing`, `{missing}` stands for the amount still outstanding. It is declared as that parameter's placeholder, so the editor's reference shows it there.
 
 Who is on the wall changes by the day, so the backend writes no sponsor into the page. `apps/backend/src/services/markdown/sponsors-extension.ts` renders the texts as Markdown and writes them as JSON into the `data-mc-sponsor-wall` attribute of an empty `div`. `packages/shared/src/sponsor-wall.ts` defines that shape and is its one reader. The sanitizer reads a hand-written marker against that shape and runs every HTML field through its allowlist, as it does for the ladder.
 

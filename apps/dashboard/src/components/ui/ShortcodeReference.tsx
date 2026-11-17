@@ -23,6 +23,7 @@ import {
   ShortcodeTargetRule,
   SITE_VARIABLE_NAMES,
   SITE_VARIABLES,
+  writtenPlaceholder,
 } from "@musiccloud/shared";
 import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
 import * as React from "react";
@@ -222,6 +223,17 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+/**
+ * One parameter of a shortcode, as a row of the reference's parameter table.
+ *
+ * The first cell names it and marks it when it is required. The second says
+ * what it is and, line by line under that, which placeholder its value accepts
+ * and what replaces it. The third says what it accepts, its other spellings,
+ * and what holds without it.
+ *
+ * @param props.param - The parameter to describe.
+ * @returns The row.
+ */
 function ParamRow({ param }: { param: ShortcodeParamDefinition }) {
   const fallback = describeDefault(param);
 
@@ -235,7 +247,18 @@ function ParamRow({ param }: { param: ShortcodeParamDefinition }) {
           </span>
         )}
       </td>
-      <td className="py-1 pr-3 text-[var(--ds-text-muted)]">{param.label ?? ""}</td>
+      <td className="py-1 pr-3 text-[var(--ds-text-muted)]">
+        {param.label ?? ""}
+        {/* A name this one value accepts and nothing else does. It stands with
+            the parameter rather than among the variables, because this is the
+            only place it means anything. */}
+        {param.placeholders?.map((placeholder) => (
+          <span key={placeholder.name} className="mt-0.5 block text-[var(--ds-text-subtle)]">
+            <code className="font-mono text-[var(--ds-text)]">{writtenPlaceholder(placeholder.name)}</code> is replaced
+            by {placeholder.description}
+          </span>
+        ))}
+      </td>
       <td className="py-1 font-mono text-[0.9em] text-[var(--ds-text-subtle)]">
         {describeType(param)}
         {param.aliases && param.aliases.length > 0 && <span className="ml-2">also: {param.aliases.join(", ")}</span>}

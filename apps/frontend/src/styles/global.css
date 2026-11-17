@@ -28,6 +28,10 @@
   --color-border: #38383A;
   --color-error: #FF453A;
   --color-success: #30D158;
+  /* The ground of something that has already happened, such as the support
+     ladder's notice that a payment reference is ready: the success color at the
+     strength lmaa.space tints its own confirmation with. */
+  --color-success-tint: color-mix(in srgb, var(--color-success) 12%, transparent);
 
   /* Hardware display palette */
   --color-vfd-phosphor: #7aebff;

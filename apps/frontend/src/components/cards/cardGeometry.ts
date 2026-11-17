@@ -29,6 +29,22 @@ export const embossedControlRadiusStyle: CSSProperties = {
   borderRadius: "var(--neu-radius)",
 } as CSSProperties;
 
+/**
+ * Inline style for the content of a `RecessedCard` that holds recessed wells of its own.
+ *
+ * A `RecessedCard` given no `radius` takes the card's inner radius from
+ * `--mc-card-inner-radius-base` and `-sm`, which the `EmbossedCard` around it
+ * publishes. A well inside another `RecessedCard` would take that same radius
+ * and pinch at the corners. Set on the wrapper of such a card's content, this
+ * moves every well inside it to {@link raisedControlRadius}, the level a
+ * control standing inside a card takes, while the card itself keeps its
+ * own. A well that states its `radius` keeps that.
+ */
+export const nestedRecessedSurfaceStyle: CSSProperties = {
+  "--mc-card-inner-radius-base": raisedControlRadius,
+  "--mc-card-inner-radius-sm": raisedControlRadius,
+} as CSSProperties;
+
 export const outerEmbossedCardClassName = "w-full max-w-full sm:max-w-lg mx-auto p-0";
 export const fullWidthEmbossedCardClassName = "w-full p-0";
 export const recessedControlInsetClassName = "p-[var(--mc-recessed-control-inset)]";

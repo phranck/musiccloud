@@ -40,12 +40,24 @@ import { eurosToCents } from "./amountInput";
 import { LadderField } from "./LadderField";
 import { LadderNotice } from "./LadderNotice";
 import { LADDER_INPUT_CLASS, ladderFieldLabelId } from "./ladderFieldParts";
+import { LadderNoticeTone } from "./ladderNoticeTone";
 
 /** Rows the sentence field shows before it scrolls: 3, which a sentence of the longest allowed length fills. */
 const CLAIM_ROWS = 3;
 
 /** Classes of a single-line field of the form, beside {@link LADDER_INPUT_CLASS}. */
 const TEXT_INPUT_CLASS = cn(LADDER_INPUT_CLASS, "h-10 px-3 font-semibold");
+
+/**
+ * Classes of the note under the name and address fields, which holds `linkHint`
+ * or, after a refused address, `linkInvalid`.
+ *
+ * It is set in the small print of a counter, and it takes back half of the
+ * form's row gap, so it reads as belonging to the fields above rather than as a
+ * row of its own. The gap is `--mc-gap-rowitem`, which the form's own stack
+ * uses, so the note follows that token.
+ */
+const LINK_NOTE_CLASS = "m-0 -mt-[calc(var(--mc-gap-rowitem,0.75rem)/2)] px-1 text-xs";
 
 /**
  * The status the site answers with when the form was sent too often: `429`.
@@ -176,25 +188,23 @@ function describeRefusal(
 }
 
 /**
- * Remembers a receipt the site has just answered with.
+ * Remembers a receipt the site has just answered with, with the moment it happened.
  *
- * A correction keeps the moment its reference was first issued, so the browser
- * lets go of it `PENDING_SPONSORSHIP_DAYS` after the request was made, however
- * often it was corrected. A new reference is issued now.
+ * The moment is taken here rather than from the server, because what it
+ * decides is when this browser stops showing the reference, and that is a
+ * decision about this browser. A correction is stamped anew like a new
+ * reference, so the browser keeps the reference `PENDING_SPONSORSHIP_DAYS`
+ * after the form was last sent. The backend restarts its own count on a
+ * correction as well, so the two let go of the reference together.
  *
  * @param receipt - The reference the site answered with.
  * @param announced - What was sent under it.
- * @param previous - The entry this corrects, or `null` for a new reference.
  */
-function keepReceipt(
-  receipt: PendingSponsorshipReceipt,
-  announced: AnnouncedSponsorship,
-  previous: IssuedSponsorship | null,
-): void {
+function keepReceipt(receipt: PendingSponsorshipReceipt, announced: AnnouncedSponsorship): void {
   rememberIssuedSponsorship({
     reference: receipt.reference,
     referenceFormatted: receipt.referenceFormatted,
-    issuedAt: previous?.issuedAt ?? Date.now(),
+    issuedAt: Date.now(),
     announced,
   });
 }
@@ -331,7 +341,7 @@ function SponsorForm({ amountEur, earnsSponsorship, correcting, text, onIssued }
       <p
         id={linkNoteId}
         role={form.linkError ? "alert" : undefined}
-        className={cn("m-0 px-1 text-sm", form.linkError ? "text-error" : "text-text-secondary")}
+        className={cn(LINK_NOTE_CLASS, form.linkError ? "text-error" : "text-text-secondary")}
       >
         {form.linkError ?? text.linkHint}
       </p>
@@ -425,11 +435,13 @@ export function SponsorStep({ issued, amountEur, earnsSponsorship, text }: Spons
 
   if (issued && !correcting) {
     return (
-      <LadderNotice>
+      // In the success tone, because it says something has already happened
+      // rather than something to read before acting.
+      <LadderNotice tone={LadderNoticeTone.Success}>
         <div className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
           <div>
-            <p className="m-0 font-semibold text-text-primary">{text.issuedTitle}</p>
-            <p className="m-0">{text.issuedText}</p>
+            <p className="m-0 font-semibold">{text.issuedTitle}</p>
+            <p className="m-0 text-text-muted">{text.issuedText}</p>
           </div>
           <div className="flex justify-end">
             <EmbossedButton
@@ -452,7 +464,7 @@ export function SponsorStep({ issued, amountEur, earnsSponsorship, text }: Spons
       correcting={issued ?? undefined}
       text={text}
       onIssued={(receipt, announced) => {
-        keepReceipt(receipt, announced, issued);
+        keepReceipt(receipt, announced);
         setCorrecting(false);
       }}
     />

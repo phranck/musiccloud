@@ -1,4 +1,10 @@
-import { SUPPORT_LADDER_ATTRIBUTE, SupportIntervalKey, SupportRouteToken } from "@musiccloud/shared";
+import {
+  SPONSOR_FORM_DEFAULTS,
+  SUPPORT_LADDER_ATTRIBUTE,
+  SUPPORT_LADDER_LABEL_DEFAULTS,
+  SupportIntervalKey,
+  SupportRouteToken,
+} from "@musiccloud/shared";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -24,6 +30,19 @@ const PAYEE = { name: "musiccloud", iban: "DE89370400440532013000", bic: "COBADE
 const PURPOSE_DONATION = "Donation musiccloud.io";
 const PURPOSE_SPONSOR = "Sponsorship musiccloud.io";
 const MINIMUM = 50;
+
+/** The single payment's transfer card, which a tab naming none of its own borrows. */
+const ONCE_VARIANT = { key: SupportIntervalKey.Once, title: "Bank transfer", text: "", recommended: true, info: "" };
+
+/** The sponsor tab's transfer card, holding a form that names no words of its own. */
+const SPONSOR_VARIANT = {
+  key: SupportIntervalKey.Sponsor,
+  title: "Bank transfer",
+  text: "",
+  recommended: false,
+  info: "",
+  sponsorForm: {},
+};
 
 /** The configuration the backend writes for a page with all three tabs. */
 const LADDER = {
@@ -65,7 +84,7 @@ const LADDER = {
   bankAccount: {
     purposeDonation: PURPOSE_DONATION,
     purposeSponsor: PURPOSE_SPONSOR,
-    variants: [{ key: SupportIntervalKey.Once, title: "Bank transfer", text: "", recommended: true, info: "" }],
+    variants: [ONCE_VARIANT, SPONSOR_VARIANT],
   },
   routes: [
     {
@@ -90,6 +109,9 @@ const LADDER = {
   labels: {},
 };
 
+/** The same page with no form under the sponsor tab, so its transfer borrows the single payment's card. */
+const LADDER_WITHOUT_FORM = { ...LADDER, bankAccount: { ...LADDER.bankAccount, variants: [ONCE_VARIANT] } };
+
 /**
  * The marker as it stands in a page's HTML, with the attribute escaped the way
  * the backend escapes it.
@@ -111,6 +133,27 @@ function renderLadder(config: object = LADDER) {
 function line(label: string): string {
   const term = screen.getByText(label, { selector: "dt" });
   return term.nextElementSibling?.textContent ?? "";
+}
+
+/** What every recessed surface carries, a card of the ladder and a well inside it alike. */
+const RECESSED_SURFACE_SELECTOR = ".recessed-gradient-border";
+
+/** The class of the element that holds a tab's blocks, one after another. */
+const LADDER_BODY_SELECTOR = ".mc-support-ladder__body";
+
+/**
+ * The block of the ladder's body that holds an element, which is the card or
+ * the grid it stands in.
+ *
+ * @param container - What the ladder was rendered into.
+ * @param element - An element inside the body.
+ * @returns The body's child that contains it.
+ */
+function blockHolding(container: HTMLElement, element: Element): Element {
+  const body = container.querySelector(LADDER_BODY_SELECTOR);
+  const block = [...(body?.children ?? [])].find((child) => child.contains(element));
+  if (!block) throw new Error("The element stands in no block of the ladder's body.");
+  return block;
 }
 
 /** Chooses a tab and waits for its body to replace the old one. */
@@ -185,6 +228,75 @@ describe("SupportLadder", () => {
     expect(line("Purpose")).toBe(PURPOSE_SPONSOR);
     expect(screen.queryByRole("link", { name: /Open PayPal/ })).toBeNull();
     expect(screen.queryByRole("link", { name: /Open GitHub Sponsors/ })).toBeNull();
+  });
+
+  it("never names a sponsorship on a sponsor tab without a form, at or above the minimum", async () => {
+    renderLadder(LADDER_WITHOUT_FORM);
+
+    await chooseTab("Sponsor", () =>
+      expect((screen.getByLabelText("Your sponsorship") as HTMLInputElement).value).toBe(String(MINIMUM)),
+    );
+
+    expect(line("Purpose")).toBe(PURPOSE_DONATION);
+    expect(screen.queryByText(SUPPORT_LADDER_LABEL_DEFAULTS.fieldReference, { selector: "dt" })).toBeNull();
+  });
+
+  it("stands the amount, the form and the notice in one card, in the order the errand runs", async () => {
+    const { container } = renderLadder();
+    await chooseTab("Sponsor", () => expect(screen.getByLabelText("Your sponsorship")).toBeTruthy());
+
+    const amount = screen.getByLabelText("Your sponsorship");
+    const form = screen.getByRole("form", { name: SPONSOR_FORM_DEFAULTS.submitLabel });
+    const notice = screen.getByText("Sponsors pay by transfer.");
+    const card = blockHolding(container, amount);
+
+    expect(card.contains(form)).toBe(true);
+    expect(card.contains(notice)).toBe(true);
+    expect(amount.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(form.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("draws the free field on the sponsor card under a heading, without a well of its own", async () => {
+    const { container } = renderLadder();
+    await chooseTab("Sponsor", () => expect(screen.getByLabelText("Your sponsorship")).toBeTruthy());
+
+    const amount = screen.getByLabelText("Your sponsorship");
+
+    expect(screen.getByRole("heading", { name: "Your sponsorship" })).toBeTruthy();
+    expect(amount.closest(RECESSED_SURFACE_SELECTOR)).toBe(blockHolding(container, amount));
+  });
+
+  it("keeps the free field in its own well on a tab without a form", () => {
+    const { container } = renderLadder();
+
+    const amount = screen.getByLabelText("Another amount");
+
+    expect(screen.queryByRole("heading", { name: "Another amount" })).toBeNull();
+    expect(amount.closest(RECESSED_SURFACE_SELECTOR)).not.toBe(blockHolding(container, amount));
+  });
+
+  it("sets the notice beside the free field on a tab without suggested amounts or a form", async () => {
+    const { container } = renderLadder(LADDER_WITHOUT_FORM);
+    await chooseTab("Sponsor", () => expect(screen.getByLabelText("Your sponsorship")).toBeTruthy());
+
+    const amount = screen.getByLabelText("Your sponsorship");
+    const notice = screen.getByText("Sponsors pay by transfer.");
+    const grid = blockHolding(container, amount);
+
+    expect(grid.contains(notice)).toBe(true);
+    expect(notice.compareDocumentPosition(amount) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(grid.className).toContain("md:grid-cols-2");
+  });
+
+  it("says nothing about the minimum on a sponsor tab without a form", async () => {
+    renderLadder(LADDER_WITHOUT_FORM);
+    await chooseTab("Sponsor", () => expect(screen.getByLabelText("Your sponsorship")).toBeTruthy());
+    const field = screen.getByLabelText("Your sponsorship");
+
+    fireEvent.change(field, { target: { value: "20" } });
+    fireEvent.blur(field);
+
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("turns a sponsorship below the minimum into a donation, and says so once the field is left", async () => {

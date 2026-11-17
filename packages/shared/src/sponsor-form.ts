@@ -12,8 +12,28 @@
  * follows that sentence with the backend's `MC-*` code and error ID.
  */
 
-/** What the counter under the sentence writes for the characters still free: `{n}`. */
-export const SPONSOR_FORM_REMAINING_PLACEHOLDER = "{n}";
+import { type ShortcodePlaceholder, writtenPlaceholder } from "./markdown-shortcodes/types.js";
+
+/** The name of the placeholder the counter beside the sentence replaces: `n`, written `{n}`. */
+const SPONSOR_FORM_REMAINING_PLACEHOLDER_NAME = "n";
+
+/** What the counter beside the sentence writes for the characters still free: `{n}`. */
+export const SPONSOR_FORM_REMAINING_PLACEHOLDER = writtenPlaceholder(SPONSOR_FORM_REMAINING_PLACEHOLDER_NAME);
+
+/**
+ * One word of the form as the catalogue declares it.
+ *
+ * @property value - The wording used where the shortcode names nothing.
+ * @property label - The name the editor's reference gives it.
+ * @property placeholders - The names in braces the form replaces in it, each
+ *   with what it is replaced by. Absent where the text is shown as it stands,
+ *   which is every word but `claimRemaining`.
+ */
+export interface SponsorFormLabel {
+  value: string;
+  label: string;
+  placeholders?: readonly ShortcodePlaceholder[];
+}
 
 /**
  * The words of the form, each with the wording used when the shortcode names
@@ -24,7 +44,8 @@ export const SPONSOR_FORM_REMAINING_PLACEHOLDER = "{n}";
  * - `linkHint`: the sentence under the fields, saying one address is enough.
  * - `linkInvalid`: what stands there instead when the address cannot be linked.
  * - `claimRemaining`: the counter beside the sentence, with
- *   {@link SPONSOR_FORM_REMAINING_PLACEHOLDER} for the characters still free.
+ *   {@link SPONSOR_FORM_REMAINING_PLACEHOLDER} for the characters still free,
+ *   declared as its placeholder so the editor's reference lists it.
  * - `publishedLabel`: the switch that decides whether the name appears on the site.
  * - `submitLabel`, `submitBusyLabel`: the button, and what it says while the site is asked.
  * - `issuedTitle`, `issuedText`: what replaces the form once a reference is issued.
@@ -45,24 +66,27 @@ export const SPONSOR_FORM_LABELS = {
     label: "The sentence under the fields",
   },
   linkInvalid: {
-    value: "We cannot link to that address. Please give a website or a profile.",
+    value: "We do not recognize that as an address. A website or a profile, please.",
     label: "What the form says about an address it cannot link to",
   },
   claimLabel: { value: "Your sentence", label: "Label of the sentence field" },
   claimRemaining: {
     value: `${SPONSOR_FORM_REMAINING_PLACEHOLDER} characters left`,
-    label: `Counter beside the sentence field. ${SPONSOR_FORM_REMAINING_PLACEHOLDER} stands for the characters still free`,
+    label: "Counter beside the sentence field",
+    placeholders: [
+      { name: SPONSOR_FORM_REMAINING_PLACEHOLDER_NAME, description: "the number of characters still free" },
+    ],
   },
-  publishedLabel: { value: "Show my name on the site", label: "Label of the switch for being named" },
-  submitLabel: { value: "Get my payment reference", label: "Label of the send button" },
+  publishedLabel: { value: "Appear on the page with my name", label: "Label of the switch for being named" },
+  submitLabel: { value: "Send details", label: "Label of the send button" },
   submitBusyLabel: { value: "One moment…", label: "What the send button says while sending" },
-  issuedTitle: { value: "Your details are in.", label: "Heading once the reference is issued" },
+  issuedTitle: { value: "Your details are ready.", label: "Heading once the reference is issued" },
   issuedText: {
-    value: "The transfer below now carries your reference. Once the money arrives, you join the sponsors.",
+    value: "The transfer below now carries your reference. As soon as the money arrives, you appear on the page.",
     label: "Text once the reference is issued",
   },
   changeLabel: { value: "Change my details", label: "Label of the button that opens the form again" },
-  failureTitle: { value: "That did not work", label: "Heading of the dialog a refusal opens" },
+  failureTitle: { value: "That went wrong", label: "Heading of the dialog a refusal opens" },
   failureClose: { value: "Got it", label: "Button that closes that dialog" },
   failureRateLimited: {
     value: "That was a few times just now. Please try again later.",
@@ -73,10 +97,10 @@ export const SPONSOR_FORM_LABELS = {
     label: "What the dialog says when the details were refused",
   },
   failureOffline: {
-    value: "The site could not be reached. Please check your connection and try again.",
+    value: "No connection to the server. Please check your connection.",
     label: "What the dialog says when the site could not be reached",
   },
-} as const satisfies Record<string, { value: string; label: string }>;
+} as const satisfies Record<string, SponsorFormLabel>;
 
 /** The name of one word on the sponsor form. */
 export type SponsorFormLabelKey = keyof typeof SPONSOR_FORM_LABELS;

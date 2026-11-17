@@ -2,13 +2,19 @@ import { describe, expect, it } from "vitest";
 import { ContentContext } from "../content-context.js";
 import { parseShortcodes } from "../markdown-shortcode-parser.js";
 import {
+  SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME,
+  SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME,
+} from "../support-ladder.js";
+import {
   assertRegistryIsUnambiguous,
   getShortcodeDefinition,
   SHORTCODE_DEFINITIONS,
   shortcodesForContext,
 } from "./registry.js";
+import { ShortcodeToken } from "./tokens.js";
 import {
   type ShortcodeDefinition,
+  type ShortcodeParamDefinition,
   ShortcodeParamType,
   ShortcodePlacement,
   ShortcodeRenderMode,
@@ -65,6 +71,75 @@ describe("the registry", () => {
         }
       }
     }
+  });
+});
+
+/**
+ * Every parameter in the registry, nested shortcodes included, with the token it belongs to.
+ *
+ * @returns One entry per parameter, in declaration order.
+ */
+function everyParam(): { token: string; param: ShortcodeParamDefinition }[] {
+  const found: { token: string; param: ShortcodeParamDefinition }[] = [];
+  const walk = (definition: ShortcodeDefinition) => {
+    for (const param of definition.params) found.push({ token: definition.token, param });
+    for (const child of definition.children ?? []) walk(child);
+  };
+  for (const definition of SHORTCODE_DEFINITIONS) walk(definition);
+  return found;
+}
+
+/** Anything written as `{name}`, which is the notation all three kinds share. */
+const BRACED_NAME = /\{[a-zA-Z][a-zA-Z0-9]*\}/;
+
+/** How a placeholder's name is typed between its braces: a letter, then letters and digits. */
+const PLACEHOLDER_NAME = /^[a-zA-Z][a-zA-Z0-9]*$/;
+
+describe("shortcode parameter placeholders", () => {
+  it("names every placeholder as a plain word, the way it is typed", () => {
+    for (const { token, param } of everyParam()) {
+      for (const placeholder of param.placeholders ?? []) {
+        expect(
+          PLACEHOLDER_NAME.test(placeholder.name),
+          `[[${token}]] ${param.name} declares {${placeholder.name}}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("describes every placeholder as the phrase that follows 'is replaced by'", () => {
+    // The panel writes that phrase itself, so a description starting with a
+    // capital reads as a sentence broken in half.
+    for (const { token, param } of everyParam()) {
+      for (const placeholder of param.placeholders ?? []) {
+        expect(placeholder.description[0], `[[${token}]] ${param.name}: ${placeholder.description}`).toBe(
+          placeholder.description[0]?.toLowerCase(),
+        );
+      }
+    }
+  });
+
+  it("declares the support ladder's placeholders on the parameters that accept them", () => {
+    const declared = (token: string, name: string) =>
+      everyParam()
+        .find((entry) => entry.token === token && entry.param.name === name)
+        ?.param.placeholders?.map((placeholder) => placeholder.name);
+
+    expect(declared(ShortcodeToken.SponsorForm, "claimRemaining")).toEqual(["n"]);
+    expect(declared(ShortcodeToken.Interval, "text")).toEqual([SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME]);
+    expect(declared(ShortcodeToken.Interval, "belowMinimum")).toEqual([SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME]);
+  });
+
+  it("never explains a placeholder inside a label", () => {
+    // A placeholder named in prose is findable only by opening that one
+    // shortcode and reading that one sentence, which is what `placeholders`
+    // exists to stop. The panel renders the structured field and cannot render
+    // the sentence.
+    const offenders = everyParam()
+      .filter(({ param }) => param.label !== undefined && BRACED_NAME.test(param.label))
+      .map(({ token, param }) => `[[${token}]] ${param.name}: ${param.label}`);
+
+    expect(offenders).toEqual([]);
   });
 });
 

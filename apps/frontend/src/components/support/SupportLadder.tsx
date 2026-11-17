@@ -5,14 +5,19 @@
 import {
   SPONSOR_FORM_DEFAULTS,
   SUPPORT_LADDER_LABEL_DEFAULTS,
+  SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME,
+  SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME,
   SupportIntervalKey,
   type SupportIntervalKeyValue,
   type SupportLadderConfig,
   SupportRouteToken,
   type SupportRouteTokenValue,
+  writtenPlaceholder,
 } from "@musiccloud/shared";
 import { type CSSProperties, useEffect, useEffectEvent, useReducer, useRef, useSyncExternalStore } from "react";
 
+import { nestedRecessedSurfaceStyle } from "@/components/cards/cardGeometry";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { prefersReducedMotion } from "@/lib/motion/setup";
 import {
@@ -48,10 +53,10 @@ const MONTHS_PER_YEAR = 12;
 const BODY_FADE_MS = 140;
 
 /** What a tab's text writes for the yearly total of the chosen amount: `{annualAmount}`. */
-const YEARLY_TOTAL_PLACEHOLDER = "{annualAmount}";
+const YEARLY_TOTAL_PLACEHOLDER = writtenPlaceholder(SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME);
 
 /** What the sponsor tab's notice writes for the sponsor minimum: `{min}`. */
-const MINIMUM_PLACEHOLDER = "{min}";
+const MINIMUM_PLACEHOLDER = writtenPlaceholder(SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME);
 
 /**
  * The tabs each route out of the page stands under.
@@ -86,9 +91,11 @@ export interface SupportLadderProps {
  * The monthly tab shows the same details as text.
  *
  * Where the page names a `[[sponsorform]]` in the transfer card's variant for
- * the tab in view, the tab asks for the sponsor's details between the amount
- * and the transfer, and from the sponsor minimum up the transfer carries the
- * payment reference the form issued in place of the purpose.
+ * the tab in view, the amount, the form and the tab's notice stand in one card
+ * in that order, and from the sponsor minimum up the transfer carries the
+ * payment reference the form issued in place of the purpose. Any other tab
+ * sets its notice above its amounts, or beside them in two columns from the
+ * `md` width up when it offers no suggested amounts.
  *
  * @param props - See {@link SupportLadderProps}.
  * @returns The ladder.
@@ -154,6 +161,15 @@ export function SupportLadder({ config }: SupportLadderProps) {
     else swapTimer.current = window.setTimeout(show, BODY_FADE_MS);
   }
 
+  /**
+   * Chooses one of the tab's suggested amounts.
+   *
+   * @param next - The amount, in euros.
+   */
+  function chooseAmount(next: number) {
+    dispatch({ type: SupportLadderActionType.ChooseAmount, amountEur: next });
+  }
+
   function enterCustom(value: string) {
     const cleaned = normalizeAmountInput(value);
     dispatch({
@@ -172,7 +188,10 @@ export function SupportLadder({ config }: SupportLadderProps) {
     label: entry.label,
   }));
   const intervalText = interval.text.replaceAll(YEARLY_TOTAL_PLACEHOLDER, formatEuro(amountEur * MONTHS_PER_YEAR));
-  const minimumNotice = interval.belowMinimum.replaceAll(MINIMUM_PLACEHOLDER, formatEuro(floorEur));
+  // Read only where the tab carries a form, which is the one place an amount
+  // can fall short of the sponsor minimum.
+  const minimumNotice = interval.belowMinimum.replaceAll(MINIMUM_PLACEHOLDER, formatEuro(minSponsorAmountEur));
+  const hasOptions = interval.options.length > 0;
 
   // A tab without a transfer block of its own borrows the single payment's,
   // which is the same transfer with a different purpose, and the code keeps
@@ -180,18 +199,18 @@ export function SupportLadder({ config }: SupportLadderProps) {
   const onceVariant = bankAccount?.variants.find((entry) => entry.key === SupportIntervalKey.Once);
   const variant = bankAccount?.variants.find((entry) => entry.key === shownKey) ?? onceVariant;
   const hasPayee = payee.name !== "" && payee.iban !== "";
-  // Below the minimum a payment on the sponsor tab is a donation, so the amount
-  // rather than the tab decides what the transfer says.
-  const earnsSponsorship =
-    shownKey === SupportIntervalKey.Sponsor && minSponsorAmountEur > 0 && amountEur >= minSponsorAmountEur;
-  const remittance =
-    (earnsSponsorship ? bankAccount?.purposeSponsor : undefined) || (bankAccount?.purposeDonation ?? "");
   // The wording of the form, when the transfer card in view carries one. Its
   // presence decides whether this tab asks anything of the reader at all, so
   // the page says where the form belongs, by naming a `[[sponsorform]]` in a
-  // variant, rather than the component deciding it from a key. Only then does
-  // a sponsorship carry a reference.
+  // variant, rather than the component deciding it from a key.
   const sponsorFormText = variant?.sponsorForm ? { ...SPONSOR_FORM_DEFAULTS, ...variant.sponsorForm } : null;
+  // Whether what stands on the ladder buys a sponsorship at all. Only a tab
+  // with a form can announce one, and below the minimum the payment is a
+  // donation whatever was announced, so the form and the amount rather than
+  // the tab decide both the reference and the words on the transfer.
+  const earnsSponsorship = sponsorFormText !== null && minSponsorAmountEur > 0 && amountEur >= minSponsorAmountEur;
+  const remittance =
+    (earnsSponsorship ? bankAccount?.purposeSponsor : undefined) || (bankAccount?.purposeDonation ?? "");
 
   return (
     <section
@@ -219,32 +238,70 @@ export function SupportLadder({ config }: SupportLadderProps) {
         )}
         style={{ "--mc-support-ladder-fade": `${BODY_FADE_MS}ms` } as CSSProperties}
       >
-        {interval.hint && (
-          <LadderNotice>
-            <LadderRichText html={interval.hint} />
-          </LadderNotice>
-        )}
+        {sponsorFormText ? (
+          // One card for everything the sponsor tab asks, because choosing the
+          // amount, saying who you are, and being told the reference is ready
+          // are three steps of one errand rather than three separate offers.
+          <RecessedCard>
+            <div className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]" style={nestedRecessedSurfaceStyle}>
+              <AmountGrid
+                // A fresh tab starts without a complaint about the tab before it.
+                key={shownKey}
+                interval={interval}
+                amountEur={amountEur}
+                customAmount={customAmount}
+                perMonthLabel={text.perMonth}
+                minimumEur={minSponsorAmountEur}
+                minimumNotice={minimumNotice}
+                onChoose={chooseAmount}
+                onCustom={enterCustom}
+                // The card is the surface, so the field takes none of its own.
+                bare
+              />
 
-        <AmountGrid
-          // A fresh tab starts without a complaint about the tab before it.
-          key={shownKey}
-          interval={interval}
-          amountEur={amountEur}
-          customAmount={customAmount}
-          perMonthLabel={text.perMonth}
-          minimumEur={floorEur}
-          minimumNotice={minimumNotice}
-          onChoose={(next) => dispatch({ type: SupportLadderActionType.ChooseAmount, amountEur: next })}
-          onCustom={enterCustom}
-        />
+              <SponsorStep
+                issued={issued}
+                amountEur={amountEur}
+                earnsSponsorship={earnsSponsorship}
+                text={sponsorFormText}
+              />
 
-        {sponsorFormText && (
-          <SponsorStep
-            issued={issued}
-            amountEur={amountEur}
-            earnsSponsorship={earnsSponsorship}
-            text={sponsorFormText}
-          />
+              {/* Last, because it is the thing to read once before acting
+                  rather than a step of its own. */}
+              {interval.hint && (
+                <LadderNotice>
+                  <LadderRichText html={interval.hint} />
+                </LadderNotice>
+              )}
+            </div>
+          </RecessedCard>
+        ) : (
+          // Every other tab keeps its blocks apart, since its amounts are read
+          // against each other. A tab with a single field has room to set the
+          // notice beside it, and the two are read together.
+          <div
+            className={cn("grid gap-[var(--mc-gap-rowitem,0.75rem)]", interval.hint && !hasOptions && "md:grid-cols-2")}
+          >
+            {interval.hint && (
+              <LadderNotice inset={!hasOptions}>
+                <LadderRichText html={interval.hint} />
+              </LadderNotice>
+            )}
+
+            <AmountGrid
+              key={shownKey}
+              interval={interval}
+              amountEur={amountEur}
+              customAmount={customAmount}
+              perMonthLabel={text.perMonth}
+              // Without a form nothing on this tab earns a sponsorship, so no
+              // amount falls short of one.
+              minimumEur={0}
+              minimumNotice=""
+              onChoose={chooseAmount}
+              onCustom={enterCustom}
+            />
+          </div>
         )}
 
         {bankAccount && variant && hasPayee && (
@@ -256,7 +313,7 @@ export function SupportLadder({ config }: SupportLadderProps) {
             amountText={formatEuro(amountEur)}
             monthly={shownKey === SupportIntervalKey.Monthly}
             remittance={remittance}
-            referenceLine={sponsorFormText !== null && earnsSponsorship}
+            referenceLine={earnsSponsorship}
             issued={issued}
             showQr={shownKey !== SupportIntervalKey.Monthly}
             text={text}

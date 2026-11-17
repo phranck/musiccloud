@@ -78,6 +78,25 @@ describe("ShortcodeList", () => {
     }
   });
 
+  it("lists every declared placeholder under its parameter, nested shortcodes included", () => {
+    const { container } = render(<ShortcodeList />);
+    const text = container.textContent ?? "";
+    const declared: string[] = [];
+    const walk = (definition: ShortcodeDefinition) => {
+      for (const param of definition.params) {
+        for (const placeholder of param.placeholders ?? []) {
+          declared.push(`{${placeholder.name}} is replaced by ${placeholder.description}`);
+        }
+      }
+      for (const child of definition.children ?? []) walk(child);
+    };
+    for (const definition of SHORTCODE_DEFINITIONS) walk(definition);
+
+    // The sponsor form's counter declares one, so the panel has at least that to show.
+    expect(declared.length).toBeGreaterThan(0);
+    for (const line of declared) expect(text, line).toContain(line);
+  });
+
   it("shows every declared example, indented as the editor indents it", () => {
     const { container } = render(<ShortcodeList />);
     const text = container.textContent ?? "";
@@ -91,7 +110,7 @@ describe("ShortcodeList", () => {
   });
 });
 
-describe("ShortcodeList — a default that lives in the stylesheet", () => {
+describe("ShortcodeList with a default that lives in the stylesheet", () => {
   /** A definition whose default names a custom property instead of stating a figure. */
   const WITH_TOKEN_DEFAULT: ShortcodeDefinition = {
     token: "spaced",

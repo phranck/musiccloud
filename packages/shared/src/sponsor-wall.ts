@@ -14,13 +14,21 @@
  * allowlist with {@link mapSponsorWallHtml}.
  */
 
+import { writtenPlaceholder } from "./markdown-shortcodes/types.js";
 import { SUPPORT_LADDER_LIMITS } from "./support-ladder.js";
 
 /** The attribute that carries the wall's texts: `data-mc-sponsor-wall`. */
 export const SPONSOR_WALL_ATTRIBUTE = "data-mc-sponsor-wall";
 
-/** The placeholder a `missing` text writes where the amount still outstanding goes. */
-export const SPONSOR_WALL_MISSING_PLACEHOLDER = "{missing}";
+/**
+ * The name of the placeholder a `missing` text accepts for the amount still
+ * outstanding: `missing`, written `{missing}`. The site replaces it, and the
+ * `[[sponsors]]` shortcode declares it.
+ */
+export const SPONSOR_WALL_MISSING_PLACEHOLDER_NAME = "missing";
+
+/** The placeholder a `missing` text writes where the amount still outstanding goes: `{missing}`. */
+export const SPONSOR_WALL_MISSING_PLACEHOLDER = writtenPlaceholder(SPONSOR_WALL_MISSING_PLACEHOLDER_NAME);
 
 /**
  * The wall's texts, as the backend rendered them.

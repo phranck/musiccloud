@@ -77,7 +77,7 @@ export interface TransferCardProps {
   remittance: string;
   /**
    * Whether the transfer announces a sponsorship and so carries a reference
-   * line: on the sponsor tab with a form, at or above the sponsor minimum.
+   * line: on a tab whose variant holds a sponsor form, at or above the sponsor minimum.
    */
   referenceLine: boolean;
   /** The reference this browser was issued, or `null` before one exists, which masks the line. */
