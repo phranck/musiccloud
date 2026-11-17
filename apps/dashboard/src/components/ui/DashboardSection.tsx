@@ -152,15 +152,71 @@ function DashboardSectionHeader({
 
 /* ---- DashboardSection.Body ---------------------------------------- */
 
-function DashboardSectionBody({ children, className = "", flush = false }: DashboardSectionBodyProps) {
-  const { expanded, hasFooter } = use(DashboardSectionContext);
+/** Props of {@link CollapseRegion}. */
+interface CollapseRegionProps {
+  /** Whether the region stands open at its content's full height, or closed at none. */
+  expanded: boolean;
+  /** What opens and closes. */
+  children: ReactNode;
+}
 
-  if (!expanded) return null;
+/**
+ * Wraps the body of a section with its own toggle, so it grows and shrinks
+ * instead of jumping, as lmaa.space's collapsible section does.
+ *
+ * The browser animates the height through one property: a grid whose single
+ * row goes from `0fr` to `1fr` grows to the height its content needs, and
+ * everything below is carried by ordinary layout. Nothing measures and nothing
+ * runs per frame. The duration and the easing are the dashboard's motion tokens
+ * `--ds-duration-base` and `--ds-ease`; under `prefers-reduced-motion` the
+ * duration shortens to `--ds-duration-fast` rather than vanishing.
+ *
+ * The content stays in the document while closed, because an element that has
+ * already left it cannot be animated out, and it is marked `inert`, so what
+ * cannot be seen cannot be reached by keyboard either. The region clips its
+ * content at every height, so a popover inside it must not rely on reaching
+ * past the section's edge.
+ *
+ * @param props - See {@link CollapseRegionProps}.
+ * @returns The region.
+ */
+function CollapseRegion({ expanded, children }: CollapseRegionProps) {
+  return (
+    <div
+      className={`grid transition-[grid-template-rows] duration-[var(--ds-duration-base)] ease-[var(--ds-ease)] motion-reduce:duration-[var(--ds-duration-fast)] ${
+        expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+      }`}
+    >
+      <div className="min-h-0 overflow-hidden" inert={!expanded}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The content of a {@link DashboardSection}.
+ *
+ * In a section with its own toggle (`onExpandedChange` given), the body opens
+ * and closes through {@link CollapseRegion}. In a section whose visibility a
+ * caller controls through `expanded` alone, the body leaves the document while
+ * closed, as it always has there, because those callers render their own
+ * controls into it and rely on that.
+ *
+ * @param props - See {@link DashboardSectionBodyProps}.
+ * @returns The body, or `null` while a section without its own toggle is closed.
+ */
+function DashboardSectionBody({ children, className = "", flush = false }: DashboardSectionBodyProps) {
+  const { expanded, hasFooter, toggleExpanded } = use(DashboardSectionContext);
 
   const baseClass = flush
     ? `flex flex-col overflow-hidden ${hasFooter ? "" : "rounded-b-xl"}`
     : "flex flex-col gap-3 p-3";
-  return <div className={`${baseClass} ${className}`}>{children}</div>;
+  const body = <div className={`${baseClass} ${className}`}>{children}</div>;
+
+  if (toggleExpanded) return <CollapseRegion expanded={expanded}>{body}</CollapseRegion>;
+  if (!expanded) return null;
+  return body;
 }
 
 /* ---- DashboardSection.Footer -------------------------------------- */

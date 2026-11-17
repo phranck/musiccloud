@@ -122,11 +122,13 @@ describe("SupportPromptsPage", () => {
     renderPage();
     await rowOf("Share page ask");
     const save = screen.getByRole("button", { name: dashboardCopy.common.save }) as HTMLButtonElement;
-    expect(screen.queryByLabelText(text.maxShownLabel)).toBeNull();
+    // Closed, the limits stay in the document so they can animate, but out of reach.
+    expect(screen.getByLabelText(text.maxShownLabel).closest("[inert]")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: text.limitsTitle }));
     expect(localStorage.getItem("support-prompts-limits-open")).toBe("true");
     const maxShown = (await screen.findByLabelText(text.maxShownLabel)) as HTMLInputElement;
+    expect(maxShown.closest("[inert]")).toBeNull();
     await waitFor(() => expect(maxShown.value).toBe(String(STORED_LIMITS.maxShown)));
     expect(save.disabled).toBe(true);
 
