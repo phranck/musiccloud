@@ -83,6 +83,7 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "app_attest_challenges",
   "donations",
   "sponsors",
+  "sponsor_avatars",
 ] as const;
 
 const VINYL_WRITE_TABLES = ["vinyl_layouts"] as const;
@@ -106,9 +107,10 @@ const DEVELOPER_PORTAL_WRITE_TABLES = ["developer_portal_availability_events"] a
 const APP_ATTEST_WRITE_TABLES = ["app_attest_keys", "app_attest_challenges"] as const;
 /**
  * The donations ledger, which every funding figure on the site and in the
- * dashboard is summed from, and the annual sponsors its payments are linked to.
+ * dashboard is summed from, the annual sponsors its payments are linked to,
+ * and the copies of their pictures.
  */
-const SPONSORING_WRITE_TABLES = ["donations", "sponsors"] as const;
+const SPONSORING_WRITE_TABLES = ["donations", "sponsors", "sponsor_avatars"] as const;
 const RUNTIME_WRITE_TABLES = [
   ...VINYL_WRITE_TABLES,
   ...CONTEXTUAL_EDITORIAL_WRITE_TABLES,

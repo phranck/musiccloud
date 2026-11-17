@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FundingWindowDays, fundingWindowStart } from "./donations.js";
-import {
-  isSponsorInputValid,
-  isSponsorLink,
-  SPONSOR_YEAR_DAYS,
-  type SponsorInput,
-  sponsorDaysLeft,
-} from "./sponsors.js";
+import { normalizeSponsorInput, SPONSOR_YEAR_DAYS, type SponsorInput, sponsorDaysLeft } from "./sponsors.js";
 
 /** The day the tests count from. */
 const TODAY = "2026-11-17";
@@ -30,40 +24,49 @@ describe("sponsorDaysLeft", () => {
   });
 });
 
-describe("isSponsorLink", () => {
-  it.each(["https://chaos.social/@ada", "https://github.com/ada", "https://ada.example"])("accepts %s", (link) => {
-    expect(isSponsorLink(link)).toBe(true);
-  });
-
-  it.each([
-    "http://ada.example",
-    "javascript:alert(1)",
-    "https://ada:secret@ada.example",
-    "https://",
-    `https://ada.example/${"x".repeat(500)}`,
-  ])("refuses %s", (link) => {
-    expect(isSponsorLink(link)).toBe(false);
-  });
-});
-
-describe("isSponsorInputValid", () => {
+describe("normalizeSponsorInput", () => {
   const valid: SponsorInput = {
-    name: "Ada",
-    links: ["https://ada.example"],
-    claim: "",
+    name: " Ada ",
+    socialMedia: [
+      { platform: "mastodon", url: "https://chaos.social/@ada/" },
+      { platform: "website", url: "ada.example" },
+    ],
+    avatarId: null,
+    claim: " Music for everybody. ",
     published: false,
     paidOn: TODAY,
   };
 
-  it("accepts a sponsor with real addresses and a real day", () => {
-    expect(isSponsorInputValid(valid)).toBe(true);
+  it("trims the text and stores every address in its canonical form", () => {
+    expect(normalizeSponsorInput(valid)).toEqual({
+      name: "Ada",
+      socialMedia: [
+        { platform: "mastodon", url: "https://chaos.social/@ada" },
+        { platform: "website", url: "https://ada.example" },
+      ],
+      avatarId: null,
+      claim: "Music for everybody.",
+      published: false,
+      paidOn: TODAY,
+    });
   });
 
   it.each<[string, Partial<SponsorInput>]>([
     ["a name of spaces", { name: "  " }],
-    ["an address that is not https", { links: ["ftp://ada.example"] }],
+    [
+      "an address that does not fit its platform",
+      { socialMedia: [{ platform: "bluesky", url: "https://ada.example" }] },
+    ],
+    [
+      "a website on a scheme that reaches no page",
+      { socialMedia: [{ platform: "website", url: "ftp://ada.example" }] },
+    ],
+    [
+      "a website with a password in it",
+      { socialMedia: [{ platform: "website", url: "https://ada:secret@ada.example" }] },
+    ],
     ["a day that does not exist", { paidOn: "2026-02-30" }],
   ])("refuses %s", (_case, change) => {
-    expect(isSponsorInputValid({ ...valid, ...change })).toBe(false);
+    expect(normalizeSponsorInput({ ...valid, ...change })).toBeNull();
   });
 });

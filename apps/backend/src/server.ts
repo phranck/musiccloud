@@ -82,6 +82,7 @@ import servicesPublicRoutes from "./routes/services-public.js";
 import shareRoutes from "./routes/share.js";
 import sharePreviewRoutes from "./routes/share-preview.js";
 import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
+import sponsorAvatarRoutes from "./routes/sponsor-avatar.js";
 import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
 import { isEmailProviderHealthy } from "./services/email-provider.js";
@@ -614,6 +615,9 @@ async function buildApp(options: BuildAppOptions = {}) {
 
   // Genre artwork endpoint (public, no auth - referenced from browse grid tiles)
   await app.register(genreArtworkRoutes);
+  // Sponsors' pictures (public, no auth - the support page's wall and the
+  // dashboard's sponsor card load them as <img> sources)
+  await app.register(sponsorAvatarRoutes);
 
   // Email asset serve endpoint (public, no auth - sent-email <img> tags are
   // fetched by the recipient's mail client, which has no admin JWT to

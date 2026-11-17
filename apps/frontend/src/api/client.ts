@@ -405,6 +405,25 @@ export async function fetchGenreArtwork(genreKey: string, clientIp?: string): Pr
   );
 }
 
+/** How long the site waits for a sponsor's picture: 5 seconds, since it is a stored row and never generated. */
+const SPONSOR_AVATAR_TIMEOUT_MS = 5000;
+
+/**
+ * Fetch a sponsor's stored picture from the backend, so the Astro proxy can
+ * serve it from the site's own origin with the upstream headers intact.
+ *
+ * @param avatarId - The picture's id, the SHA-256 of its bytes.
+ * @param clientIp - The visitor's address, forwarded for the backend's rate limit.
+ * @returns The backend's response, unread.
+ */
+export async function fetchSponsorAvatar(avatarId: string, clientIp?: string): Promise<Response> {
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.v1.sponsorAvatar(avatarId)),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    SPONSOR_AVATAR_TIMEOUT_MS,
+  );
+}
+
 /**
  * Fetch a stored email image asset's bytes from the backend by id (MC-079).
  *

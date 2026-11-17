@@ -29,6 +29,10 @@
     "./platform-icon": {
       "import": "./dist/platform-icon/index.js",
       "types": "./dist/platform-icon/index.d.ts"
+    },
+    "./social-media": {
+      "import": "./dist/social-media/index.js",
+      "types": "./dist/social-media/index.d.ts"
     }
   },
   "files": [
@@ -42,16 +46,20 @@
   },
   "peerDependencies": {
     "@phosphor-icons/react": "^2.1.10",
-    "react": "^19.2.4"
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@phosphor-icons/react": "^2.1.10",
     "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "typescript": "~5.9.3"
   },
   "dependencies": {
     "@musiccloud/shared": "workspace:*",
+    "react-icons": "5.5.0",
     "recharts": "^3.10.1"
   }
 }
