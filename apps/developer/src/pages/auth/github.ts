@@ -1,4 +1,4 @@
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { backendUrl, internalHeaders } from "@/lib/api";
 
@@ -35,7 +35,7 @@ const LOGIN_OAUTH_ERROR = "/login?error=oauth";
  * URL, so the failure surfaces as an inline notice on the sign-in page.
  *
  * @param context - Astro API route context; `cookies` sets the state cookie,
- *   `clientAddress` is forwarded so the backend rate-limits per visitor, and
+ *   the visitor address is forwarded so the backend rate-limits per visitor, and
  *   `redirect` issues the 302.
  * @returns A redirect to the GitHub authorize URL, or to the login page on error.
  */
@@ -44,7 +44,7 @@ export const GET: APIRoute = async (context) => {
 
   try {
     const res = await fetch(`${backendUrl(ENDPOINTS.dev.auth.github.start)}?intent=${intent}`, {
-      headers: internalHeaders(context.clientAddress),
+      headers: internalHeaders(visitorAddress(context)),
     });
     if (!res.ok) return context.redirect(LOGIN_OAUTH_ERROR);
 

@@ -9,7 +9,7 @@
 import "../styles/fonts.css";
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, visitorAddress } from "@musiccloud/shared";
 import { fetchNavigation } from "@/api/client";
 import NightSkyBackground from "@/components/background/NightSkyBackground.astro";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
@@ -28,7 +28,7 @@ interface Props {
 }
 
 const { title, description, canonicalUrl, preloadImage, noindex, showHeader = true } = Astro.props;
-const headerNav = showHeader ? await fetchNavigation("header", Astro.clientAddress) : [];
+const headerNav = showHeader ? await fetchNavigation("header", visitorAddress(Astro)) : [];
 ---
 
 <!doctype html>

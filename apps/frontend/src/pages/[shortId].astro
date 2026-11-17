@@ -8,7 +8,7 @@
  */
 export const prerender = false;
 
-import { type ApiErrorResponse, type PublicContentPage, type SharePageResponse, SITE_ORIGIN } from "@musiccloud/shared";
+import { type ApiErrorResponse, type PublicContentPage, type SharePageResponse, SITE_ORIGIN, visitorAddress } from "@musiccloud/shared";
 import { fetchPublicContentPage, fetchRandomExample, fetchShareData } from "@/api/client";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { ContentPageMarkdown } from "@/components/layout/ContentPageMarkdown";
@@ -40,7 +40,7 @@ if (!shortId) {
 }
 
 const renderStaticContent = isBot(Astro.request.headers.get("user-agent"));
-const clientIp = Astro.clientAddress;
+const clientIp = visitorAddress(Astro);
 const correlationId = crypto.randomUUID();
 const shareTiming = { correlationId, contentFetchMs: 0, shareFetchMs: 0 };
 Astro.locals.shareTiming = shareTiming;

@@ -1,4 +1,5 @@
 ---
+import { visitorAddress } from "@musiccloud/shared";
 /**
  * Server Island wrapper for the app footer.
  *
@@ -10,7 +11,7 @@
  */
 import { fetchNavigation } from "@/api/client";
 import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
-const footerNav = await fetchNavigation("footer", Astro.clientAddress);
+const footerNav = await fetchNavigation("footer", visitorAddress(Astro));
 ---
 
 <div class="animate-slide-up-in">

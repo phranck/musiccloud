@@ -7,7 +7,7 @@
  * Browser-side calls (the interactive panels) live in `apiAccessClient.ts`;
  * both share the same DTO shapes.
  */
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, visitorAddress } from "@musiccloud/shared";
 import type { AstroGlobal } from "astro";
 import { backendUrl, internalHeaders } from "@/lib/api";
 import type { ApiClientDto, DeveloperProjectDto, ProjectUsageDto } from "@/lib/apiAccessClient";
@@ -21,7 +21,7 @@ const SESSION_COOKIE_NAME = "mc_dev_session";
  * page can branch without a try/catch, distinguishing "no clients" (`[]`)
  * from "could not load" (`null`).
  *
- * @param astro - The Astro global; only `cookies` and `clientAddress` are read.
+ * @param astro - The Astro global; only `cookies`, `request` and `clientAddress` are read.
  * @returns The client list, or `null` when the data could not be loaded.
  */
 export async function getOwnApiClients(astro: AstroGlobal): Promise<ApiClientDto[] | null> {
@@ -30,7 +30,7 @@ export async function getOwnApiClients(astro: AstroGlobal): Promise<ApiClientDto
 
   try {
     const res = await fetch(backendUrl(ENDPOINTS.dev.apiAccess.clientsList), {
-      headers: internalHeaders(astro.clientAddress, {
+      headers: internalHeaders(visitorAddress(astro), {
         cookie: `${SESSION_COOKIE_NAME}=${sessionCookie}`,
       }),
     });
@@ -50,7 +50,7 @@ export async function getOwnApiClients(astro: AstroGlobal): Promise<ApiClientDto
  * project has never been called" from "the figures could not be loaded", which
  * are two different things to say to a developer.
  *
- * @param astro - The Astro global; only `cookies` and `clientAddress` are read.
+ * @param astro - The Astro global; only `cookies`, `request` and `clientAddress` are read.
  * @param projectId - The project to report on.
  * @returns The usage report, or `null` when it could not be loaded.
  */
@@ -60,7 +60,7 @@ export async function getProjectUsage(astro: AstroGlobal, projectId: string): Pr
 
   try {
     const res = await fetch(backendUrl(ENDPOINTS.dev.apiAccess.projectUsage(projectId)), {
-      headers: internalHeaders(astro.clientAddress, {
+      headers: internalHeaders(visitorAddress(astro), {
         cookie: `${SESSION_COOKIE_NAME}=${sessionCookie}`,
       }),
     });
@@ -90,7 +90,7 @@ export interface OwnProjects {
  * both render before any island hydrates, which is why this is a server read
  * rather than a second browser request.
  *
- * @param astro - The Astro global; only `cookies` and `clientAddress` are read.
+ * @param astro - The Astro global; only `cookies`, `request` and `clientAddress` are read.
  * @returns The projects with their ceiling, or `null` when the data could not
  *   be loaded, so a caller can tell that apart from holding no projects.
  */
@@ -114,7 +114,7 @@ async function readOwnProjects(astro: AstroGlobal): Promise<OwnProjects | null> 
 
   try {
     const res = await fetch(backendUrl(ENDPOINTS.dev.apiAccess.projects), {
-      headers: internalHeaders(astro.clientAddress, {
+      headers: internalHeaders(visitorAddress(astro), {
         cookie: `${SESSION_COOKIE_NAME}=${sessionCookie}`,
       }),
     });

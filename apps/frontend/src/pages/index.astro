@@ -1,5 +1,5 @@
 ---
-import { SITE_ORIGIN } from "@musiccloud/shared";
+import { SITE_ORIGIN, visitorAddress } from "@musiccloud/shared";
 import { fetchCcRandomExample, fetchNavigation, fetchRandomExample } from "@/api/client";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
@@ -9,9 +9,9 @@ import { SHARE_REDIRECT_SCRIPT } from "@/lib/inline-scripts";
 // Independent calls, requested together: the first byte waits for the slowest
 // of them, not for their sum.
 const [footerNav, randomExample, ccRandomExample] = await Promise.all([
-  fetchNavigation("footer", Astro.clientAddress),
-  fetchRandomExample(Astro.clientAddress),
-  fetchCcRandomExample(Astro.clientAddress),
+  fetchNavigation("footer", visitorAddress(Astro)),
+  fetchRandomExample(visitorAddress(Astro)),
+  fetchCcRandomExample(visitorAddress(Astro)),
 ]);
 const exampleShortId = randomExample?.shortId ?? null;
 const ccExampleShortId = ccRandomExample?.shortId ?? null;

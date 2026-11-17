@@ -1,4 +1,4 @@
-import { createApiErrorBody } from "@musiccloud/shared";
+import { createApiErrorBody, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { backendUrl, INTERNAL_API_KEY } from "@/lib/api";
 
@@ -75,7 +75,8 @@ function resolveBackendTarget(path: string): URL | null {
  * copied by the generic header loop below.
  *
  * @param context - Astro API route context: `params.path` is the wildcard tail,
- *   `request` the inbound browser request, `clientAddress` the real visitor IP.
+ *   `request` the inbound browser request, `clientAddress` the address Astro
+ *   worked out, which `visitorAddress` replaces with the one the ingress appended.
  * @returns The backend's response, streamed back with status + headers intact.
  */
 export const ALL: APIRoute = async ({ params, request, clientAddress }) => {
@@ -91,7 +92,8 @@ export const ALL: APIRoute = async ({ params, request, clientAddress }) => {
 
   const headers = new Headers();
   if (INTERNAL_API_KEY) headers.set("X-API-Key", INTERNAL_API_KEY);
-  if (clientAddress) headers.set("X-Forwarded-For", clientAddress);
+  const visitor = visitorAddress({ request, clientAddress });
+  if (visitor) headers.set("X-Forwarded-For", visitor);
   const cookie = request.headers.get("cookie");
   if (cookie) headers.set("cookie", cookie);
   const contentType = request.headers.get("content-type");

@@ -16,6 +16,7 @@ describe("GET /api/artist-info", () => {
 
     const response = await GET({
       url: new URL("https://musiccloud.test/api/artist-info?artistEntityId=artist-entity-1&shortId=share1"),
+      request: new Request("https://musiccloud.test/api/artist-info"),
       clientAddress: "203.0.113.10",
     } as Parameters<typeof GET>[0]);
 
@@ -27,9 +28,25 @@ describe("GET /api/artist-info", () => {
     });
   });
 
+  it("forwards the address the ingress appended, not the one the caller forged", async () => {
+    fetchArtistInfoMock.mockResolvedValue(new Response(JSON.stringify({ artistName: "Canonical Artist" })));
+
+    await GET({
+      url: new URL("https://musiccloud.test/api/artist-info?artistEntityId=artist-entity-1"),
+      request: new Request("https://musiccloud.test/api/artist-info", {
+        headers: { "x-forwarded-for": "198.51.100.7, 203.0.113.20" },
+      }),
+      // What Astro works out: the first, forged value.
+      clientAddress: "198.51.100.7",
+    } as Parameters<typeof GET>[0]);
+
+    expect(fetchArtistInfoMock.mock.calls[0]?.[2]).toBe("203.0.113.20");
+  });
+
   it("keeps local validation in the canonical public error envelope", async () => {
     const response = await GET({
       url: new URL("https://musiccloud.test/api/artist-info"),
+      request: new Request("https://musiccloud.test/api/artist-info"),
       clientAddress: "203.0.113.10",
     } as Parameters<typeof GET>[0]);
 
@@ -46,6 +63,7 @@ describe("GET /api/artist-info", () => {
 
     const response = await GET({
       url: new URL("https://musiccloud.test/api/artist-info?artistEntityId=artist-entity-1"),
+      request: new Request("https://musiccloud.test/api/artist-info"),
       clientAddress: "203.0.113.10",
     } as Parameters<typeof GET>[0]);
 

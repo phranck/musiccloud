@@ -1,6 +1,6 @@
 export const prerender = false;
 
-import { parseJamendoAudioFormat } from "@musiccloud/shared";
+import { parseJamendoAudioFormat, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { fetchCcDownload } from "@/api/client";
 
@@ -20,7 +20,7 @@ export const GET: APIRoute = async ({ params, request, clientAddress }) => {
 
   const formatParam = new URL(request.url).searchParams.get("format");
   const format = formatParam ? parseJamendoAudioFormat(formatParam) : undefined;
-  const upstream = await fetchCcDownload(jamendoId, clientAddress, format);
+  const upstream = await fetchCcDownload(jamendoId, visitorAddress({ request, clientAddress }), format);
   if (!upstream.ok) return new Response(null, { status: upstream.status });
 
   const headers = new Headers();

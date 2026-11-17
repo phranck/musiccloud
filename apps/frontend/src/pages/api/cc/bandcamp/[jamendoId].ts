@@ -1,3 +1,4 @@
+import { visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { fetchCcBandcamp } from "@/api/client";
 
@@ -8,11 +9,11 @@ export const prerender = false;
  * The CC share page loads the Bandcamp presence through this async, after the
  * core card renders. Forwards the visitor IP for the backend's per-IP rate limiter.
  */
-export const GET: APIRoute = async ({ params, clientAddress }) => {
+export const GET: APIRoute = async ({ request, params, clientAddress }) => {
   const jamendoId = params.jamendoId;
   if (!jamendoId) return new Response(null, { status: 400 });
 
-  const res = await fetchCcBandcamp(jamendoId, clientAddress);
+  const res = await fetchCcBandcamp(jamendoId, visitorAddress({ request, clientAddress }));
   return new Response(res.body, {
     status: res.status,
     headers: { "Content-Type": "application/json" },

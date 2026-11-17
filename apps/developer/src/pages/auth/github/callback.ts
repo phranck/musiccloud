@@ -1,4 +1,4 @@
-import { ENDPOINTS, INVITATION_PASS_COOKIE_NAME } from "@musiccloud/shared";
+import { ENDPOINTS, INVITATION_PASS_COOKIE_NAME, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { backendUrl, internalHeaders } from "@/lib/api";
 
@@ -60,7 +60,7 @@ function redirectWithCookies(location: string, setCookies: string[]): Response {
  * cleared, and the developer is sent to `/dashboard`.
  *
  * @param context - Astro API route context; `url` carries the query params,
- *   `cookies` reads the state cookie, `clientAddress` is forwarded for rate
+ *   `cookies` reads the state cookie, the visitor address is forwarded for rate
  *   limiting.
  * @returns A redirect to `/dashboard` on success, or to `/login?error=oauth`.
  */
@@ -84,7 +84,7 @@ export const GET: APIRoute = async (context) => {
     const res = await fetch(backendUrl(ENDPOINTS.dev.auth.github.exchange), {
       method: "POST",
       headers: internalHeaders(
-        context.clientAddress,
+        visitorAddress(context),
         pass ? { cookie: `${INVITATION_PASS_COOKIE_NAME}=${pass}` } : undefined,
       ),
       body: JSON.stringify({ code, state }),

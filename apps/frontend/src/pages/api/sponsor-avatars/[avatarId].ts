@@ -1,4 +1,4 @@
-import { SPONSOR_AVATAR_ID_PATTERN } from "@musiccloud/shared";
+import { SPONSOR_AVATAR_ID_PATTERN, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { fetchSponsorAvatar } from "@/api/client";
 
@@ -18,12 +18,12 @@ const FORWARDED_HEADERS = ["Content-Type", "Cache-Control", "X-Content-Type-Opti
  * An id that is not a SHA-256 in hex is answered 404 without asking the
  * backend, and the backend's own status passes through otherwise.
  */
-export const GET: APIRoute = async ({ params, clientAddress }) => {
+export const GET: APIRoute = async ({ request, params, clientAddress }) => {
   const avatarId = params.avatarId ?? "";
   if (!AVATAR_ID.test(avatarId)) return new Response(null, { status: 404 });
 
   try {
-    const upstream = await fetchSponsorAvatar(avatarId, clientAddress);
+    const upstream = await fetchSponsorAvatar(avatarId, visitorAddress({ request, clientAddress }));
     if (!upstream.ok) return new Response(null, { status: upstream.status });
     const headers = new Headers();
     for (const name of FORWARDED_HEADERS) {

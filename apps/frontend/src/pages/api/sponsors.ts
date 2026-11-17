@@ -1,3 +1,4 @@
+import { visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { fetchSponsors } from "@/api/client";
 
@@ -14,9 +15,9 @@ const FORWARDED_HEADERS = ["Content-Type", "Cache-Control"];
  * The backend's status passes through, and an unreachable backend is answered
  * 503, which the wall shows as no sponsors rather than as an error.
  */
-export const GET: APIRoute = async ({ clientAddress }) => {
+export const GET: APIRoute = async ({ request, clientAddress }) => {
   try {
-    const upstream = await fetchSponsors(clientAddress);
+    const upstream = await fetchSponsors(visitorAddress({ request, clientAddress }));
     if (!upstream.ok) return new Response(null, { status: upstream.status });
     const headers = new Headers();
     for (const name of FORWARDED_HEADERS) {
