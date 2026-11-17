@@ -43,6 +43,25 @@ export interface SponsorWallConfig {
   emptyAction: string;
 }
 
+/**
+ * What the wall says where the page says nothing, as rendered HTML, translated
+ * from lmaa.space's defaults.
+ *
+ * - `text`: empty, so the block is introduced by the page's own heading.
+ * - `covered` and `missing`: the sentence under the cards.
+ * - `empty`: two paragraphs, because the placeholder card draws the first as its
+ *   headline; the second says what a sponsor gets, which answers "why me".
+ * - `emptyAction`: the placeholder button's label.
+ */
+export const SPONSOR_WALL_DEFAULTS: SponsorWallConfig = {
+  text: "",
+  covered: "<p>This year's running costs are covered. Every further contribution goes into the work on musiccloud.</p>",
+  missing: `<p>${SPONSOR_WALL_MISSING_PLACEHOLDER} to go until this year's running costs are covered.</p>`,
+  empty:
+    "<p><strong>This place is yours.</strong></p><p>Whoever carries the running costs first stands here, with picture, name and a sentence of their own, for a year from the day the transfer arrives.</p>",
+  emptyAction: "Become the first sponsor",
+};
+
 /** The fields of {@link SponsorWallConfig} that hold rendered HTML, so the sanitizer reaches every one. */
 const SPONSOR_WALL_HTML_KEYS = ["text", "covered", "missing", "empty"] as const;
 

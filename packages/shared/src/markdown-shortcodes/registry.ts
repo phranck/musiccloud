@@ -10,8 +10,8 @@ import { ICON_SHORTCODE } from "./icon.js";
 import { CARD_ROW_SHORTCODE, CARD_SHORTCODE } from "./layout.js";
 import { IMAGE_SHORTCODE, PDF_SHORTCODE, YOUTUBE_SHORTCODE } from "./media.js";
 import { PLANS_SHORTCODE } from "./plans.js";
-import { HSTACK_SHORTCODE, SPACER_SHORTCODE, VSTACK_SHORTCODE } from "./stacks.js";
 import { SPONSORS_SHORTCODE } from "./sponsors.js";
+import { HSTACK_SHORTCODE, SPACER_SHORTCODE, VSTACK_SHORTCODE } from "./stacks.js";
 import { SUPPORT_LADDER_SHORTCODE } from "./support-ladder.js";
 import { type ShortcodeDefinition, ShortcodeSyntax } from "./types.js";
 

@@ -226,7 +226,7 @@ button,
    instead, so the ladder sets its type on the wrappers and these inherit it.
    Two classes and an element outweigh a prose rule's one class and one
    element, so this holds whichever surface renders the page. */
-.mc-markdown .mc-support-ladder :is(p, h1, h2, h3) {
+.mc-markdown :is(.mc-support-ladder, .mc-sponsor-wall) :is(p, h1, h2, h3) {
   margin: 0;
   font-size: inherit;
   line-height: inherit;
@@ -234,13 +234,20 @@ button,
   color: inherit;
 }
 
-.mc-markdown .mc-support-ladder p + p {
+.mc-markdown :is(.mc-support-ladder, .mc-sponsor-wall) p + p {
   margin-top: 0.5em;
+}
+
+/* The wall's row is a list, which the prose class-maps indent and bullet. */
+.mc-markdown .mc-sponsor-wall :is(ul, li) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 /* A route's button is a link, which the prose class-maps color and underline
    like a link in running text. It takes the color of its wrapper instead. */
-.mc-markdown .mc-support-ladder a.mc-glass-button {
+.mc-markdown :is(.mc-support-ladder, .mc-sponsor-wall) a:is(.mc-glass-button, [target="_blank"]) {
   color: inherit;
   text-decoration: none;
 }
@@ -254,4 +261,230 @@ button,
 
 .mc-support-ladder__body.is-fading {
   opacity: 0;
+}
+
+/* The sponsor wall, ported from lmaa.space's `.lmaa-sponsor-*` rules.
+   Two and a half cards fit across the content, so a third card is always half
+   visible and the row says without a word that it holds more. The width is
+   read from the rail rather than from the viewport, because the article is
+   narrower than the window. */
+.mc-sponsor-wall__rail {
+  --mc-sponsor-gap: var(--mc-gap-rowitem, 0.75rem);
+  --mc-sponsor-fade: 2rem;
+  --mc-sponsor-card-width: calc((100cqw - 1.5 * var(--mc-sponsor-gap)) / 2.5);
+  /* One pass of the row. Every card carries its own trailing space, so a run
+     is a whole number of equal steps; the track's width and the loop's
+     distance are both read from here, so the two cannot disagree. */
+  --mc-sponsor-run: calc(var(--mc-sponsor-count) * (var(--mc-sponsor-card-width) + var(--mc-sponsor-gap)));
+  container-type: inline-size;
+  display: flex;
+  overflow: hidden;
+}
+
+/* The space after a card belongs to the card rather than to the row, so the
+   loop below can be stated as one run. A `gap` would leave one space out. */
+.mc-sponsor-wall__slot {
+  flex: 0 0 var(--mc-sponsor-card-width);
+  margin-right: var(--mc-sponsor-gap);
+}
+
+.mc-sponsor-wall__track {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+/* A moving row fades at both ends rather than cutting a card off, so the edge
+   reads as more coming. lmaa paints two strips of the page's color over it;
+   here the row stands on a glass card whose material is not one color, so the
+   rail is masked instead. The mask sits on the rail, which does not move. */
+.mc-sponsor-wall__rail.is-moving {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--mc-sponsor-fade),
+    #000 calc(100% - var(--mc-sponsor-fade)),
+    transparent
+  );
+}
+
+/* The list holds the same run twice and the loop moves by exactly one run, so
+   the frame it ends on is the frame it started from. The width is stated
+   rather than left to the engine, because WebKit and Chrome size a flex
+   container by its content differently. Six seconds per card is slow enough to
+   read a name in passing; a longer row runs longer rather than faster. */
+.mc-sponsor-wall__rail.is-moving .mc-sponsor-wall__track {
+  width: calc(2 * var(--mc-sponsor-run));
+  animation: mc-sponsor-marquee calc(var(--mc-sponsor-count) * 6s) linear infinite;
+}
+
+@keyframes mc-sponsor-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-1 * var(--mc-sponsor-run)));
+  }
+}
+
+/* Nobody is carried anywhere against their settings: the row stands still and
+   is scrolled by hand. */
+@media (prefers-reduced-motion: reduce) {
+  .mc-sponsor-wall__rail.is-moving .mc-sponsor-wall__track {
+    animation: none;
+  }
+
+  .mc-sponsor-wall__rail {
+    overflow-x: auto;
+  }
+}
+
+/* The day is written out wherever there is room; the figures stand ready for
+   the narrow card. This rule comes first, because two rules of the same weight
+   are decided by their order. */
+.mc-sponsor-wall__date-short {
+  display: none;
+}
+
+/* One card per screen on a narrow one, with the next card peeking, and the
+   day in figures, because the month's name breaks that line first. */
+@media (max-width: 40rem) {
+  .mc-sponsor-wall__rail {
+    --mc-sponsor-card-width: 85cqw;
+  }
+
+  .mc-sponsor-wall__date-long {
+    display: none;
+  }
+
+  .mc-sponsor-wall__date-short {
+    display: inline;
+  }
+}
+
+/* What a sponsorship says about itself, at the foot of the card, pushed down
+   so cards with sentences of different length line up their last row. */
+.mc-sponsor-wall__term {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-top: auto;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.mc-sponsor-wall__initial {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background: rgb(var(--color-accent-rgb) / 0.18);
+  color: var(--color-text-primary);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+/* What stands where the cards would, before anybody is on the wall: the shape
+   of a card, with the medal where the picture goes. */
+.mc-sponsor-wall__empty {
+  --mc-sponsor-seat-size: 7rem;
+
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.mc-sponsor-wall__empty-figure {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: var(--mc-sponsor-seat-size) auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mc-sponsor-wall__seat {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--mc-sponsor-seat-size);
+  height: var(--mc-sponsor-seat-size);
+  color: var(--color-text-primary);
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mc-sponsor-wall__medal {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--color-accent);
+}
+
+/* The numeral sits where it looks centered: a one is narrower than its advance. */
+.mc-sponsor-wall__numeral {
+  position: relative;
+  transform: translate(1px, -3px);
+}
+
+/* The lines a name and a sentence will fill, in the proportions a card carries. */
+.mc-sponsor-wall__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mc-sponsor-wall__line {
+  height: 0.5rem;
+  width: 5rem;
+  border-radius: 999px;
+  background: rgb(var(--color-accent-rgb) / 0.25);
+}
+
+.mc-sponsor-wall__line.is-name {
+  height: 0.75rem;
+  width: 7rem;
+  background: rgb(var(--color-accent-rgb) / 0.45);
+}
+
+.mc-sponsor-wall__line.is-short {
+  width: 3rem;
+}
+
+.mc-sponsor-wall__empty-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+/* The first paragraph is the placeholder's headline. The block asks the page
+   for one text rather than two, and this is what tells the two apart. */
+.mc-markdown .mc-sponsor-wall .mc-sponsor-wall__empty-text > p:first-child {
+  font-size: 1.25rem;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+}
+
+.mc-sponsor-wall__empty-text {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Too narrow for the figure and the words to stand side by side. */
+@media (max-width: 40rem) {
+  .mc-sponsor-wall__empty {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .mc-sponsor-wall__empty-body {
+    align-items: center;
+  }
 }

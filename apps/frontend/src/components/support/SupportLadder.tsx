@@ -10,7 +10,7 @@ import {
   SupportRouteToken,
   type SupportRouteTokenValue,
 } from "@musiccloud/shared";
-import { type CSSProperties, useEffect, useReducer, useRef } from "react";
+import { type CSSProperties, useEffect, useEffectEvent, useReducer, useRef } from "react";
 
 import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { prefersReducedMotion } from "@/lib/motion/setup";
@@ -22,6 +22,7 @@ import { LadderRichText } from "./LadderRichText";
 import { AmountGrid } from "./SupportLadderAmounts";
 import { RouteCard } from "./SupportLadderRoutes";
 import { TransferCard } from "./SupportLadderTransfer";
+import { CHOOSE_SUPPORT_INTERVAL_EVENT, type ChooseSupportIntervalDetail } from "./supportLadderEvents";
 import {
   floorFor,
   initialSupportLadderState,
@@ -92,12 +93,31 @@ export function SupportLadder({ config }: SupportLadderProps) {
   const floorEur = floorFor(shownKey, minSponsorAmountEur);
   const swapTimer = useRef<number | null>(null);
 
+  const sectionRef = useRef<HTMLElement>(null);
+
   useEffect(
     () => () => {
       if (swapTimer.current !== null) window.clearTimeout(swapTimer.current);
     },
     [],
   );
+
+  // Something else on the page, such as the sponsor wall's placeholder, asks
+  // for a tab. The ladder takes the request only for a tab it has, which it
+  // signals by cancelling the event, and comes into view on it.
+  const openRequestedTab = useEffectEvent((event: Event) => {
+    const { key } = (event as CustomEvent<ChooseSupportIntervalDetail>).detail;
+    if (!intervals.some((entry) => entry.key === key)) return;
+    event.preventDefault();
+    chooseInterval(key);
+    sectionRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+  });
+
+  useEffect(() => {
+    const listener = (event: Event) => openRequestedTab(event);
+    window.addEventListener(CHOOSE_SUPPORT_INTERVAL_EVENT, listener);
+    return () => window.removeEventListener(CHOOSE_SUPPORT_INTERVAL_EVENT, listener);
+  }, []);
 
   function chooseInterval(key: SupportIntervalKeyValue) {
     if (key === intervalKey) return;
@@ -151,7 +171,10 @@ export function SupportLadder({ config }: SupportLadderProps) {
     (earnsSponsorship ? bankAccount?.purposeSponsor : undefined) || (bankAccount?.purposeDonation ?? "");
 
   return (
-    <section className="mc-support-ladder my-[var(--mc-gap-cards,1.5rem)] flex flex-col gap-[var(--mc-gap-cards,1.5rem)]">
+    <section
+      ref={sectionRef}
+      className="mc-support-ladder my-[var(--mc-gap-cards,1.5rem)] flex flex-col gap-[var(--mc-gap-cards,1.5rem)]"
+    >
       {(segments.length > 1 || intervalText !== "") && (
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           {intervalText && (
