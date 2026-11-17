@@ -102,7 +102,7 @@ describe("SupportPromptsPage", () => {
 
     const scheduled = await rowOf("Christmas ask");
     expect(within(scheduled).getByText(text.slots["landing-page"])).not.toBeNull();
-    expect(within(scheduled).getByText("2026-12-01 to …")).not.toBeNull();
+    expect(within(scheduled).getByText("2026-12-01 until …")).not.toBeNull();
     expect(within(scheduled).getByText(text.states.scheduled).className).toContain("mc-status-badge--neutral");
 
     const draft = await rowOf("Unfinished ask");

@@ -23,11 +23,13 @@ interface SupportPromptTableProps {
 }
 
 /**
- * A prompt's window in one line: both days joined by "to", with an ellipsis
- * for a side that is open, or the word for no window at all.
+ * A prompt's window in one line: both days joined by lmaa.space's word for
+ * the end of a window, "until", with lmaa's ellipsis for a side that is open.
+ * lmaa joins the days with a dash glyph, which this project's copy does not
+ * use, so its own English word stands in for it.
  *
  * @param prompt - The prompt whose window to describe.
- * @returns The line, such as `2026-08-01 to …`, or `null` when the prompt has no window.
+ * @returns The line, such as `2026-08-01 until …`, or `null` when the prompt has no window.
  */
 function windowLabel(prompt: SupportPrompt): string | null {
   if (!prompt.startsAt && !prompt.endsAt) return null;
