@@ -255,6 +255,8 @@ export function SupportLadder({ config }: SupportLadderProps) {
                 minimumNotice={minimumNotice}
                 onChoose={chooseAmount}
                 onCustom={enterCustom}
+                // The card is the surface, so the field takes none of its own.
+                bare
               />
 
               <SponsorStep
