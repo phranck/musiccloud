@@ -8,7 +8,9 @@ import {
   type DonationInput,
   type DonationTotals,
   ENDPOINTS,
+  type SocialMediaLinks,
   type Sponsor,
+  type SponsorAvatarResult,
   type SponsorInput,
   type SponsoringConfig,
 } from "@musiccloud/shared";
@@ -141,4 +143,15 @@ export function updateSponsor(id: string, input: SponsorInput): Promise<Sponsor>
  */
 export function deleteSponsor(id: string): Promise<void> {
   return api.delete<void>(ENDPOINTS.admin.sponsoring.sponsorDetail(id));
+}
+
+/**
+ * Asks the backend to find, copy and store the picture behind a sponsor's
+ * profiles, saved or not.
+ *
+ * @param socialMedia - The profiles as the card holds them.
+ * @returns The stored copy's id, or `null` when no profile led to a picture.
+ */
+export function resolveSponsorAvatar(socialMedia: SocialMediaLinks): Promise<SponsorAvatarResult> {
+  return api.post<SponsorAvatarResult>(ENDPOINTS.admin.sponsoring.sponsorAvatar, { socialMedia });
 }

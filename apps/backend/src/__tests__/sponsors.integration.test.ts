@@ -3,14 +3,17 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDatabasePool } from "../db/pool.js";
 import { createDonation, listDonations } from "../services/donations.js";
+import { readSponsorAvatar, storeSponsorAvatar } from "../services/sponsor-avatars.js";
 import { createSponsor, deleteSponsor, listSponsors, sponsorExists, updateSponsor } from "../services/sponsors.js";
 import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from "./integration-database.js";
 
 /**
  * Runs the annual sponsors' SQL against the Postgres `TEST_DATABASE_URL` names.
  *
- * Every sponsor and donation is created here, named with a marker, and removed
- * here, donations first, because a removed sponsor leaves its donations behind.
+ * Every sponsor, donation and stored picture is created here, named with a
+ * marker or made from its bytes, and removed here: donations first, because a
+ * removed sponsor leaves its donations behind, and pictures last, because a
+ * sponsor points at its picture.
  */
 describe.skipIf(!integrationDatabaseUrl())("annual sponsors (integration)", () => {
   connectRepositoriesToIntegrationDatabase();
@@ -18,6 +21,7 @@ describe.skipIf(!integrationDatabaseUrl())("annual sponsors (integration)", () =
   const MARKER = `integration-sponsors-${Date.now()}`;
   const sponsorIds: string[] = [];
   const donationIds: string[] = [];
+  const avatarIds: string[] = [];
   let client: pg.Client;
 
   beforeAll(async () => {
@@ -28,6 +32,7 @@ describe.skipIf(!integrationDatabaseUrl())("annual sponsors (integration)", () =
   afterAll(async () => {
     await client.query("DELETE FROM donations WHERE id = ANY($1::text[])", [donationIds]);
     await client.query("DELETE FROM sponsors WHERE id = ANY($1::text[])", [sponsorIds]);
+    await client.query("DELETE FROM sponsor_avatars WHERE id = ANY($1::text[])", [avatarIds]);
     await client.end();
     await closeDatabasePool();
   });
@@ -35,7 +40,11 @@ describe.skipIf(!integrationDatabaseUrl())("annual sponsors (integration)", () =
   /** A sponsor of the run, with two addresses in a fixed order. */
   const input: SponsorInput = {
     name: MARKER,
-    links: ["https://chaos.social/@ada", "https://ada.example"],
+    socialMedia: [
+      { platform: "mastodon", url: "https://chaos.social/@ada" },
+      { platform: "website", url: "https://ada.example" },
+    ],
+    avatarId: null,
     claim: "",
     published: true,
     paidOn: "2001-03-01",
@@ -64,7 +73,7 @@ describe.skipIf(!integrationDatabaseUrl())("annual sponsors (integration)", () =
   it("stores a sponsor and reads the day and the addresses back unchanged", async () => {
     const created = await sponsor();
 
-    expect(created).toMatchObject({ paidOn: "2001-03-01", links: input.links, amountCents: 0 });
+    expect(created).toMatchObject({ paidOn: "2001-03-01", socialMedia: input.socialMedia, amountCents: 0 });
     expect(await sponsorExists(created.id)).toBe(true);
   });
 
@@ -91,6 +100,58 @@ describe.skipIf(!integrationDatabaseUrl())("annual sponsors (integration)", () =
 
     const kept = (await listDonations()).find((row) => row.id === donation.id);
     expect(kept).toMatchObject({ amountCents: 2_500, sponsorId: null });
+  });
+
+  it("reads a row that holds plain addresses as the platforms they belong to", async () => {
+    const id = `${MARKER}-plain`;
+    sponsorIds.push(id);
+    await client.query(`INSERT INTO sponsors (id, name, links, paid_on) VALUES ($1, $2, $3::jsonb, '2001-03-01')`, [
+      id,
+      MARKER,
+      JSON.stringify(["https://chaos.social/@ada", "https://github.com/ada"]),
+    ]);
+
+    const listed = (await listSponsors()).find((row) => row.id === id);
+    expect(listed?.socialMedia).toEqual([
+      { platform: "mastodon", url: "https://chaos.social/@ada" },
+      { platform: "github", url: "https://github.com/ada" },
+    ]);
+  });
+
+  /**
+   * Stores bytes of this run as a picture, so the row is the run's own.
+   *
+   * @param suffix - Tells the run's pictures apart.
+   * @returns The picture's id.
+   */
+  async function avatar(suffix: string): Promise<string> {
+    const id = await storeSponsorAvatar(Buffer.from(`${MARKER}-${suffix}`));
+    avatarIds.push(id);
+    return id;
+  }
+
+  it("stores a picture once under the hash of its bytes and links it to a sponsor", async () => {
+    const id = await avatar("linked");
+    expect(await storeSponsorAvatar(Buffer.from(`${MARKER}-linked`))).toBe(id);
+    expect((await readSponsorAvatar(id))?.toString()).toBe(`${MARKER}-linked`);
+
+    const created = await sponsor({ avatarId: id });
+    expect(created.avatarId).toBe(id);
+  });
+
+  it("removes old pictures no sponsor points at when a sponsor is written, and keeps the rest", async () => {
+    const kept = await avatar("old-linked");
+    const pruned = await avatar("old-unlinked");
+    const fresh = await avatar("new-unlinked");
+    await client.query("UPDATE sponsor_avatars SET created_at = '2001-01-01' WHERE id = ANY($1::text[])", [
+      [kept, pruned],
+    ]);
+
+    await sponsor({ avatarId: kept });
+
+    expect(await readSponsorAvatar(kept)).not.toBeNull();
+    expect(await readSponsorAvatar(pruned)).toBeNull();
+    expect(await readSponsorAvatar(fresh)).not.toBeNull();
   });
 
   it("refuses a donation linked to a sponsor that does not exist", async () => {

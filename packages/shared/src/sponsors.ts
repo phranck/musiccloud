@@ -13,16 +13,15 @@
  */
 
 import { DAY_PATTERN, FundingWindowDays, isCalendarDay } from "./donations.js";
+import { normalizeSocialMediaLinks, SOCIAL_MEDIA_LINK_SCHEMA, type SocialMediaLinks } from "./social-media.js";
 
 /** Bounds on every field of a sponsor. The request schema and the dashboard's inputs read them. */
 export const SPONSOR_LIMITS = {
   /** Longest name: 160 characters, the same as a donor's name in the ledger. */
   nameMaxLength: 160,
   /** Most profile addresses one sponsor may give: 8. */
-  linksMaxCount: 8,
-  /** Longest profile address: 500 characters. */
-  linkMaxLength: 500,
-  /** Longest sentence of the sponsor's own: 600 characters. */
+  socialMediaMaxCount: 8,
+  /** Longest sentence of the sponsor's own: 600 characters, as lmaa allows. */
   claimMaxLength: 600,
 } as const;
 
@@ -33,16 +32,27 @@ export const SPONSOR_LIMITS = {
  */
 export const SPONSOR_YEAR_DAYS = FundingWindowDays.Year;
 
-/** The only scheme a profile address may use: `https:`. */
-const SPONSOR_LINK_PROTOCOL = "https:";
+/**
+ * The pattern of a sponsor avatar's id: the SHA-256 of its PNG bytes, as 64
+ * lowercase hex digits. The id is the picture's address, so a path segment
+ * holding anything else names no picture.
+ */
+export const SPONSOR_AVATAR_ID_PATTERN = "^[0-9a-f]{64}$";
+
+/** The JSON schema of a sponsor avatar's id, for a route's `params` or a body field. */
+export const SPONSOR_AVATAR_ID_SCHEMA = { type: "string", pattern: SPONSOR_AVATAR_ID_PATTERN } as const;
 
 /**
  * Everything an operator records about one sponsor.
  *
  * @property name - The name as the person gave it, 1 to {@link SPONSOR_LIMITS.nameMaxLength} characters.
  *   One field, so an alias and a full name are entered the same way.
- * @property links - Where they can be found, as profile addresses in the order they gave them,
- *   at most {@link SPONSOR_LIMITS.linksMaxCount}. Each passes {@link isSponsorLink}. Empty for none.
+ * @property socialMedia - Where they can be found, as a platform and an address each, in the
+ *   order they gave them and normalized as `normalizeSocialMediaLinks` does, at most
+ *   {@link SPONSOR_LIMITS.socialMediaMaxCount}. Empty for none. The avatar lookup and the
+ *   wall's icons read the platform.
+ * @property avatarId - Their picture, as the id of the copy musiccloud stored, or `null` for none,
+ *   in which case the site shows their initial. Set from what the avatar route answered.
  * @property claim - Their own sentence about why they did it. Empty for none.
  * @property published - Whether they agreed to be named on the site. What they gave counts
  *   towards the year either way. `false` until the operator records their consent.
@@ -50,7 +60,8 @@ const SPONSOR_LINK_PROTOCOL = "https:";
  */
 export interface SponsorInput {
   name: string;
-  links: string[];
+  socialMedia: SocialMediaLinks;
+  avatarId: string | null;
   claim: string;
   published: boolean;
   paidOn: string;
@@ -77,21 +88,18 @@ export interface Sponsor extends SponsorInput {
  * The request schema of a sponsor, for the backend route.
  *
  * Built from {@link SPONSOR_LIMITS}, so the route and the dashboard agree on
- * what a sponsor may be. The pattern only admits an `https` address; whether
- * it parses, and whether the day exists, is checked in code by
- * {@link isSponsorInputValid}, because a pattern can tell neither.
+ * what a sponsor may be. Whether each address fits its platform, and whether
+ * the day exists, is checked in code by {@link normalizeSponsorInput},
+ * because a schema can tell neither.
  */
 export const SPONSOR_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["name", "links", "claim", "published", "paidOn"],
+  required: ["name", "socialMedia", "avatarId", "claim", "published", "paidOn"],
   properties: {
     name: { type: "string", minLength: 1, maxLength: SPONSOR_LIMITS.nameMaxLength },
-    links: {
-      type: "array",
-      maxItems: SPONSOR_LIMITS.linksMaxCount,
-      items: { type: "string", maxLength: SPONSOR_LIMITS.linkMaxLength, pattern: "^https://\\S+$" },
-    },
+    socialMedia: { type: "array", maxItems: SPONSOR_LIMITS.socialMediaMaxCount, items: SOCIAL_MEDIA_LINK_SCHEMA },
+    avatarId: { anyOf: [SPONSOR_AVATAR_ID_SCHEMA, { type: "null" }] },
     claim: { type: "string", maxLength: SPONSOR_LIMITS.claimMaxLength },
     published: { type: "boolean" },
     paidOn: { type: "string", pattern: DAY_PATTERN },
@@ -99,28 +107,44 @@ export const SPONSOR_INPUT_SCHEMA = {
 } as const;
 
 /**
- * Checks that a profile address is one the site may link to and the server
- * may look a picture up at.
- *
- * @param value - The address as typed.
- * @returns `true` for an `https` address that parses, has a host and carries
- *   no user name or password; `false` otherwise.
+ * The request schema of the avatar route: the profiles to find a picture
+ * behind, as the sponsor card holds them, saved or not.
  */
-export function isSponsorLink(value: string): boolean {
-  if (value.length > SPONSOR_LIMITS.linkMaxLength || !URL.canParse(value)) return false;
-  const url = new URL(value);
-  return url.protocol === SPONSOR_LINK_PROTOCOL && url.hostname !== "" && !url.username && !url.password;
+export const SPONSOR_AVATAR_REQUEST_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["socialMedia"],
+  properties: {
+    socialMedia: { type: "array", maxItems: SPONSOR_LIMITS.socialMediaMaxCount, items: SOCIAL_MEDIA_LINK_SCHEMA },
+  },
+} as const;
+
+/**
+ * What the avatar route answers.
+ *
+ * @property avatarId - The id of the stored copy, or `null` when no profile led to a picture
+ *   that could be read.
+ */
+export interface SponsorAvatarResult {
+  avatarId: string | null;
 }
 
 /**
- * Checks what {@link SPONSOR_INPUT_SCHEMA} cannot: that every profile address
- * parses as {@link isSponsorLink} requires, and that the day paid exists.
+ * Brings a sponsor that passed {@link SPONSOR_INPUT_SCHEMA} into the form it
+ * is stored in, or refuses it.
+ *
+ * Name and sentence are trimmed and every address is normalized for its
+ * platform, so a pasted address is stored canonically rather than as written.
  *
  * @param input - A sponsor that already passed the request schema.
- * @returns `true` when the sponsor may be stored.
+ * @returns The sponsor to store, or `null` when the name is blank, an address
+ *   does not fit its platform, or the day paid does not exist.
  */
-export function isSponsorInputValid(input: SponsorInput): boolean {
-  return input.name.trim() !== "" && input.links.every(isSponsorLink) && isCalendarDay(input.paidOn);
+export function normalizeSponsorInput(input: SponsorInput): SponsorInput | null {
+  const name = input.name.trim();
+  const { links, rejected } = normalizeSocialMediaLinks(input.socialMedia);
+  if (name === "" || rejected.length > 0 || !isCalendarDay(input.paidOn)) return null;
+  return { ...input, name, socialMedia: links, claim: input.claim.trim() };
 }
 
 /** Milliseconds in a day. */

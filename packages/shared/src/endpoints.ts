@@ -77,6 +77,8 @@ export const ENDPOINTS = {
      *  sourced from a Jamendo album cover. Mirrors {@link genreArtwork} but stays
      *  100% Jamendo so the Creative-Commons path never touches Last.fm. */
     ccGenreArtwork: (genreKey: string) => `/api/v1/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /** GET `/api/v1/sponsor-avatars/:avatarId`: a sponsor's picture, a PNG musiccloud re-encoded, cached for good. */
+    sponsorAvatar: (avatarId: string) => `/api/v1/sponsor-avatars/${encodeURIComponent(avatarId)}`,
     /** GET `/api/v1/cc/audio/:jamendoId`: CORS-safe proxy of the full Jamendo
      *  stream (Range-forwarded). Lets the player load + analyse CC audio that
      *  Jamendo serves without the Range CORS preflight headers Web Audio needs.
@@ -186,6 +188,8 @@ export const ENDPOINTS = {
     genreArtwork: (genreKey: string) => `/api/genre-artwork/${encodeURIComponent(genreKey)}`,
     /** GET: forwarded to `ENDPOINTS.v1.ccGenreArtwork`. CC genre tile cover (Jamendo-sourced). */
     ccGenreArtwork: (genreKey: string) => `/api/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /** GET: forwarded to `ENDPOINTS.v1.sponsorAvatar`, so the site serves a sponsor's picture from its own origin. */
+    sponsorAvatar: (avatarId: string) => `/api/sponsor-avatars/${encodeURIComponent(avatarId)}`,
     /** GET: forwarded to `ENDPOINTS.v1.ccAudio`. The audio player loads CC tracks
      *  through this same-origin proxy so no cross-origin Range request is made.
      *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
@@ -305,6 +309,8 @@ export const ENDPOINTS = {
       sponsors: "/api/admin/sponsoring/sponsors",
       /** PUT: change / DELETE: remove one annual sponsor. Owner or admin. */
       sponsorDetail: (id: string) => `/api/admin/sponsoring/sponsors/${encodeURIComponent(id)}`,
+      /** POST: find, copy and store the picture behind a sponsor's profiles; answers its avatar id. Owner or admin. */
+      sponsorAvatar: "/api/admin/sponsoring/sponsors/avatar",
     },
 
     plugins: {
@@ -609,6 +615,8 @@ export const ROUTE_TEMPLATES = {
     genreArtwork: "/api/v1/genre-artwork/:genreKey",
     /** Route template for ENDPOINTS.v1.ccGenreArtwork (CC genre tile cover, Jamendo-sourced). */
     ccGenreArtwork: "/api/v1/cc/genre-artwork/:genreKey",
+    /** Route template for ENDPOINTS.v1.sponsorAvatar. */
+    sponsorAvatar: "/api/v1/sponsor-avatars/:avatarId",
     /** Route template for ENDPOINTS.v1.ccAudio (CORS-safe Jamendo stream proxy).
      *  The `format` is an optional `?format=` query (validated against JamendoAudioFormat), not a path segment. */
     ccAudio: "/api/v1/cc/audio/:jamendoId",

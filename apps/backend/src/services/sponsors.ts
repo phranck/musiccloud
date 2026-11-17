@@ -3,18 +3,21 @@
  *
  * What a sponsor gave is summed from the donations linked to them on every
  * read, because the ledger is the only place a payment is recorded. A sponsor
- * who renewed carries several payments, and the sum is their total.
+ * who renewed carries several payments, and the sum is their total. Every
+ * write also removes the picture copies no sponsor points at any longer.
  */
 
-import type { Sponsor, SponsorInput } from "@musiccloud/shared";
+import { classifyProfileLink, type SocialMediaLinks, type Sponsor, type SponsorInput } from "@musiccloud/shared";
 import { nanoid } from "nanoid";
 import { getDatabasePool } from "../db/pool.js";
+import { pruneUnusedSponsorAvatars } from "./sponsor-avatars.js";
 
 /** One `sponsors` row as the reads below return it, with the linked amount summed. */
 interface SponsorQueryRow {
   id: string;
   name: string;
-  links: string[];
+  links: unknown[];
+  avatar_id: string | null;
   claim: string;
   published: boolean;
   paid_on: string;
@@ -27,9 +30,31 @@ interface SponsorQueryRow {
  * The columns every read selects from a source aliased `s`, with the day as
  * text so no time zone can move it, and the amount summed from the ledger.
  */
-const SPONSOR_SELECT = `s.id, s.name, s.links, s.claim, s.published, to_char(s.paid_on, 'YYYY-MM-DD') AS paid_on,
+const SPONSOR_SELECT = `s.id, s.name, s.links, s.avatar_id, s.claim, s.published, to_char(s.paid_on, 'YYYY-MM-DD') AS paid_on,
   s.created_at, s.updated_at,
   COALESCE((SELECT SUM(d.amount_cents) FROM donations d WHERE d.sponsor_id = s.id), 0) AS amount_cents`;
+
+/**
+ * Reads the `links` column into the sponsor's addresses.
+ *
+ * The column holds `{ platform, url }` entries. A plain address string is
+ * sorted into its platform by `classifyProfileLink`, so a sponsor recorded
+ * while the column held plain addresses still reads back with its links.
+ *
+ * @param stored - The column's JSON array.
+ * @returns The addresses, in the order stored; an entry that is neither shape is left out.
+ */
+function readSocialMedia(stored: unknown[]): SocialMediaLinks {
+  return stored.flatMap((entry) => {
+    if (typeof entry === "string") {
+      const classified = classifyProfileLink(entry);
+      return classified ? [classified] : [];
+    }
+    return entry && typeof entry === "object" && "platform" in entry && "url" in entry
+      ? [entry as SocialMediaLinks[number]]
+      : [];
+  });
+}
 
 /**
  * Turns a row into what the API returns.
@@ -41,7 +66,8 @@ function toSponsor(row: SponsorQueryRow): Sponsor {
   return {
     id: row.id,
     name: row.name,
-    links: row.links,
+    socialMedia: readSocialMedia(row.links),
+    avatarId: row.avatar_id,
     claim: row.claim,
     published: row.published,
     paidOn: row.paid_on,
@@ -85,13 +111,22 @@ export async function sponsorExists(id: string): Promise<boolean> {
 export async function createSponsor(input: SponsorInput): Promise<Sponsor> {
   const result = await getDatabasePool().query<SponsorQueryRow>(
     `WITH s AS (
-       INSERT INTO sponsors (id, name, links, claim, published, paid_on)
-       VALUES ($1, $2, $3::jsonb, $4, $5, $6)
+       INSERT INTO sponsors (id, name, links, avatar_id, claim, published, paid_on)
+       VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7)
        RETURNING *
      )
      SELECT ${SPONSOR_SELECT} FROM s`,
-    [nanoid(), input.name, JSON.stringify(input.links), input.claim, input.published, input.paidOn],
+    [
+      nanoid(),
+      input.name,
+      JSON.stringify(input.socialMedia),
+      input.avatarId,
+      input.claim,
+      input.published,
+      input.paidOn,
+    ],
   );
+  await pruneUnusedSponsorAvatars();
   return toSponsor(result.rows[0] as SponsorQueryRow);
 }
 
@@ -108,13 +143,15 @@ export async function updateSponsor(id: string, input: SponsorInput): Promise<Sp
   const result = await getDatabasePool().query<SponsorQueryRow>(
     `WITH s AS (
        UPDATE sponsors
-          SET name = $2, links = $3::jsonb, claim = $4, published = $5, paid_on = $6, updated_at = NOW()
+          SET name = $2, links = $3::jsonb, avatar_id = $4, claim = $5, published = $6, paid_on = $7,
+              updated_at = NOW()
         WHERE id = $1
         RETURNING *
      )
      SELECT ${SPONSOR_SELECT} FROM s`,
-    [id, input.name, JSON.stringify(input.links), input.claim, input.published, input.paidOn],
+    [id, input.name, JSON.stringify(input.socialMedia), input.avatarId, input.claim, input.published, input.paidOn],
   );
+  await pruneUnusedSponsorAvatars();
   const row = result.rows[0];
   return row ? toSponsor(row) : null;
 }
@@ -128,5 +165,6 @@ export async function updateSponsor(id: string, input: SponsorInput): Promise<Sp
  */
 export async function deleteSponsor(id: string): Promise<boolean> {
   const result = await getDatabasePool().query("DELETE FROM sponsors WHERE id = $1", [id]);
+  await pruneUnusedSponsorAvatars();
   return (result.rowCount ?? 0) > 0;
 }

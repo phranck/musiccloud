@@ -49,7 +49,8 @@ const STORED: Donation = {
 const SPONSOR: Sponsor = {
   id: "s1",
   name: "Grace",
-  links: [],
+  socialMedia: [],
+  avatarId: null,
   claim: "",
   published: true,
   paidOn: "2026-11-01",

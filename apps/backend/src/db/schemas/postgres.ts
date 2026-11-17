@@ -10,6 +10,7 @@ import {
   DONATION_CURRENCY,
   DONATION_PROVIDERS,
   OFFER_CURRENCIES,
+  type SocialMediaLinks,
   SUBSCRIPTION_STATUSES,
   TAX_CATEGORIES,
   TAX_MODES,
@@ -2380,22 +2381,44 @@ export type TierRow = typeof tiers.$inferSelect;
 export type TierInsert = typeof tiers.$inferInsert;
 
 /**
+ * Sponsors' pictures, as copies musiccloud made and serves from its own
+ * origin, so a visitor's browser never asks a sponsor's host for one.
+ *
+ * `id` is the SHA-256 of `png` as 64 lowercase hex digits: the same picture is
+ * stored once, and its address never changes, so it is served with a cache
+ * that never expires. `png` holds bytes the server re-encoded, never the bytes
+ * a foreign host sent. A copy no sponsor points at is removed once it is older
+ * than a day, which leaves a card that has not been saved yet time to save.
+ */
+export const sponsorAvatars = pgTable("sponsor_avatars", {
+  id: text("id").primaryKey(),
+  png: bytea("png").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type SponsorAvatarRow = typeof sponsorAvatars.$inferSelect;
+
+/**
  * Annual sponsors: the people who carry a year of the running costs.
  *
  * A sponsor's year runs from `paid_on`, so the sponsors on the site are the
  * rows whose year has not run out, and nothing is archived at a turn of the
  * year. What a sponsor gave is not a column here: it is summed from the
  * donations whose `sponsor_id` names them, because the ledger is the only
- * place a payment is recorded. `links` holds the profile addresses in the
- * order they were given, as a JSON array of strings. `published` records the
- * sponsor's consent to be named and is `false` until the operator records it.
+ * place a payment is recorded. The `links` column holds the profile addresses
+ * in the order they were given, as a JSON array of `{ platform, url }`
+ * entries, the shape `SocialMediaLinks` in `@musiccloud/shared` describes.
+ * `published` records the sponsor's consent to be named and is `false` until
+ * the operator records it.
  */
 export const sponsors = pgTable(
   "sponsors",
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
-    links: jsonb("links").$type<string[]>().notNull().default([]),
+    socialMedia: jsonb("links").$type<SocialMediaLinks>().notNull().default([]),
+    /** The sponsor's picture in {@link sponsorAvatars}, or `NULL` for the initial instead. */
+    avatarId: text("avatar_id").references(() => sponsorAvatars.id, { onDelete: "set null" }),
     claim: text("claim").notNull().default(""),
     published: boolean("published").notNull().default(false),
     paidOn: date("paid_on", { mode: "string" }).notNull(),

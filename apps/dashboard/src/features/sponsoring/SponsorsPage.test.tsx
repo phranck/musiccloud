@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   createSponsor: vi.fn(),
   updateSponsor: vi.fn(),
   deleteSponsor: vi.fn(),
+  resolveSponsorAvatar: vi.fn(),
 }));
 
 vi.mock("./api", async (importOriginal) => ({
@@ -16,6 +17,7 @@ vi.mock("./api", async (importOriginal) => ({
   createSponsor: mocks.createSponsor,
   updateSponsor: mocks.updateSponsor,
   deleteSponsor: mocks.deleteSponsor,
+  resolveSponsorAvatar: mocks.resolveSponsorAvatar,
 }));
 
 // The real header hands its actions to the layout's slot, which this test does not mount.
@@ -28,6 +30,9 @@ import { SponsorsPage } from "./SponsorsPage";
 
 const sm = dashboardCopy.sponsoring;
 
+/** The id the backend answers a picture lookup with, a hex SHA-256. */
+const AVATAR_ID = "b".repeat(64);
+
 /** The day the page counts from: 2026-11-17, local noon so no time zone moves it. */
 const NOW = new Date(2026, 10, 17, 12);
 
@@ -35,7 +40,8 @@ const NOW = new Date(2026, 10, 17, 12);
 const CURRENT: Sponsor = {
   id: "s1",
   name: "Ada",
-  links: ["https://chaos.social/@ada"],
+  socialMedia: [{ platform: "mastodon", url: "https://chaos.social/@ada" }],
+  avatarId: null,
   claim: "Music for everybody.",
   published: true,
   paidOn: "2026-11-07",
@@ -84,7 +90,8 @@ describe("SponsorsPage", () => {
     expect(screen.getByText(sm.sponsorsEmptyHint)).not.toBeNull();
   });
 
-  it("records a sponsor with one address per line, with Save off until the name is there", async () => {
+  it("fetches the picture once a profile is entered and records it with the sponsor", async () => {
+    mocks.resolveSponsorAvatar.mockResolvedValue({ avatarId: AVATAR_ID });
     mocks.createSponsor.mockImplementation(async (input: SponsorInput) => ({ ...CURRENT, ...input, id: "s3" }));
     renderPage();
     await screen.findByText("Ada");
@@ -94,32 +101,62 @@ describe("SponsorsPage", () => {
     expect(save.disabled).toBe(true);
 
     fireEvent.change(screen.getByLabelText(sm.sponsorNameLabel), { target: { value: " Linus " } });
-    fireEvent.change(screen.getByLabelText(sm.sponsorLinksLabel), {
-      target: { value: "https://github.com/linus\nhttps://linus.example" },
+    fireEvent.change(screen.getByLabelText(sm.sponsorSocialMediaEditor.urlPlaceholder), {
+      target: { value: "https://github.com/linus" },
     });
-    expect(save.disabled).toBe(false);
+
+    await waitFor(() =>
+      expect(mocks.resolveSponsorAvatar).toHaveBeenCalledWith([
+        { platform: "github", url: "https://github.com/linus" },
+      ]),
+    );
+    expect((await screen.findByRole("img", { name: "Linus" })).getAttribute("src")).toContain(AVATAR_ID);
+    await waitFor(() => expect(save.disabled).toBe(false));
     fireEvent.click(save);
 
     await waitFor(() => expect(mocks.createSponsor).toHaveBeenCalled());
     expect(mocks.createSponsor.mock.calls[0]?.[0]).toEqual({
       name: "Linus",
-      links: ["https://github.com/linus", "https://linus.example"],
+      socialMedia: [{ platform: "github", url: "https://github.com/linus" }],
+      avatarId: AVATAR_ID,
       claim: "",
       published: false,
       paidOn: "2026-11-17",
     });
   });
 
-  it("keeps Save off while an address is not https", async () => {
+  it("says so when no profile leads to a picture, and still records the sponsor without one", async () => {
+    mocks.resolveSponsorAvatar.mockResolvedValue({ avatarId: null });
     renderPage();
     await screen.findByText("Ada");
 
     fireEvent.click(screen.getByRole("button", { name: sm.sponsorAdd }));
     fireEvent.change(screen.getByLabelText(sm.sponsorNameLabel), { target: { value: "Linus" } });
-    fireEvent.change(screen.getByLabelText(sm.sponsorLinksLabel), { target: { value: "http://linus.example" } });
+    fireEvent.change(screen.getByLabelText(sm.sponsorSocialMediaEditor.urlPlaceholder), {
+      target: { value: "https://linus.example" },
+    });
+
+    expect(await screen.findByText(sm.sponsorNoPictureFound)).not.toBeNull();
+    await waitFor(() =>
+      expect((screen.getByRole("button", { name: dashboardCopy.common.save }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
+  });
+
+  it("keeps Save off while an address does not fit its platform", async () => {
+    renderPage();
+    await screen.findByText("Ada");
+
+    fireEvent.click(screen.getByRole("button", { name: sm.sponsorAdd }));
+    fireEvent.change(screen.getByLabelText(sm.sponsorNameLabel), { target: { value: "Linus" } });
+    fireEvent.change(screen.getByLabelText(sm.sponsorSocialMediaEditor.urlPlaceholder), {
+      target: { value: "not an address" },
+    });
 
     expect((screen.getByRole("button", { name: dashboardCopy.common.save }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(sm.sponsorLinksInvalid.replace("{max}", "8"))).not.toBeNull();
+    expect(screen.getByText(sm.sponsorSocialMediaInvalid.replace("{max}", "8"))).not.toBeNull();
+    expect(mocks.resolveSponsorAvatar).not.toHaveBeenCalled();
   });
 
   it("asks before removing a sponsor and says their donations stay", async () => {
