@@ -83,6 +83,21 @@ export const SITE_VARIABLES = {
     example: "€19.17",
     kind: SiteVariableKind.Money,
   },
+  donatedYear: {
+    label: "What came in over the last 365 days, from the donations ledger",
+    example: "€120",
+    kind: SiteVariableKind.Money,
+  },
+  donatedMonth: {
+    label: "What came in over the last 30 days, from the donations ledger",
+    example: "€20",
+    kind: SiteVariableKind.Money,
+  },
+  missingYear: {
+    label: "What is still missing to carry the annual cost, zero once it is carried",
+    example: "€110",
+    kind: SiteVariableKind.Money,
+  },
   amountWeek: {
     label: "A week's share of the costs, rounded up, in euros without a sign, for an amount",
     example: "5",

@@ -81,6 +81,7 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "developer_portal_availability_events",
   "app_attest_keys",
   "app_attest_challenges",
+  "donations",
 ] as const;
 
 const VINYL_WRITE_TABLES = ["vinyl_layouts"] as const;
@@ -102,6 +103,8 @@ const DEVELOPER_API_WRITE_TABLES = [
 const ARTIST_PROFILE_WRITE_TABLES = ["artist_cache", "artist_profile_refresh_events"] as const;
 const DEVELOPER_PORTAL_WRITE_TABLES = ["developer_portal_availability_events"] as const;
 const APP_ATTEST_WRITE_TABLES = ["app_attest_keys", "app_attest_challenges"] as const;
+/** The donations ledger, which every funding figure on the site and in the dashboard is summed from. */
+const SPONSORING_WRITE_TABLES = ["donations"] as const;
 const RUNTIME_WRITE_TABLES = [
   ...VINYL_WRITE_TABLES,
   ...CONTEXTUAL_EDITORIAL_WRITE_TABLES,
@@ -109,6 +112,7 @@ const RUNTIME_WRITE_TABLES = [
   ...ARTIST_PROFILE_WRITE_TABLES,
   ...DEVELOPER_PORTAL_WRITE_TABLES,
   ...APP_ATTEST_WRITE_TABLES,
+  ...SPONSORING_WRITE_TABLES,
 ] as const;
 
 export function buildMusiccloudReadinessExpectations(

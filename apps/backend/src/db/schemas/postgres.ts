@@ -7,6 +7,8 @@ import {
   DEFAULT_TIER_COLOR,
   DEVELOPER_ACCOUNT_STATUSES,
   DEVELOPER_PROJECT_STATUSES,
+  DONATION_CURRENCY,
+  DONATION_PROVIDERS,
   OFFER_CURRENCIES,
   SUBSCRIPTION_STATUSES,
   TAX_CATEGORIES,
@@ -2376,3 +2378,43 @@ export const tiers = pgTable(
 
 export type TierRow = typeof tiers.$inferSelect;
 export type TierInsert = typeof tiers.$inferInsert;
+
+/**
+ * The donations ledger: one row per payment that reached musiccloud, whatever
+ * route it took. Every funding figure on the site and in the dashboard is a sum
+ * over these rows, so the ledger is the only place a payment is recorded.
+ *
+ * `provider` and `currency` are held to the shared lists by check constraints,
+ * so a row the application would never write cannot be written by hand either.
+ * `external_ref` carries the bank's own reference for a payment the bank import
+ * took in; its unique index is what keeps one transfer from being booked twice.
+ * `received_on` is a calendar day, because a bank books a day rather than a
+ * moment and the funding windows count days.
+ */
+export const donations = pgTable(
+  "donations",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull().default(""),
+    /** Whether the donor agreed to be named on the site. The amount counts either way. */
+    published: boolean("published").notNull().default(false),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull().default(DONATION_CURRENCY),
+    receivedOn: date("received_on", { mode: "string" }).notNull(),
+    provider: text("provider").notNull(),
+    note: text("note").notNull().default(""),
+    externalRef: text("external_ref"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_donations_external_ref").on(table.externalRef),
+    index("idx_donations_received_on").on(table.receivedOn),
+    check("chk_donations_amount", sql`${table.amountCents} > 0`),
+    check("chk_donations_currency", sql`${table.currency} IN (${sqlValueList([DONATION_CURRENCY])})`),
+    check("chk_donations_provider", sql`${table.provider} IN (${sqlValueList(DONATION_PROVIDERS)})`),
+  ],
+);
+
+export type DonationRow = typeof donations.$inferSelect;
+export type DonationInsert = typeof donations.$inferInsert;

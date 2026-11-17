@@ -32,6 +32,7 @@ import adminContentRoutes from "./routes/admin-content.js";
 import adminCrawlerRoutes from "./routes/admin-crawler.js";
 import { adminCreemProductRoutes } from "./routes/admin-creem-products.js";
 import adminDataRoutes from "./routes/admin-data.js";
+import { adminDonationRoutes } from "./routes/admin-donations.js";
 import adminEmailActionsRoutes from "./routes/admin-email-actions.js";
 import adminEmailAssetsRoutes from "./routes/admin-email-assets.js";
 import adminEmailBrandingRoutes from "./routes/admin-email-branding.js";
@@ -676,6 +677,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(adminUserRoutes);
     await adminApp.register(siteSettingsAdminRoutes);
     await adminApp.register(adminSponsoringRoutes);
+    await adminApp.register(adminDonationRoutes);
     await adminApp.register(adminPluginsRoutes);
     await adminApp.register(adminCrawlerRoutes);
     await adminApp.register(developerPortalAvailabilityAdminRoutes);

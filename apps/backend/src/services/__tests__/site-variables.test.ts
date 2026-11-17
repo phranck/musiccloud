@@ -17,6 +17,10 @@ const getSponsoringConfig = vi.fn();
 
 vi.mock("../sponsoring-config.js", () => ({ getSponsoringConfig }));
 
+const readDonationTotals = vi.fn();
+
+vi.mock("../donations.js", () => ({ readDonationTotals }));
+
 const { SPONSORING_DEFAULTS } = await import("@musiccloud/shared");
 
 const { KEYLESS_RESOLVE_REQUESTS_PER_DAY, KEYLESS_RESOLVE_REQUESTS_PER_MINUTE } = await import(
@@ -39,6 +43,26 @@ describe("resolveSiteVariableValues", () => {
     getMaxProjectsPerAccount.mockResolvedValue(7);
     getSponsoringConfig.mockReset();
     getSponsoringConfig.mockResolvedValue(SPONSORING_DEFAULTS);
+    readDonationTotals.mockReset();
+    readDonationTotals.mockResolvedValue({ donatedYearCents: 0, donatedMonthCents: 0, byMonth: [], byProvider: {} });
+  });
+
+  it("takes what came in from the ledger and says what is still missing", async () => {
+    getSponsoringConfig.mockResolvedValue({
+      ...SPONSORING_DEFAULTS,
+      costs: [{ label: "Hosting", amountCents: 23_000 }],
+    });
+    readDonationTotals.mockResolvedValue({
+      donatedYearCents: 12_000,
+      donatedMonthCents: 2_000,
+      byMonth: [],
+      byProvider: {},
+    });
+    const values = await resolveSiteVariableValues();
+
+    expect(values.donatedYear).toBe(12_000);
+    expect(values.donatedMonth).toBe(2_000);
+    expect(values.missingYear).toBe(11_000);
   });
 
   it("takes every sponsoring figure from the stored setting", async () => {

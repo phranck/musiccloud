@@ -246,6 +246,14 @@ describe("buildMusiccloudReadinessExpectations", () => {
       expect(result.privileges).toContainEqual({ table: "developer_portal_availability_events", privilege });
     }
   });
+
+  it("requires CRUD access for the donations ledger", () => {
+    const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
+
+    for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
+      expect(result.privileges).toContainEqual({ table: "donations", privilege });
+    }
+  });
 });
 
 describe("readLatestDrizzleMigrationHash", () => {
