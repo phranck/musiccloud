@@ -218,7 +218,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     httpStatus: 400,
     userMessage: "Only https addresses or paths on this site are allowed.",
     internalNote:
-      "A support prompt's button destination failed isSafeConfiguredUrl with relative paths allowed, or was empty. Refused so a prompt can never point a visitor at a javascript: or data: address. Nothing was written.",
+      "A support prompt's button destination failed isSafeConfiguredUrl with relative paths allowed, or was empty while the prompt had no button caption, as lmaa.space refuses it. Refused so a prompt can never point a visitor at a javascript: or data: address. An empty destination with a caption answers MC-REQ-0015 instead. Nothing was written.",
     source: "apps/backend/src/routes/admin-support-prompts.ts acceptPromptInput",
   },
   "MC-REQ-0015": {

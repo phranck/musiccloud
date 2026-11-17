@@ -43,11 +43,16 @@ const PROMPT_BODY_LIMIT_BYTES = 64 * 1024;
 /** The largest limits body a write accepts: 1 KiB, far above five small values. */
 const LIMITS_BODY_LIMIT_BYTES = 1024;
 
-/** The code each refusal answers with. A blank name is the generic format refusal. */
+/**
+ * The code each refusal answers with. A blank name and a day that does not
+ * exist are the generic format refusal, as the sponsorship takeover answers an
+ * impossible payment day.
+ */
 const REFUSAL_CODES: Record<SupportPromptRefusalValue, McErrorCode> = {
   [SupportPromptRefusal.BlankName]: "MC-REQ-0001",
-  [SupportPromptRefusal.UnsafeDestination]: "MC-REQ-0014",
   [SupportPromptRefusal.ButtonWithoutDestination]: "MC-REQ-0015",
+  [SupportPromptRefusal.UnsafeDestination]: "MC-REQ-0014",
+  [SupportPromptRefusal.ImpossibleDay]: "MC-REQ-0001",
   [SupportPromptRefusal.WindowReversed]: "MC-REQ-0016",
 };
 

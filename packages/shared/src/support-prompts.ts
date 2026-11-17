@@ -15,7 +15,7 @@
  * express, and the reader for the stored limits.
  */
 
-import { DAY_PATTERN } from "./donations.js";
+import { DAY_PATTERN, isCalendarDay } from "./donations.js";
 import { isSafeConfiguredUrl } from "./safe-url.js";
 
 /**
@@ -364,15 +364,19 @@ export const SUPPORT_PROMPT_LIMITS_SCHEMA = {
  * Why a prompt that passed {@link SUPPORT_PROMPT_INPUT_SCHEMA} was refused.
  *
  * - `BlankName`: the name is empty once trimmed.
- * - `UnsafeDestination`: the button's destination is neither a path on this site nor an
- *   `https` address. An empty destination is refused this way too.
  * - `ButtonWithoutDestination`: the button has a caption but nowhere to lead.
+ * - `UnsafeDestination`: the button's destination is neither a path on this site nor an
+ *   `https` address. An empty destination without a caption is refused this way, as lmaa's
+ *   contract refuses it.
+ * - `ImpossibleDay`: the first or the last day is written as a day but does not exist, such
+ *   as `2026-02-30`.
  * - `WindowReversed`: the window ends before it starts.
  */
 export const SupportPromptRefusal = {
   BlankName: "blank-name",
-  UnsafeDestination: "unsafe-destination",
   ButtonWithoutDestination: "button-without-destination",
+  UnsafeDestination: "unsafe-destination",
+  ImpossibleDay: "impossible-day",
   WindowReversed: "window-reversed",
 } as const;
 
@@ -389,9 +393,13 @@ export type SupportPromptCheck =
  * it is stored in, or refuses it.
  *
  * The name, the caption, the destination and the two days are trimmed, as
- * lmaa's contract trims them, and the checks run in lmaa's order: the name,
- * then the destination, then the button against its destination, then the
- * window.
+ * lmaa's contract trims them. It refuses exactly what lmaa's contract refuses,
+ * plus a day that does not exist, which lmaa lets through. lmaa reports every
+ * problem at once and this reports one, so where lmaa reports two the more
+ * specific one is named: a caption with an empty destination is a button
+ * without a destination rather than an unsafe one. The checks therefore run as
+ * the name, the button against its destination, the destination, the days,
+ * and the window.
  *
  * @param input - A prompt that already passed the request schema, defaults filled in.
  * @returns The prompt to store, or the first reason it is refused.
@@ -404,11 +412,14 @@ export function normalizeSupportPromptInput(input: SupportPromptInput): SupportP
   const endsAt = input.endsAt?.trim() ?? null;
 
   if (name === "") return { ok: false, refusal: SupportPromptRefusal.BlankName };
+  if (buttonLabel !== "" && buttonHref === "") {
+    return { ok: false, refusal: SupportPromptRefusal.ButtonWithoutDestination };
+  }
   if (!isSafeConfiguredUrl(buttonHref, { allowRelative: true })) {
     return { ok: false, refusal: SupportPromptRefusal.UnsafeDestination };
   }
-  if (buttonLabel !== "" && buttonHref === "") {
-    return { ok: false, refusal: SupportPromptRefusal.ButtonWithoutDestination };
+  if ((startsAt && !isCalendarDay(startsAt)) || (endsAt && !isCalendarDay(endsAt))) {
+    return { ok: false, refusal: SupportPromptRefusal.ImpossibleDay };
   }
   if (startsAt && endsAt && endsAt < startsAt) return { ok: false, refusal: SupportPromptRefusal.WindowReversed };
 
