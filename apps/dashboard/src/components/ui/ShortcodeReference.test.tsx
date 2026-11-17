@@ -110,7 +110,7 @@ describe("ShortcodeList", () => {
   });
 });
 
-describe("ShortcodeList — a default that lives in the stylesheet", () => {
+describe("ShortcodeList with a default that lives in the stylesheet", () => {
   /** A definition whose default names a custom property instead of stating a figure. */
   const WITH_TOKEN_DEFAULT: ShortcodeDefinition = {
     token: "spaced",
