@@ -59,16 +59,6 @@ describe("SponsoringSettingsPage", () => {
     mocks.role = "owner";
   });
 
-  it("shows the costs it derives every suggested amount from", async () => {
-    renderPage();
-
-    expect(
-      await screen.findByText(
-        "Annual cost €230, a month €19.17. Suggested amounts: €5 a week, €20 a month, €60 a quarter, €230 a year.",
-      ),
-    ).not.toBeNull();
-  });
-
   it("arranges lmaa.space's four cards, with the yearly sum in the costs header", async () => {
     const { container } = renderPage();
     await screen.findByLabelText(sm.payeeIbanLabel);

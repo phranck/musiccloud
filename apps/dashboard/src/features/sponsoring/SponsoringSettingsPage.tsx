@@ -10,7 +10,7 @@
  */
 
 import { DashboardActionButton, DashboardActionId } from "@musiccloud/dashboard-ui";
-import { deriveSupportAmounts, formatEuroCents, type SiteVariableName, SPONSORING_LIMITS } from "@musiccloud/shared";
+import { formatEuroCents, type SiteVariableName, SPONSORING_LIMITS } from "@musiccloud/shared";
 import { BankIcon, CoinsIcon, MedalIcon, NoteIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
@@ -173,8 +173,6 @@ export function SponsoringSettingsPage() {
 
   const form = draft ?? toSponsoringForm(configQuery.data);
   const problems = sponsoringFormProblems(form);
-  const costsUsable = ![...problems].some((field) => field.startsWith("costs"));
-  const amounts = costsUsable ? deriveSupportAmounts(toSponsoringConfig(form)) : null;
   // The header shows the sum while a row is still being typed, so an amount
   // that does not read as one yet counts as nothing rather than hiding the sum.
   const totalCents = form.costs.reduce((sum, row) => sum + (euroInputToCents(row.amount) ?? 0), 0);
@@ -282,7 +280,8 @@ export function SponsoringSettingsPage() {
                     </div>
                   ))}
 
-                  <div className="flex items-center gap-3">
+                  <div>
+                    {/* Off at the backend's limit, which bounds every request body. */}
                     <DashboardActionButton
                       action={DashboardActionId.Create}
                       label={sm.costAdd}
@@ -290,24 +289,7 @@ export function SponsoringSettingsPage() {
                       disabled={atMax}
                       onClick={() => change({ costs: [...form.costs, { id: newCostRowId(), label: "", amount: "" }] })}
                     />
-                    {atMax && (
-                      <p className="text-xs text-amber-400">
-                        {sm.costsMaxReached.replace("{max}", String(SPONSORING_LIMITS.maxCostItems))}
-                      </p>
-                    )}
                   </div>
-
-                  {amounts && (
-                    <p className="text-sm text-[var(--ds-text-muted)]">
-                      {sm.costsSummary
-                        .replace("{annual}", formatEuroCents(amounts.annualCostCents))
-                        .replace("{monthly}", formatEuroCents(amounts.monthlyCostCents))
-                        .replace("{week}", String(amounts.weekEur))
-                        .replace("{month}", String(amounts.monthEur))
-                        .replace("{quarter}", String(amounts.quarterEur))
-                        .replace("{year}", String(amounts.yearEur))}
-                    </p>
-                  )}
 
                   <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--ds-text-subtle)]">
                     {sm.variableLabel}

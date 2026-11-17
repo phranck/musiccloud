@@ -134,9 +134,6 @@ export const dashboardCopy = {
     costLabel: "Item",
     costAmount: "€ per year",
     costAdd: "Add item",
-    costsMaxReached: "At most {max} items.",
-    costsSummary:
-      "Annual cost {annual}, a month {monthly}. Suggested amounts: €{week} a week, €{month} a month, €{quarter} a quarter, €{year} a year.",
     variableLabel: "As a variable:",
     sponsorMinimumTitle: "Minimum",
     sponsorMinimumLabel: "Minimum (€)",
