@@ -40,6 +40,12 @@ const donationParamsSchema = {
 /** The largest body a donation write accepts: 4 KiB, well above the longest note and name. */
 const DONATION_BODY_LIMIT_BYTES = 4 * 1024;
 
+/**
+ * Registers the ledger's routes on the admin scope, whose `authenticateAdmin`
+ * hook has already checked the token.
+ *
+ * @param app - The admin scope.
+ */
 export async function adminDonationRoutes(app: FastifyInstance) {
   /** The ledger, newest first. */
   app.get(ENDPOINTS.admin.sponsoring.donations, async (request, reply) => {

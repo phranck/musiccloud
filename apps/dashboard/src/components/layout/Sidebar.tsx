@@ -3,12 +3,14 @@ import {
   CaretCircleDoubleDownIcon,
   CaretCircleDoubleUpIcon,
   CaretDownIcon,
+  ChartBarIcon,
   CopyIcon,
   EnvelopeOpenIcon,
   FileDashedIcon,
   FileMdIcon,
   FilesIcon,
   GearIcon,
+  HandCoinsIcon,
   HandHeartIcon,
   HouseSimpleIcon,
   IdentificationCardIcon,
@@ -621,9 +623,9 @@ function SidebarDeveloperSection({
  * costs, who is paid, and the screens that follow with the donations ledger,
  * the sponsors and the support prompts.
  *
- * Shown to every role that may open the Administration area. The settings it
- * links to can be read by an admin and changed by the owner alone, which the
- * page itself says.
+ * Shown to every role that may open the Administration area. It links to the
+ * income overview, the donations ledger and the settings. The settings can be
+ * read by an admin and changed by the owner alone, which the page itself says.
  *
  * @param props.onItemClick - Called after a link is followed, so a mobile drawer can close.
  * @param props.s - The sidebar's labels.
@@ -638,6 +640,24 @@ function SidebarSponsoringSection({ onItemClick, s }: { onItemClick?: () => void
           title={s.sectionSponsoring}
         />
         <DashboardSection.Body className="!gap-0.5 !p-2">
+          <NavLink to="/sponsoring/income" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<ChartBarIcon weight="duotone" className="w-4 h-4" />}
+                label={s.income}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to="/sponsoring/donations" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<HandCoinsIcon weight="duotone" className="w-4 h-4" />}
+                label={s.donations}
+                active={isActive}
+              />
+            )}
+          </NavLink>
           <NavLink to="/sponsoring/settings" onClick={onItemClick} className="contents">
             {({ isActive }) => (
               <DashboardSection.Item

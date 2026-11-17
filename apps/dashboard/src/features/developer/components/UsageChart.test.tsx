@@ -59,4 +59,30 @@ describe("UsageChart", () => {
   it("renders an empty series rather than throwing on a project with no traffic", () => {
     expect(() => render(<UsageChart points={[]} bucket="day" label="nothing yet" />)).not.toThrow();
   });
+
+  it("names every stacked series in a legend whose swatch carries the series' colour class", async () => {
+    const { container } = render(
+      <UsageChart
+        points={[{ startedAt: "2026-11-01T00:00:00.000Z", total: 3_000, parts: { paypal: 1_000, bank: 2_000 } }]}
+        bucket="month"
+        label="income"
+        series={[
+          { key: "bank", label: "Bank transfer" },
+          { key: "paypal", label: "PayPal" },
+        ]}
+      />,
+    );
+
+    await screen.findByRole("figure");
+    const entries = [...container.querySelectorAll(".mc-usage-chart__legend li")];
+    expect(entries.map((entry) => entry.textContent)).toEqual(["Bank transfer", "PayPal"]);
+    expect(entries[1]?.querySelector(".mc-usage-chart__swatch.mc-usage-chart__series--2")).not.toBeNull();
+  });
+
+  it("shows no legend for a single unnamed series", async () => {
+    const { container } = render(<UsageChart points={POINTS} bucket="hour" label="usage" />);
+
+    await screen.findByRole("figure");
+    expect(container.querySelector(".mc-usage-chart__legend")).toBeNull();
+  });
 });
