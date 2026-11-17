@@ -8,13 +8,18 @@ server {
     # type it serves.
     charset utf-8;
 
-    # `backend` below is resolved once, when nginx loads this file, and the
-    # result is kept for the life of the process. If the backend container is
-    # replaced afterwards, every proxied request here fails with 502 or a
-    # timeout until this container restarts, whilst static delivery carries on
-    # looking healthy. The deploy workflow therefore deploys this service again
-    # after every backend deploy, and a backend restart outside a deploy needs
-    # this service restarted with it. See architecture/zerops-networking.md.
+    # The backend is looked up per request rather than once at start, so a
+    # replaced backend container is found without restarting this one. A
+    # `proxy_pass` through a variable is what makes nginx resolve at request
+    # time, and then it asks `resolver` instead of reading /etc/resolv.conf.
+    # 10.0.224.1 is the project network's resolver, read from /etc/resolv.conf
+    # in this container. nginx does not apply the `zerops` search domain, so the
+    # name is written in full. `ipv6=off` keeps nginx on the IPv4 address, so a
+    # request never tries an IPv6 upstream first. A lookup is kept for 10
+    # seconds. See architecture/zerops-networking.md.
+    resolver 10.0.224.1 ipv6=off valid=10s;
+    resolver_timeout 5s;
+    set $backend_upstream backend.zerops:4000;
 
     # Browser-boundary headers for the admin dashboard, the one private surface.
     # Values come from `buildSecurityHeaders(SurfaceExposure.Private)` in
@@ -39,7 +44,7 @@ server {
     # SSE endpoint. Buffering is off and the read timeout is long, because these
     # streams stay open.
     location /api/admin/events {
-        proxy_pass http://backend:4000;
+        proxy_pass http://$backend_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -57,7 +62,7 @@ server {
     # noise. Diagnose from the backend's structured logs, which carry the
     # request id and the handler duration. See architecture/zerops-networking.md.
     location /api/ {
-        proxy_pass http://backend:4000;
+        proxy_pass http://$backend_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
