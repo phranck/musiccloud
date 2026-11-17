@@ -3,8 +3,10 @@ import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { type MouseEvent, useCallback, useRef } from "react";
 import { ShareLayout } from "@/components/share/ShareLayout";
 import { ShareLogoHeader } from "@/components/share/ShareLogoHeader";
+import { ShareSupportPrompt } from "@/components/share/ShareSupportPrompt";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { ccTrackResolver } from "@/lib/resolve/track-resolver";
+import type { SupportPromptSlotData } from "@/lib/support/support-prompts";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 interface CcSharePageShellProps {
@@ -18,6 +20,10 @@ interface CcSharePageShellProps {
   artistInfo?: ArtistInfoResponse;
   /** CC section-title overrides (see `CC_ARTIST_LABELS`). */
   labels: { similar: string; profileProvidedBy: string };
+  /** The short id of this share page, which the support prompts count visits by. */
+  shareId: string;
+  /** The support prompts for a share page, already loaded on the server. */
+  supportPrompts: SupportPromptSlotData;
 }
 
 /**
@@ -30,7 +36,14 @@ interface CcSharePageShellProps {
  * (the same generic mechanism the commercial page uses), so the card swaps
  * without a navigation or re-mount.
  */
-export function CcSharePageShell({ config, artistName, artistInfo, labels }: CcSharePageShellProps) {
+export function CcSharePageShell({
+  config,
+  artistName,
+  artistInfo,
+  labels,
+  shareId,
+  supportPrompts,
+}: CcSharePageShellProps) {
   const navigated = useRef(false);
 
   const navigateHome = useCallback(() => {
@@ -58,6 +71,7 @@ export function CcSharePageShell({ config, artistName, artistInfo, labels }: CcS
   return (
     <main id="main-content" className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
       <ShareLogoHeader onLogoClick={handleLogoClick} />
+      <ShareSupportPrompt shareId={shareId} supportPrompts={supportPrompts} />
       {/* See SharePageShell: CSS fade plays from the initial HTML before hydration. */}
       <div className="w-full animate-fade-in">
         <ShareLayout

@@ -1,7 +1,13 @@
 import { isTrackingEnabled } from "@/lib/analytics/trackingConfig";
 
+/** One value an event's data may carry. */
+type MusicSignalValue = string | number | boolean | null;
+
+/** The data an event may carry, keyed by name. */
+export type MusicSignalData = Record<string, MusicSignalValue>;
+
 type UmamiClient = {
-  track: (eventName: string) => void | Promise<void>;
+  track: (eventName: string, eventData?: MusicSignalData) => void | Promise<void>;
 };
 
 declare global {
@@ -20,18 +26,35 @@ declare global {
  * Suppression: gated by `isTrackingEnabled()` BEFORE touching `window.umami`.
  * In addition the script-inject in `BaseLayout.astro` is gated by the same
  * helper, so a misconfigured environment fails closed on both layers.
+ *
+ * @param name - The event name.
+ * @param data - What the event carries beside its name, for the few events
+ *   whose question is which of many things it was, such as which support
+ *   prompt. Nothing by default, which is the convention above.
  */
-export function sendMusicSignal(name: string): void {
+export function sendMusicSignal(name: string, data?: MusicSignalData): void {
   if (!isTrackingEnabled()) return;
   if (typeof window === "undefined") return;
   const umami = window.umami;
   if (!umami || typeof umami.track !== "function") return;
   try {
-    void umami.track(name);
+    void (data === undefined ? umami.track(name) : umami.track(name, data));
   } catch {
     // Analytics must never affect the product flow.
   }
 }
+
+/**
+ * What a support prompt did, ported from lmaa.space's `support-prompt-shown`,
+ * `support-prompt-clicked` and `support-prompt-dismissed`. Each carries the
+ * prompt's id, its internal name and its slot. Without these, more prompts
+ * are only more noise: nothing says which text or which place worked.
+ */
+export const SupportPromptSignal = {
+  Shown: "Support Prompt: Shown",
+  Clicked: "Support Prompt: Clicked",
+  Dismissed: "Support Prompt: Dismissed",
+} as const;
 
 /**
  * Audio-preview lifecycle. The five terminal states (Paused, Finished,

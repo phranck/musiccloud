@@ -121,6 +121,12 @@ interface ExpandTimelineOptions extends CollapseElements {
   fromCollapsed: boolean;
   /** Caller-side instant gate (e.g. mobile always-open sections): skip the animation, land open. */
   instant?: boolean;
+  /**
+   * How long the reveal takes, in seconds. {@link MotionDuration.Collapse} by
+   * default, a collapsible section's timing; a support prompt growing into
+   * place passes {@link MotionDuration.PromptReveal}.
+   */
+  duration?: number;
 }
 
 /** Options for {@link buildCollapseTimeline}. */
@@ -153,7 +159,7 @@ interface CollapseTimelineOptions extends CollapseElements {
  */
 export function buildExpandTimeline(options: ExpandTimelineOptions): gsap.core.Timeline | null {
   setupMotion();
-  const { shell, curtain, content, fromCollapsed, instant = false } = options;
+  const { shell, curtain, content, fromCollapsed, instant = false, duration = MotionDuration.Collapse } = options;
   killActiveTimeline(shell);
   if (instant || prefersReducedMotion()) {
     gsap.set([shell, curtain, content], { clearProps: COLLAPSE_CLEAR_PROPS });
@@ -172,9 +178,9 @@ export function buildExpandTimeline(options: ExpandTimelineOptions): gsap.core.T
   }
 
   const timeline = gsap.timeline();
-  timeline.to(curtain, { yPercent: 0, duration: MotionDuration.Collapse, ease: MotionEase.McOut }, 0);
-  timeline.to(content, { yPercent: 0, duration: MotionDuration.Collapse, ease: MotionEase.McOut }, 0);
-  timeline.to(shell, { opacity: 1, duration: MotionDuration.Collapse, ease: MotionEase.McOut }, 0);
+  timeline.to(curtain, { yPercent: 0, duration, ease: MotionEase.McOut }, 0);
+  timeline.to(content, { yPercent: 0, duration, ease: MotionEase.McOut }, 0);
+  timeline.to(shell, { opacity: 1, duration, ease: MotionEase.McOut }, 0);
   timeline.eventCallback("onComplete", () => {
     gsap.set([shell, curtain, content], { clearProps: COLLAPSE_CLEAR_PROPS });
     activeTimelines.delete(shell);

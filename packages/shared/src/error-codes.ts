@@ -213,6 +213,28 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "A sponsorship request carried an address classifyProfileLink sorts into no platform, or a name or sentence that is blank once trimmed. Refused rather than stored without it, so nobody believes they gave an address that was dropped.",
     source: "apps/backend/src/services/pending-sponsorships.ts toStoredFields",
   },
+  "MC-REQ-0014": {
+    code: "MC-REQ-0014",
+    httpStatus: 400,
+    userMessage: "Only https addresses or paths on this site are allowed.",
+    internalNote:
+      "A support prompt's button destination failed isSafeConfiguredUrl with relative paths allowed, or was empty while the prompt had no button caption, as lmaa.space refuses it. Refused so a prompt can never point a visitor at a javascript: or data: address. An empty destination with a caption answers MC-REQ-0015 instead. Nothing was written.",
+    source: "apps/backend/src/routes/admin-support-prompts.ts acceptPromptInput",
+  },
+  "MC-REQ-0015": {
+    code: "MC-REQ-0015",
+    httpStatus: 400,
+    userMessage: "A button needs somewhere to lead.",
+    internalNote: "A support prompt carried a button caption without a destination. Nothing was written.",
+    source: "apps/backend/src/routes/admin-support-prompts.ts acceptPromptInput",
+  },
+  "MC-REQ-0016": {
+    code: "MC-REQ-0016",
+    httpStatus: 400,
+    userMessage: "The window ends before it starts.",
+    internalNote: "A support prompt's last day lies before its first day. Nothing was written.",
+    source: "apps/backend/src/routes/admin-support-prompts.ts acceptPromptInput",
+  },
   "MC-AUTH-0001": {
     code: "MC-AUTH-0001",
     httpStatus: 401,

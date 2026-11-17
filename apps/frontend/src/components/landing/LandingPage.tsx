@@ -15,6 +15,7 @@ import { CcShareResult } from "@/components/landing/CcShareResult";
 import { HeroInput } from "@/components/landing/HeroInput";
 import { LandingLogoBlock } from "@/components/landing/LandingLogoBlock";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
+import { LandingSupportPrompt } from "@/components/landing/LandingSupportPrompt";
 import { LiveExampleTeaser } from "@/components/landing/LiveExampleTeaser";
 import { ResolveModeSwitcher } from "@/components/landing/ResolveModeSwitcher";
 import { ShareResult } from "@/components/landing/ShareResult";
@@ -41,6 +42,7 @@ import {
 import { buildGenreQuery, GENRE_BROWSE_QUERY } from "@/lib/resolve/genre-query";
 import { getResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
 import { buildActiveShareSelection } from "@/lib/share/share-view";
+import type { SupportPromptSlotData } from "@/lib/support/support-prompts";
 import { AppStateType, type CcResult, InputState, ResolveMode } from "@/lib/types/app";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
@@ -63,6 +65,14 @@ interface LandingPageProps {
    * shell, which has its own `DeferredFooter`) pass false to avoid a duplicate.
    */
   showFooter?: boolean;
+  /**
+   * The support prompts for the landing page, already loaded on the server.
+   *
+   * Handed to the page rather than placed under it, because the ask belongs in
+   * the flow directly under the search field, above the live example. Absent
+   * where a page carries no ask, such as the content-overlay shell.
+   */
+  supportPrompts?: SupportPromptSlotData;
 }
 
 function selectGenreTile(
@@ -82,6 +92,7 @@ function LandingPageInner({
   ccExampleShortId = null,
   footerNav = EMPTY_NAV_ITEMS,
   showFooter = true,
+  supportPrompts,
 }: LandingPageProps) {
   // Resolve mode (commercial | cc) from the shared persistent store. SSR and the
   // pre-init client snapshot both fall back to the commercial default so first
@@ -289,6 +300,8 @@ function LandingPageInner({
                 />
               </div>
 
+              {!showCompact && supportPrompts && <LandingSupportPrompt supportPrompts={supportPrompts} />}
+
               {!showCompact && activeExampleShortId && (
                 <div className="mt-4 flex justify-center" data-resolve-mode={mode}>
                   <LiveExampleTeaser
@@ -379,6 +392,7 @@ export function LandingPage({
   ccExampleShortId = null,
   footerNav = EMPTY_NAV_ITEMS,
   showFooter = true,
+  supportPrompts,
 }: LandingPageProps = {}) {
   return (
     <ErrorBoundary>
@@ -388,6 +402,7 @@ export function LandingPage({
           ccExampleShortId={ccExampleShortId}
           footerNav={footerNav}
           showFooter={showFooter}
+          supportPrompts={supportPrompts}
         />
       </DialogProvider>
     </ErrorBoundary>

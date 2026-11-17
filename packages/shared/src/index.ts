@@ -53,6 +53,7 @@ export * from "./sponsor-wall.js";
 export * from "./sponsoring.js";
 export * from "./sponsors.js";
 export * from "./support-ladder.js";
+export * from "./support-prompts.js";
 export * from "./tier-icons.js";
 export * from "./umami-proxy.js";
 export * from "./utils.js";

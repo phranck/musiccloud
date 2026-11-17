@@ -252,6 +252,7 @@ describe("buildMusiccloudReadinessExpectations", () => {
     "sponsors",
     "sponsor_avatars",
     "pending_sponsorships",
+    "support_prompts",
   ])("requires CRUD access for the sponsoring table %s", (table) => {
     const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
 

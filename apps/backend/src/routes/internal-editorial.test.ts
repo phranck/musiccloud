@@ -185,6 +185,8 @@ describe("internal Developer Portal editorial routes", () => {
       ContentContext.DeveloperPortal,
       expect.anything(),
       VARIABLE_VALUES,
+      // A page body's reading: no option set.
+      {},
     );
     expect(response.json()).toMatchObject({
       id: "page-privacy",
@@ -214,6 +216,7 @@ describe("internal Developer Portal editorial routes", () => {
       ContentContext.DeveloperPortal,
       expect.anything(),
       VARIABLE_VALUES,
+      {},
     );
   });
 

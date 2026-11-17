@@ -18,7 +18,7 @@ describe("share route error entrypoints", () => {
   });
 
   it("renders the complete share document synchronously for every client", () => {
-    expect(routeSource).toContain("const [contentResult, shareResult] = await Promise.all");
+    expect(routeSource).toContain("const [contentResult, shareResult, supportPrompts] = await Promise.all");
     expect(routeSource).not.toContain("<DeferredShareContent");
     expect(routeSource).not.toContain("if (treatAsBot)");
     expect(routeSource).toContain("canonicalUrl={contentPage ?");

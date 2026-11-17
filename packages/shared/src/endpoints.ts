@@ -85,6 +85,8 @@ export const ENDPOINTS = {
     sponsorships: "/api/v1/sponsorships",
     /** PUT `/api/v1/sponsorships/:reference`: correct what was announced under that reference. Five per hour per address. */
     sponsorshipDetail: (reference: string) => `/api/v1/sponsorships/${encodeURIComponent(reference)}`,
+    /** GET `/api/v1/support-prompts`: the published support prompts whose window covers today, rendered, with the limits. */
+    supportPrompts: "/api/v1/support-prompts",
     /** GET `/api/v1/cc/audio/:jamendoId`: CORS-safe proxy of the full Jamendo
      *  stream (Range-forwarded). Lets the player load + analyse CC audio that
      *  Jamendo serves without the Range CORS preflight headers Web Audio needs.
@@ -329,6 +331,15 @@ export const ENDPOINTS = {
       requestDetail: (id: string) => `/api/admin/sponsoring/requests/${encodeURIComponent(id)}`,
       /** POST: turn one request into a sponsor and a donation in one transaction. Owner or admin. */
       requestTakeover: (id: string) => `/api/admin/sponsoring/requests/${encodeURIComponent(id)}/takeover`,
+    },
+
+    supportPrompts: {
+      /** GET: every support prompt, published or not / POST: create one. Owner or admin. */
+      list: "/api/admin/support-prompts",
+      /** GET / PUT: what bounds one reader across every prompt together. Owner or admin. */
+      limits: "/api/admin/support-prompts/limits",
+      /** GET / PUT / DELETE: one support prompt. Owner or admin. */
+      detail: (id: string) => `/api/admin/support-prompts/${encodeURIComponent(id)}`,
     },
 
     plugins: {
@@ -661,6 +672,10 @@ export const ROUTE_TEMPLATES = {
       requestDetail: "/api/admin/sponsoring/requests/:id",
       /** Route template for ENDPOINTS.admin.sponsoring.requestTakeover. */
       requestTakeover: "/api/admin/sponsoring/requests/:id/takeover",
+    },
+    supportPrompts: {
+      /** Route template for ENDPOINTS.admin.supportPrompts.detail. */
+      detail: "/api/admin/support-prompts/:id",
     },
     tracks: {
       detail: "/api/admin/tracks/:id",

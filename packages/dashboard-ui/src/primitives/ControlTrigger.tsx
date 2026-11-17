@@ -1,10 +1,15 @@
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentPropsWithRef } from "react";
 
 import { cx } from "../classNames.js";
 import type { ControlSize } from "./ListboxPrimitives.js";
 import { controlTriggerSizeClass } from "./listboxClasses.js";
 
-export interface ControlTriggerProps extends ComponentPropsWithoutRef<"button"> {
+/**
+ * Props of {@link ControlTrigger}: every button attribute, including a `ref`,
+ * which a control uses to hand focus back to its trigger when its popover
+ * closes.
+ */
+export interface ControlTriggerProps extends ComponentPropsWithRef<"button"> {
   controlSize?: ControlSize;
   open?: boolean;
 }

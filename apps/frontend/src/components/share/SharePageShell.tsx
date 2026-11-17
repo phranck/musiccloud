@@ -2,16 +2,28 @@ import { navigate } from "astro:transitions/client";
 import { type MouseEvent, useCallback, useRef } from "react";
 import { type ArtistInfoContext, ShareLayout } from "@/components/share/ShareLayout";
 import { ShareLogoHeader } from "@/components/share/ShareLogoHeader";
+import { ShareSupportPrompt } from "@/components/share/ShareSupportPrompt";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
+import type { SupportPromptSlotData } from "@/lib/support/support-prompts";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
 
 interface SharePageShellProps {
   config: ShareContentConfiguration;
   artistName: string;
   artistInfoContext?: ArtistInfoContext;
+  /** The short id of this share page, which the support prompts count visits by. */
+  shareId: string;
+  /** The support prompts for a share page, already loaded on the server. */
+  supportPrompts: SupportPromptSlotData;
 }
 
-export function SharePageShell({ config, artistName, artistInfoContext }: SharePageShellProps) {
+export function SharePageShell({
+  config,
+  artistName,
+  artistInfoContext,
+  shareId,
+  supportPrompts,
+}: SharePageShellProps) {
   const navigated = useRef(false);
 
   const navigateHome = useCallback(() => {
@@ -39,6 +51,7 @@ export function SharePageShell({ config, artistName, artistInfoContext }: ShareP
   return (
     <main id="main-content" className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
       <ShareLogoHeader onLogoClick={handleLogoClick} />
+      <ShareSupportPrompt shareId={shareId} supportPrompts={supportPrompts} />
       {/* `animate-fade-in` stays CSS deliberately (MC-029 Task 2.5 exception):
           this island is client:load in the synchronous document, so the share
           enter plays from the initial HTML before hydration. A GSAP entrance

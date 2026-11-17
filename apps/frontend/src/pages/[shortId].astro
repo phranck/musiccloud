@@ -24,6 +24,7 @@ import { shareCopy } from "@/copy/share";
 import { SHARE_MEDIA_VIEW_SCRIPT } from "@/lib/inline-scripts";
 import { isBot } from "@/lib/isBot";
 import { resolveShortRouteResults } from "@/lib/share/short-route-result";
+import { loadSupportPrompts } from "@/lib/support/support-prompts";
 import {
   buildCcSharePageProps,
   type CcSharePageProps,
@@ -46,13 +47,17 @@ const shareTiming = { correlationId, contentFetchMs: 0, shareFetchMs: 0 };
 Astro.locals.shareTiming = shareTiming;
 const contentStartedAt = performance.now();
 const shareStartedAt = performance.now();
-const [contentResult, shareResult] = await Promise.all([
+// The support prompts are asked for alongside, so a share page waits for the
+// slowest of the three rather than for the prompts after the share. A content
+// page does not use them; the request is cheap and never fails the page.
+const [contentResult, shareResult, supportPrompts] = await Promise.all([
   fetchPublicContentPage(shortId, clientIp).finally(() => {
     shareTiming.contentFetchMs = Math.max(0, Math.round(performance.now() - contentStartedAt));
   }),
   fetchShareData(shortId, clientIp, Astro.request.headers, correlationId).finally(() => {
     shareTiming.shareFetchMs = Math.max(0, Math.round(performance.now() - shareStartedAt));
   }),
+  loadSupportPrompts("share-page", clientIp),
 ]);
 const routeResult = resolveShortRouteResults(contentResult, shareResult);
 
@@ -210,6 +215,8 @@ const exampleShortId = overlayMode ? ((await fetchRandomExample(clientIp))?.shor
         artistName={ccPageProps.artistName}
         artistInfo={ccPageProps.artistInfo}
         labels={ccPageProps.labels}
+        shareId={shortId}
+        supportPrompts={supportPrompts}
       />
     )}
 
@@ -219,6 +226,8 @@ const exampleShortId = overlayMode ? ((await fetchRandomExample(clientIp))?.shor
         config={shareView.config}
         artistName={shareView.artistName}
         artistInfoContext={shareView.artistInfoContext}
+        shareId={shortId}
+        supportPrompts={supportPrompts}
       />
     )}
 

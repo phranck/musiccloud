@@ -15,6 +15,7 @@ import {
   parseApiErrorResponse,
   parseDesignTokens,
   type SharePageResponse,
+  type SupportPromptPayload,
 } from "@musiccloud/shared";
 
 export type BackendFetchResult<T> =
@@ -406,9 +407,9 @@ export async function fetchGenreArtwork(genreKey: string, clientIp?: string): Pr
 }
 
 /**
- * How long the site waits for a sponsor's picture, the sponsors list or a
- * sponsorship request: 5 seconds, since each reads or writes one stored row
- * without anything generated or fetched elsewhere.
+ * How long the site waits for a sponsor's picture, the sponsors list, a
+ * sponsorship request or the support prompts: 5 seconds, since each reads or
+ * writes a few stored rows without anything fetched elsewhere.
  */
 const SPONSORING_FETCH_TIMEOUT_MS = 5000;
 
@@ -441,6 +442,25 @@ export async function fetchSponsors(clientIp?: string): Promise<Response> {
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     SPONSORING_FETCH_TIMEOUT_MS,
   );
+}
+
+/**
+ * Fetch the support prompts that may be shown today and the limits that bound
+ * them, for the SSR of the landing page and the share page.
+ *
+ * @param clientIp - The visitor's address, forwarded for the backend's rate limit.
+ * @returns The payload as the backend sent it.
+ * @throws Error when the backend did not answer or answered with an error,
+ *   so the caller can decide what an unreachable backend means for its page.
+ */
+export async function fetchSupportPrompts(clientIp?: string): Promise<SupportPromptPayload> {
+  const res = await fetchWithTimeout(
+    backendUrl(ENDPOINTS.v1.supportPrompts),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    SPONSORING_FETCH_TIMEOUT_MS,
+  );
+  if (!res.ok) throw new Error(`support-prompts responded ${res.status}`);
+  return (await res.json()) as SupportPromptPayload;
 }
 
 /**

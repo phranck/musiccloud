@@ -44,4 +44,8 @@ export const commonCopy = {
   navigation: {
     menu: "Menu",
   },
+  supportPrompt: {
+    /** The label of the cross that closes a support prompt, lmaa.space's "Ausblenden". */
+    dismiss: "Hide",
+  },
 } as const;

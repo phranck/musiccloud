@@ -198,6 +198,20 @@ export const SponsorshipRequestsPage = lazy(() =>
   })),
 );
 
+/** The support prompt list with the limits that bound all of them, loaded when first opened. */
+export const SupportPromptsPage = lazy(() =>
+  import("@/features/sponsoring/SupportPromptsPage").then((m) => ({
+    default: m.SupportPromptsPage,
+  })),
+);
+
+/** The editor of one support prompt, loaded when first opened. */
+export const SupportPromptEditorPage = lazy(() =>
+  import("@/features/sponsoring/SupportPromptEditorPage").then((m) => ({
+    default: m.SupportPromptEditorPage,
+  })),
+);
+
 export const IncomePage = lazy(() =>
   import("@/features/sponsoring/IncomePage").then((m) => ({
     default: m.IncomePage,

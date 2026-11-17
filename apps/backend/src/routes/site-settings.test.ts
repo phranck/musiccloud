@@ -34,6 +34,9 @@ const SELLING_MODE_KEY = "creem_selling_mode";
 /** The key of the sponsoring setting, which has a route of its own. */
 const SPONSORING_CONFIG_KEY = "sponsoring_config";
 
+/** The key of the support prompt limits, which have a route of their own. */
+const SUPPORT_PROMPT_LIMITS_KEY = "support_prompt_limits";
+
 let app: FastifyInstance;
 
 async function buildApp(): Promise<FastifyInstance> {
@@ -119,6 +122,14 @@ describe("PATCH /api/admin/site-settings", () => {
 
   it("refuses the sponsoring setting, whose own route admits the owner alone", async () => {
     const res = await send("PATCH", "admin", { [SPONSORING_CONFIG_KEY]: '{"payeeIban":"XX"}' });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("MC-REQ-0010");
+    expect(setSetting).not.toHaveBeenCalled();
+  });
+
+  it("refuses the support prompt limits, whose own route checks every bound", async () => {
+    const res = await send("PATCH", "admin", { [SUPPORT_PROMPT_LIMITS_KEY]: '{"maxShown":99}' });
 
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toBe("MC-REQ-0010");

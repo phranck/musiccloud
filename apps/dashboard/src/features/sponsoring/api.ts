@@ -1,6 +1,7 @@
 /**
  * @file Requests for the sponsoring setting, the donations ledger, the annual
- * sponsors and the sponsorship requests waiting for their transfer.
+ * sponsors, the sponsorship requests waiting for their transfer, and the
+ * support prompts with their limits.
  */
 
 import {
@@ -15,6 +16,9 @@ import {
   type SponsorAvatarResult,
   type SponsorInput,
   type SponsoringConfig,
+  type SupportPrompt,
+  type SupportPromptInput,
+  type SupportPromptLimits,
 } from "@musiccloud/shared";
 import { api } from "@/lib/api";
 
@@ -195,4 +199,69 @@ export function takeOverSponsorshipRequest(id: string, takeover: PendingSponsors
  */
 export function deleteSponsorshipRequest(id: string): Promise<void> {
   return api.delete<void>(ENDPOINTS.admin.sponsoring.requestDetail(id));
+}
+
+/** The query key of every support prompt, published or not. */
+export const SUPPORT_PROMPTS_QUERY_KEY = ["admin", "support-prompts", "list"] as const;
+
+/** The query key of the limits that bound one reader across every support prompt together. */
+export const SUPPORT_PROMPT_LIMITS_QUERY_KEY = ["admin", "support-prompts", "limits"] as const;
+
+/**
+ * Reads every support prompt, published or not, for the list in the dashboard.
+ *
+ * @returns The prompts.
+ */
+export function fetchSupportPrompts(): Promise<SupportPrompt[]> {
+  return api.get<SupportPrompt[]>(ENDPOINTS.admin.supportPrompts.list);
+}
+
+/**
+ * Reads what bounds one reader across every prompt together.
+ *
+ * @returns The stored limits, with the defaults filled in for anything never saved.
+ */
+export function fetchSupportPromptLimits(): Promise<SupportPromptLimits> {
+  return api.get<SupportPromptLimits>(ENDPOINTS.admin.supportPrompts.limits);
+}
+
+/**
+ * Stores the limits.
+ *
+ * @param limits - The complete new limits.
+ * @returns The limits as stored.
+ */
+export function updateSupportPromptLimits(limits: SupportPromptLimits): Promise<SupportPromptLimits> {
+  return api.put<SupportPromptLimits>(ENDPOINTS.admin.supportPrompts.limits, limits);
+}
+
+/**
+ * Creates a support prompt.
+ *
+ * @param input - The prompt as entered.
+ * @returns The prompt with the identifier it was given.
+ */
+export function createSupportPrompt(input: SupportPromptInput): Promise<SupportPrompt> {
+  return api.post<SupportPrompt>(ENDPOINTS.admin.supportPrompts.list, input);
+}
+
+/**
+ * Saves one support prompt. The identifier never changes, so nobody's counters reset.
+ *
+ * @param id - The prompt to change.
+ * @param input - Its new fields.
+ * @returns The prompt as stored.
+ */
+export function updateSupportPrompt(id: string, input: SupportPromptInput): Promise<SupportPrompt> {
+  return api.put<SupportPrompt>(ENDPOINTS.admin.supportPrompts.detail(id), input);
+}
+
+/**
+ * Removes one support prompt. It leaves the site at once.
+ *
+ * @param id - The prompt to remove.
+ * @returns The backend's confirmation message.
+ */
+export function deleteSupportPrompt(id: string): Promise<{ message: string }> {
+  return api.delete<{ message: string }>(ENDPOINTS.admin.supportPrompts.detail(id));
 }

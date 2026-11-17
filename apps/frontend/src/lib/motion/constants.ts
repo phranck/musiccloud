@@ -33,6 +33,11 @@ export const MotionDuration = {
    * must not change how sections collapse (independent semantics).
    */
   Collapse: 0.68,
+  /**
+   * A support prompt growing into place once the reader's browser has decided
+   * to show it, 200 ms, the timing lmaa.space gives the same reveal.
+   */
+  PromptReveal: 0.2,
 } as const;
 
 export const MotionEase = {
