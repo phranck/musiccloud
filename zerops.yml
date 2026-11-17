@@ -6,7 +6,7 @@ zerops:
         - corepack enable
         # Only the backend and the workspaces it builds against. Their `prepare`
         # scripts build them during the install, so `shared` needs no step.
-        - pnpm install --frozen-lockfile --store-dir .pnpm-store --filter @musiccloud/backend...
+        - pnpm install --frozen-lockfile --store-dir .zerops-pnpm-store --filter @musiccloud/backend...
         - pnpm --filter @musiccloud/backend build
       deployFiles:
         - apps/backend/dist
@@ -14,7 +14,7 @@ zerops:
       # The store lives under /build/source, where Zerops caches the paths named
       # here, so a build reuses the packages the previous one downloaded.
       cache:
-        - .pnpm-store
+        - .zerops-pnpm-store
     run:
       base: alpine/nodejs@22
       ports:
@@ -124,7 +124,7 @@ zerops:
       base: alpine/nodejs@22
       buildCommands:
         - corepack enable
-        - pnpm install --frozen-lockfile --store-dir .pnpm-store --filter @musiccloud/frontend...
+        - pnpm install --frozen-lockfile --store-dir .zerops-pnpm-store --filter @musiccloud/frontend...
         - pnpm --filter @musiccloud/frontend build
       deployFiles:
         - apps/frontend/dist
@@ -134,7 +134,7 @@ zerops:
         - packages/shared
         - package.json
       cache:
-        - .pnpm-store
+        - .zerops-pnpm-store
     run:
       base: alpine/nodejs@22
       ports:
@@ -162,7 +162,7 @@ zerops:
         # The developer prebuild exports this checkout's public OpenAPI contract
         # by running the backend's export script, so the backend's packages are
         # installed as well.
-        - pnpm install --frozen-lockfile --store-dir .pnpm-store --filter @musiccloud/developer... --filter @musiccloud/backend...
+        - pnpm install --frozen-lockfile --store-dir .zerops-pnpm-store --filter @musiccloud/developer... --filter @musiccloud/backend...
         - pnpm --filter @musiccloud/developer build
       deployFiles:
         - apps/developer/dist
@@ -172,7 +172,7 @@ zerops:
         - packages/shared
         - package.json
       cache:
-        - .pnpm-store
+        - .zerops-pnpm-store
     run:
       base: alpine/nodejs@22
       ports:
@@ -193,7 +193,7 @@ zerops:
       base: alpine/nodejs@22
       buildCommands:
         - corepack enable
-        - pnpm install --frozen-lockfile --store-dir .pnpm-store --filter @musiccloud/dashboard...
+        - pnpm install --frozen-lockfile --store-dir .zerops-pnpm-store --filter @musiccloud/dashboard...
         - pnpm --filter @musiccloud/dashboard build
         - cp -r apps/dashboard/dist/. .
         - cp apps/dashboard/site_config.tmpl .
@@ -208,7 +208,7 @@ zerops:
         - manifest.json
         - site_config.tmpl
       cache:
-        - .pnpm-store
+        - .zerops-pnpm-store
     run:
       base: alpine/nginx@1.22
       ports:
