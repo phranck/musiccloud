@@ -10,8 +10,8 @@ export const prerender = false;
 
 import { type ApiErrorResponse, type PublicContentPage, type SharePageResponse, SITE_ORIGIN } from "@musiccloud/shared";
 import { fetchPublicContentPage, fetchRandomExample, fetchShareData } from "@/api/client";
-import { RecessedCard } from "@/components/cards/RecessedCard";
 import { LandingPage } from "@/components/landing/LandingPage";
+import { ContentPageMarkdown } from "@/components/layout/ContentPageMarkdown";
 import DeferredFooter from "@/components/layout/DeferredFooter.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import { SegmentedPageFullscreen } from "@/components/layout/SegmentedPageFullscreen";
@@ -171,12 +171,13 @@ const exampleShortId = overlayMode ? ((await fetchRandomExample(clientIp))?.shor
         )}
         {contentPage.pageType === "segmented" ? (
           <SegmentedPageFullscreen client:load page={contentPage} />
-        ) : contentPage.contentCardStyle === "recessed" ? (
-          <RecessedCard client:load className="px-6 py-6">
-            <MarkdownHtml html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
-          </RecessedCard>
         ) : (
-          <MarkdownHtml client:load html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
+          <ContentPageMarkdown
+            client:load
+            html={contentPage.contentHtml}
+            recessed={contentPage.contentCardStyle === "recessed"}
+            className="prose prose-invert max-w-none"
+          />
         )}
       </main>
     )}
