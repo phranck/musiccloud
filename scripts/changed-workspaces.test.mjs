@@ -85,10 +85,11 @@ test("prints the names both detect jobs declare as outputs", async () => {
   ]) {
     const job = workflow.slice(workflow.indexOf(`  ${jobName}:`));
     const outputs = job.slice(job.indexOf("    outputs:\n"), job.indexOf("    steps:\n"));
-    const declared = [...outputs.matchAll(/^ {6}([a-z_]+):/gm)].map((match) => match[1]).sort();
+    const declared = [...outputs.matchAll(/^ {6}([a-z_]+):/gm)].map((match) => match[1]);
     const printed = [...affectedWorkspaces(repositoryWorkspaces, [], purpose).keys()].map(outputName).sort();
 
-    assert.deepEqual(declared, printed, jobName);
+    // `any` is written by the workflow from the printed lines, not by the script.
+    assert.deepEqual(declared.filter((name) => name !== "any").sort(), printed, jobName);
   }
 });
 
