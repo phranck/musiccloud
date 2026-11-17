@@ -40,6 +40,7 @@ import adminGdprRoutes from "./routes/admin-gdpr.js";
 import adminNavRoutes from "./routes/admin-nav.js";
 import { adminPlanOfferRoutes } from "./routes/admin-plan-offers.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
+import { adminSponsoringRoutes } from "./routes/admin-sponsoring.js";
 import adminSseRoutes from "./routes/admin-sse.js";
 import { adminTiersRoutes } from "./routes/admin-tiers.js";
 import adminUserRoutes from "./routes/admin-users.js";
@@ -674,6 +675,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(adminSseRoutes);
     await adminApp.register(adminUserRoutes);
     await adminApp.register(siteSettingsAdminRoutes);
+    await adminApp.register(adminSponsoringRoutes);
     await adminApp.register(adminPluginsRoutes);
     await adminApp.register(adminCrawlerRoutes);
     await adminApp.register(developerPortalAvailabilityAdminRoutes);

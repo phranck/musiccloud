@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { parseShortcodes } from "./markdown-shortcode-parser.js";
-import { expandSiteVariables, SITE_VARIABLE_NAMES, SITE_VARIABLES, type SiteVariableValues } from "./site-variables.js";
+import {
+  expandSiteVariables,
+  SITE_VARIABLE_NAMES,
+  SITE_VARIABLES,
+  SiteVariableKind,
+  type SiteVariableValues,
+} from "./site-variables.js";
 
 const VALUES: SiteVariableValues = {
   freeRequestsPerMinute: 60,
@@ -9,6 +15,22 @@ const VALUES: SiteVariableValues = {
   registrationsPerProject: 5,
   keylessRequestsPerMinute: 10,
   keylessRequestsPerDay: 500,
+  annualCost: 23_000,
+  monthlyCost: 1_917,
+  amountWeek: 5,
+  amountMonth: 20,
+  amountQuarter: 60,
+  amountYear: 1_230,
+  amountMonthHalf: 10,
+  amountMonthQuarter: 5,
+  peoplePerYear: 1_200,
+  amountSponsorMin: 40,
+  payeeName: "Frank Gregor",
+  payeeIban: "AT61 1904 3002 3457 3201",
+  payeeBic: "BKAUATWW",
+  purposeDonation: "Donation: musiccloud.io",
+  purposeSponsor: "Sponsor: musiccloud.io",
+  purposePaypal: "musiccloud.io",
 };
 
 describe("expandSiteVariables", () => {
@@ -53,6 +75,23 @@ describe("expandSiteVariables", () => {
 
     expect(parsed.target).toBe("3 projects");
   });
+
+  it("writes money in euros, without decimals for whole euros", () => {
+    expect(expandSiteVariables("{annualCost} a year, {monthlyCost} a month", VALUES)).toBe(
+      "€230 a year, €19.17 a month",
+    );
+  });
+
+  it("writes an amount as a bare number without grouping, so a shortcode reads it back", () => {
+    expect(expandSiteVariables("{amountYear}", VALUES)).toBe("1230");
+    expect(expandSiteVariables("{peoplePerYear}", VALUES)).toBe("1,200");
+  });
+
+  it("writes text exactly as it was supplied", () => {
+    expect(expandSiteVariables("{payeeName}, {payeeIban}, {purposeDonation}", VALUES)).toBe(
+      "Frank Gregor, AT61 1904 3002 3457 3201, Donation: musiccloud.io",
+    );
+  });
 });
 
 describe("SITE_VARIABLES", () => {
@@ -72,7 +111,8 @@ describe("SITE_VARIABLES", () => {
     // names, kept apart because one is what an editor reads and the other is
     // what the backend fills in. This is what holds them together.
     for (const name of SITE_VARIABLE_NAMES) {
-      expect(VALUES[name], name).toBeTypeOf("number");
+      const expected = SITE_VARIABLES[name].kind === SiteVariableKind.Text ? "string" : "number";
+      expect(VALUES[name], name).toBeTypeOf(expected);
     }
     expect(Object.keys(VALUES).sort()).toEqual([...SITE_VARIABLE_NAMES].sort());
   });

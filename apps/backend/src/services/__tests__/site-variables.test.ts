@@ -13,6 +13,12 @@ vi.mock("../developer-limits.js", async () => {
   return { ...actual, getMaxProjectsPerAccount };
 });
 
+const getSponsoringConfig = vi.fn();
+
+vi.mock("../sponsoring-config.js", () => ({ getSponsoringConfig }));
+
+const { SPONSORING_DEFAULTS } = await import("@musiccloud/shared");
+
 const { KEYLESS_RESOLVE_REQUESTS_PER_DAY, KEYLESS_RESOLVE_REQUESTS_PER_MINUTE } = await import(
   "../../lib/infra/rate-limiter.js"
 );
@@ -31,6 +37,30 @@ describe("resolveSiteVariableValues", () => {
     listTiers.mockResolvedValue([FREE_TIER]);
     listAllOffers.mockResolvedValue([]);
     getMaxProjectsPerAccount.mockResolvedValue(7);
+    getSponsoringConfig.mockReset();
+    getSponsoringConfig.mockResolvedValue(SPONSORING_DEFAULTS);
+  });
+
+  it("takes every sponsoring figure from the stored setting", async () => {
+    getSponsoringConfig.mockResolvedValue({
+      ...SPONSORING_DEFAULTS,
+      costs: [
+        { label: "Hosting", amountCents: 20_000 },
+        { label: "Domain", amountCents: 3_000 },
+      ],
+      payeeName: "Frank Gregor",
+      payeeIban: "AT611904300234573201",
+    });
+    const values = await resolveSiteVariableValues();
+
+    expect(values.annualCost).toBe(23_000);
+    expect(values.amountMonth).toBe(20);
+    expect(values.amountQuarter).toBe(60);
+    expect(values.amountSponsorMin).toBe(40);
+    expect(values.payeeName).toBe("Frank Gregor");
+    // Grouped as a banking app prints it.
+    expect(values.payeeIban).toBe("AT61 1904 3002 3457 3201");
+    expect(values.purposeDonation).toBe(SPONSORING_DEFAULTS.purposeDonation);
   });
 
   it("takes the free plan's limits from the tier rather than from a figure of its own", async () => {

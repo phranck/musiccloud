@@ -16,6 +16,7 @@ import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { replyWithApiError } from "../lib/infra/api-error-handler.js";
 import { SELLING_MODE_KEY } from "../services/creem-selling-mode.js";
 import { getAllSettings, getDesignTokens, getSetting, setSetting } from "../services/site-settings.js";
+import { SPONSORING_CONFIG_KEY } from "../services/sponsoring-config.js";
 
 /**
  * Keys the generic PATCH refuses, because a route of their own writes them.
@@ -24,9 +25,10 @@ import { getAllSettings, getDesignTokens, getSetting, setSetting } from "../serv
  * and this route checks neither, so accepting the key here would skip both.
  * Every entry is the constant its owning service exports, so the key is spelled
  * once. Contains `creem_selling_mode`, whose route is
- * `PATCH /api/admin/developer/creem-selling-mode`.
+ * `PATCH /api/admin/developer/creem-selling-mode`, and `sponsoring_config`,
+ * whose route is `PUT /api/admin/sponsoring/config`.
  */
-const KEYS_WITH_THEIR_OWN_ROUTE: ReadonlySet<string> = new Set([SELLING_MODE_KEY]);
+const KEYS_WITH_THEIR_OWN_ROUTE: ReadonlySet<string> = new Set([SELLING_MODE_KEY, SPONSORING_CONFIG_KEY]);
 
 /**
  * Public read for a single well-known flag (`tracking_enabled`). Kept

@@ -189,6 +189,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "The generic site-settings PATCH named a key that a dedicated route owns, such as the Creem selling mode. That route checks the caller's role and the value; writing the key here would skip both. Nothing from the request is written.",
     source: "apps/backend/src/routes/site-settings.ts siteSettingsAdminRoutes",
   },
+  "MC-REQ-0011": {
+    code: "MC-REQ-0011",
+    httpStatus: 400,
+    userMessage: "The sponsoring settings were not saved. Check these fields: {fields}.",
+    internalNote:
+      "PUT /api/admin/sponsoring/config failed the request schema built from SPONSORING_CONFIG_SCHEMA, or the IBAN failed its checksum. The response carries `problems`, one `{ field, reason }` per field, so the dashboard can mark each one. Nothing was written.",
+    source: "apps/backend/src/routes/admin-sponsoring.ts",
+  },
   "MC-AUTH-0001": {
     code: "MC-AUTH-0001",
     httpStatus: 401,

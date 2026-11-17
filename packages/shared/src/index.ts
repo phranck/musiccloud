@@ -42,6 +42,7 @@ export * from "./security-headers.js";
 export * from "./services.js";
 export * from "./site-origins.js";
 export * from "./site-variables.js";
+export * from "./sponsoring.js";
 export * from "./tier-icons.js";
 export * from "./umami-proxy.js";
 export * from "./utils.js";
