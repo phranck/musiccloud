@@ -17,6 +17,7 @@ const VALID: DonationForm = {
   receivedOn: "2026-11-17",
   provider: "paypal",
   note: " thanks ",
+  sponsorId: "s1",
 };
 
 describe("donationFormProblems", () => {
@@ -47,6 +48,7 @@ describe("toDonationInput", () => {
       receivedOn: "2026-11-17",
       provider: "paypal",
       note: "thanks",
+      sponsorId: "s1",
     });
   });
 
@@ -69,6 +71,11 @@ describe("localDay", () => {
   });
 
   it("presets a new donation to that day, unnamed and unpublished", () => {
-    expect(emptyDonationForm("2026-01-05")).toMatchObject({ receivedOn: "2026-01-05", name: "", published: false });
+    expect(emptyDonationForm("2026-01-05")).toMatchObject({
+      receivedOn: "2026-01-05",
+      name: "",
+      published: false,
+      sponsorId: null,
+    });
   });
 });

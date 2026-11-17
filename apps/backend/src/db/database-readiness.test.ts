@@ -247,11 +247,11 @@ describe("buildMusiccloudReadinessExpectations", () => {
     }
   });
 
-  it("requires CRUD access for the donations ledger", () => {
+  it.each(["donations", "sponsors"])("requires CRUD access for the sponsoring table %s", (table) => {
     const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
 
     for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
-      expect(result.privileges).toContainEqual({ table: "donations", privilege });
+      expect(result.privileges).toContainEqual({ table, privilege });
     }
   });
 });

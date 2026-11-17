@@ -23,9 +23,13 @@ vi.mock("../services/donations.js", () => ({
   readDonationTotals: vi.fn(async () => ({ donatedYearCents: 0, donatedMonthCents: 0, byMonth: [], byProvider: {} })),
 }));
 
+vi.mock("../services/sponsors.js", () => ({
+  sponsorExists: vi.fn(async (id: string) => id === "s1"),
+}));
+
 import { createDonation, deleteDonation, updateDonation } from "../services/donations.js";
 
-/** A valid PayPal donation of 20 euros. */
+/** A valid PayPal donation of 20 euros, not linked to a sponsor. */
 const VALID: DonationInput = {
   name: "Ada",
   published: true,
@@ -33,6 +37,7 @@ const VALID: DonationInput = {
   receivedOn: "2026-11-17",
   provider: "paypal",
   note: "",
+  sponsorId: null,
 };
 
 let app: FastifyInstance;
@@ -101,11 +106,20 @@ describe("donations ledger routes", () => {
     ["a day that does not exist", { receivedOn: "2026-02-30" }],
     ["a day in another format", { receivedOn: "17.11.2026" }],
     ["a note that is too long", { note: "x".repeat(501) }],
+    ["a sponsor that does not exist", { sponsorId: "nobody" }],
+    ["a sponsor id with characters an id never has", { sponsorId: "../x" }],
   ])("refuses %s and writes nothing", async (_case, change) => {
     const res = await send("POST", ENDPOINTS.admin.sponsoring.donations, "admin", { ...VALID, ...change });
 
     expect(res.statusCode).toBe(400);
     expect(createDonation).not.toHaveBeenCalled();
+  });
+
+  it("links a donation to a sponsor that exists", async () => {
+    const linked = { ...VALID, sponsorId: "s1" };
+
+    expect((await send("POST", ENDPOINTS.admin.sponsoring.donations, "admin", linked)).statusCode).toBe(201);
+    expect(createDonation).toHaveBeenCalledWith(linked);
   });
 
   it("changes a donation and answers 404 for an unknown one", async () => {

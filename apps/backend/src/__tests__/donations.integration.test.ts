@@ -49,6 +49,7 @@ describe.skipIf(!integrationDatabaseUrl())("donations ledger (integration)", () 
       receivedOn,
       provider,
       note: "",
+      sponsorId: null,
     });
     ids.push(donation.id);
     return donation;
@@ -92,6 +93,7 @@ describe.skipIf(!integrationDatabaseUrl())("donations ledger (integration)", () 
       receivedOn: "2001-01-02",
       provider: DonationProvider.Other,
       note: "cash",
+      sponsorId: null,
     };
     const changed = await updateDonation(donation.id, input);
     expect(changed).toMatchObject({ amountCents: 150, receivedOn: "2001-01-02", provider: "other", note: "cash" });
