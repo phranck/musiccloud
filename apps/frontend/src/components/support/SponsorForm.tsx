@@ -194,7 +194,8 @@ function describeRefusal(
  * decides is when this browser stops showing the reference, and that is a
  * decision about this browser. A correction is stamped anew like a new
  * reference, so the browser keeps the reference `PENDING_SPONSORSHIP_DAYS`
- * after the form was last sent.
+ * after the form was last sent. The backend restarts its own count on a
+ * correction as well, so the two let go of the reference together.
  *
  * @param receipt - The reference the site answered with.
  * @param announced - What was sent under it.
