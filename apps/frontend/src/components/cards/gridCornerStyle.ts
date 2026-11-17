@@ -12,8 +12,9 @@ const GRID_COLS = 2;
  * bottom-right) require the tile to occupy the grid's last column. With an odd
  * tile count the last row holds a single left-column tile, so the well's
  * bottom-right corner is unoccupied and that lone tile keeps an interior
- * bottom-right. Index-based (not layout-read) so it is immune to the GSAP Flip
- * reflow.
+ * bottom-right. Index-based rather than read from layout, so a reflow such as
+ * the platform grid's GSAP Flip cannot disturb it. The platform grid and the
+ * support ladder's amount grid both use it.
  *
  * @param index Zero-based position of the tile in display order.
  * @param count Total number of visible tiles in the grid.

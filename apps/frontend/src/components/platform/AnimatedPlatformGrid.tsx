@@ -1,6 +1,6 @@
 import { useGSAP } from "@gsap/react";
 import { useMemo, useRef } from "react";
-import { gridCornerStyle } from "@/components/platform/gridCornerStyle";
+import { gridCornerStyle } from "@/components/cards/gridCornerStyle";
 import { PlatformButton } from "@/components/platform/PlatformButton";
 import { animateFlipEnter, animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
 import { type PlatformLink, visiblePlatformsInDisplayOrder } from "@/lib/types/platform";
