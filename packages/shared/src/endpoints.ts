@@ -79,6 +79,8 @@ export const ENDPOINTS = {
     ccGenreArtwork: (genreKey: string) => `/api/v1/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
     /** GET `/api/v1/sponsor-avatars/:avatarId`: a sponsor's picture, a PNG musiccloud re-encoded, cached for good. */
     sponsorAvatar: (avatarId: string) => `/api/v1/sponsor-avatars/${encodeURIComponent(avatarId)}`,
+    /** GET `/api/v1/sponsors`: the published sponsors whose year still runs and the year's figures, without any person's amount. */
+    sponsors: "/api/v1/sponsors",
     /** GET `/api/v1/cc/audio/:jamendoId`: CORS-safe proxy of the full Jamendo
      *  stream (Range-forwarded). Lets the player load + analyse CC audio that
      *  Jamendo serves without the Range CORS preflight headers Web Audio needs.
@@ -190,6 +192,8 @@ export const ENDPOINTS = {
     ccGenreArtwork: (genreKey: string) => `/api/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
     /** GET: forwarded to `ENDPOINTS.v1.sponsorAvatar`, so the site serves a sponsor's picture from its own origin. */
     sponsorAvatar: (avatarId: string) => `/api/sponsor-avatars/${encodeURIComponent(avatarId)}`,
+    /** GET: forwarded to `ENDPOINTS.v1.sponsors`, so the sponsor wall asks nobody but the site. */
+    sponsors: "/api/sponsors",
     /** GET: forwarded to `ENDPOINTS.v1.ccAudio`. The audio player loads CC tracks
      *  through this same-origin proxy so no cross-origin Range request is made.
      *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */

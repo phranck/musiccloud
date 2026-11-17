@@ -7,7 +7,16 @@
  * write also removes the picture copies no sponsor points at any longer.
  */
 
-import { classifyProfileLink, type SocialMediaLinks, type Sponsor, type SponsorInput } from "@musiccloud/shared";
+import {
+  classifyProfileLink,
+  fundingWindowStart,
+  type PublicSponsor,
+  type SocialMediaLinks,
+  SPONSOR_YEAR_DAYS,
+  type Sponsor,
+  type SponsorInput,
+  utcDay,
+} from "@musiccloud/shared";
 import { nanoid } from "nanoid";
 import { getDatabasePool } from "../db/pool.js";
 import { pruneUnusedSponsorAvatars } from "./sponsor-avatars.js";
@@ -87,6 +96,38 @@ export async function listSponsors(): Promise<Sponsor[]> {
     `SELECT ${SPONSOR_SELECT} FROM sponsors s ORDER BY s.paid_on DESC, s.created_at DESC`,
   );
   return result.rows.map(toSponsor);
+}
+
+/**
+ * Lists the sponsors the site shows: those who agreed to be named and whose
+ * year still runs, the earliest payment first, as lmaa.space orders its wall.
+ *
+ * A year runs for {@link SPONSOR_YEAR_DAYS} days from the day paid, so a
+ * sponsor is shown from `fundingWindowStart` on, the window `readDonationTotals`
+ * sums the covered amount over and `sponsorDaysLeft` counts down. No amount is
+ * read.
+ *
+ * @param today - The day the year ends on, `YYYY-MM-DD`. Defaults to today in UTC,
+ *   as the ledger's sums do.
+ * @returns The sponsors as their cards show them.
+ */
+export async function listCurrentSponsors(today: string = utcDay()): Promise<PublicSponsor[]> {
+  const result = await getDatabasePool().query<Omit<SponsorQueryRow, "amount_cents" | "published">>(
+    `SELECT s.id, s.name, s.links, s.avatar_id, s.claim, to_char(s.paid_on, 'YYYY-MM-DD') AS paid_on,
+            s.created_at, s.updated_at
+       FROM sponsors s
+      WHERE s.published AND s.paid_on >= $1::date
+      ORDER BY s.paid_on ASC, s.created_at ASC`,
+    [fundingWindowStart(today, SPONSOR_YEAR_DAYS)],
+  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    socialMedia: readSocialMedia(row.links),
+    avatarId: row.avatar_id,
+    claim: row.claim,
+    paidOn: row.paid_on,
+  }));
 }
 
 /**

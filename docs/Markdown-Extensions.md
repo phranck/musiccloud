@@ -56,6 +56,7 @@ Validation inspects parsed token types, not raw substring matches. Extension-lik
 | `pill` | `[[pill:…]]` | Inline | Forbidden | Required | Yes | Yes |
 | `plans` | `[[plans]]` | Block | Forbidden | Forbidden | No | Yes |
 | `spacer` | `[[spacer]]` | Block | Forbidden | Forbidden | Yes | Yes |
+| `sponsors` | `[[sponsors]]` | Block | Forbidden | Forbidden | Yes | No |
 | `support-ladder` | `[[support-ladder … ]]` | Block | Children | Forbidden | Yes | No |
 | `vstack` | `[[vstack { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
 | `youtube` | `[[youtube:…]]` | Block | Forbidden | Required | Yes | Yes |
@@ -115,6 +116,14 @@ The ladder is something a reader operates, so the backend does not draw it. `app
 Markdown passes raw HTML through, so a page could write the attribute by hand. The sanitizer therefore reads it against the shared shape, drops whatever does not fit, and runs every HTML field through its own allowlist. After sanitizing, `bindSupportLadderSettings` writes the payee and the sponsor minimum from the sponsoring settings into every marker. A page can therefore never name the account a transfer goes to.
 
 The site mounts `SupportLadder` on the marker in `MarkdownHtml`. The GiroCode follows EPC069-12 and is drawn for single payments and sponsorships only, because the format has no field for an interval. PayPal.Me stands under single payments only, GitHub Sponsors under single and monthly payments, and the sponsor tab offers the transfer alone. `qr-code-styling` draws the code and is loaded the first time a code is drawn, so a page without a ladder never fetches it.
+
+## The sponsor wall
+
+`[[sponsors]]` shows who carries this year's running costs, and only the site renders it. It has a card for every published sponsor whose year still runs, and a sentence under the cards on how much of the year is covered. A page writes the texts around the cards and nothing about the sponsors, who are entered in the dashboard. Every text is optional and the site has a default for each one: `text` introduces the block, `covered` and `missing` are the two versions of the sentence under the cards, and `empty` with `emptyAction` fill the placeholder card that stands while nobody is on the wall. In `missing`, `{missing}` stands for the amount still outstanding.
+
+Who is on the wall changes by the day, so the backend writes no sponsor into the page. `apps/backend/src/services/markdown/sponsors-extension.ts` renders the texts as Markdown and writes them as JSON into the `data-mc-sponsor-wall` attribute of an empty `div`. `packages/shared/src/sponsor-wall.ts` defines that shape and is its one reader. The sanitizer reads a hand-written marker against that shape and runs every HTML field through its allowlist, as it does for the ladder.
+
+The site mounts the wall on the marker in `MarkdownHtml` and reads the sponsors and the year's figures from `GET /api/sponsors` on its own origin, which forwards to `GET /api/v1/sponsors`. That route carries no amount belonging to a person. From the third card on, the row moves by itself, and it eases to a stop under the pointer or the focus. A reader who prefers reduced motion gets a row that stands still. The placeholder's button opens the ladder's sponsor tab.
 
 ## Rendering and validation
 

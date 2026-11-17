@@ -1,10 +1,16 @@
-import { parseSupportLadderAttribute, SUPPORT_LADDER_ATTRIBUTE } from "@musiccloud/shared";
+import {
+  parseSponsorWallAttribute,
+  parseSupportLadderAttribute,
+  SPONSOR_WALL_ATTRIBUTE,
+  SUPPORT_LADDER_ATTRIBUTE,
+} from "@musiccloud/shared";
 import parse, { domToReact, type Element, type HTMLReactParserOptions, type Text } from "html-react-parser";
 
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { BioAnchor } from "@/components/markdown/BioAnchor";
 import { VideoEmbed } from "@/components/markdown/VideoEmbed";
+import { SponsorWall } from "@/components/support/SponsorWall";
 import { SupportLadder } from "@/components/support/SupportLadder";
 import { linkify } from "@/lib/linkify";
 
@@ -69,7 +75,8 @@ function anchorTextContent(el: Element): string {
  * `<pre>`'s own padding/background (the card now owns the geometry).
  *
  * A `<div data-mc-support-ladder>` marker becomes the interactive
- * `SupportLadder`, and a video link becomes a `VideoEmbed`.
+ * `SupportLadder`, a `<div data-mc-sponsor-wall>` marker the `SponsorWall`,
+ * and a video link becomes a `VideoEmbed`.
  *
  * When `linkifyText` is enabled, every plain-text run is additionally scanned for
  * URLs/emails which become `mc-cardlink` anchors (used for artist bios, whose
@@ -117,6 +124,14 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
       if (el.name === "div" && el.attribs[SUPPORT_LADDER_ATTRIBUTE] !== undefined) {
         const config = parseSupportLadderAttribute(el.attribs[SUPPORT_LADDER_ATTRIBUTE]);
         return config ? <SupportLadder config={config} /> : <></>;
+      }
+
+      // The sponsor wall arrives as an empty element carrying the page's texts,
+      // read through the shared reader as the ladder's are. The sponsors
+      // themselves the wall reads once it is mounted.
+      if (el.name === "div" && el.attribs[SPONSOR_WALL_ATTRIBUTE] !== undefined) {
+        const config = parseSponsorWallAttribute(el.attribs[SPONSOR_WALL_ATTRIBUTE]);
+        return config ? <SponsorWall config={config} /> : <></>;
       }
 
       if (el.name !== "pre") return undefined;

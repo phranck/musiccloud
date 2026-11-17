@@ -32,6 +32,7 @@ import {
   type ShortcodeParamValue,
   type SingleContentContext,
   SPACER_SHORTCODE,
+  SPONSORS_SHORTCODE,
   SUPPORT_LADDER_SHORTCODE,
   VSTACK_SHORTCODE,
   YOUTUBE_SHORTCODE,
@@ -47,6 +48,7 @@ import { createHeadingAnchorExtension } from "./heading-anchors.js";
 import { createIconExtension } from "./icon-extension.js";
 import { createMediaExtension } from "./media-extension.js";
 import { createPlansExtension } from "./plans-extension.js";
+import { createSponsorsExtension } from "./sponsors-extension.js";
 import { createStackExtension } from "./stack-extension.js";
 import { createSupportLadderExtension } from "./support-ladder-extension.js";
 
@@ -530,6 +532,12 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
     allowedContextMask: SUPPORT_LADDER_SHORTCODE.allowedContextMask,
     createMarkedExtension: createSupportLadderExtension,
     tokenTypes: ["mcSupportLadder"],
+  },
+  {
+    name: "mcSponsors",
+    allowedContextMask: SPONSORS_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createSponsorsExtension,
+    tokenTypes: ["mcSponsors"],
   },
   {
     name: "mcFields",

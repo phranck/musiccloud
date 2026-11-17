@@ -130,6 +130,17 @@ export function isCalendarDay(day: string): boolean {
 }
 
 /**
+ * Today's day in UTC, which every funding window and every sponsor's year is
+ * counted against, so the server's time zone cannot move a day.
+ *
+ * @param now - The moment to read the day from. Defaults to now.
+ * @returns The day, `YYYY-MM-DD`.
+ */
+export function utcDay(now: Date = new Date()): string {
+  return now.toISOString().slice(0, DAY_LENGTH);
+}
+
+/**
  * How many days the funding year and the funding month reach back.
  *
  * - `Year`: 365 days, the window the annual cost is measured against. It is

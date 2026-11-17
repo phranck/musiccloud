@@ -74,6 +74,7 @@ import genreArtworkRoutes from "./routes/genre-artwork.js";
 import { internalEditorialRoutes } from "./routes/internal-editorial.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
+import publicSponsorRoutes from "./routes/public-sponsors.js";
 import publicTiersRoutes from "./routes/public-tiers.js";
 import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
@@ -618,6 +619,8 @@ async function buildApp(options: BuildAppOptions = {}) {
   // Sponsors' pictures (public, no auth - the support page's wall and the
   // dashboard's sponsor card load them as <img> sources)
   await app.register(sponsorAvatarRoutes);
+  // Who carries the running costs (public, no auth - the support page's wall)
+  await app.register(publicSponsorRoutes);
 
   // Email asset serve endpoint (public, no auth - sent-email <img> tags are
   // fetched by the recipient's mail client, which has no admin JWT to
