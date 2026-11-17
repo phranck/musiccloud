@@ -219,3 +219,39 @@ button,
   --mc-shortcode-caption-color: var(--color-text-muted);
   --mc-shortcode-title-color: var(--color-text-primary);
 }
+
+/* The support ladder is a component standing inside a page's prose, and the
+   prose class-maps style every `p` and heading beneath them. Inside the ladder
+   those elements take the size, spacing and color of the part they stand in
+   instead, so the ladder sets its type on the wrappers and these inherit it.
+   Two classes and an element outweigh a prose rule's one class and one
+   element, so this holds whichever surface renders the page. */
+.mc-markdown .mc-support-ladder :is(p, h1, h2, h3) {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+
+.mc-markdown .mc-support-ladder p + p {
+  margin-top: 0.5em;
+}
+
+/* A route's button is a link, which the prose class-maps color and underline
+   like a link in running text. It takes the color of its wrapper instead. */
+.mc-markdown .mc-support-ladder a.mc-glass-button {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The body of the ladder fades while it changes tab. Only its opacity moves,
+   so the change costs a composite rather than a repaint. The ladder sets
+   `--mc-support-ladder-fade` from the same figure its timer waits for. */
+.mc-support-ladder__body {
+  transition: opacity var(--mc-support-ladder-fade) ease-out;
+}
+
+.mc-support-ladder__body.is-fading {
+  opacity: 0;
+}

@@ -197,8 +197,8 @@ export interface SupportLadderInterval {
  * How the GiroCode looks. Every field is optional, so a page names only what
  * it changes and the site keeps its own value for the rest.
  *
- * @property color - The dots' colour, a hex value.
- * @property background - The quiet zone's colour, a hex value.
+ * @property color - The dots' color, a hex value.
+ * @property background - The quiet zone's color, a hex value.
  * @property size - The code's edge in pixels, within the {@link SUPPORT_LADDER_LIMITS} QR bounds.
  * @property margin - The quiet zone in pixels, within the same bounds.
  * @property dots - One of {@link SUPPORT_QR_DOT_TYPES}.
@@ -304,7 +304,7 @@ export interface SupportLadderConfig {
   labels: Partial<Record<SupportLadderLabelKey, string>>;
 }
 
-/** A GiroCode colour: a hex value of 3, 4, 6 or 8 digits. */
+/** A GiroCode color: a hex value of 3, 4, 6 or 8 digits. */
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
 /** The hosts a PayPal.Me card may lead to. */
@@ -429,17 +429,22 @@ function readLabel(value: unknown): string {
 /**
  * Reads a tab's suggested amounts, keeping the first recommended one only.
  *
+ * An amount named twice is kept once, because the site marks the option whose
+ * amount is chosen, and two options of one amount would both show as chosen.
+ *
  * @param value - The field.
- * @returns The options that fit; an unusable one is dropped.
+ * @returns The options that fit; an unusable or repeated one is dropped.
  */
 function readOptions(value: unknown): SupportLadderOption[] {
   if (!Array.isArray(value)) return [];
   const options: SupportLadderOption[] = [];
+  const seen = new Set<number>();
   let recommendedTaken = false;
   for (const entry of value.slice(0, SUPPORT_LADDER_LIMITS.maxOptions)) {
     if (!isObject(entry)) continue;
     const amountEur = readAmount(entry.amountEur);
-    if (amountEur === null) continue;
+    if (amountEur === null || seen.has(amountEur)) continue;
+    seen.add(amountEur);
     const recommended = entry.recommended === true && !recommendedTaken;
     if (recommended) recommendedTaken = true;
     options.push({ amountEur, description: readHtml(entry.description), recommended });

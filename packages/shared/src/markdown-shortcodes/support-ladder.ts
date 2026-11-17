@@ -76,11 +76,11 @@ export const SUPPORT_LADDER_QRCODE_SHORTCODE = {
   token: ShortcodeToken.QrCode,
   placement: ShortcodePlacement.Inline,
   label: "GiroCode",
-  description: "How the GiroCode looks. Without this node the code is drawn in its default colours and shapes.",
+  description: "How the GiroCode looks. Without this node the code is drawn in its default colors and shapes.",
   examples: ['[[qrcode color="#1c1c1e" background="#ffffff" dots="rounded" size=176]]'],
   params: [
-    { name: "color", type: ShortcodeParamType.String, label: "Colour of the dots, as a hex value" },
-    { name: "background", type: ShortcodeParamType.String, label: "Colour of the quiet zone, as a hex value" },
+    { name: "color", type: ShortcodeParamType.String, label: "Color of the dots, as a hex value" },
+    { name: "background", type: ShortcodeParamType.String, label: "Color of the quiet zone, as a hex value" },
     {
       name: "size",
       type: ShortcodeParamType.Integer,

@@ -84,6 +84,22 @@ describe("readSupportLadderConfig", () => {
     expect(config?.intervals[0]?.options.map((option) => option.amountEur)).toEqual([15]);
   });
 
+  it("keeps an amount named twice in one tab once, with the first description", () => {
+    const config = readSupportLadderConfig({
+      intervals: [
+        {
+          key: "once",
+          options: [
+            { amountEur: 10, description: "<p>First</p>" },
+            { amountEur: 10, description: "<p>Second</p>" },
+          ],
+        },
+      ],
+    });
+
+    expect(config?.intervals[0]?.options.map((option) => option.description)).toEqual(["<p>First</p>"]);
+  });
+
   it("returns nothing when no tab offers anything", () => {
     expect(readSupportLadderConfig({ intervals: [{ key: "once", options: [] }] })).toBeNull();
     expect(readSupportLadderConfig([])).toBeNull();
