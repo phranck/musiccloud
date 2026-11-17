@@ -166,10 +166,13 @@ describe.skipIf(!integrationDatabaseUrl())("annual sponsors (integration)", () =
     const today = "2001-12-31";
     const first = await sponsor({ paidOn: "2001-01-01" });
     const later = await sponsor({ paidOn: "2001-06-01" });
-    await sponsor({ paidOn: "2000-12-31" });
-    await sponsor({ paidOn: "2001-06-01", published: false });
+    const expired = await sponsor({ paidOn: "2000-12-31" });
+    const unpublished = await sponsor({ paidOn: "2001-06-01", published: false });
 
-    const shown = (await listCurrentSponsors(today)).filter((row) => row.name === MARKER);
+    // Only this case's rows, because the cases above leave sponsors of the run
+    // standing in the same year.
+    const own = new Set([first.id, later.id, expired.id, unpublished.id]);
+    const shown = (await listCurrentSponsors(today)).filter((row) => own.has(row.id));
 
     expect(shown.map((row) => row.id)).toEqual([first.id, later.id]);
     expect(Object.keys(shown[0] ?? {}).sort()).toEqual(["avatarId", "claim", "id", "name", "paidOn", "socialMedia"]);
