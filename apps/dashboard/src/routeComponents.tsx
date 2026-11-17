@@ -174,6 +174,12 @@ export const TierEditorPage = lazy(() =>
   })),
 );
 
+export const SponsoringSettingsPage = lazy(() =>
+  import("@/features/sponsoring/SponsoringSettingsPage").then((m) => ({
+    default: m.SponsoringSettingsPage,
+  })),
+);
+
 export const DeveloperSettingsPage = lazy(() =>
   import("@/features/developer/DeveloperSettingsPage").then((m) => ({
     default: m.DeveloperSettingsPage,

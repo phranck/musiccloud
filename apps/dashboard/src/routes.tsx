@@ -33,6 +33,7 @@ import {
   ProjectDetailPage,
   ServicesPage,
   SetupPage,
+  SponsoringSettingsPage,
   SystemPage,
   TierEditorPage,
   TrackEditPage,
@@ -82,6 +83,7 @@ export const routes = createRoutesFromElements(
           <Route path="services" element={lazyFallback(<ServicesPage />)} />
           <Route path="design" element={lazyFallback(<DesignSettingsPage />)} />
           <Route path="actions" element={lazyFallback(<EmailActionsPage />)} />
+          <Route path="sponsoring/settings" element={lazyFallback(<SponsoringSettingsPage />)} />
           <Route path="developer/clients" element={lazyFallback(<ApiClientsPage />)} />
           <Route path="developer/clients/:id" element={lazyFallback(<ClientDetailPage />)} />
           <Route path="developer/accounts" element={lazyFallback(<DeveloperAccountsPage />)} />
