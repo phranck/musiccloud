@@ -251,6 +251,11 @@ export async function createPendingSponsorship(
  * guessable and addresses nothing but its own row. The reference itself never
  * changes, because by now it may stand in a banking app.
  *
+ * A correction restarts the request's `PENDING_SPONSORSHIP_DAYS`: `created_at`
+ * is set to the moment of the correction, the same moment the browser starts
+ * counting from when it stores the corrected receipt, so the daily sweep never
+ * deletes a request whose reference a page still shows.
+ *
  * @param reference - The reference as it arrived, spaces and any case allowed.
  * @param input - A body that passed the request schema.
  * @returns The request afterwards, or why it was refused.
@@ -268,7 +273,7 @@ export async function updatePendingSponsorship(
 
   const result = await getDatabasePool().query<RequestRow>(
     `UPDATE pending_sponsorships
-        SET name = $2, links = $3::jsonb, claim = $4, amount_cents = $5, published = $6
+        SET name = $2, links = $3::jsonb, claim = $4, amount_cents = $5, published = $6, created_at = now()
       WHERE reference = $1
       RETURNING ${REQUEST_COLUMNS}`,
     [stored, fields.name, JSON.stringify(fields.socialMedia), fields.claim, fields.amountCents, fields.published],
