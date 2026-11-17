@@ -11,6 +11,11 @@ vi.mock("../services/sponsoring-config.js", () => ({
   getSponsoringConfig: vi.fn(async () => ({ sponsorMinimumCents: 4_000 })),
 }));
 
+/** The NodeInfo question a website address is asked, answered by each test. */
+const previewMocks = vi.hoisted(() => ({ detectPlatformFromHost: vi.fn(async (): Promise<string | null> => null) }));
+
+vi.mock("../lib/preview-image.js", () => previewMocks);
+
 import {
   createPendingSponsorship,
   deletePendingSponsorship,
@@ -79,6 +84,24 @@ describe.skipIf(!integrationDatabaseUrl())("sponsorship requests (integration)",
     expect(normalizeSponsorshipReference(stored.reference)).toBe(stored.reference);
     expect(stored.socialMedia).toEqual([{ platform: "mastodon", url: "https://chaos.social/@ada" }]);
     expect((await listPendingSponsorships()).some((row) => row.id === stored.id)).toBe(true);
+    expect(previewMocks.detectPlatformFromHost).not.toHaveBeenCalled();
+  });
+
+  it("files an address on no known service as a website", async () => {
+    const stored = await announce({ link: "https://kim-lorenz.example" });
+
+    expect(stored.socialMedia).toEqual([{ platform: "website", url: "https://kim-lorenz.example" }]);
+  });
+
+  it("files an address as the service its host names through NodeInfo", async () => {
+    // A Pixelfed profile is a single path segment on a host of its own, which
+    // is exactly what a personal website looks like by its address.
+    previewMocks.detectPlatformFromHost.mockResolvedValueOnce("pixelfed");
+
+    const stored = await announce({ link: "https://pixels.kim-lorenz.example/kim" });
+
+    expect(previewMocks.detectPlatformFromHost).toHaveBeenCalledWith("https://pixels.kim-lorenz.example/kim");
+    expect(stored.socialMedia).toEqual([{ platform: "pixelfed", url: "https://pixels.kim-lorenz.example/kim" }]);
   });
 
   it("refuses an amount below the minimum and stores nothing", async () => {

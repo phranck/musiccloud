@@ -3,11 +3,9 @@
  * pay, the reference their transfer carries, and the takeover into a sponsor.
  *
  * Ported from lmaa.space (`apps/backend/src/services/pending-sponsorships.ts`).
- * Two things differ on purpose. The takeover writes the sponsor, the payment and
+ * One thing differs on purpose: the takeover writes the sponsor, the payment and
  * the removal of the request in one transaction, so a failure leaves nothing
- * half written. And the public path never asks a host what its address is, so
- * an address given by a stranger is sorted by its shape alone and nothing the
- * caller names is ever fetched before an operator has read it.
+ * half written.
  */
 
 import { randomBytes } from "node:crypto";
@@ -18,19 +16,23 @@ import {
   formatEuroCents,
   issueSponsorshipReference,
   normalizePendingSponsorshipInput,
+  normalizeSocialMediaValue,
   normalizeSponsorshipReference,
   PENDING_SPONSORSHIP_DAYS,
   type PendingSponsorship,
   type PendingSponsorshipInput,
   type PendingSponsorshipTakeover,
   pendingSponsorshipCutoff,
+  type SocialMediaLink,
   type SocialMediaLinks,
   type Sponsor,
+  WEBSITE_PLATFORM,
 } from "@musiccloud/shared";
 import type { FastifyBaseLogger } from "fastify";
 import { nanoid } from "nanoid";
 import { getDatabasePool, withDatabaseTransaction } from "../db/pool.js";
 import { log } from "../lib/infra/logger.js";
+import { detectPlatformFromHost } from "../lib/preview-image.js";
 import { insertDonation } from "./donations.js";
 import { resolveSponsorAvatar } from "./sponsor-avatar.js";
 import { copySponsorAvatar } from "./sponsor-avatar-copy.js";
@@ -137,7 +139,32 @@ async function toStoredFields(
   }
   const fields = normalizePendingSponsorshipInput(input);
   if (!fields) return { ok: false, reason: SponsorshipRefusal.Unusable, minimumCents: sponsorMinimumCents };
-  return { ok: true, fields };
+  const socialMedia = await Promise.all(fields.socialMedia.map(refineWebsite));
+  return { ok: true, fields: { ...fields, socialMedia } };
+}
+
+/**
+ * Asks the page what it is, where its address could not say.
+ *
+ * A service anybody can host sits on a domain of its own and its profiles are a
+ * single path segment, which is what a personal website looks like too. So an
+ * address on one of them sorts into `website`, and only the host can put that
+ * right, by saying through NodeInfo which software it runs.
+ *
+ * A host that answers nothing, or that runs something not known here, is left
+ * as the website it was taken for.
+ *
+ * @param classified - What the address sorted into by its shape alone.
+ * @returns The same, or the service the page turned out to belong to.
+ */
+async function refineWebsite(classified: SocialMediaLink): Promise<SocialMediaLink> {
+  if (classified.platform !== WEBSITE_PLATFORM) return classified;
+
+  const named = await detectPlatformFromHost(classified.url);
+  if (!named) return classified;
+
+  const url = normalizeSocialMediaValue(named, classified.url);
+  return url ? { platform: named, url } : classified;
 }
 
 /**
