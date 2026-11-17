@@ -11,6 +11,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
+import { PENDING_SPONSORSHIP_STORAGE_KEY } from "@/lib/support/pending-sponsorship-store";
 
 /** Every code the stand-in renderer was asked to draw, newest last. */
 const drawn = vi.hoisted(() => [] as string[]);
@@ -97,6 +98,28 @@ function line(label: string): Element | null {
   return screen.getByText(label, { selector: "dt" }).nextElementSibling;
 }
 
+/** When the first request is sent in the `issuedAt` test, in milliseconds since the epoch: 1 November 2026. */
+const FIRST_SENT_MS = Date.UTC(2026, 10, 1);
+
+/** Days between the first request and its correction in the `issuedAt` test: 30, inside the 60 a reference is kept. */
+const DAYS_UNTIL_CORRECTION = 30;
+
+/** Milliseconds in a day: 86,400,000. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** When the correction is sent in the `issuedAt` test, {@link DAYS_UNTIL_CORRECTION} days after {@link FIRST_SENT_MS}. */
+const CORRECTED_MS = FIRST_SENT_MS + DAYS_UNTIL_CORRECTION * DAY_MS;
+
+/**
+ * The moment the browser stored for the reference it holds.
+ *
+ * @returns `issuedAt` as stored, or `undefined` when nothing is stored.
+ */
+function storedIssuedAt(): number | undefined {
+  const raw = window.localStorage.getItem(PENDING_SPONSORSHIP_STORAGE_KEY);
+  return raw ? (JSON.parse(raw) as { issuedAt: number }).issuedAt : undefined;
+}
+
 /** Fills every field of the form with a sponsor's details. */
 function fillForm() {
   fireEvent.change(screen.getByLabelText(SPONSOR_FORM_DEFAULTS.nameLabel), { target: { value: " Ada " } });
@@ -125,6 +148,8 @@ beforeEach(() => {
 afterEach(() => {
   fetchMock.mockReset();
   vi.unstubAllGlobals();
+  // The `issuedAt` test holds the clock still, and a failure must not leave it held.
+  vi.restoreAllMocks();
   window.localStorage.clear();
 });
 
@@ -189,6 +214,24 @@ describe("the sponsor form", () => {
     expect(init?.method).toBe("PUT");
     expect(JSON.parse(String(init?.body))).toMatchObject({ name: "Ada Lovelace" });
     expect(line(SUPPORT_LADDER_LABEL_DEFAULTS.fieldReference)?.textContent).toBe(RECEIPT.referenceFormatted);
+  });
+
+  it("stamps a correction with the moment it was sent, as it stamps a new reference", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(FIRST_SENT_MS);
+    fetchMock.mockResolvedValue(answer(201, RECEIPT));
+    renderLadder();
+    fillForm();
+    fireEvent.click(screen.getByRole("button", { name: SPONSOR_FORM_DEFAULTS.submitLabel }));
+    await screen.findByText(SPONSOR_FORM_DEFAULTS.issuedTitle);
+    expect(storedIssuedAt()).toBe(FIRST_SENT_MS);
+
+    clock.mockReturnValue(CORRECTED_MS);
+    fetchMock.mockResolvedValue(answer(200, RECEIPT));
+    fireEvent.click(screen.getByRole("button", { name: SPONSOR_FORM_DEFAULTS.changeLabel }));
+    fireEvent.click(screen.getByRole("button", { name: SPONSOR_FORM_DEFAULTS.submitLabel }));
+    await screen.findByText(SPONSOR_FORM_DEFAULTS.issuedTitle);
+
+    expect(storedIssuedAt()).toBe(CORRECTED_MS);
   });
 
   it("opens with the switch for being named on, and sends it off once it is flipped", async () => {

@@ -1,4 +1,9 @@
-import { SUPPORT_LADDER_ATTRIBUTE, SupportIntervalKey, SupportRouteToken } from "@musiccloud/shared";
+import {
+  SUPPORT_LADDER_ATTRIBUTE,
+  SUPPORT_LADDER_LABEL_DEFAULTS,
+  SupportIntervalKey,
+  SupportRouteToken,
+} from "@musiccloud/shared";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -24,6 +29,19 @@ const PAYEE = { name: "musiccloud", iban: "DE89370400440532013000", bic: "COBADE
 const PURPOSE_DONATION = "Donation musiccloud.io";
 const PURPOSE_SPONSOR = "Sponsorship musiccloud.io";
 const MINIMUM = 50;
+
+/** The single payment's transfer card, which a tab naming none of its own borrows. */
+const ONCE_VARIANT = { key: SupportIntervalKey.Once, title: "Bank transfer", text: "", recommended: true, info: "" };
+
+/** The sponsor tab's transfer card, holding a form that names no words of its own. */
+const SPONSOR_VARIANT = {
+  key: SupportIntervalKey.Sponsor,
+  title: "Bank transfer",
+  text: "",
+  recommended: false,
+  info: "",
+  sponsorForm: {},
+};
 
 /** The configuration the backend writes for a page with all three tabs. */
 const LADDER = {
@@ -65,7 +83,7 @@ const LADDER = {
   bankAccount: {
     purposeDonation: PURPOSE_DONATION,
     purposeSponsor: PURPOSE_SPONSOR,
-    variants: [{ key: SupportIntervalKey.Once, title: "Bank transfer", text: "", recommended: true, info: "" }],
+    variants: [ONCE_VARIANT, SPONSOR_VARIANT],
   },
   routes: [
     {
@@ -89,6 +107,9 @@ const LADDER = {
   minSponsorAmountEur: MINIMUM,
   labels: {},
 };
+
+/** The same page with no form under the sponsor tab, so its transfer borrows the single payment's card. */
+const LADDER_WITHOUT_FORM = { ...LADDER, bankAccount: { ...LADDER.bankAccount, variants: [ONCE_VARIANT] } };
 
 /**
  * The marker as it stands in a page's HTML, with the attribute escaped the way
@@ -185,6 +206,17 @@ describe("SupportLadder", () => {
     expect(line("Purpose")).toBe(PURPOSE_SPONSOR);
     expect(screen.queryByRole("link", { name: /Open PayPal/ })).toBeNull();
     expect(screen.queryByRole("link", { name: /Open GitHub Sponsors/ })).toBeNull();
+  });
+
+  it("never names a sponsorship on a sponsor tab without a form, at or above the minimum", async () => {
+    renderLadder(LADDER_WITHOUT_FORM);
+
+    await chooseTab("Sponsor", () =>
+      expect((screen.getByLabelText("Your sponsorship") as HTMLInputElement).value).toBe(String(MINIMUM)),
+    );
+
+    expect(line("Purpose")).toBe(PURPOSE_DONATION);
+    expect(screen.queryByText(SUPPORT_LADDER_LABEL_DEFAULTS.fieldReference, { selector: "dt" })).toBeNull();
   });
 
   it("turns a sponsorship below the minimum into a donation, and says so once the field is left", async () => {

@@ -180,18 +180,18 @@ export function SupportLadder({ config }: SupportLadderProps) {
   const onceVariant = bankAccount?.variants.find((entry) => entry.key === SupportIntervalKey.Once);
   const variant = bankAccount?.variants.find((entry) => entry.key === shownKey) ?? onceVariant;
   const hasPayee = payee.name !== "" && payee.iban !== "";
-  // Below the minimum a payment on the sponsor tab is a donation, so the amount
-  // rather than the tab decides what the transfer says.
-  const earnsSponsorship =
-    shownKey === SupportIntervalKey.Sponsor && minSponsorAmountEur > 0 && amountEur >= minSponsorAmountEur;
-  const remittance =
-    (earnsSponsorship ? bankAccount?.purposeSponsor : undefined) || (bankAccount?.purposeDonation ?? "");
   // The wording of the form, when the transfer card in view carries one. Its
   // presence decides whether this tab asks anything of the reader at all, so
   // the page says where the form belongs, by naming a `[[sponsorform]]` in a
-  // variant, rather than the component deciding it from a key. Only then does
-  // a sponsorship carry a reference.
+  // variant, rather than the component deciding it from a key.
   const sponsorFormText = variant?.sponsorForm ? { ...SPONSOR_FORM_DEFAULTS, ...variant.sponsorForm } : null;
+  // Whether what stands on the ladder buys a sponsorship at all. Only a tab
+  // with a form can announce one, and below the minimum the payment is a
+  // donation whatever was announced, so the form and the amount rather than
+  // the tab decide both the reference and the words on the transfer.
+  const earnsSponsorship = sponsorFormText !== null && minSponsorAmountEur > 0 && amountEur >= minSponsorAmountEur;
+  const remittance =
+    (earnsSponsorship ? bankAccount?.purposeSponsor : undefined) || (bankAccount?.purposeDonation ?? "");
 
   return (
     <section
@@ -256,7 +256,7 @@ export function SupportLadder({ config }: SupportLadderProps) {
             amountText={formatEuro(amountEur)}
             monthly={shownKey === SupportIntervalKey.Monthly}
             remittance={remittance}
-            referenceLine={sponsorFormText !== null && earnsSponsorship}
+            referenceLine={earnsSponsorship}
             issued={issued}
             showQr={shownKey !== SupportIntervalKey.Monthly}
             text={text}

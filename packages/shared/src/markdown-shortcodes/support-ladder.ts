@@ -259,7 +259,7 @@ export const SUPPORT_LADDER_BANK_ACCOUNT_SHORTCODE = {
       name: "purposeSponsor",
       type: ShortcodeParamType.String,
       defaultLabel: "the sponsorship purpose under Sponsoring, then Settings",
-      label: "What a transfer at or above the sponsor minimum says",
+      label: "What a transfer at or above the sponsor minimum says, on a tab whose variant holds a sponsorform",
     },
   ],
   children: [SUPPORT_LADDER_VARIANT_SHORTCODE],

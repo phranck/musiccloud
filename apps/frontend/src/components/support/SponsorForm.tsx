@@ -176,25 +176,22 @@ function describeRefusal(
 }
 
 /**
- * Remembers a receipt the site has just answered with.
+ * Remembers a receipt the site has just answered with, with the moment it happened.
  *
- * A correction keeps the moment its reference was first issued, so the browser
- * lets go of it `PENDING_SPONSORSHIP_DAYS` after the request was made, however
- * often it was corrected. A new reference is issued now.
+ * The moment is taken here rather than from the server, because what it
+ * decides is when this browser stops showing the reference, and that is a
+ * decision about this browser. A correction is stamped anew like a new
+ * reference, so the browser keeps the reference `PENDING_SPONSORSHIP_DAYS`
+ * after the form was last sent.
  *
  * @param receipt - The reference the site answered with.
  * @param announced - What was sent under it.
- * @param previous - The entry this corrects, or `null` for a new reference.
  */
-function keepReceipt(
-  receipt: PendingSponsorshipReceipt,
-  announced: AnnouncedSponsorship,
-  previous: IssuedSponsorship | null,
-): void {
+function keepReceipt(receipt: PendingSponsorshipReceipt, announced: AnnouncedSponsorship): void {
   rememberIssuedSponsorship({
     reference: receipt.reference,
     referenceFormatted: receipt.referenceFormatted,
-    issuedAt: previous?.issuedAt ?? Date.now(),
+    issuedAt: Date.now(),
     announced,
   });
 }
@@ -452,7 +449,7 @@ export function SponsorStep({ issued, amountEur, earnsSponsorship, text }: Spons
       correcting={issued ?? undefined}
       text={text}
       onIssued={(receipt, announced) => {
-        keepReceipt(receipt, announced, issued);
+        keepReceipt(receipt, announced);
         setCorrecting(false);
       }}
     />
