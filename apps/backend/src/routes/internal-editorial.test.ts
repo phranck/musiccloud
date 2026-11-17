@@ -180,7 +180,12 @@ describe("internal Developer Portal editorial routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(mocks.getPublishedContentPageByPath).toHaveBeenCalledWith(ContentContext.DeveloperPortal, "/privacy");
-    expect(mocks.renderMarkdown).toHaveBeenCalledWith("# Privacy", ContentContext.DeveloperPortal);
+    expect(mocks.renderMarkdown).toHaveBeenCalledWith(
+      "# Privacy",
+      ContentContext.DeveloperPortal,
+      expect.anything(),
+      VARIABLE_VALUES,
+    );
     expect(response.json()).toMatchObject({
       id: "page-privacy",
       path: "/privacy",
@@ -207,6 +212,8 @@ describe("internal Developer Portal editorial routes", () => {
     expect(mocks.renderMarkdown).toHaveBeenCalledWith(
       "Up to 4,321 a day, across 7 projects.",
       ContentContext.DeveloperPortal,
+      expect.anything(),
+      VARIABLE_VALUES,
     );
   });
 
