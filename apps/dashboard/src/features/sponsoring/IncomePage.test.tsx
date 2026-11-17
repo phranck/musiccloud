@@ -115,8 +115,10 @@ describe("IncomePage", () => {
     renderPage();
 
     expect(await screen.findByText(sm.splitTitle)).not.toBeNull();
-    expect(screen.getByText(sm.splitSponsored)).not.toBeNull();
-    expect(screen.getByText(sm.splitFree)).not.toBeNull();
+    // The legend belongs to the chart figure, which `UsageChart` loads lazily,
+    // so it arrives after the section's heading.
+    expect(await screen.findByText(sm.splitSponsored)).not.toBeNull();
+    expect(await screen.findByText(sm.splitFree)).not.toBeNull();
   });
 
   it("lists each route with its amount and share", async () => {
