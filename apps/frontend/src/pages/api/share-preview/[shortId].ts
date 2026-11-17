@@ -1,3 +1,4 @@
+import { visitorAddress } from "@musiccloud/shared";
 export const prerender = false;
 
 import type { APIRoute } from "astro";
@@ -8,11 +9,11 @@ import { fetchSharePreview } from "@/api/client";
  * Called client-side from AudioPlayer when the initial share page
  * arrives with `previewRefreshable: true`.
  */
-export const GET: APIRoute = async ({ params, clientAddress }) => {
+export const GET: APIRoute = async ({ request, params, clientAddress }) => {
   const shortId = params.shortId;
   if (!shortId) return new Response(null, { status: 400 });
 
-  const result = await fetchSharePreview(shortId, clientAddress);
+  const result = await fetchSharePreview(shortId, visitorAddress({ request, clientAddress }));
   if (result === null) return new Response(null, { status: 503 });
   return new Response(JSON.stringify(result), {
     headers: { "Content-Type": "application/json" },

@@ -1,4 +1,4 @@
-import { type McErrorCode, normalizeSponsorshipReference } from "@musiccloud/shared";
+import { type McErrorCode, normalizeSponsorshipReference, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 import { updateSponsorshipRequest } from "@/api/client";
@@ -25,5 +25,7 @@ const UNKNOWN_REFERENCE_CODE: McErrorCode = "MC-RES-0003";
 export const PUT: APIRoute = async ({ params, request, clientAddress }) => {
   const reference = normalizeSponsorshipReference(params.reference ?? "");
   if (!reference) return sponsorshipErrorResponse(UNKNOWN_REFERENCE_STATUS, UNKNOWN_REFERENCE_CODE);
-  return relaySponsorshipRequest(request, (body) => updateSponsorshipRequest(reference, body, clientAddress));
+  return relaySponsorshipRequest(request, (body) =>
+    updateSponsorshipRequest(reference, body, visitorAddress({ request, clientAddress })),
+  );
 };

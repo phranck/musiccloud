@@ -1,3 +1,4 @@
+import { visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { resolveTrack } from "@/api/client";
 
@@ -16,7 +17,7 @@ function redirectTo(location: string): Response {
   return new Response(null, { status: 302, headers: { Location: location } });
 }
 
-export const GET: APIRoute = async ({ url, clientAddress }) => {
+export const GET: APIRoute = async ({ request, url, clientAddress }) => {
   const rawUrl = url.searchParams.get("url")?.trim();
 
   if (!rawUrl || !isUrl(rawUrl)) {
@@ -24,7 +25,7 @@ export const GET: APIRoute = async ({ url, clientAddress }) => {
   }
 
   try {
-    const res = await resolveTrack({ query: rawUrl }, clientAddress);
+    const res = await resolveTrack({ query: rawUrl }, visitorAddress({ request, clientAddress }));
 
     if (!res.ok) {
       return redirectTo("/");

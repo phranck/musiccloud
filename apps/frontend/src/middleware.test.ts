@@ -34,7 +34,12 @@ async function request(
     return response;
   });
   const response = (await onRequest(
-    { url: new URL(`https://musiccloud.test${pathname}`), clientAddress: "203.0.113.7", locals } as never,
+    {
+      url: new URL(`https://musiccloud.test${pathname}`),
+      request: new Request(`https://musiccloud.test${pathname}`),
+      clientAddress: "203.0.113.7",
+      locals,
+    } as never,
     next,
   )) as Response;
   return { locals, response };

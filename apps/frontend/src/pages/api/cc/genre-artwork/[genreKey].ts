@@ -1,3 +1,4 @@
+import { visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { fetchCcGenreArtwork } from "@/api/client";
 
@@ -10,12 +11,12 @@ export const prerender = false;
  * `pages/api/genre-artwork/[genreKey].ts`; the only difference is the
  * Jamendo-sourced backend route it forwards to.
  */
-export const GET: APIRoute = async ({ params, clientAddress }) => {
+export const GET: APIRoute = async ({ request, params, clientAddress }) => {
   const genreKey = params.genreKey ?? "";
   if (!genreKey) return new Response(null, { status: 400 });
 
   try {
-    const res = await fetchCcGenreArtwork(genreKey, clientAddress);
+    const res = await fetchCcGenreArtwork(genreKey, visitorAddress({ request, clientAddress }));
     if (!res.ok) return new Response(null, { status: res.status });
     const body = await res.arrayBuffer();
     return new Response(body, {

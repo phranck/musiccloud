@@ -1,6 +1,6 @@
 export const prerender = false;
 
-import { createApiErrorBody } from "@musiccloud/shared";
+import { createApiErrorBody, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 import { fetchPublicContentPage } from "@/api/client";
@@ -11,7 +11,7 @@ const JSON_HEADERS = { "Content-Type": "application/json", "Cache-Control": "no-
  * Browser-reachable proxy for `/api/v1/content/:slug` — used by the nav-click
  * interceptor to hydrate an overlay page without a full-route navigation.
  */
-export const GET: APIRoute = async ({ params, clientAddress }) => {
+export const GET: APIRoute = async ({ request, params, clientAddress }) => {
   const slug = params.slug;
   if (typeof slug !== "string" || slug.length === 0) {
     return new Response(JSON.stringify(createApiErrorBody("MC-REQ-0001", { errorId: crypto.randomUUID() })), {
@@ -19,7 +19,7 @@ export const GET: APIRoute = async ({ params, clientAddress }) => {
       headers: JSON_HEADERS,
     });
   }
-  const result = await fetchPublicContentPage(slug, clientAddress);
+  const result = await fetchPublicContentPage(slug, visitorAddress({ request, clientAddress }));
   if (result.kind === "success") {
     return new Response(JSON.stringify(result.data), { headers: JSON_HEADERS });
   }

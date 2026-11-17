@@ -4,6 +4,7 @@ import {
   buildEnforcedContentSecurityPolicy,
   hashesFromAstroPolicy,
   SurfaceExposure,
+  visitorAddress,
 } from "@musiccloud/shared";
 import { inlineBlockHash } from "@musiccloud/shared/node";
 import { fetchDesignTokens } from "@/api/client";
@@ -55,7 +56,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   let statusCode = 500;
   try {
     if (rendersLayout(context.url.pathname)) {
-      context.locals.designTokensCss = designTokensToCss(await fetchDesignTokens(context.clientAddress));
+      context.locals.designTokensCss = designTokensToCss(await fetchDesignTokens(visitorAddress(context)));
     }
     response = await next();
     completeContentPolicy(response.headers, context.locals.designTokensCss);

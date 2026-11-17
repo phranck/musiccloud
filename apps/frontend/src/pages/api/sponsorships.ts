@@ -1,3 +1,4 @@
+import { visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 import { createSponsorshipRequest } from "@/api/client";
@@ -15,4 +16,6 @@ export const prerender = false;
  * {@link relaySponsorshipRequest}.
  */
 export const POST: APIRoute = async ({ request, clientAddress }) =>
-  relaySponsorshipRequest(request, (body) => createSponsorshipRequest(body, clientAddress));
+  relaySponsorshipRequest(request, (body) =>
+    createSponsorshipRequest(body, visitorAddress({ request, clientAddress })),
+  );

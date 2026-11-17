@@ -66,7 +66,7 @@ export function backendUrl(path: string): string {
  * backend's per-IP rate limiters bucket by user rather than by the developer
  * pod's IP.
  *
- * @param clientIp - The visitor's address (`Astro.clientAddress`). Forwarded as
+ * @param clientIp - The visitor's address (`visitorAddress(Astro)`). Forwarded as
  *   `X-Forwarded-For` when present; omitted otherwise.
  * @param extra - Optional additional headers merged last (they win on conflict).
  * @returns A plain header record suitable for `fetch`'s `headers` option.

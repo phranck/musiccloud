@@ -61,7 +61,7 @@ function internalHeaders(extra?: Record<string, string>): Record<string, string>
  * counts against the frontend container's own address, so the per-route
  * limiters and the global 300-per-minute limit in `server.ts` would count every
  * visitor's genre tiles, navigation and examples against one shared budget.
- * Pass `Astro.clientAddress` (or the equivalent in API endpoints) so the
+ * Pass `visitorAddress(Astro)` (or the equivalent in API endpoints) so the
  * backend buckets per real user.
  *
  * This is the canonical helper for a project-wide rule: any SSR proxy or
@@ -361,7 +361,7 @@ export async function resolveTrack(
  *   `selectedCandidate` short-ID picked from a disambiguation list.
  * @param clientIp - The real visitor IP forwarded as `X-Forwarded-For` so
  *   the backend rate-limiter buckets per user rather than per frontend pod.
- *   Pass `Astro.clientAddress` from the proxy handler.
+ *   Pass `visitorAddress(Astro)` from the proxy handler.
  * @param origin - The `Origin` header from the incoming browser request,
  *   forwarded for CORS audit on the backend side.
  * @returns The raw `Response` from the backend, or the error envelope of

@@ -16,7 +16,7 @@ import { DashboardTab } from "@/lib/dashboardTabs";
 import type { PublicTier } from "@musiccloud/shared";
 import { toPlanOptions } from "@/lib/planOptions";
 import { getDeveloperSession } from "@/lib/session";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, visitorAddress } from "@musiccloud/shared";
 
 export const prerender = false;
 
@@ -31,7 +31,7 @@ if (!id) return Astro.redirect("/dashboard/projects");
 let plans: ReturnType<typeof toPlanOptions> = [];
 try {
   const response = await fetch(backendUrl(ENDPOINTS.v1.tiers), {
-    headers: internalHeaders(Astro.clientAddress),
+    headers: internalHeaders(visitorAddress(Astro)),
   });
   if (response.ok) plans = toPlanOptions((await response.json()) as PublicTier[]);
 } catch {

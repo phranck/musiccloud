@@ -1,4 +1,4 @@
-import { createApiErrorBody } from "@musiccloud/shared";
+import { createApiErrorBody, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 import { fetchArtistInfo } from "@/api/client";
@@ -14,7 +14,7 @@ export const prerender = false;
  * buckets per real user instead of the frontend pod. See
  * `apps/backend/src/lib/infra/rate-limiter.ts:67-72` for the rationale.
  */
-export const GET: APIRoute = async ({ url, clientAddress }) => {
+export const GET: APIRoute = async ({ request, url, clientAddress }) => {
   const name = url.searchParams.get("name") ?? "";
   const artistEntityId = url.searchParams.get("artistEntityId") ?? "";
   const region = url.searchParams.get("region") ?? "";
@@ -28,7 +28,7 @@ export const GET: APIRoute = async ({ url, clientAddress }) => {
     });
   }
 
-  const res = await fetchArtistInfo(name, region || undefined, clientAddress, {
+  const res = await fetchArtistInfo(name, region || undefined, visitorAddress({ request, clientAddress }), {
     shortId: shortId || undefined,
     artistEntityId: artistEntityId || undefined,
     refresh,

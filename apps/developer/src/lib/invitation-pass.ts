@@ -4,7 +4,7 @@
  * Only the backend holds the key a pass is signed with, so the portal forwards
  * the cookie and asks. A request without the cookie costs no call at all.
  */
-import { ENDPOINTS, INVITATION_PASS_COOKIE_NAME, type PortalInvitationPass } from "@musiccloud/shared";
+import { ENDPOINTS, INVITATION_PASS_COOKIE_NAME, type PortalInvitationPass, visitorAddress } from "@musiccloud/shared";
 
 import { backendUrl, internalHeaders } from "./api";
 import { logFailClosedRead } from "./fail-closed-read";
@@ -23,7 +23,7 @@ const PASS_READ = "developer_portal_invitation_pass_read";
  * or answers with something that is not the expected shape, counts as no
  * pass, so the gate stays closed.
  *
- * @param context - The middleware's context; only `cookies` and `clientAddress` are read.
+ * @param context - The middleware's context; only `cookies`, `request` and `clientAddress` are read.
  * @returns The invited address, or `null` when there is no pass that opens sign-up.
  */
 export async function readInvitationPass(context: SessionRequestContext): Promise<{ email: string } | null> {
@@ -32,7 +32,7 @@ export async function readInvitationPass(context: SessionRequestContext): Promis
 
   try {
     const response = await fetch(backendUrl(ENDPOINTS.internal.developer.invitationPass), {
-      headers: internalHeaders(context.clientAddress, { cookie: `${INVITATION_PASS_COOKIE_NAME}=${pass}` }),
+      headers: internalHeaders(visitorAddress(context), { cookie: `${INVITATION_PASS_COOKIE_NAME}=${pass}` }),
       signal: AbortSignal.timeout(PASS_TIMEOUT_MS),
     });
     if (!response.ok) {

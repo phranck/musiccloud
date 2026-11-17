@@ -6,7 +6,7 @@
  * The portal session is a cookie (not a Bearer token), so the browser never
  * sees the account directly; the page asks the backend on every render.
  */
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, visitorAddress } from "@musiccloud/shared";
 import type { AstroGlobal } from "astro";
 import { backendUrl, internalHeaders } from "@/lib/api";
 
@@ -80,7 +80,7 @@ export interface Account {
  * visitor's address. A page's `Astro` global and the middleware's context both
  * carry them.
  */
-export type SessionRequestContext = Pick<AstroGlobal, "cookies" | "clientAddress">;
+export type SessionRequestContext = Pick<AstroGlobal, "cookies" | "clientAddress" | "request">;
 
 /**
  * Resolve the current developer account from the request's session cookie.
@@ -92,7 +92,7 @@ export type SessionRequestContext = Pick<AstroGlobal, "cookies" | "clientAddress
  * throws, so a protected page can branch on `null` without a try/catch.
  *
  * @param astro - The Astro global, the middleware's context, or an API
- *   context; only `cookies` and `clientAddress` are read.
+ *   context; only `cookies`, `request` and `clientAddress` are read.
  * @returns The authenticated {@link Account}, or `null` when there is no valid
  *   session.
  */
@@ -102,7 +102,7 @@ export async function getDeveloperSession(astro: SessionRequestContext): Promise
 
   try {
     const res = await fetch(backendUrl(ENDPOINTS.dev.auth.me), {
-      headers: internalHeaders(astro.clientAddress, {
+      headers: internalHeaders(visitorAddress(astro), {
         cookie: `${SESSION_COOKIE_NAME}=${sessionCookie}`,
       }),
     });

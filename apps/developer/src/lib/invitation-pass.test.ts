@@ -12,6 +12,7 @@ import { readInvitationPass } from "./invitation-pass";
 function contextWith(pass?: string) {
   return {
     cookies: { get: (name: string) => (name === INVITATION_PASS_COOKIE_NAME && pass ? { value: pass } : undefined) },
+    request: new Request("https://developer.musiccloud.test/signup"),
     clientAddress: "203.0.113.7",
   } as never;
 }

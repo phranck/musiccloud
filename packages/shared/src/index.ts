@@ -57,3 +57,4 @@ export * from "./tier-icons.js";
 export * from "./umami-proxy.js";
 export * from "./utils.js";
 export * from "./vinyl-layout.js";
+export * from "./visitor-address.js";
