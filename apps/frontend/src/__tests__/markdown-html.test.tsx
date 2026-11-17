@@ -1,3 +1,4 @@
+import { SPONSOR_WALL_ATTRIBUTE, SUPPORT_LADDER_ATTRIBUTE } from "@musiccloud/shared";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
@@ -110,6 +111,21 @@ describe("MarkdownHtml", () => {
     const a = document.querySelector("a");
     expect(a?.getAttribute("href")).toBe("mailto:hi@band.de");
     expect(a?.textContent).toBe("write me");
+  });
+
+  it.each([
+    ["support ladder", SUPPORT_LADDER_ATTRIBUTE],
+    ["sponsor wall", SPONSOR_WALL_ATTRIBUTE],
+  ])("renders nothing for a %s marker that does not parse", (_kind, attribute) => {
+    const { container } = render(
+      <MarkdownHtml html={`<p>Before</p><div ${attribute}="not json"></div><p>After</p>`} />,
+    );
+
+    expect(container.querySelector(`[${attribute}]`)).toBeNull();
+    expect([...container.querySelectorAll(".mc-markdown > *")].map((node) => node.textContent)).toEqual([
+      "Before",
+      "After",
+    ]);
   });
 
   it("leaves bio anchors untouched (full text linked) without the linkify flag", () => {
