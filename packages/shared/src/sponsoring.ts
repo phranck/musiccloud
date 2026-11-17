@@ -9,6 +9,8 @@
  * page derives from the running costs.
  */
 
+import { checkDigitsHold } from "./iso7064.js";
+
 /**
  * Bounds on every field of the setting.
  *
@@ -52,21 +54,6 @@ export const IBAN_PATTERN = "^([A-Z]{2}[0-9]{2}[A-Z0-9]{11,30})?$";
  * payee inside the EEA need not name one.
  */
 export const BIC_PATTERN = "^([A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?)?$";
-
-/** The modulus of the IBAN check (ISO 13616): a valid IBAN leaves remainder 1. */
-const IBAN_MODULUS = 97;
-
-/** The remainder a valid IBAN leaves. */
-const IBAN_VALID_REMAINDER = 1;
-
-/** Characters the IBAN check moves from the front to the end before computing. */
-const IBAN_ROTATION = 4;
-
-/** What the letter `A` stands for in the IBAN check, where `A` is 10 and `Z` is 35. */
-const IBAN_LETTER_OFFSET = 10;
-
-/** Character code of `A`, which the letter values are counted from. */
-const CHAR_CODE_A = 65;
 
 /** One line of what the year costs. */
 export interface SponsoringCostItem {
@@ -220,17 +207,7 @@ export function normalizeAccountCode(value: string): string {
  */
 export function ibanChecksumHolds(iban: string): boolean {
   if (!iban || !new RegExp(IBAN_PATTERN).test(iban)) return false;
-  const rearranged = iban.slice(IBAN_ROTATION) + iban.slice(0, IBAN_ROTATION);
-  let remainder = 0;
-  for (const character of rearranged) {
-    const digits = /[A-Z]/.test(character)
-      ? String(character.charCodeAt(0) - CHAR_CODE_A + IBAN_LETTER_OFFSET)
-      : character;
-    for (const digit of digits) {
-      remainder = (remainder * 10 + Number(digit)) % IBAN_MODULUS;
-    }
-  }
-  return remainder === IBAN_VALID_REMAINDER;
+  return checkDigitsHold(iban);
 }
 
 /**
