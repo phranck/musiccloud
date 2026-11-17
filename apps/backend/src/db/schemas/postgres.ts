@@ -12,6 +12,10 @@ import {
   OFFER_CURRENCIES,
   type SocialMediaLinks,
   SUBSCRIPTION_STATUSES,
+  SUPPORT_PROMPT_DEFAULTS,
+  type SupportPromptButtonAlignment,
+  type SupportPromptSlot,
+  type SupportPromptThresholdBasis,
   TAX_CATEGORIES,
   TAX_MODES,
   type VinylLayout,
@@ -2510,3 +2514,55 @@ export const pendingSponsorships = pgTable(
 
 export type PendingSponsorshipRow = typeof pendingSponsorships.$inferSelect;
 export type PendingSponsorshipInsert = typeof pendingSponsorships.$inferInsert;
+
+/**
+ * Support prompts: the short asks that appear inside the site rather than on a
+ * page of their own, ported from lmaa.space's `support_prompts`.
+ *
+ * The identifier is stable for the life of a prompt, because the counters in a
+ * reader's browser are keyed by it. Renaming a prompt therefore resets nobody.
+ * `slot` is one of `SUPPORT_PROMPT_SLOTS`, the places the site renders a prompt
+ * in. `content` is Markdown, rendered through the same pipeline as a page.
+ * `threshold` counts from how many, measured by `threshold_basis`, the prompt
+ * may appear. `starts_at` and `ends_at` are an optional window as `YYYY-MM-DD`,
+ * so a campaign switches itself on and off. `priority` decides between two
+ * prompts that both qualify, higher wins. Unpublished prompts are not delivered
+ * at all, not even to be hidden. The column defaults are the shared
+ * `SUPPORT_PROMPT_DEFAULTS`, so a row written without a value starts where the
+ * dashboard's new prompt does.
+ */
+export const supportPrompts = pgTable(
+  "support_prompts",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slot: text("slot").$type<SupportPromptSlot>().notNull(),
+    content: text("content").notNull().default(SUPPORT_PROMPT_DEFAULTS.content),
+    buttonLabel: text("button_label").notNull().default(SUPPORT_PROMPT_DEFAULTS.buttonLabel),
+    buttonHref: text("button_href").notNull().default(SUPPORT_PROMPT_DEFAULTS.buttonHref),
+    buttonAlignment: text("button_alignment")
+      .$type<SupportPromptButtonAlignment>()
+      .notNull()
+      .default(SUPPORT_PROMPT_DEFAULTS.buttonAlignment),
+    threshold: integer("threshold").notNull().default(SUPPORT_PROMPT_DEFAULTS.threshold),
+    thresholdBasis: text("threshold_basis")
+      .$type<SupportPromptThresholdBasis>()
+      .notNull()
+      .default(SUPPORT_PROMPT_DEFAULTS.thresholdBasis),
+    startsAt: text("starts_at"),
+    endsAt: text("ends_at"),
+    priority: integer("priority").notNull().default(SUPPORT_PROMPT_DEFAULTS.priority),
+    published: boolean("published").notNull().default(SUPPORT_PROMPT_DEFAULTS.published),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_support_prompts_slot").on(table.slot),
+    check("chk_support_prompts_threshold", sql`${table.threshold} >= 0`),
+  ],
+);
+
+/** One `support_prompts` row as Drizzle reads it. */
+export type SupportPromptRow = typeof supportPrompts.$inferSelect;
+/** One `support_prompts` row as Drizzle writes it, the defaulted columns optional. */
+export type SupportPromptInsert = typeof supportPrompts.$inferInsert;

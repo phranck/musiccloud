@@ -841,6 +841,13 @@
       "when": 1794946509512,
       "tag": "0119_pending_sponsorships",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1794953190560,
+      "tag": "0120_support_prompts",
+      "breakpoints": true
     }
   ]
 }
