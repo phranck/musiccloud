@@ -106,7 +106,7 @@ The identifier is read out of whatever the page wrote, and the embed address is 
 `[[support-ladder … ]]` is the giving block of the support page, and only the site renders it. It holds four kinds of child:
 
 - `bankaccount` holds one `variant` per tab, and a variant holds a `qrcode` for the look of its GiroCode and an `info` for the notice under the payee lines. The sponsor variant may also hold a `sponsorform`, described below.
-- `interval` is one tab, `once`, `monthly` or `sponsor`. It holds its suggested amounts as `option` children and its free amount field as `custom`.
+- `interval` is one tab, `once`, `monthly` or `sponsor`. It holds its suggested amounts as `option` children and its free amount field as `custom`. In its `text`, `{annualAmount}` stands for the sum the tab comes to over a year, and in its `belowMinimum`, `{min}` stands for the sponsor minimum. Both are declared as placeholders of those parameters, so the editor's reference shows them there.
 - `paypalme` and `ghsponsor` are the two routes out. Each address must be `https` and on the route's own host, and the route is dropped otherwise.
 
 A page writes its amounts with the sponsoring site variables, such as `amount={amountMonth}`. Variables are put in before the page is parsed, so the suggested amounts follow the running costs entered in the dashboard.

@@ -5,11 +5,14 @@
 import {
   SPONSOR_FORM_DEFAULTS,
   SUPPORT_LADDER_LABEL_DEFAULTS,
+  SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME,
+  SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME,
   SupportIntervalKey,
   type SupportIntervalKeyValue,
   type SupportLadderConfig,
   SupportRouteToken,
   type SupportRouteTokenValue,
+  writtenPlaceholder,
 } from "@musiccloud/shared";
 import { type CSSProperties, useEffect, useEffectEvent, useReducer, useRef, useSyncExternalStore } from "react";
 
@@ -50,10 +53,10 @@ const MONTHS_PER_YEAR = 12;
 const BODY_FADE_MS = 140;
 
 /** What a tab's text writes for the yearly total of the chosen amount: `{annualAmount}`. */
-const YEARLY_TOTAL_PLACEHOLDER = "{annualAmount}";
+const YEARLY_TOTAL_PLACEHOLDER = writtenPlaceholder(SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME);
 
 /** What the sponsor tab's notice writes for the sponsor minimum: `{min}`. */
-const MINIMUM_PLACEHOLDER = "{min}";
+const MINIMUM_PLACEHOLDER = writtenPlaceholder(SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME);
 
 /**
  * The tabs each route out of the page stands under.

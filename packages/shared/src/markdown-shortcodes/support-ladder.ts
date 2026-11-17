@@ -18,6 +18,8 @@ import {
   SUPPORT_LADDER_LABEL_KEYS,
   SUPPORT_LADDER_LABELS,
   SUPPORT_LADDER_LIMITS,
+  SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME,
+  SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME,
   SUPPORT_QR_CORNER_TYPES,
   SUPPORT_QR_DOT_TYPES,
   SupportBrandIcon,
@@ -285,13 +287,22 @@ export const SUPPORT_LADDER_INTERVAL_SHORTCODE = {
       name: "text",
       aliases: ["description"],
       type: ShortcodeParamType.String,
-      label: "What the tab is. Markdown. {annualAmount} stands for what the chosen amount gives over a year",
+      label: "What the tab is. Markdown",
+      placeholders: [
+        {
+          name: SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME,
+          description: "the sum this interval comes to over a year",
+        },
+      ],
     },
     { name: "hint", type: ShortcodeParamType.String, label: "A notice on the tab. Markdown" },
     {
       name: "belowMinimum",
       type: ShortcodeParamType.String,
-      label: "What the sponsor tab says below the sponsor minimum. Markdown. {min} stands for the minimum",
+      label: "What the sponsor tab says below the sponsor minimum. Markdown",
+      placeholders: [
+        { name: SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME, description: "the minimum amount for a sponsorship" },
+      ],
     },
   ],
   children: [SUPPORT_LADDER_OPTION_SHORTCODE, SUPPORT_LADDER_CUSTOM_SHORTCODE],

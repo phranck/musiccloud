@@ -123,6 +123,19 @@ export interface ShortcodePlaceholder {
 }
 
 /**
+ * Writes a placeholder's name the way a page types it, between braces.
+ *
+ * The component that replaces a placeholder and the reference that lists it
+ * both write it through this, so the two cannot spell it differently.
+ *
+ * @param name - The name without its braces, such as `n`.
+ * @returns The written placeholder, such as `{n}`.
+ */
+export function writtenPlaceholder(name: string): string {
+  return `{${name}}`;
+}
+
+/**
  * One parameter a shortcode accepts.
  *
  * @property name - What the attribute is called, as it is written.

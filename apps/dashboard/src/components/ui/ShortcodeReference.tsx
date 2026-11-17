@@ -23,6 +23,7 @@ import {
   ShortcodeTargetRule,
   SITE_VARIABLE_NAMES,
   SITE_VARIABLES,
+  writtenPlaceholder,
 } from "@musiccloud/shared";
 import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
 import * as React from "react";
@@ -253,8 +254,8 @@ function ParamRow({ param }: { param: ShortcodeParamDefinition }) {
             only place it means anything. */}
         {param.placeholders?.map((placeholder) => (
           <span key={placeholder.name} className="mt-0.5 block text-[var(--ds-text-subtle)]">
-            <code className="font-mono text-[var(--ds-text)]">{`{${placeholder.name}}`}</code> is replaced by{" "}
-            {placeholder.description}
+            <code className="font-mono text-[var(--ds-text)]">{writtenPlaceholder(placeholder.name)}</code> is replaced
+            by {placeholder.description}
           </span>
         ))}
       </td>

@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { ContentContext } from "../content-context.js";
 import { parseShortcodes } from "../markdown-shortcode-parser.js";
 import {
+  SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME,
+  SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME,
+} from "../support-ladder.js";
+import {
   assertRegistryIsUnambiguous,
   getShortcodeDefinition,
   SHORTCODE_DEFINITIONS,
@@ -16,6 +20,7 @@ import {
   ShortcodeRenderMode,
   ShortcodeSyntax,
   ShortcodeTargetRule,
+  writtenPlaceholder,
 } from "./types.js";
 
 describe("the registry", () => {
@@ -112,13 +117,25 @@ describe("shortcode parameter placeholders", () => {
     }
   });
 
-  it("declares the sponsor form counter's {n} as a placeholder rather than in its label", () => {
-    const counter = everyParam().find(
-      ({ token, param }) => token === ShortcodeToken.SponsorForm && param.name === "claimRemaining",
-    );
+  it("declares the support ladder's placeholders on the parameters that accept them", () => {
+    const declared = (token: string, name: string) =>
+      everyParam()
+        .find((entry) => entry.token === token && entry.param.name === name)
+        ?.param.placeholders?.map((placeholder) => placeholder.name);
 
-    expect(counter?.param.placeholders?.map((placeholder) => placeholder.name)).toEqual(["n"]);
-    expect(counter?.param.label).not.toMatch(/\{n\}/);
+    expect(declared(ShortcodeToken.SponsorForm, "claimRemaining")).toEqual(["n"]);
+    expect(declared(ShortcodeToken.Interval, "text")).toEqual([SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME]);
+    expect(declared(ShortcodeToken.Interval, "belowMinimum")).toEqual([SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME]);
+  });
+
+  it("never explains a declared placeholder again in its parameter's label", () => {
+    // The panel lists the declaration under the parameter, so a label that
+    // explains it as well says the same thing twice in two places.
+    for (const { token, param } of everyParam()) {
+      for (const placeholder of param.placeholders ?? []) {
+        expect(param.label ?? "", `[[${token}]] ${param.name}`).not.toContain(writtenPlaceholder(placeholder.name));
+      }
+    }
   });
 });
 

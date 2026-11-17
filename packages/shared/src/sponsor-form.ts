@@ -12,13 +12,13 @@
  * follows that sentence with the backend's `MC-*` code and error ID.
  */
 
-import type { ShortcodePlaceholder } from "./markdown-shortcodes/types.js";
+import { type ShortcodePlaceholder, writtenPlaceholder } from "./markdown-shortcodes/types.js";
 
 /** The name of the placeholder the counter beside the sentence replaces: `n`, written `{n}`. */
 const SPONSOR_FORM_REMAINING_PLACEHOLDER_NAME = "n";
 
 /** What the counter beside the sentence writes for the characters still free: `{n}`. */
-export const SPONSOR_FORM_REMAINING_PLACEHOLDER = `{${SPONSOR_FORM_REMAINING_PLACEHOLDER_NAME}}`;
+export const SPONSOR_FORM_REMAINING_PLACEHOLDER = writtenPlaceholder(SPONSOR_FORM_REMAINING_PLACEHOLDER_NAME);
 
 /**
  * One word of the form as the catalogue declares it.
