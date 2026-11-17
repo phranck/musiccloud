@@ -3,12 +3,14 @@
  *
  * Ported from lmaa.space (`apps/frontend/src/components/islands/SponsorForm.tsx`
  * and the part of its `SupportLadder.tsx` that switches between the form and
- * the notice after it). lmaa words a refusal itself; here a refusal is shown
- * with the backend's own message and error ID, as every musiccloud error is.
+ * the notice after it). A refusal is worded by the form's own texts, as lmaa
+ * words it, and followed by the backend's `MC-*` code and error ID, as every
+ * musiccloud error is.
  */
 
 import {
   classifyProfileLink,
+  formatUserMessage,
   PENDING_SPONSORSHIP_LIMITS,
   type PendingSponsorshipReceipt,
   SPONSOR_FORM_REMAINING_PLACEHOLDER,
@@ -27,7 +29,11 @@ import {
   type IssuedSponsorship,
   rememberIssuedSponsorship,
 } from "@/lib/support/pending-sponsorship-store";
-import { SponsorshipRequestOutcome, sendSponsorshipRequest } from "@/lib/support/sponsorships";
+import {
+  SponsorshipRequestOutcome,
+  type SponsorshipRequestResult,
+  sendSponsorshipRequest,
+} from "@/lib/support/sponsorships";
 import { cn } from "@/lib/utils";
 
 import { eurosToCents } from "./amountInput";
@@ -40,6 +46,13 @@ const CLAIM_ROWS = 3;
 
 /** Classes of a single-line field of the form, beside {@link LADDER_INPUT_CLASS}. */
 const TEXT_INPUT_CLASS = cn(LADDER_INPUT_CLASS, "h-10 px-3 font-semibold");
+
+/**
+ * The status the site answers with when the form was sent too often: `429`.
+ * It is answered with `failureRateLimited`, and every other refusal with
+ * `failureRejected`.
+ */
+const TOO_MANY_REQUESTS_STATUS = 429;
 
 /**
  * What somebody has typed, and what the form is doing with it.
@@ -94,10 +107,8 @@ type FormAction =
   | { type: typeof FormActionType.DismissFailure };
 
 /**
- * The form as it opens: empty with the switch off, or on what was announced before.
- *
- * The switch for being named starts off because it asks for consent, and a
- * consent that was preselected is not one the person gave.
+ * The form as it opens: empty with the switch for being named on, or on what
+ * was announced before.
  *
  * @param announced - What was sent last time, when this is a correction.
  * @returns The opening state.
@@ -107,7 +118,7 @@ function openingForm(announced: AnnouncedSponsorship | undefined): FormState {
     name: announced?.name ?? "",
     link: announced?.link ?? "",
     claim: announced?.claim ?? "",
-    published: announced?.published ?? false,
+    published: announced?.published ?? true,
     sending: false,
     linkError: null,
     failure: null,
@@ -140,6 +151,28 @@ function reduceForm(state: FormState, action: FormAction): FormState {
     case FormActionType.DismissFailure:
       return { ...state, failure: null };
   }
+}
+
+/**
+ * What the dialog says about a refusal.
+ *
+ * A visitor over the rate limit reads `failureRateLimited` and any other
+ * refusal reads `failureRejected`. The backend's `MC-*` code follows in
+ * parentheses and its error ID after that, the way every musiccloud error ends,
+ * so the sentence can be quoted in a report and found in the logs. Either is
+ * left out where the answer did not carry it.
+ *
+ * @param refusal - The refusal, with its status, code and error ID.
+ * @param text - The form's words.
+ * @returns The sentence, such as `That did not work. Please check your details and try again. (MC-REQ-0013) Error ID: …`.
+ */
+function describeRefusal(
+  refusal: Extract<SponsorshipRequestResult, { outcome: typeof SponsorshipRequestOutcome.Refused }>,
+  text: Record<SponsorFormLabelKey, string>,
+): string {
+  const sentence = refusal.status === TOO_MANY_REQUESTS_STATUS ? text.failureRateLimited : text.failureRejected;
+  const coded = refusal.code ? formatUserMessage(refusal.code, undefined, sentence) : sentence;
+  return refusal.errorId ? commonCopy.error.withErrorId(coded, refusal.errorId) : coded;
 }
 
 /**
@@ -245,14 +278,7 @@ function SponsorForm({ amountEur, earnsSponsorship, correcting, text, onIssued }
         onIssued(result.receipt, announced);
         return;
       case SponsorshipRequestOutcome.Refused:
-        dispatch({
-          type: FormActionType.Failed,
-          message: result.message
-            ? result.errorId
-              ? commonCopy.error.withErrorId(result.message, result.errorId)
-              : result.message
-            : commonCopy.error.generic,
-        });
+        dispatch({ type: FormActionType.Failed, message: describeRefusal(result, text) });
         return;
       case SponsorshipRequestOutcome.Unreachable:
         dispatch({ type: FormActionType.Failed, message: text.failureOffline });

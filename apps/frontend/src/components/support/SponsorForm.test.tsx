@@ -40,7 +40,7 @@ const REFERENCE = issueSponsorshipReference((size) => crypto.getRandomValues(new
 /** What the backend answers once it has stored a request. */
 const RECEIPT = { reference: REFERENCE, referenceFormatted: formatCreditorReference(REFERENCE) };
 
-/** A ladder whose only tab is the sponsor tab, with a form naming no words of its own. */
+/** A ladder whose only tab is the sponsor tab, whose variant carries a form naming no words of its own. */
 const LADDER = {
   intervals: [
     {
@@ -51,13 +51,22 @@ const LADDER = {
       belowMinimum: "",
       options: [],
       custom: { label: "Your sponsorship", placeholder: "", text: "" },
-      sponsorForm: {},
     },
   ],
   bankAccount: {
     purposeDonation: "Donation musiccloud.io",
     purposeSponsor: PURPOSE_SPONSOR,
-    variants: [{ key: SupportIntervalKey.Once, title: "Bank transfer", text: "", recommended: true, info: "" }],
+    variants: [
+      { key: SupportIntervalKey.Once, title: "Bank transfer", text: "", recommended: true, info: "" },
+      {
+        key: SupportIntervalKey.Sponsor,
+        title: "Bank transfer",
+        text: "",
+        recommended: false,
+        info: "",
+        sponsorForm: {},
+      },
+    ],
   },
   routes: [],
   payee: { name: "musiccloud", iban: "DE89370400440532013000", bic: "COBADEFFXXX" },
@@ -135,10 +144,6 @@ describe("the sponsor form", () => {
     renderLadder();
 
     fillForm();
-    const consent = screen.getByRole("switch", { name: SPONSOR_FORM_DEFAULTS.publishedLabel });
-    // Consent to be named is never preselected.
-    expect(consent.getAttribute("aria-checked")).toBe("false");
-    fireEvent.click(consent);
     fireEvent.click(screen.getByRole("button", { name: SPONSOR_FORM_DEFAULTS.submitLabel }));
 
     expect(await screen.findByText(SPONSOR_FORM_DEFAULTS.issuedTitle)).toBeTruthy();
@@ -186,18 +191,60 @@ describe("the sponsor form", () => {
     expect(line(SUPPORT_LADDER_LABEL_DEFAULTS.fieldReference)?.textContent).toBe(RECEIPT.referenceFormatted);
   });
 
-  it("shows a refusal with the backend's message and its error ID", async () => {
-    const message = "A sponsorship starts at €50. (MC-REQ-0012)";
-    fetchMock.mockResolvedValue(answer(400, { error: "MC-REQ-0012", message, errorId: "err-42" }));
+  it("opens with the switch for being named on, and sends it off once it is flipped", async () => {
+    fetchMock.mockResolvedValue(answer(201, RECEIPT));
+    renderLadder();
+
+    fillForm();
+    const published = screen.getByRole("switch", { name: SPONSOR_FORM_DEFAULTS.publishedLabel });
+    expect(published.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(published);
+    fireEvent.click(screen.getByRole("button", { name: SPONSOR_FORM_DEFAULTS.submitLabel }));
+
+    await screen.findByText(SPONSOR_FORM_DEFAULTS.issuedTitle);
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    expect(JSON.parse(String(init?.body))).toMatchObject({ published: false });
+  });
+
+  it("words a refusal itself and follows it with the backend's code and error ID", async () => {
+    fetchMock.mockResolvedValue(
+      answer(400, {
+        error: "MC-REQ-0013",
+        message: "This address cannot be linked. Please give a website or a profile address. (MC-REQ-0013)",
+        errorId: "err-42",
+      }),
+    );
     renderLadder();
 
     fillForm();
     fireEvent.click(screen.getByRole("button", { name: SPONSOR_FORM_DEFAULTS.submitLabel }));
 
     const dialog = await screen.findByRole("alertdialog");
-    expect(dialog.textContent).toContain(message);
-    expect(dialog.textContent).toContain("err-42");
+    expect(dialog.textContent).toContain(`${SPONSOR_FORM_DEFAULTS.failureRejected} (MC-REQ-0013) Error ID: err-42`);
     expect(screen.queryByText(SPONSOR_FORM_DEFAULTS.issuedTitle)).toBeNull();
+  });
+
+  it("says the form was sent too often when the site answers 429", async () => {
+    fetchMock.mockResolvedValue(
+      answer(429, { error: "MC-API-0003", message: "Too many requests. (MC-API-0003)", errorId: "err-43" }),
+    );
+    renderLadder();
+
+    fillForm();
+    fireEvent.click(screen.getByRole("button", { name: SPONSOR_FORM_DEFAULTS.submitLabel }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog.textContent).toContain(`${SPONSOR_FORM_DEFAULTS.failureRateLimited} (MC-API-0003) Error ID: err-43`);
+  });
+
+  it("words a refusal without code or error ID on its own", async () => {
+    fetchMock.mockResolvedValue(new Response("Bad Gateway", { status: 502 }));
+    renderLadder();
+
+    fillForm();
+    fireEvent.click(screen.getByRole("button", { name: SPONSOR_FORM_DEFAULTS.submitLabel }));
+
+    expect((await screen.findByRole("alertdialog")).textContent).toContain(SPONSOR_FORM_DEFAULTS.failureRejected);
   });
 
   it("says so when the site cannot be reached", async () => {

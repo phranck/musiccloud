@@ -126,6 +126,42 @@ export const SUPPORT_LADDER_INFO_SHORTCODE = {
 } as const satisfies ShortcodeDefinition;
 
 /**
+ * Every word of the sponsor form, as a parameter of the shortcode.
+ *
+ * Derived from the catalogue, as the ladder's own labels are, so a new word
+ * reaches the editor's reference without being written a second time.
+ */
+const SPONSOR_FORM_PARAMS: readonly ShortcodeParamDefinition[] = SPONSOR_FORM_LABEL_KEYS.map((name) => ({
+  name,
+  type: ShortcodeParamType.String,
+  defaultLabel: SPONSOR_FORM_LABELS[name].value,
+  label: `${SPONSOR_FORM_LABELS[name].label}. Plain text`,
+}));
+
+/**
+ * The form that takes what a transfer cannot carry.
+ *
+ * It belongs under the sponsor variant, because a sponsorship is the one
+ * payment here that has to be attributed to a person, and everything the
+ * person says about themselves is said in this form rather than in the
+ * transfer. Somebody who means to sponsor gives their name, one profile
+ * address, their sentence and whether they want to be named, and gets a payment
+ * reference back, which the GiroCode and the transfer card then carry in place
+ * of the purpose. Every word is optional and falls back to
+ * `SPONSOR_FORM_DEFAULTS`.
+ */
+export const SUPPORT_LADDER_SPONSOR_FORM_SHORTCODE = {
+  ...LADDER_PART,
+  token: ShortcodeToken.SponsorForm,
+  placement: ShortcodePlacement.Inline,
+  label: "Sponsor form",
+  description:
+    'The form that takes what a sponsor says about themselves and issues a payment reference before the transfer. Belongs inside [[variant key="sponsor"]]. Without this node no form appears.',
+  examples: ['[[sponsorform nameLabel="Name" submitLabel="Get my payment reference"]]'],
+  params: SPONSOR_FORM_PARAMS,
+} as const satisfies ShortcodeDefinition;
+
+/**
  * How the transfer card presents itself on one tab.
  *
  * A single payment and a standing order need different wording, so the copy
@@ -151,7 +187,7 @@ export const SUPPORT_LADDER_VARIANT_SHORTCODE = {
     { name: "recommended", type: ShortcodeParamType.Boolean, label: "Draw it as the suggested route" },
     ICON_PARAM,
   ],
-  children: [SUPPORT_LADDER_QRCODE_SHORTCODE, SUPPORT_LADDER_INFO_SHORTCODE],
+  children: [SUPPORT_LADDER_QRCODE_SHORTCODE, SUPPORT_LADDER_INFO_SHORTCODE, SUPPORT_LADDER_SPONSOR_FORM_SHORTCODE],
 } as const satisfies ShortcodeDefinition;
 
 /** One suggested amount, and what that amount pays for. */
@@ -194,39 +230,6 @@ export const SUPPORT_LADDER_CUSTOM_SHORTCODE = {
   ],
 } as const satisfies ShortcodeDefinition;
 
-/**
- * Every word of the sponsor form, as a parameter of the shortcode.
- *
- * Derived from the catalogue, as the ladder's own labels are, so a new word
- * reaches the editor's reference without being written a second time.
- */
-const SPONSOR_FORM_PARAMS: readonly ShortcodeParamDefinition[] = SPONSOR_FORM_LABEL_KEYS.map((name) => ({
-  name,
-  type: ShortcodeParamType.String,
-  defaultLabel: SPONSOR_FORM_LABELS[name].value,
-  label: `${SPONSOR_FORM_LABELS[name].label}. Plain text`,
-}));
-
-/**
- * The form that takes what a transfer cannot carry.
- *
- * It stands in the sponsor tab. Somebody who means to sponsor gives their name,
- * one profile address, their sentence and whether they want to be named, and
- * gets a payment reference back, which the GiroCode and the transfer card then
- * carry in place of the purpose. Every word is optional and falls back to
- * `SPONSOR_FORM_DEFAULTS`.
- */
-export const SUPPORT_LADDER_SPONSOR_FORM_SHORTCODE = {
-  ...LADDER_PART,
-  token: ShortcodeToken.SponsorForm,
-  placement: ShortcodePlacement.Inline,
-  label: "Sponsor form",
-  description:
-    'The form on the sponsor tab that issues a payment reference before the transfer. Belongs inside [[interval key="sponsor"]]. Without this node the tab shows no form and the transfer carries the sponsorship purpose.',
-  examples: ['[[sponsorform nameLabel="Name" submitLabel="Get my payment reference"]]'],
-  params: SPONSOR_FORM_PARAMS,
-} as const satisfies ShortcodeDefinition;
-
 /** The transfer block, with one presentation per tab. */
 export const SUPPORT_LADDER_BANK_ACCOUNT_SHORTCODE = {
   ...LADDER_PART,
@@ -263,10 +266,10 @@ export const SUPPORT_LADDER_INTERVAL_SHORTCODE = {
   body: ShortcodeBodyRule.Children,
   label: "Tab",
   description:
-    "One tab of the ladder: once, monthly or sponsor. It holds option and custom, and the sponsor tab also sponsorform. The sponsor tab needs no option and shows the free field alone.",
+    "One tab of the ladder: once, monthly or sponsor. It holds option and custom. The sponsor tab needs no option and shows the free field alone.",
   examples: [
     '[[interval key="once" label="Once" text="A single payment."\n  [[option amount=20]]\n]]',
-    '[[interval key="sponsor" label="Become a sponsor" belowMinimum="Below {min} this is a donation."\n  [[custom label="Your amount"]]\n  [[sponsorform]]\n]]',
+    '[[interval key="sponsor" label="Become a sponsor" belowMinimum="Below {min} this is a donation."\n  [[custom label="Your amount"]]\n]]',
   ],
   params: [
     INTERVAL_KEY_PARAM,
@@ -284,7 +287,7 @@ export const SUPPORT_LADDER_INTERVAL_SHORTCODE = {
       label: "What the sponsor tab says below the sponsor minimum. Markdown. {min} stands for the minimum",
     },
   ],
-  children: [SUPPORT_LADDER_OPTION_SHORTCODE, SUPPORT_LADDER_CUSTOM_SHORTCODE, SUPPORT_LADDER_SPONSOR_FORM_SHORTCODE],
+  children: [SUPPORT_LADDER_OPTION_SHORTCODE, SUPPORT_LADDER_CUSTOM_SHORTCODE],
 } as const satisfies ShortcodeDefinition;
 
 /** The parameters a route out of the page takes. */
@@ -351,6 +354,9 @@ const SUPPORT_LADDER_EXAMPLE = [
   "  [[bankaccount",
   '    [[variant key="once" title="Bank transfer or GiroCode" text="Arrives without a detour." icon="sepa"]]',
   '    [[variant key="monthly" title="Set up a standing order" text="Runs between the banks."]]',
+  '    [[variant key="sponsor" title="Bank transfer or GiroCode" icon="sepa"',
+  "      [[sponsorform]]",
+  "    ]]",
   "  ]]",
   '  [[interval key="once" label="Once" text="A single payment."',
   '    [[option amount={amountMonthHalf} text="Half a month."]]',
@@ -362,7 +368,6 @@ const SUPPORT_LADDER_EXAMPLE = [
   "  ]]",
   '  [[interval key="sponsor" label="Become a sponsor"',
   '    [[custom label="Your amount"]]',
-  "    [[sponsorform]]",
   "  ]]",
   '  [[paypalme url="https://paypal.me/…" title="PayPal" icon="paypal"]]',
   "]]",

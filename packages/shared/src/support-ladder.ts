@@ -188,10 +188,6 @@ export interface SupportLadderCustom {
  *   rendered HTML. `{min}` stands for the minimum. Empty when the page names none.
  * @property options - The suggested amounts, in order.
  * @property custom - The free-amount field, `null` when the tab has none.
- * @property sponsorForm - The page's wording for the sponsor form, as plain
- *   text. `null` when the tab names no `[[sponsorform]]`, which leaves the form
- *   out. Only the sponsor tab keeps one, because no other tab earns a
- *   sponsorship to announce.
  */
 export interface SupportLadderInterval {
   key: SupportIntervalKeyValue;
@@ -201,7 +197,6 @@ export interface SupportLadderInterval {
   belowMinimum: string;
   options: SupportLadderOption[];
   custom: SupportLadderCustom | null;
-  sponsorForm: SponsorFormTexts | null;
 }
 
 /**
@@ -236,6 +231,10 @@ export interface SupportLadderQrStyle {
  * @property icon - The brand mark beside the heading, if any.
  * @property qr - How the GiroCode looks, if the page says.
  * @property info - A notice under the payee lines, as rendered HTML. Empty when none.
+ * @property sponsorForm - The page's wording for the sponsor form, as plain
+ *   text, when this variant carries one. `null` when the variant names no
+ *   `[[sponsorform]]`, which leaves the form out, and that is what every
+ *   variant but the sponsor one wants.
  */
 export interface SupportLadderVariant {
   key: SupportIntervalKeyValue;
@@ -245,6 +244,7 @@ export interface SupportLadderVariant {
   icon?: SupportBrandIconValue;
   qr?: SupportLadderQrStyle;
   info: string;
+  sponsorForm: SponsorFormTexts | null;
 }
 
 /**
@@ -495,10 +495,6 @@ function readIntervals(value: unknown): SupportLadderInterval[] {
       belowMinimum: readHtml(entry.belowMinimum),
       options,
       custom,
-      sponsorForm:
-        key === SupportIntervalKey.Sponsor && isObject(entry.sponsorForm)
-          ? readTextOverrides(entry.sponsorForm, SPONSOR_FORM_LABEL_KEYS)
-          : null,
     });
   }
   return intervals;
@@ -556,6 +552,7 @@ function readBankAccount(value: unknown): SupportLadderBankAccount | null {
         icon: readMember(entry.icon, BRAND_ICONS),
         qr: readQrStyle(entry.qr),
         info: readHtml(entry.info),
+        sponsorForm: isObject(entry.sponsorForm) ? readTextOverrides(entry.sponsorForm, SPONSOR_FORM_LABEL_KEYS) : null,
       });
     }
   }

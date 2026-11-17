@@ -22,14 +22,19 @@ const REQUEST: PendingSponsorship = {
   createdAt: "2026-11-07T12:00:00.000Z",
 };
 
+/** A sponsoring minimum of 40 euros, which differs from every announced amount here. */
+const MINIMUM_CENTS = 4_000;
+
 describe("toSponsorshipTakeoverForm", () => {
   it("presets the announced amount in euros and the given day", () => {
-    expect(toSponsorshipTakeoverForm(REQUEST, "2026-11-17")).toEqual(VALID);
-    expect(toSponsorshipTakeoverForm({ ...REQUEST, amountCents: 1_250 }, "2026-11-17").amount).toBe("12.50");
+    expect(toSponsorshipTakeoverForm(REQUEST, "2026-11-17", MINIMUM_CENTS)).toEqual(VALID);
+    expect(toSponsorshipTakeoverForm({ ...REQUEST, amountCents: 1_250 }, "2026-11-17", MINIMUM_CENTS).amount).toBe(
+      "12.50",
+    );
   });
 
-  it("leaves the amount empty when nothing was announced", () => {
-    expect(toSponsorshipTakeoverForm({ ...REQUEST, amountCents: 0 }, "2026-11-17").amount).toBe("");
+  it("presets the sponsoring minimum when nothing was announced", () => {
+    expect(toSponsorshipTakeoverForm({ ...REQUEST, amountCents: 0 }, "2026-11-17", MINIMUM_CENTS).amount).toBe("40");
   });
 });
 

@@ -136,33 +136,42 @@ describe("[[support-ladder]]", () => {
     expect(config?.routes).toEqual([]);
   });
 
-  it("carries the sponsor form's words on the sponsor tab as plain text", async () => {
+  it("carries the sponsor form's words on the sponsor variant as plain text", async () => {
     const page = [
       "[[support-ladder",
+      "  [[bankaccount",
+      '    [[variant key="sponsor" title="Transfer"',
+      '      [[sponsorform nameLabel="Who are you?" submitLabel="Send **now**"]]',
+      "    ]]",
+      "  ]]",
       '  [[interval key="sponsor" label="Sponsor"',
       '    [[custom label="Your amount"]]',
-      '    [[sponsorform nameLabel="Who are you?" submitLabel="Send **now**"]]',
       "  ]]",
       "]]",
     ].join("\n");
 
     const config = readMarker(await served(page));
 
-    expect(config?.intervals[0]?.sponsorForm).toEqual({ nameLabel: "Who are you?", submitLabel: "Send **now**" });
+    expect(config?.bankAccount?.variants[0]?.sponsorForm).toEqual({
+      nameLabel: "Who are you?",
+      submitLabel: "Send **now**",
+    });
   });
 
   it("carries an empty set of words for a sponsor form that names none, so the site uses its defaults", async () => {
     const config = readMarker(
-      await served('[[support-ladder [[interval key="sponsor" [[custom label="Amount"]] [[sponsorform]]]]]]'),
+      await served(
+        '[[support-ladder [[bankaccount [[variant key="sponsor" [[sponsorform]]]]]] [[interval key="sponsor" [[custom label="Amount"]]]]]]',
+      ),
     );
 
-    expect(config?.intervals[0]?.sponsorForm).toEqual({});
+    expect(config?.bankAccount?.variants[0]?.sponsorForm).toEqual({});
   });
 
-  it("leaves a tab without a sponsor form without one", async () => {
+  it("leaves a variant without a sponsor form without one", async () => {
     const config = readMarker(await served(LADDER));
 
-    expect(config?.intervals.map((interval) => interval.sponsorForm)).toEqual([null, null]);
+    expect(config?.bankAccount?.variants.map((variant) => variant.sponsorForm)).toEqual([null]);
   });
 
   it("is not offered in the portal, which has no support page", async () => {
@@ -205,23 +214,23 @@ describe("the support ladder's marker in the sanitizer", () => {
     expect(config?.minSponsorAmountEur).toBe(40);
   });
 
-  it("keeps a hand-written sponsor form's known words on the sponsor tab only", () => {
+  it("keeps a hand-written sponsor form's known words on its variant and nothing else", () => {
     const forged = JSON.stringify({
-      intervals: [
-        { key: "once", options: [{ amountEur: 5 }], sponsorForm: { nameLabel: "Once" } },
-        {
-          key: "sponsor",
-          custom: { label: "Amount" },
-          sponsorForm: { nameLabel: "<script>steal()</script>", injected: "x", issuedText: 7 },
-        },
-      ],
+      intervals: [{ key: "sponsor", custom: { label: "Amount" }, sponsorForm: { nameLabel: "Tab" } }],
+      bankAccount: {
+        variants: [
+          { key: "once" },
+          { key: "sponsor", sponsorForm: { nameLabel: "<script>steal()</script>", injected: "x", issuedText: 7 } },
+        ],
+      },
     }).replace(/"/g, "&quot;");
 
     const config = readMarker(sanitizeMarkdownHtml(`<div ${SUPPORT_LADDER_ATTRIBUTE}="${forged}"></div>`));
 
     // The words stay text: the site sets them through React, which escapes them,
     // so a tag in one is shown as written rather than run.
-    expect(config?.intervals.map((interval) => interval.sponsorForm)).toEqual([
+    expect(config?.intervals[0]).not.toHaveProperty("sponsorForm");
+    expect(config?.bankAccount?.variants.map((variant) => variant.sponsorForm)).toEqual([
       null,
       { nameLabel: "<script>steal()</script>" },
     ]);

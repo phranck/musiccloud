@@ -30,13 +30,14 @@ export const SponsorshipRequestOutcome = {
 /**
  * What {@link sendSponsorshipRequest} resolves to, by {@link SponsorshipRequestOutcome}.
  *
- * A refusal carries the backend's message, which ends with its `MC-*` code, and
- * its error ID. Either is absent where the answer did not carry it, such as a
+ * A refusal carries the HTTP status, which tells a visitor over the rate limit
+ * (`429`) from any other refusal, and the backend's `MC-*` code and error ID.
+ * Code and error ID are absent where the answer did not carry them, such as a
  * gateway's error page.
  */
 export type SponsorshipRequestResult =
   | { outcome: typeof SponsorshipRequestOutcome.Issued; receipt: PendingSponsorshipReceipt }
-  | { outcome: typeof SponsorshipRequestOutcome.Refused; message?: string; errorId?: string }
+  | { outcome: typeof SponsorshipRequestOutcome.Refused; status: number; code?: string; errorId?: string }
   | { outcome: typeof SponsorshipRequestOutcome.Unreachable };
 
 /**
@@ -85,5 +86,10 @@ export async function sendSponsorshipRequest(
   if (receipt) return { outcome: SponsorshipRequestOutcome.Issued, receipt };
 
   const refusal = parseApiErrorResponse(body);
-  return { outcome: SponsorshipRequestOutcome.Refused, message: refusal.message, errorId: refusal.errorId };
+  return {
+    outcome: SponsorshipRequestOutcome.Refused,
+    status: response.status,
+    code: refusal.error,
+    errorId: refusal.errorId,
+  };
 }

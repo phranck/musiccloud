@@ -18,7 +18,6 @@ function amounts(key: SupportLadderInterval["key"], values: number[], recommende
     belowMinimum: "",
     options: values.map((amountEur) => ({ amountEur, description: "", recommended: amountEur === recommended })),
     custom: { label: "Other", placeholder: "", text: "" },
-    sponsorForm: null,
   };
 }
 

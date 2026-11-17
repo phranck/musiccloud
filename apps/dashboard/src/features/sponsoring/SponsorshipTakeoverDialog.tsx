@@ -46,6 +46,12 @@ const AMOUNT_INVALID_MESSAGE = sm.requestAmountInvalid.replace(
 export interface SponsorshipTakeoverDialogProps {
   /** The request to take over. The dialog is mounted only while one is chosen. */
   request: PendingSponsorship;
+  /**
+   * The sponsoring settings' minimum in cents, the amount preset when the
+   * request announced none. The page passes `SPONSORING_DEFAULTS.sponsorMinimumCents`
+   * while the settings have not loaded.
+   */
+  sponsorMinimumCents: number;
   /** Closes the dialog, after a takeover or on cancel. */
   onClose: () => void;
 }
@@ -56,8 +62,8 @@ export interface SponsorshipTakeoverDialogProps {
  *
  * It names the person and the reference, so the operator can compare both
  * with the statement, and asks only for what the statement says: the amount
- * that arrived, preset to the announced one, and the day it arrived, preset
- * to today. Take over stays off while the backend would refuse either field,
+ * that arrived, preset to the announced one or, where none was announced, to
+ * the sponsoring minimum, and the day it arrived, preset to today. Take over stays off while the backend would refuse either field,
  * and the server's own message, with its code and error id, appears if it
  * refuses anyway. A takeover refreshes the requests and the whole ledger,
  * because the request leaves one list and a sponsor and a donation join the
@@ -66,9 +72,11 @@ export interface SponsorshipTakeoverDialogProps {
  * @param props - See {@link SponsorshipTakeoverDialogProps}.
  * @returns The dialog.
  */
-export function SponsorshipTakeoverDialog({ request, onClose }: SponsorshipTakeoverDialogProps) {
+export function SponsorshipTakeoverDialog({ request, sponsorMinimumCents, onClose }: SponsorshipTakeoverDialogProps) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<SponsorshipTakeoverForm>(() => toSponsorshipTakeoverForm(request, localDay()));
+  const [form, setForm] = useState<SponsorshipTakeoverForm>(() =>
+    toSponsorshipTakeoverForm(request, localDay(), sponsorMinimumCents),
+  );
   const problems = sponsorshipTakeoverProblems(form);
 
   const takeOverMutation = useMutation({

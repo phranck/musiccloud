@@ -40,14 +40,17 @@ export type SponsorshipTakeoverField = "amount" | "paidOn";
  *
  * @param request - The request being taken over.
  * @param today - The day to preset, `YYYY-MM-DD`.
- * @returns The form. The amount is empty when nothing was announced, so the
- *   operator types what arrived rather than confirming a zero.
+ * @param sponsorMinimumCents - The sponsoring settings' minimum in cents,
+ *   preset as the amount when the request announced none, as lmaa.space does.
+ * @returns The form.
  */
-export function toSponsorshipTakeoverForm(request: PendingSponsorship, today: string): SponsorshipTakeoverForm {
-  return {
-    amount: request.amountCents > 0 ? centsToEuroInput(request.amountCents) : "",
-    paidOn: today,
-  };
+export function toSponsorshipTakeoverForm(
+  request: PendingSponsorship,
+  today: string,
+  sponsorMinimumCents: number,
+): SponsorshipTakeoverForm {
+  const presetCents = request.amountCents > 0 ? request.amountCents : sponsorMinimumCents;
+  return { amount: centsToEuroInput(presetCents), paidOn: today };
 }
 
 /**
