@@ -9,6 +9,12 @@
  *
  * Everything in this module is pure. It reads a store, takes a decision, and
  * returns the next store, so the rules can be tested without a browser.
+ *
+ * One point deliberately differs from lmaa.space until lmaa's own fix lands.
+ * lmaa measures every running quiet period against `snoozeDays`, which cuts the
+ * quiet period after a dismissal back to the shorter period after a showing.
+ * Here the store records which of the two is running, and a dismissal keeps
+ * the prompt away for `dismissSnoozeDays`.
  */
 
 import type { SupportPromptLimits, SupportPromptThresholdBasis } from "@musiccloud/shared";
@@ -18,6 +24,23 @@ export const SUPPORT_PROMPT_STORAGE_KEY = "musiccloud:support-prompt:v1";
 
 /** One day in milliseconds, the unit every quiet period is set in. */
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * What started the quiet period that is running, which decides the setting it
+ * is measured against.
+ *
+ * - `Shown`: a prompt was shown, so the period is measured against `snoozeDays`.
+ *   This is the default, and what a store that recorded no cause is read as.
+ * - `Dismissed`: the reader closed a prompt, so the period is measured against
+ *   `dismissSnoozeDays`.
+ */
+export const QuietPeriodCause = {
+  Shown: "shown",
+  Dismissed: "dismissed",
+} as const;
+
+/** One of the {@link QuietPeriodCause} values. */
+export type QuietPeriodCause = (typeof QuietPeriodCause)[keyof typeof QuietPeriodCause];
 
 /** What the site remembers about one prompt. */
 export interface SupportPromptRecord {
@@ -45,6 +68,12 @@ export interface SupportPromptStore {
    * a store written before this was recorded.
    */
   snoozedSince: number;
+  /**
+   * What started that quiet period, which decides whether it is measured
+   * against `snoozeDays` or `dismissSnoozeDays`. {@link QuietPeriodCause.Shown}
+   * by default, and for a store that recorded none.
+   */
+  snoozeCause: QuietPeriodCause;
   /** The last share page counted, by its short id, so a reload does not count twice. */
   lastShareId: string | null;
   /** How many share pages the reader has opened, a reload of the same one not counted. */
@@ -63,6 +92,7 @@ export function emptyStore(): SupportPromptStore {
     shown: 0,
     snoozedUntil: 0,
     snoozedSince: 0,
+    snoozeCause: QuietPeriodCause.Shown,
     lastShareId: null,
     shareViews: 0,
     prompts: {},
@@ -105,6 +135,8 @@ export function parseStore(raw: string | null, knownIds: readonly string[]): Sup
   store.shown = Number.isFinite(candidate.shown) ? Number(candidate.shown) : 0;
   store.snoozedUntil = Number.isFinite(candidate.snoozedUntil) ? Number(candidate.snoozedUntil) : 0;
   store.snoozedSince = Number.isFinite(candidate.snoozedSince) ? Number(candidate.snoozedSince) : 0;
+  store.snoozeCause =
+    candidate.snoozeCause === QuietPeriodCause.Dismissed ? QuietPeriodCause.Dismissed : QuietPeriodCause.Shown;
   store.shareViews = Number.isFinite(candidate.shareViews) ? Number(candidate.shareViews) : 0;
   store.lastShareId = typeof candidate.lastShareId === "string" ? candidate.lastShareId : null;
 
@@ -147,9 +179,10 @@ export type ReaderProgress = Record<SupportPromptThresholdBasis, number>;
  * When the current quiet period ends, measured against the setting in force.
  *
  * A period that was started under a longer setting is cut back to what the
- * setting allows now, counted from when it began. Where a store predates the
- * recording of that moment, the stored end stands, because there is nothing to
- * measure against.
+ * setting allows now, counted from when it began. The setting is the one that
+ * matches what started the period: `dismissSnoozeDays` after a dismissal and
+ * `snoozeDays` after a showing. Where a store predates the recording of that
+ * moment, the stored end stands, because there is nothing to measure against.
  *
  * @param store - What is remembered about this reader.
  * @param limits - The settings in force right now.
@@ -157,7 +190,8 @@ export type ReaderProgress = Record<SupportPromptThresholdBasis, number>;
  */
 function quietUntil(store: SupportPromptStore, limits: SupportPromptLimits): number {
   if (!store.snoozedSince) return store.snoozedUntil;
-  return Math.min(store.snoozedUntil, store.snoozedSince + limits.snoozeDays * DAY_MS);
+  const days = store.snoozeCause === QuietPeriodCause.Dismissed ? limits.dismissSnoozeDays : limits.snoozeDays;
+  return Math.min(store.snoozedUntil, store.snoozedSince + days * DAY_MS);
 }
 
 /**
@@ -230,6 +264,7 @@ export function recordShown(
     shown: store.shown + 1,
     snoozedUntil: now + limits.snoozeDays * DAY_MS,
     snoozedSince: now,
+    snoozeCause: QuietPeriodCause.Shown,
     prompts: { ...store.prompts, [id]: { ...record, shown: record.shown + 1 } },
   };
 }
@@ -273,6 +308,7 @@ export function recordDismissed(
     ...store,
     snoozedUntil: Math.max(store.snoozedUntil, now + limits.dismissSnoozeDays * DAY_MS),
     snoozedSince: now,
+    snoozeCause: QuietPeriodCause.Dismissed,
     prompts: {
       ...store.prompts,
       [id]: { ...record, dismissed, resolved: dismissed >= limits.dismissalsUntilResolved },

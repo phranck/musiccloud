@@ -205,6 +205,32 @@ describe("recordDismissed", () => {
   });
 });
 
+describe("the quiet period after a showing and after a dismissal", () => {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const progress = { opened: 10, resolved: 10 };
+
+  it("keeps a dismissed prompt away through day 89 and lets it back on day 90", () => {
+    const store = recordDismissed(recordShown(emptyStore(), "a", limits, now), "a", limits, now);
+
+    expect(choosePrompt([candidate("a")], store, limits, progress, now + 89 * dayMs)).toBeNull();
+    expect(choosePrompt([candidate("a")], store, limits, progress, now + 90 * dayMs)?.id).toBe("a");
+  });
+
+  it("keeps the quiet period after a showing at the showing's setting", () => {
+    const store = recordShown(emptyStore(), "a", limits, now);
+
+    expect(choosePrompt([candidate("a")], store, limits, progress, now + 13 * dayMs)).toBeNull();
+    expect(choosePrompt([candidate("a")], store, limits, progress, now + 14 * dayMs)?.id).toBe("a");
+  });
+
+  it("remembers what started the quiet period across a reload", () => {
+    const store = recordDismissed(emptyStore(), "a", limits, now);
+    const reloaded = parseStore(JSON.stringify(store), ["a"]);
+
+    expect(choosePrompt([candidate("a")], reloaded, limits, progress, now + 89 * dayMs)).toBeNull();
+  });
+});
+
 describe("countShareView", () => {
   it("counts a different share page", () => {
     const store = countShareView(emptyStore(), "abc123");
