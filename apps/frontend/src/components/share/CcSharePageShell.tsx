@@ -71,6 +71,7 @@ export function CcSharePageShell({
   return (
     <main id="main-content" className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
       <ShareLogoHeader onLogoClick={handleLogoClick} />
+      <ShareSupportPrompt shareId={shareId} supportPrompts={supportPrompts} />
       {/* See SharePageShell: CSS fade plays from the initial HTML before hydration. */}
       <div className="w-full animate-fade-in">
         <ShareLayout
@@ -81,7 +82,6 @@ export function CcSharePageShell({
           trackResolver={ccTrackResolver}
         />
       </div>
-      <ShareSupportPrompt shareId={shareId} supportPrompts={supportPrompts} />
     </main>
   );
 }

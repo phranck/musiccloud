@@ -10,9 +10,11 @@ interface LandingSupportPromptProps {
 /**
  * The support prompt slot of the landing page.
  *
- * It stands in the flow below the search field, as wide as an embossed card on
- * the page. The landing page shows it only while nothing has been searched, so
- * it never sits between a reader and a result.
+ * It stands in the flow directly under the search field, above the live
+ * example, as wide as an embossed card on the page. The landing page shows it
+ * only while nothing has been searched, as it does the live example, so it
+ * never sits between a reader's search and what the search brings up. A
+ * search that ends in a result replaces the whole branch the field stands in.
  *
  * @param props - See {@link LandingSupportPromptProps}.
  * @returns The slot.

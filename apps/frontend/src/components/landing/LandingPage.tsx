@@ -69,8 +69,8 @@ interface LandingPageProps {
    * The support prompts for the landing page, already loaded on the server.
    *
    * Handed to the page rather than placed under it, because the ask belongs in
-   * the flow below the search field. Absent where a page carries no ask, such
-   * as the content-overlay shell.
+   * the flow directly under the search field, above the live example. Absent
+   * where a page carries no ask, such as the content-overlay shell.
    */
   supportPrompts?: SupportPromptSlotData;
 }
@@ -300,6 +300,8 @@ function LandingPageInner({
                 />
               </div>
 
+              {!showCompact && supportPrompts && <LandingSupportPrompt supportPrompts={supportPrompts} />}
+
               {!showCompact && activeExampleShortId && (
                 <div className="mt-4 flex justify-center" data-resolve-mode={mode}>
                   <LiveExampleTeaser
@@ -316,8 +318,6 @@ function LandingPageInner({
                   />
                 </div>
               )}
-
-              {!showCompact && supportPrompts && <LandingSupportPrompt supportPrompts={supportPrompts} />}
 
               {candidates && candidates.length > 0 && (
                 <div ref={disambiguationRef} tabIndex={-1} className="outline-none w-full">

@@ -51,6 +51,7 @@ export function SharePageShell({
   return (
     <main id="main-content" className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
       <ShareLogoHeader onLogoClick={handleLogoClick} />
+      <ShareSupportPrompt shareId={shareId} supportPrompts={supportPrompts} />
       {/* `animate-fade-in` stays CSS deliberately (MC-029 Task 2.5 exception):
           this island is client:load in the synchronous document, so the share
           enter plays from the initial HTML before hydration. A GSAP entrance
@@ -58,7 +59,6 @@ export function SharePageShell({
       <div className="w-full animate-fade-in">
         <ShareLayout config={config} artistName={artistName} artistInfoContext={artistInfoContext} />
       </div>
-      <ShareSupportPrompt shareId={shareId} supportPrompts={supportPrompts} />
     </main>
   );
 }

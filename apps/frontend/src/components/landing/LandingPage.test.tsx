@@ -1,3 +1,4 @@
+import { type PublicSupportPrompt, SUPPORT_PROMPT_LIMIT_DEFAULTS } from "@musiccloud/shared";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -230,5 +231,65 @@ describe("LandingPage search-field return flip wiring", () => {
     const logoBlock = document.querySelector(BIG_LOGO_SELECTOR);
     expect(logoBlock).not.toBeNull();
     expect(gsap.getTweensOf(logoBlock as Element)).toHaveLength(0);
+  });
+});
+
+/** A landing page prompt that qualifies on the first visit. */
+const LANDING_PROMPT: PublicSupportPrompt = {
+  id: "landing-ask",
+  name: "Landing ask",
+  slot: "landing-page",
+  html: "<p>Keep musiccloud running.</p>",
+  buttonLabel: "",
+  buttonHref: "/support-me",
+  buttonAlignment: "trailing",
+  threshold: 0,
+  thresholdBasis: "opened",
+  priority: 0,
+};
+
+/** The landing page's prompt data as the server hands it over. */
+const LANDING_PROMPTS = {
+  prompts: [LANDING_PROMPT],
+  limits: SUPPORT_PROMPT_LIMIT_DEFAULTS,
+  devAlwaysShow: false,
+  liveIds: [LANDING_PROMPT.id],
+};
+
+/** The short id the live example links to in these tests. */
+const EXAMPLE_SHORT_ID = "example1";
+
+/** The drawn prompt, or `null` while none is drawn. */
+function drawnPrompt(): Element | null {
+  return document.querySelector("[data-support-prompt]");
+}
+
+describe("LandingPage support prompt placement", () => {
+  it("stands directly under the search field, above the live example", async () => {
+    mockResolveFetch({});
+    render(<LandingPage exampleShortId={EXAMPLE_SHORT_ID} supportPrompts={LANDING_PROMPTS} />);
+
+    const prompt = await waitFor(() => {
+      const found = drawnPrompt();
+      if (!found) throw new Error("the support prompt is not drawn yet");
+      return found;
+    });
+    const searchField = screen.getByLabelText(HERO_INPUT_LABEL).closest("[data-resolve-mode]");
+    const liveExample = document.querySelector(`a[href$="${EXAMPLE_SHORT_ID}"]`);
+
+    expect(searchField?.nextElementSibling).toBe(prompt);
+    expect(liveExample).not.toBeNull();
+    expect(prompt.compareDocumentPosition(liveExample as Element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("is gone once a search ran", async () => {
+    mockResolveFetch({ status: "disambiguation", candidates: [{ id: "c1" }] });
+    render(<LandingPage supportPrompts={LANDING_PROMPTS} />);
+    await waitFor(() => expect(drawnPrompt()).not.toBeNull());
+
+    await submitQuery("ambiguous query");
+    await screen.findByText("cancel-disambiguation");
+
+    expect(drawnPrompt()).toBeNull();
   });
 });
