@@ -211,7 +211,7 @@ function quietUntil(store: SupportPromptStore, limits: SupportPromptLimits): num
  * @param progress - How far the reader has come, by each counter.
  * @param now - The current moment, as milliseconds since the epoch.
  * @param alwaysShow - Whether every limit but the threshold is set aside, which the backend
- *   only ever allows outside production. `false` by default.
+ *   only ever allows in development and in tests. `false` by default.
  * @returns The prompt to show, or `null` when the reader has had enough.
  */
 export function choosePrompt(
@@ -225,7 +225,7 @@ export function choosePrompt(
   // Whilst the limits are set aside, only the threshold still applies: that one
   // says which prompt belongs on this page, whereas the rest say how often one
   // reader may be asked. Whether they may be set aside at all is the backend's
-  // answer, which is never yes in production.
+  // answer, which is never yes outside development and tests.
   if (!alwaysShow) {
     if (store.shown >= limits.maxShown) return null;
     if (now < quietUntil(store, limits)) return null;

@@ -96,26 +96,37 @@ describe("GET /api/v1/support-prompts", () => {
     }
   });
 
-  it("passes the always-show switch on outside production", async () => {
-    vi.stubEnv("NODE_ENV", "development");
+  it.each(["development", "test"])("passes the always-show switch on under NODE_ENV=%s", async (environment) => {
+    vi.stubEnv("NODE_ENV", environment);
     promptMocks.listPublishedSupportPrompts.mockResolvedValue([]);
     limitMocks.getSupportPromptLimits.mockResolvedValue({ ...SUPPORT_PROMPT_LIMIT_DEFAULTS, devAlwaysShow: true });
 
     const res = await app.inject({ method: "GET", url: ENDPOINTS.v1.supportPrompts });
 
     expect(res.json().devAlwaysShow).toBe(true);
+    expect(res.json().limits.devAlwaysShow).toBe(true);
   });
 
-  it("refuses the always-show switch in production, whatever is stored", async () => {
+  it.each([
+    ["production", "production"],
+    ["an unset environment", undefined],
+    ["an unknown environment", "staging"],
+  ])("refuses the always-show switch in %s and does not reveal it is stored", async (_case, environment) => {
     // A switch left on by accident must not reach a reader, so the decision
-    // is made here rather than in the browser.
-    vi.stubEnv("NODE_ENV", "production");
+    // is made here rather than in the browser, and a deployment that forgot
+    // NODE_ENV is treated like production.
+    // Stubbing first registers the variable for `vi.unstubAllEnvs`, which then
+    // restores it after an unset case deletes it.
+    vi.stubEnv("NODE_ENV", environment ?? "");
+    if (environment === undefined) delete process.env.NODE_ENV;
     promptMocks.listPublishedSupportPrompts.mockResolvedValue([]);
     limitMocks.getSupportPromptLimits.mockResolvedValue({ ...SUPPORT_PROMPT_LIMIT_DEFAULTS, devAlwaysShow: true });
 
     const res = await app.inject({ method: "GET", url: ENDPOINTS.v1.supportPrompts });
 
+    expect(process.env.NODE_ENV).toBe(environment);
     expect(res.json().devAlwaysShow).toBe(false);
+    expect(res.json().limits.devAlwaysShow).toBe(false);
   });
 
   it("lets a person edit without a deployment, so the answer may be revalidated", async () => {

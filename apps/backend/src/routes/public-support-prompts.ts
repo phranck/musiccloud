@@ -36,8 +36,14 @@ import { listPublishedSupportPrompts } from "../services/support-prompts.js";
  */
 const SUPPORT_PROMPTS_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300";
 
-/** The environment in which the always-show switch is never honoured. */
-const PRODUCTION_ENV = "production";
+/**
+ * The values of `NODE_ENV` under which the always-show switch is honored:
+ * `development`, which a local backend runs under once its `.env.local` says
+ * so, and `test`, which Vitest sets. Every other value, an unset one included,
+ * refuses it, so a deployment that forgot to set `NODE_ENV` cannot show a
+ * prompt on every page view.
+ */
+const ALWAYS_SHOW_ENVIRONMENTS: ReadonlySet<string | undefined> = new Set(["development", "test"]);
 
 /**
  * Registers the route at the root scope, outside every auth hook.
@@ -70,12 +76,14 @@ export default async function publicSupportPromptRoutes(app: FastifyInstance) {
     );
 
     // Whether the limits may be set aside is decided here rather than in the
-    // browser, because this is where the environment is known for certain. In
-    // production the answer is no, whatever is stored, so a switch left on by
-    // accident cannot reach a reader.
-    const devAlwaysShow = process.env.NODE_ENV !== PRODUCTION_ENV && limits.devAlwaysShow === true;
+    // browser, because this is where the environment is known for certain.
+    // Outside the named development environments the answer is no, whatever is
+    // stored, so a switch left on by accident cannot reach a reader. The limits
+    // carry the answer rather than the stored value, so the stored switch does
+    // not leave the server where it is not honored.
+    const devAlwaysShow = ALWAYS_SHOW_ENVIRONMENTS.has(process.env.NODE_ENV) && limits.devAlwaysShow === true;
 
-    const payload: SupportPromptPayload = { prompts, limits, devAlwaysShow };
+    const payload: SupportPromptPayload = { prompts, limits: { ...limits, devAlwaysShow }, devAlwaysShow };
     return reply.header("Cache-Control", SUPPORT_PROMPTS_CACHE_CONTROL).send(payload);
   });
 }

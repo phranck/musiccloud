@@ -192,7 +192,7 @@ export interface SupportPrompt extends SupportPromptInput {
  *   {@link SUPPORT_PROMPT_LIMITS.dismissalsUntilResolvedMin} to
  *   {@link SUPPORT_PROMPT_LIMITS.dismissalsUntilResolvedMax}, 3 by default.
  * @property devAlwaysShow - Whether to set every limit aside whilst working on a prompt. Stored
- *   like the others, but only ever acted on outside production. See
+ *   like the others, but only ever acted on in development and in tests. See
  *   {@link SupportPromptPayload.devAlwaysShow}. `false` by default.
  */
 export interface SupportPromptLimits {
@@ -243,13 +243,16 @@ export interface PublicSupportPrompt {
  *
  * @property prompts - Every published prompt whose window covers today, in the order the
  *   site should prefer them.
- * @property limits - What bounds one reader across every prompt together.
+ * @property limits - What bounds one reader across every prompt together. Its `devAlwaysShow`
+ *   is the backend's answer below, never the stored switch.
  * @property devAlwaysShow - Whether every limit is set aside, so a prompt shows on every page
  *   view. For working on a prompt: with the ordinary rules in force, seeing one twice means
  *   clearing the browser store and opening three share pages in between, which makes trying a
- *   change out slower than making it. The backend answers `false` in production whatever is
- *   stored, so this can never reach a reader. The decision is made there rather than in the
- *   browser because that is where the environment is known for certain.
+ *   change out slower than making it. The backend answers `true` only when the switch is on
+ *   and `NODE_ENV` is `development` or `test`. Everywhere else, production and an unset
+ *   `NODE_ENV` included, it answers `false` whatever is stored, so this can never reach a
+ *   reader. The decision is made there rather than in the browser because that is where the
+ *   environment is known for certain.
  */
 export interface SupportPromptPayload {
   prompts: PublicSupportPrompt[];
