@@ -12,7 +12,7 @@
  * payment is recorded.
  */
 
-import { DAY_PATTERN, FundingWindowDays, isCalendarDay } from "./donations.js";
+import { DAY_MS, DAY_PATTERN, FundingWindowDays, isCalendarDay } from "./donations.js";
 import { normalizeSocialMediaLinks, SOCIAL_MEDIA_LINK_SCHEMA, type SocialMediaLinks } from "./social-media.js";
 
 /** Bounds on every field of a sponsor. The request schema and the dashboard's inputs read them. */
@@ -172,9 +172,6 @@ export function normalizeSponsorInput(input: SponsorInput): SponsorInput | null 
   if (name === "" || rejected.length > 0 || !isCalendarDay(input.paidOn)) return null;
   return { ...input, name, socialMedia: links, claim: input.claim.trim() };
 }
-
-/** Milliseconds in a day. */
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * How many days of a sponsorship are left.

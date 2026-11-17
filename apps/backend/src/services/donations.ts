@@ -17,7 +17,7 @@ import {
   utcDay,
 } from "@musiccloud/shared";
 import { nanoid } from "nanoid";
-import { getDatabasePool } from "../db/pool.js";
+import { type DatabaseQueryable, getDatabasePool } from "../db/pool.js";
 
 /** One `donations` row as `pg` returns it. */
 interface DonationRow {
@@ -85,7 +85,19 @@ export async function listDonations(): Promise<Donation[]> {
  * @returns The stored donation.
  */
 export async function createDonation(input: DonationInput): Promise<Donation> {
-  const result = await getDatabasePool().query<DonationRow>(
+  return insertDonation(getDatabasePool(), input);
+}
+
+/**
+ * Writes one donation row through the given connection, so a caller can make
+ * it part of a transaction.
+ *
+ * @param db - The pool, or the client of an open transaction.
+ * @param input - The validated donation.
+ * @returns The stored donation.
+ */
+export async function insertDonation(db: DatabaseQueryable, input: DonationInput): Promise<Donation> {
+  const result = await db.query<DonationRow>(
     `INSERT INTO donations (id, name, published, amount_cents, received_on, provider, note, sponsor_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING ${DONATION_COLUMNS}`,

@@ -1,0 +1,395 @@
+/**
+ * @file Sponsorship requests: what somebody says about themselves before they
+ * pay, the reference their transfer carries, and the takeover into a sponsor.
+ *
+ * Ported from lmaa.space (`apps/backend/src/services/pending-sponsorships.ts`).
+ * Two things differ on purpose. The takeover writes the sponsor, the payment and
+ * the removal of the request in one transaction, so a failure leaves nothing
+ * half written. And the public path never asks a host what its address is, so
+ * an address given by a stranger is sorted by its shape alone and nothing the
+ * caller names is ever fetched before an operator has read it.
+ */
+
+import { randomBytes } from "node:crypto";
+import {
+  DAY_MS,
+  DonationProvider,
+  formatCreditorReference,
+  formatEuroCents,
+  issueSponsorshipReference,
+  normalizePendingSponsorshipInput,
+  normalizeSponsorshipReference,
+  PENDING_SPONSORSHIP_DAYS,
+  type PendingSponsorship,
+  type PendingSponsorshipInput,
+  type PendingSponsorshipTakeover,
+  pendingSponsorshipCutoff,
+  type SocialMediaLinks,
+  type Sponsor,
+} from "@musiccloud/shared";
+import type { FastifyBaseLogger } from "fastify";
+import { nanoid } from "nanoid";
+import { getDatabasePool, withDatabaseTransaction } from "../db/pool.js";
+import { log } from "../lib/infra/logger.js";
+import { insertDonation } from "./donations.js";
+import { resolveSponsorAvatar } from "./sponsor-avatar.js";
+import { copySponsorAvatar } from "./sponsor-avatar-copy.js";
+import { pruneUnusedSponsorAvatars } from "./sponsor-avatars.js";
+import { getSponsoringConfig } from "./sponsoring-config.js";
+import { insertSponsor } from "./sponsors.js";
+
+/** The component every log line of this module names. */
+const LOG_COMPONENT = "PendingSponsorships";
+
+/**
+ * How many times a taken reference is redrawn before the request is refused: 3.
+ *
+ * At 60 bits a collision is a fault rather than an event, so this is no
+ * probability calculation. It is what stops a broken draw, such as one that
+ * returns a constant, from spinning against the database.
+ */
+const REFERENCE_ATTEMPTS = 3;
+
+/** The unique index that holds one request per reference, which a collision runs into. */
+const REFERENCE_UNIQUE_INDEX = "uq_pending_sponsorships_reference";
+
+/** PostgreSQL's SQLSTATE for a unique violation. */
+const PG_UNIQUE_VIOLATION = "23505";
+
+/**
+ * How often the expired requests are looked for: once a day, and once at
+ * start-up, so a service restarted more often than daily still clears them.
+ */
+const EXPIRY_INTERVAL_MS = DAY_MS;
+
+/** The columns every read selects, with the moment as an ISO string. */
+const REQUEST_COLUMNS = "id, reference, name, links, claim, amount_cents, published, created_at";
+
+/** Why a form is refused before anything is stored. */
+export const SponsorshipRefusal = {
+  /** The announced amount is below the sponsoring settings' minimum. */
+  AmountTooLow: "amount_too_low",
+  /** A text is blank once trimmed, or the address sorts into no platform. */
+  Unusable: "unusable",
+  /** Every drawn reference was taken, which means the draw is broken. */
+  ReferenceUnavailable: "reference_unavailable",
+  /** No request carries that reference or id. */
+  NotFound: "not_found",
+} as const;
+
+/** A {@link SponsorshipRefusal} member value. */
+export type SponsorshipRefusalValue = (typeof SponsorshipRefusal)[keyof typeof SponsorshipRefusal];
+
+/** The outcome of a write: the value, or the reason it was refused. */
+export type SponsorshipOutcome<Value> = { ok: true; value: Value } | { ok: false; reason: SponsorshipRefusalValue };
+
+/** One `pending_sponsorships` row as `pg` returns it. */
+interface RequestRow {
+  id: string;
+  reference: string;
+  name: string;
+  links: SocialMediaLinks;
+  claim: string;
+  amount_cents: number;
+  published: boolean;
+  created_at: Date;
+}
+
+/** The fields a validated form is stored as, as `normalizePendingSponsorshipInput` returns them. */
+type StoredFields = NonNullable<ReturnType<typeof normalizePendingSponsorshipInput>>;
+
+/**
+ * Turns a row into what the dashboard lists.
+ *
+ * @param row - The row as read.
+ * @returns The request.
+ */
+function toPendingSponsorship(row: RequestRow): PendingSponsorship {
+  return {
+    id: row.id,
+    reference: row.reference,
+    name: row.name,
+    socialMedia: row.links,
+    claim: row.claim,
+    amountCents: row.amount_cents,
+    published: row.published,
+    createdAt: new Date(row.created_at).toISOString(),
+  };
+}
+
+/**
+ * Brings a validated form into the columns of a row, or says why it cannot.
+ *
+ * Shared by announcing and correcting, so both are measured against the same
+ * minimum and sort an address the same way. The minimum is the one the
+ * operator stored in the sponsoring settings; the form checks it too, but the
+ * browser belongs to the caller, so this comparison decides.
+ *
+ * @param input - A body that passed `PENDING_SPONSORSHIP_INPUT_SCHEMA`.
+ * @returns The fields, or `amount_too_low` or `unusable`, with the minimum for the message.
+ */
+async function toStoredFields(
+  input: PendingSponsorshipInput,
+): Promise<{ ok: true; fields: StoredFields } | { ok: false; reason: SponsorshipRefusalValue; minimumCents: number }> {
+  const { sponsorMinimumCents } = await getSponsoringConfig();
+  if (input.amountCents < sponsorMinimumCents) {
+    return { ok: false, reason: SponsorshipRefusal.AmountTooLow, minimumCents: sponsorMinimumCents };
+  }
+  const fields = normalizePendingSponsorshipInput(input);
+  if (!fields) return { ok: false, reason: SponsorshipRefusal.Unusable, minimumCents: sponsorMinimumCents };
+  return { ok: true, fields };
+}
+
+/**
+ * Says whether an error is the unique violation of the reference index.
+ *
+ * @param error - What the driver threw.
+ * @returns `true` only for a collision of two references.
+ */
+function isReferenceCollision(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === PG_UNIQUE_VIOLATION &&
+    "constraint" in error &&
+    error.constraint === REFERENCE_UNIQUE_INDEX
+  );
+}
+
+/**
+ * Renders the minimum a refusal names, such as `€40`.
+ *
+ * @param minimumCents - The sponsoring settings' minimum, in cents.
+ * @returns The amount as the site prints it.
+ */
+export function formatSponsorshipMinimum(minimumCents: number): string {
+  return formatEuroCents(minimumCents);
+}
+
+/**
+ * Stores a request and answers with its reference.
+ *
+ * The reference is drawn by {@link issueSponsorshipReference} from
+ * `randomBytes`; a collision is redrawn up to {@link REFERENCE_ATTEMPTS} times
+ * and the row is read back through `RETURNING`, so the caller is told what was
+ * stored rather than what was meant.
+ *
+ * @param input - A body that passed the request schema.
+ * @returns The stored request, or why it was refused; `minimumCents` comes with `amount_too_low`.
+ */
+export async function createPendingSponsorship(
+  input: PendingSponsorshipInput,
+): Promise<SponsorshipOutcome<PendingSponsorship> & { minimumCents?: number }> {
+  const prepared = await toStoredFields(input);
+  if (!prepared.ok) return prepared;
+  const { fields } = prepared;
+
+  for (let attempt = 1; attempt <= REFERENCE_ATTEMPTS; attempt++) {
+    try {
+      const result = await getDatabasePool().query<RequestRow>(
+        `INSERT INTO pending_sponsorships (id, reference, name, links, claim, amount_cents, published)
+         VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+         RETURNING ${REQUEST_COLUMNS}`,
+        [
+          nanoid(),
+          issueSponsorshipReference((size) => new Uint8Array(randomBytes(size))),
+          fields.name,
+          JSON.stringify(fields.socialMedia),
+          fields.claim,
+          fields.amountCents,
+          fields.published,
+        ],
+      );
+      return { ok: true, value: toPendingSponsorship(result.rows[0] as RequestRow) };
+    } catch (error) {
+      if (!isReferenceCollision(error)) throw error;
+      // Neither the reference nor anything the caller typed goes into the line.
+      log.deviation({
+        component: LOG_COMPONENT,
+        errorCode: "MC-SYS-0004",
+        operation: "pending_sponsorship_create",
+        outcome: "reference_taken",
+        attempt,
+      });
+    }
+  }
+  return { ok: false, reason: SponsorshipRefusal.ReferenceUnavailable };
+}
+
+/**
+ * Rewrites the request a reference was issued for, keeping the reference.
+ *
+ * Whoever holds the reference may change what stands behind it: it is not
+ * guessable and addresses nothing but its own row. The reference itself never
+ * changes, because by now it may stand in a banking app.
+ *
+ * @param reference - The reference as it arrived, spaces and any case allowed.
+ * @param input - A body that passed the request schema.
+ * @returns The request afterwards, or why it was refused.
+ */
+export async function updatePendingSponsorship(
+  reference: string,
+  input: PendingSponsorshipInput,
+): Promise<SponsorshipOutcome<PendingSponsorship> & { minimumCents?: number }> {
+  const stored = normalizeSponsorshipReference(reference);
+  if (!stored) return { ok: false, reason: SponsorshipRefusal.NotFound };
+
+  const prepared = await toStoredFields(input);
+  if (!prepared.ok) return prepared;
+  const { fields } = prepared;
+
+  const result = await getDatabasePool().query<RequestRow>(
+    `UPDATE pending_sponsorships
+        SET name = $2, links = $3::jsonb, claim = $4, amount_cents = $5, published = $6
+      WHERE reference = $1
+      RETURNING ${REQUEST_COLUMNS}`,
+    [stored, fields.name, JSON.stringify(fields.socialMedia), fields.claim, fields.amountCents, fields.published],
+  );
+  const row = result.rows[0];
+  return row ? { ok: true, value: toPendingSponsorship(row) } : { ok: false, reason: SponsorshipRefusal.NotFound };
+}
+
+/**
+ * Lists every request nobody has taken over yet, oldest first, because that
+ * one is the likeliest to have been paid and the closest to expiring.
+ *
+ * @returns The requests.
+ */
+export async function listPendingSponsorships(): Promise<PendingSponsorship[]> {
+  const result = await getDatabasePool().query<RequestRow>(
+    `SELECT ${REQUEST_COLUMNS} FROM pending_sponsorships ORDER BY created_at ASC, id ASC`,
+  );
+  return result.rows.map(toPendingSponsorship);
+}
+
+/**
+ * Removes one request.
+ *
+ * @param id - The request's id.
+ * @returns `true` when a row was removed, `false` when none has that id.
+ */
+export async function deletePendingSponsorship(id: string): Promise<boolean> {
+  const result = await getDatabasePool().query("DELETE FROM pending_sponsorships WHERE id = $1", [id]);
+  return (result.rowCount ?? 0) > 0;
+}
+
+/**
+ * Turns one request into a sponsor and a donation, and removes the request.
+ *
+ * The picture is looked for first, outside the transaction, because only now
+ * has an operator read the request and seen the money arrive; the public route
+ * never fetches what a stranger names. The sponsor, the payment linked to them
+ * and the removal of the request are then one transaction: a failure in any of
+ * them leaves the request standing and writes nothing, so the operator can try
+ * again without a sponsor or a payment counted twice.
+ *
+ * What the request says about the person is taken as given. What arrived and
+ * when is not in the request and comes from the statement. The donation's own
+ * consent stays withheld, because what the person agreed to is the Sponsor
+ * Wall, which the sponsor's `published` governs.
+ *
+ * @param id - The request's id.
+ * @param payment - What arrived, in cents, and the day it did.
+ * @returns The sponsor as stored, or `not_found` when no request has that id.
+ */
+export async function takeOverPendingSponsorship(
+  id: string,
+  payment: PendingSponsorshipTakeover,
+): Promise<SponsorshipOutcome<Sponsor>> {
+  const before = await getDatabasePool().query<RequestRow>(
+    `SELECT ${REQUEST_COLUMNS} FROM pending_sponsorships WHERE id = $1`,
+    [id],
+  );
+  const request = before.rows[0];
+  if (!request) return { ok: false, reason: SponsorshipRefusal.NotFound };
+
+  const pictureUrl = await resolveSponsorAvatar(request.links);
+  const avatarId = pictureUrl ? await copySponsorAvatar(pictureUrl) : null;
+
+  const sponsor = await withDatabaseTransaction(async (client) => {
+    // Locked and read again inside the transaction, so two operators taking the
+    // same request over cannot both write a sponsor.
+    const locked = await client.query<RequestRow>(
+      `SELECT ${REQUEST_COLUMNS} FROM pending_sponsorships WHERE id = $1 FOR UPDATE`,
+      [id],
+    );
+    const current = locked.rows[0];
+    if (!current) return null;
+
+    const created = await insertSponsor(client, {
+      name: current.name,
+      socialMedia: current.links,
+      avatarId,
+      claim: current.claim,
+      published: current.published,
+      paidOn: payment.paidOn,
+    });
+    await insertDonation(client, {
+      name: current.name,
+      published: false,
+      amountCents: payment.amountCents,
+      receivedOn: payment.paidOn,
+      provider: DonationProvider.BankTransfer,
+      note: `Sponsorship ${formatCreditorReference(current.reference)}`,
+      sponsorId: created.id,
+    });
+    await client.query("DELETE FROM pending_sponsorships WHERE id = $1", [id]);
+    return { ...created, amountCents: payment.amountCents };
+  }, "pending_sponsorship_takeover");
+
+  if (!sponsor) return { ok: false, reason: SponsorshipRefusal.NotFound };
+  await pruneUnusedSponsorAvatars();
+  return { ok: true, value: sponsor };
+}
+
+/**
+ * Removes the requests nobody took over within {@link PENDING_SPONSORSHIP_DAYS}.
+ *
+ * They hold a name, an address and a sentence given for a payment that never
+ * arrived, so there is no reason left to keep them.
+ *
+ * @param now - The moment to measure against. Defaults to now.
+ * @returns How many were removed.
+ */
+export async function expirePendingSponsorships(now: Date = new Date()): Promise<number> {
+  const result = await getDatabasePool().query("DELETE FROM pending_sponsorships WHERE created_at < $1", [
+    pendingSponsorshipCutoff(now),
+  ]);
+  return result.rowCount ?? 0;
+}
+
+/**
+ * Starts the daily sweep of expired requests and runs one at once.
+ *
+ * @param logger - Where a sweep that removed something says how many, such as
+ *   the Fastify logger. The count and nothing else is logged, because what was
+ *   in those rows is what is being got rid of.
+ * @returns The timer, unreferenced so it never keeps the process alive, for
+ *   shutdown to clear.
+ */
+export function startPendingSponsorshipExpiry(logger: Pick<FastifyBaseLogger, "info">): NodeJS.Timeout {
+  const sweep = () => {
+    void expirePendingSponsorships()
+      .then((removed) => {
+        if (removed > 0) {
+          logger.info({ component: LOG_COMPONENT, operation: "pending_sponsorship_expiry", removed }, "expired");
+        }
+      })
+      .catch((error) =>
+        log.deviation(
+          {
+            component: LOG_COMPONENT,
+            errorCode: "MC-DB-0004",
+            operation: "pending_sponsorship_expiry",
+            outcome: "sweep_failed",
+          },
+          error,
+        ),
+      );
+  };
+  sweep();
+  const timer = setInterval(sweep, EXPIRY_INTERVAL_MS);
+  timer.unref();
+  return timer;
+}

@@ -43,6 +43,7 @@ import { adminPlanOfferRoutes } from "./routes/admin-plan-offers.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
 import { adminSponsoringRoutes } from "./routes/admin-sponsoring.js";
 import { adminSponsorRoutes } from "./routes/admin-sponsors.js";
+import { adminSponsorshipRequestRoutes } from "./routes/admin-sponsorship-requests.js";
 import adminSseRoutes from "./routes/admin-sse.js";
 import { adminTiersRoutes } from "./routes/admin-tiers.js";
 import adminUserRoutes from "./routes/admin-users.js";
@@ -75,6 +76,7 @@ import { internalEditorialRoutes } from "./routes/internal-editorial.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
 import publicSponsorRoutes from "./routes/public-sponsors.js";
+import publicSponsorshipRoutes from "./routes/public-sponsorships.js";
 import publicTiersRoutes from "./routes/public-tiers.js";
 import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
@@ -88,6 +90,7 @@ import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
 import { isEmailProviderHealthy } from "./services/email-provider.js";
 import { isPluginAvailable, validateAdapters } from "./services/index.js";
+import { startPendingSponsorshipExpiry } from "./services/pending-sponsorships.js";
 import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -621,6 +624,9 @@ async function buildApp(options: BuildAppOptions = {}) {
   await app.register(sponsorAvatarRoutes);
   // Who carries the running costs (public, no auth - the support page's wall)
   await app.register(publicSponsorRoutes);
+  // Announcing a sponsorship before paying (public, no auth - the support
+  // page's form, five requests an hour per address on each route)
+  await app.register(publicSponsorshipRoutes);
 
   // Email asset serve endpoint (public, no auth - sent-email <img> tags are
   // fetched by the recipient's mail client, which has no admin JWT to
@@ -687,6 +693,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(adminSponsoringRoutes);
     await adminApp.register(adminDonationRoutes);
     await adminApp.register(adminSponsorRoutes);
+    await adminApp.register(adminSponsorshipRequestRoutes);
     await adminApp.register(adminPluginsRoutes);
     await adminApp.register(adminCrawlerRoutes);
     await adminApp.register(developerPortalAvailabilityAdminRoutes);
@@ -719,6 +726,8 @@ async function start() {
     await runMigrations();
     await app.listen({ host: HOST, port: PORT });
     app.log.info(`Backend listening on ${HOST}:${PORT}`);
+    // Started after the migrations, because the sweep deletes from a table they create.
+    startPendingSponsorshipExpiry(app.log);
     validateAdapters();
     // Pre-warm Apple Music developer token (avoids first-request latency)
     if (isPluginAvailable(Service.AppleMusic)) warmAppleMusicToken();

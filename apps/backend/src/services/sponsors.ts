@@ -18,7 +18,7 @@ import {
   utcDay,
 } from "@musiccloud/shared";
 import { nanoid } from "nanoid";
-import { getDatabasePool } from "../db/pool.js";
+import { type DatabaseQueryable, getDatabasePool } from "../db/pool.js";
 import { pruneUnusedSponsorAvatars } from "./sponsor-avatars.js";
 
 /** One `sponsors` row as the reads below return it, with the linked amount summed. */
@@ -150,7 +150,22 @@ export async function sponsorExists(id: string): Promise<boolean> {
  *   linked to a sponsor that did not exist a moment ago.
  */
 export async function createSponsor(input: SponsorInput): Promise<Sponsor> {
-  const result = await getDatabasePool().query<SponsorQueryRow>(
+  const sponsor = await insertSponsor(getDatabasePool(), input);
+  await pruneUnusedSponsorAvatars();
+  return sponsor;
+}
+
+/**
+ * Writes one sponsor row through the given connection, so a caller can make
+ * it part of a transaction. Unlike {@link createSponsor} it removes no
+ * pictures; the caller does that once the transaction has committed.
+ *
+ * @param db - The pool, or the client of an open transaction.
+ * @param input - The validated sponsor.
+ * @returns The stored sponsor, with the amount summed as the transaction sees it.
+ */
+export async function insertSponsor(db: DatabaseQueryable, input: SponsorInput): Promise<Sponsor> {
+  const result = await db.query<SponsorQueryRow>(
     `WITH s AS (
        INSERT INTO sponsors (id, name, links, avatar_id, claim, published, paid_on)
        VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7)
@@ -167,7 +182,6 @@ export async function createSponsor(input: SponsorInput): Promise<Sponsor> {
       input.paidOn,
     ],
   );
-  await pruneUnusedSponsorAvatars();
   return toSponsor(result.rows[0] as SponsorQueryRow);
 }
 

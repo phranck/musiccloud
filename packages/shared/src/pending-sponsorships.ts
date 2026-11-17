@@ -13,7 +13,7 @@
  */
 
 import { buildCreditorReference, normalizeCreditorReference, randomReferenceBody } from "./creditor-reference.js";
-import { DAY_PATTERN } from "./donations.js";
+import { DAY_MS, DAY_PATTERN } from "./donations.js";
 import { classifyProfileLink, type SocialMediaLinks } from "./social-media.js";
 
 /**
@@ -34,6 +34,14 @@ export const SPONSORSHIP_REFERENCE_RANDOM_LENGTH = 12;
 /** How long an unclaimed request stands before it is removed, and how long a browser keeps its reference: 60 days. */
 export const PENDING_SPONSORSHIP_DAYS = 60;
 
+/**
+ * The largest body a request may carry, in bytes: 4,096. Every field at its
+ * longest fits several times over, so anything larger is not the form. The
+ * public routes and the site's proxy in front of them refuse a larger body
+ * with `413` before reading it as JSON.
+ */
+export const PENDING_SPONSORSHIP_BODY_MAX_BYTES = 4 * 1024;
+
 /** Bounds on every field of a request. The request schema and the form read them. */
 export const PENDING_SPONSORSHIP_LIMITS = {
   /** Longest name: 160 characters, as a sponsor's in the dashboard. */
@@ -44,7 +52,39 @@ export const PENDING_SPONSORSHIP_LIMITS = {
   claimMaxLength: 250,
   /** Highest announced amount: 1,000,000 cents, as a donation's. */
   amountMaxCents: 1_000_000,
+  /** Smallest amount a takeover records: 1 cent, because the ledger holds no empty payment. */
+  takeoverMinCents: 1,
 } as const;
+
+/**
+ * The moment before which a request has expired: {@link PENDING_SPONSORSHIP_DAYS}
+ * days before `now`. The backend's sweep removes every request made before it,
+ * and the dashboard counts the days left against the same rule.
+ *
+ * @param now - The moment to measure from.
+ * @returns The cutoff.
+ */
+export function pendingSponsorshipCutoff(now: Date): Date {
+  return new Date(now.getTime() - PENDING_SPONSORSHIP_DAYS * DAY_MS);
+}
+
+/**
+ * How many days a request still stands before the sweep removes it.
+ *
+ * A started day counts as a day left, so a request made a moment ago has all
+ * {@link PENDING_SPONSORSHIP_DAYS} and one with an hour to go has 1.
+ *
+ * @param createdAt - When the request was made, ISO 8601.
+ * @param now - The moment to count from.
+ * @returns Days left, from {@link PENDING_SPONSORSHIP_DAYS} down to zero. Zero
+ *   once the time has run out, and for a timestamp that does not parse.
+ */
+export function pendingSponsorshipDaysLeft(createdAt: string, now: Date): number {
+  const created = Date.parse(createdAt);
+  if (Number.isNaN(created)) return 0;
+  const left = Math.ceil((created - pendingSponsorshipCutoff(now).getTime()) / DAY_MS);
+  return Math.min(Math.max(left, 0), PENDING_SPONSORSHIP_DAYS);
+}
 
 /**
  * Everything the form asks of somebody who means to become a sponsor.
@@ -125,7 +165,11 @@ export const PENDING_SPONSORSHIP_TAKEOVER_SCHEMA = {
   additionalProperties: false,
   required: ["amountCents", "paidOn"],
   properties: {
-    amountCents: { type: "integer", minimum: 1, maximum: PENDING_SPONSORSHIP_LIMITS.amountMaxCents },
+    amountCents: {
+      type: "integer",
+      minimum: PENDING_SPONSORSHIP_LIMITS.takeoverMinCents,
+      maximum: PENDING_SPONSORSHIP_LIMITS.amountMaxCents,
+    },
     paidOn: { type: "string", pattern: DAY_PATTERN },
   },
 } as const;
