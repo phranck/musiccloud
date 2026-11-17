@@ -1,6 +1,6 @@
 /**
- * @file Requests for the sponsoring setting, the donations ledger and the
- * annual sponsors.
+ * @file Requests for the sponsoring setting, the donations ledger, the annual
+ * sponsors and the sponsorship requests waiting for their transfer.
  */
 
 import {
@@ -8,6 +8,8 @@ import {
   type DonationInput,
   type DonationTotals,
   ENDPOINTS,
+  type PendingSponsorship,
+  type PendingSponsorshipTakeover,
   type SocialMediaLinks,
   type Sponsor,
   type SponsorAvatarResult,
@@ -38,6 +40,13 @@ export const DONATION_TOTALS_QUERY_KEY = [...DONATIONS_QUERY_KEY, "totals"] as c
 
 /** The query key of the annual sponsors. */
 export const SPONSORS_QUERY_KEY = [...LEDGER_QUERY_KEY, "sponsors"] as const;
+
+/**
+ * The query key of the sponsorship requests. It sits outside
+ * {@link LEDGER_QUERY_KEY}, because recording a donation or a sponsor by hand
+ * changes no request, while a takeover changes both and invalidates both.
+ */
+export const SPONSORSHIP_REQUESTS_QUERY_KEY = ["admin", "sponsoring", "requests"] as const;
 
 /**
  * Reads the setting, with the defaults filled in for anything never saved.
@@ -154,4 +163,36 @@ export function deleteSponsor(id: string): Promise<void> {
  */
 export function resolveSponsorAvatar(socialMedia: SocialMediaLinks): Promise<SponsorAvatarResult> {
   return api.post<SponsorAvatarResult>(ENDPOINTS.admin.sponsoring.sponsorAvatar, { socialMedia });
+}
+
+/**
+ * Reads every sponsorship request nobody has taken over yet.
+ *
+ * @returns The requests, oldest first.
+ */
+export function fetchSponsorshipRequests(): Promise<PendingSponsorship[]> {
+  return api.get<PendingSponsorship[]>(ENDPOINTS.admin.sponsoring.requests);
+}
+
+/**
+ * Turns a request into an annual sponsor and the donation that pays for them.
+ * The backend writes both and removes the request in one transaction, so a
+ * failure leaves the request as it was.
+ *
+ * @param id - The request to take over.
+ * @param takeover - What arrived and on which day, as the bank statement shows it.
+ * @returns The sponsor as stored.
+ */
+export function takeOverSponsorshipRequest(id: string, takeover: PendingSponsorshipTakeover): Promise<Sponsor> {
+  return api.post<Sponsor>(ENDPOINTS.admin.sponsoring.requestTakeover(id), takeover);
+}
+
+/**
+ * Removes a request with everything the person entered. A transfer quoting
+ * its reference can no longer be matched to anybody afterwards.
+ *
+ * @param id - The request to remove.
+ */
+export function deleteSponsorshipRequest(id: string): Promise<void> {
+  return api.delete<void>(ENDPOINTS.admin.sponsoring.requestDetail(id));
 }

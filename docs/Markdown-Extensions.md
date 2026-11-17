@@ -106,7 +106,7 @@ The identifier is read out of whatever the page wrote, and the embed address is 
 `[[support-ladder … ]]` is the giving block of the support page, and only the site renders it. It holds four kinds of child:
 
 - `bankaccount` holds one `variant` per tab, and a variant holds a `qrcode` for the look of its GiroCode and an `info` for the notice under the payee lines.
-- `interval` is one tab, `once`, `monthly` or `sponsor`. It holds its suggested amounts as `option` children and its free amount field as `custom`.
+- `interval` is one tab, `once`, `monthly` or `sponsor`. It holds its suggested amounts as `option` children and its free amount field as `custom`. The sponsor tab may also hold a `sponsorform`, described below.
 - `paypalme` and `ghsponsor` are the two routes out. Each address must be `https` and on the route's own host, and the route is dropped otherwise.
 
 A page writes its amounts with the sponsoring site variables, such as `amount={amountMonth}`. Variables are put in before the page is parsed, so the suggested amounts follow the running costs entered in the dashboard.
@@ -116,6 +116,23 @@ The ladder is something a reader operates, so the backend does not draw it. `app
 Markdown passes raw HTML through, so a page could write the attribute by hand. The sanitizer therefore reads it against the shared shape, drops whatever does not fit, and runs every HTML field through its own allowlist. After sanitizing, `bindSupportLadderSettings` writes the payee and the sponsor minimum from the sponsoring settings into every marker. A page can therefore never name the account a transfer goes to.
 
 The site mounts `SupportLadder` on the marker in `MarkdownHtml`. The GiroCode follows EPC069-12 and is drawn for single payments and sponsorships only, because the format has no field for an interval. PayPal.Me stands under single payments only, GitHub Sponsors under single and monthly payments, and the sponsor tab offers the transfer alone. `qr-code-styling` draws the code and is loaded the first time a code is drawn, so a page without a ladder never fetches it.
+
+## The sponsor form
+
+`[[sponsorform]]` stands inside `[[interval key="sponsor"]]` and turns the sponsor tab into a request for a payment reference. Somebody who means to sponsor gives their name, one profile address, their own sentence and whether they want to be named on the site. The site answers with an ISO 11649 reference that opens with `RF`, two check digits and `MCSP`. The transfer card and the GiroCode then carry that reference in place of the sponsorship purpose, because a transfer carries one of the two and never both. Without the node the tab shows no form and the transfer carries the purpose as before. On any other tab the node is dropped.
+
+```text
+[[interval key="sponsor" label="Become a sponsor"
+  [[custom label="Your amount"]]
+  [[sponsorform submitLabel="Get my payment reference"]]
+]]
+```
+
+Every word the form shows is a parameter of the node, and every one is optional. The defaults, the parameter names and what each one labels are declared once in `packages/shared/src/sponsor-form.ts`, and the editor's reference lists them. The words are plain text rather than Markdown, at most 160 characters each. A refusal is shown with the backend's own message and error ID, so no parameter words one.
+
+The reference lives in the visitor's browser for 60 days, which is how long the backend keeps an unclaimed request. Reloading the page therefore shows the same reference, and the form opens again on what was sent, so a correction rewrites the request under the same reference.
+
+The form posts to `/api/sponsorships` and corrects through `/api/sponsorships/:reference` on the site's own origin. Those proxies refuse a body above 4 KiB and pass everything else on with the visitor's address, which the backend's limit of five requests an hour counts. The backend's status, its error envelope and `Retry-After` come back unchanged, and every answer carries `Cache-Control: no-store`.
 
 ## The sponsor wall
 

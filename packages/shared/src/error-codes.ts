@@ -197,6 +197,22 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "PUT /api/admin/sponsoring/config failed the request schema built from SPONSORING_CONFIG_SCHEMA, or the IBAN failed its checksum. The response carries `problems`, one `{ field, reason }` per field, so the dashboard can mark each one. Nothing was written.",
     source: "apps/backend/src/routes/admin-sponsoring.ts",
   },
+  "MC-REQ-0012": {
+    code: "MC-REQ-0012",
+    httpStatus: 400,
+    userMessage: "A sponsorship starts at {minimum}. Below that, a payment is a donation, which is just as welcome.",
+    internalNote:
+      "A sponsorship request announced less than the minimum stored in the sponsoring settings. The form checks the same figure, but the browser is the caller's, so the backend decides. Nothing was stored.",
+    source: "apps/backend/src/services/pending-sponsorships.ts toStoredFields",
+  },
+  "MC-REQ-0013": {
+    code: "MC-REQ-0013",
+    httpStatus: 400,
+    userMessage: "This address cannot be linked. Please give a website or a profile address.",
+    internalNote:
+      "A sponsorship request carried an address classifyProfileLink sorts into no platform, or a name or sentence that is blank once trimmed. Refused rather than stored without it, so nobody believes they gave an address that was dropped.",
+    source: "apps/backend/src/services/pending-sponsorships.ts toStoredFields",
+  },
   "MC-AUTH-0001": {
     code: "MC-AUTH-0001",
     httpStatus: 401,
@@ -413,6 +429,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     internalNote:
       "The invitation mail failed, most often because no enabled template is bound to developerPortalInviteSent. The invitation is written in the same transaction as the send and rolled back with it.",
     source: "apps/backend/src/services/developer-portal-invitations.ts",
+  },
+  "MC-SYS-0004": {
+    code: "MC-SYS-0004",
+    httpStatus: 503,
+    userMessage: "No payment reference could be issued just now. Please try again in a few minutes.",
+    internalNote:
+      "Three drawn sponsorship references in a row were already taken. At 60 bits that means the draw is broken rather than unlucky. Nothing was stored.",
+    source: "apps/backend/src/services/pending-sponsorships.ts createPendingSponsorship",
   },
   // ─── URL parsing / detection ───────────────────────────────────────────────
   "MC-URL-0001": {

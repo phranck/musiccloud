@@ -73,6 +73,53 @@ export function getDatabasePool(): pgModule.Pool {
 }
 
 /**
+ * Anything a statement can be sent through: the shared pool, or one client
+ * inside a transaction. A write that has to join a transaction takes this
+ * rather than reaching for the pool itself.
+ */
+export type DatabaseQueryable = Pick<pgModule.PoolClient, "query">;
+
+/**
+ * Runs `work` inside one transaction on one client of the shared pool.
+ *
+ * Commits when `work` resolves and rolls back when it throws, then rethrows
+ * the original error. A rollback that fails itself is logged and does not
+ * replace the error that caused it.
+ *
+ * @param work - The statements to run; it receives the transaction's client.
+ * @param operation - A stable name for the log line of a failed rollback.
+ * @returns Whatever `work` resolved with, once committed.
+ * @throws The error `work` threw, after the rollback.
+ */
+export async function withDatabaseTransaction<Result>(
+  work: (client: DatabaseQueryable) => Promise<Result>,
+  operation: string,
+): Promise<Result> {
+  const client = await getDatabasePool().connect();
+  try {
+    await client.query("BEGIN");
+    const result = await work(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK").catch((rollbackError) =>
+      log.deviation(
+        {
+          component: "DatabaseTransaction",
+          errorCode: "MC-DB-0004",
+          operation,
+          outcome: "primary_error_rethrown_after_rollback_failure",
+        },
+        rollbackError,
+      ),
+    );
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Ends the shared pool. A later {@link getDatabasePool} call creates a new one,
  * so a script that closes and reopens the repository keeps working.
  */

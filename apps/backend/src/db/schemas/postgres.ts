@@ -2474,3 +2474,39 @@ export const donations = pgTable(
 
 export type DonationRow = typeof donations.$inferSelect;
 export type DonationInsert = typeof donations.$inferInsert;
+
+/**
+ * Sponsorship requests: what somebody said about themselves before paying for a
+ * sponsorship, kept until an operator takes it over into {@link sponsors} and
+ * {@link donations}, or until it expires after `PENDING_SPONSORSHIP_DAYS`.
+ *
+ * `reference` is the ISO 11649 creditor reference the transfer carries, stored
+ * without spaces in upper case; its unique index keeps one row per reference
+ * and is what a collision of two drawn references runs into. `links` holds the
+ * one address the form took, already sorted into its platform, in the shape a
+ * sponsor carries, so nothing has to be merged at the takeover. `amount_cents`
+ * is what was announced; what arrived comes from the statement at the takeover.
+ * `published` is the consent to be named, and `created_at` is when it was given
+ * and when the request's lifetime starts.
+ */
+export const pendingSponsorships = pgTable(
+  "pending_sponsorships",
+  {
+    id: text("id").primaryKey(),
+    reference: text("reference").notNull(),
+    name: text("name").notNull(),
+    socialMedia: jsonb("links").$type<SocialMediaLinks>().notNull().default([]),
+    claim: text("claim").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    published: boolean("published").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_pending_sponsorships_reference").on(table.reference),
+    index("idx_pending_sponsorships_created_at").on(table.createdAt),
+    check("chk_pending_sponsorships_amount", sql`${table.amountCents} >= 0`),
+  ],
+);
+
+export type PendingSponsorshipRow = typeof pendingSponsorships.$inferSelect;
+export type PendingSponsorshipInsert = typeof pendingSponsorships.$inferInsert;

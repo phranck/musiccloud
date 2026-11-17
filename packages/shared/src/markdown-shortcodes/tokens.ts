@@ -61,6 +61,8 @@ export const ShortcodeToken = {
   Option: "option",
   /** The free-amount field of a tab. */
   Custom: "custom",
+  /** The sponsor tab's form, which issues a payment reference before the transfer. */
+  SponsorForm: "sponsorform",
   /** The PayPal.Me route. */
   PaypalMe: "paypalme",
   /** The GitHub Sponsors route. */

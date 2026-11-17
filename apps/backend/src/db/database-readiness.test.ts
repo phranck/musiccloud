@@ -247,7 +247,12 @@ describe("buildMusiccloudReadinessExpectations", () => {
     }
   });
 
-  it.each(["donations", "sponsors", "sponsor_avatars"])("requires CRUD access for the sponsoring table %s", (table) => {
+  it.each([
+    "donations",
+    "sponsors",
+    "sponsor_avatars",
+    "pending_sponsorships",
+  ])("requires CRUD access for the sponsoring table %s", (table) => {
     const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
 
     for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {

@@ -111,8 +111,8 @@ export const DONATION_INPUT_SCHEMA = {
   },
 } as const;
 
-/** Milliseconds in a day. */
-const DAY_MS = 24 * 60 * 60 * 1000;
+/** Milliseconds in a day, which every sponsoring window and lifetime is counted in. */
+export const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Characters of an ISO timestamp that form the day. */
 const DAY_LENGTH = 10;

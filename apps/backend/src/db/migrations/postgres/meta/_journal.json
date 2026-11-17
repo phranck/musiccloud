@@ -834,6 +834,13 @@
       "when": 1794938517647,
       "tag": "0118_sponsor_avatars",
       "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1794946509512,
+      "tag": "0119_pending_sponsorships",
+      "breakpoints": true
     }
   ]
 }

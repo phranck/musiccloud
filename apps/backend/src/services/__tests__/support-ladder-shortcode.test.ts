@@ -136,6 +136,35 @@ describe("[[support-ladder]]", () => {
     expect(config?.routes).toEqual([]);
   });
 
+  it("carries the sponsor form's words on the sponsor tab as plain text", async () => {
+    const page = [
+      "[[support-ladder",
+      '  [[interval key="sponsor" label="Sponsor"',
+      '    [[custom label="Your amount"]]',
+      '    [[sponsorform nameLabel="Who are you?" submitLabel="Send **now**"]]',
+      "  ]]",
+      "]]",
+    ].join("\n");
+
+    const config = readMarker(await served(page));
+
+    expect(config?.intervals[0]?.sponsorForm).toEqual({ nameLabel: "Who are you?", submitLabel: "Send **now**" });
+  });
+
+  it("carries an empty set of words for a sponsor form that names none, so the site uses its defaults", async () => {
+    const config = readMarker(
+      await served('[[support-ladder [[interval key="sponsor" [[custom label="Amount"]] [[sponsorform]]]]]]'),
+    );
+
+    expect(config?.intervals[0]?.sponsorForm).toEqual({});
+  });
+
+  it("leaves a tab without a sponsor form without one", async () => {
+    const config = readMarker(await served(LADDER));
+
+    expect(config?.intervals.map((interval) => interval.sponsorForm)).toEqual([null, null]);
+  });
+
   it("is not offered in the portal, which has no support page", async () => {
     await expect(renderMarkdown(LADDER, ContentContext.DeveloperPortal)).rejects.toThrow(/only allowed in/);
   });
@@ -174,6 +203,28 @@ describe("the support ladder's marker in the sanitizer", () => {
 
     expect(config?.payee).toEqual({ name: "Frank Gregor", iban: "AT611904300234573201", bic: "BKAUATWW" });
     expect(config?.minSponsorAmountEur).toBe(40);
+  });
+
+  it("keeps a hand-written sponsor form's known words on the sponsor tab only", () => {
+    const forged = JSON.stringify({
+      intervals: [
+        { key: "once", options: [{ amountEur: 5 }], sponsorForm: { nameLabel: "Once" } },
+        {
+          key: "sponsor",
+          custom: { label: "Amount" },
+          sponsorForm: { nameLabel: "<script>steal()</script>", injected: "x", issuedText: 7 },
+        },
+      ],
+    }).replace(/"/g, "&quot;");
+
+    const config = readMarker(sanitizeMarkdownHtml(`<div ${SUPPORT_LADDER_ATTRIBUTE}="${forged}"></div>`));
+
+    // The words stay text: the site sets them through React, which escapes them,
+    // so a tag in one is shown as written rather than run.
+    expect(config?.intervals.map((interval) => interval.sponsorForm)).toEqual([
+      null,
+      { nameLabel: "<script>steal()</script>" },
+    ]);
   });
 
   it("leaves a page without a ladder as it is", () => {

@@ -273,8 +273,8 @@ export function parseSponsoringConfig(raw: string | null): SponsoringConfig {
   };
 }
 
-/** Cents in a euro. */
-const CENTS_PER_EURO = 100;
+/** Cents in a euro: 100. The site and the backend convert between the two through this one figure. */
+export const CENTS_PER_EURO = 100;
 
 /** Months in a year, which the monthly figure divides by. */
 const MONTHS_PER_YEAR = 12;
