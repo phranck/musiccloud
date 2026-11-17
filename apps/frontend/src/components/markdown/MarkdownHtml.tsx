@@ -5,6 +5,7 @@ import {
   SUPPORT_LADDER_ATTRIBUTE,
 } from "@musiccloud/shared";
 import parse, { domToReact, type Element, type HTMLReactParserOptions, type Text } from "html-react-parser";
+import { createElement, Fragment } from "react";
 
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -44,6 +45,17 @@ const CardStyle = {
  */
 const DEFAULT_CARD_PADDING = "0.75rem";
 const DEFAULT_CARD_RADIUS = "0.75rem";
+
+/**
+ * What a node is replaced with when it is to render nothing at all.
+ *
+ * `html-react-parser` keeps the original node whenever `replace` returns
+ * anything other than a valid React element, `null` included, so removing a
+ * node takes an empty fragment, as the library's README shows under "replace
+ * and remove element". It is built without JSX so it reads as the removal it
+ * is rather than as a stray fragment.
+ */
+const REMOVED_NODE = createElement(Fragment);
 
 /** The class the backend gives the link that stands in for a video. */
 const VIDEO_LINK_CLASS = "mc-video__link";
@@ -123,7 +135,7 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
       // does not fit renders nothing.
       if (el.name === "div" && el.attribs[SUPPORT_LADDER_ATTRIBUTE] !== undefined) {
         const config = parseSupportLadderAttribute(el.attribs[SUPPORT_LADDER_ATTRIBUTE]);
-        return config ? <SupportLadder config={config} /> : <></>;
+        return config ? <SupportLadder config={config} /> : REMOVED_NODE;
       }
 
       // The sponsor wall arrives as an empty element carrying the page's texts,
@@ -131,7 +143,7 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
       // themselves the wall reads once it is mounted.
       if (el.name === "div" && el.attribs[SPONSOR_WALL_ATTRIBUTE] !== undefined) {
         const config = parseSponsorWallAttribute(el.attribs[SPONSOR_WALL_ATTRIBUTE]);
-        return config ? <SponsorWall config={config} /> : <></>;
+        return config ? <SponsorWall config={config} /> : REMOVED_NODE;
       }
 
       if (el.name !== "pre") return undefined;
