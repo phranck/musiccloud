@@ -306,16 +306,11 @@ jobs:
 
   deploy-dashboard:
     name: Deploy Dashboard
-    # nginx resolves the `backend` upstream once, when it loads its config, and
-    # keeps the result. Once the backend container is replaced, the dashboard
-    # answers every /api/ request with 502 or a timeout until it restarts. So
-    # the dashboard deploys again after every successful backend deploy, even
-    # when only the backend changed, and it waits for the backend job, which
-    # ends with its own health probe, so the new container resolves the new
-    # backend. A skipped backend still lets a dashboard change deploy, and a
-    # failed one skips the dashboard.
-    needs: [detect-changes, deploy-backend]
-    if: always() && (needs.deploy-backend.result == 'success' || (needs.deploy-backend.result == 'skipped' && needs.detect-changes.outputs.dashboard == 'true'))
+    # The dashboard's nginx resolves the backend per request (see
+    # apps/dashboard/site_config.tmpl), so a backend deploy needs no dashboard
+    # deploy and the dashboard waits for nothing but its own change detection.
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dashboard == 'true'
     uses: ./.github/workflows/deploy-service.yml
     secrets: inherit
     with:

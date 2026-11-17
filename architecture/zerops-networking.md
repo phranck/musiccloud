@@ -5,10 +5,10 @@
 Production traffic for the admin dashboard uses this path:
 
 ```text
-browser -> Zerops public ingress -> dashboard nginx -> backend:4000 -> Fastify
+browser -> Zerops public ingress -> dashboard nginx -> backend.zerops:4000 -> Fastify
 ```
 
-The dashboard serves static assets itself, but every `/api/...` request is proxied by `apps/dashboard/site_config.tmpl` to `http://backend:4000` inside the Zerops private network.
+The dashboard serves static assets itself, but every `/api/...` request is proxied by `apps/dashboard/site_config.tmpl` to `backend.zerops:4000` inside the Zerops private network.
 
 ## Node service bind addresses
 
@@ -57,21 +57,15 @@ curl -s -o /dev/null -D - \
 
 A healthy run answers `HTTP/2 200` with `ttfb` in the low tens of milliseconds. A `ttfb` in the seconds whilst the backend log reports a `responseTime` of a few milliseconds for the same request is the IPv6 fallback pattern described above.
 
-## The dashboard caches the backend's address
+## The dashboard resolves the backend per request
 
-nginx resolves the `backend` upstream in `apps/dashboard/site_config.tmpl` once, when it loads the file, and keeps that address for the life of the process. It does not re-resolve per request.
+`apps/dashboard/site_config.tmpl` proxies through a variable, `$backend_upstream`, which holds `backend.zerops:4000`. A `proxy_pass` through a variable makes nginx resolve the name at request time instead of once at start, so a backend container replaced by a deploy or by Zerops is found without restarting the dashboard. The dashboard therefore deploys on its own changes only.
 
-That makes the dashboard sensitive to the backend being replaced under it. When the backend container gets a new internal address, the dashboard goes on sending `/api/` traffic to the old one and answers `502` or times out, whilst static delivery keeps working and the container keeps reporting itself healthy. The failure therefore looks like the backend is down when the backend is fine, and `api.musiccloud.io` answering normally is what tells the two apart.
+nginx does not read `/etc/resolv.conf`, so the template names the resolver: `resolver 10.0.224.1 ipv6=off valid=10s`. That is the project network's resolver, as `/etc/resolv.conf` in the dashboard and backend containers lists it. It belongs to this project's network, and another project has another one. nginx also does not apply the `zerops` search domain from that file, which is why the name is `backend.zerops`: through the resolver, the short name `backend` answers NXDOMAIN. `ipv6=off` keeps nginx on the backend's IPv4 address, so the IPv6 fallback described above cannot occur on this hop. A lookup is cached for ten seconds.
 
-Observed on 7 August 2026: the dashboard deploy finished 51 seconds before the backend deploy, and every `/api/` path through `dashboard.musiccloud.io` failed from then on. The frontend, which resolves per request from Node, was unaffected throughout.
+To read the resolver again, connect with `zcli vpn up` and run `cat /etc/resolv.conf` over `ssh dashboard.zerops`.
 
-Three consequences to keep in mind:
-
-The deploy workflow deploys the dashboard again after every successful backend deploy, also when only the backend changed, and it waits for `deploy-backend` to finish. The new dashboard container then resolves the new backend when it starts.
-
-The dashboard deploy probes `https://dashboard.musiccloud.io/api/admin/auth/setup-status`, which goes through the proxy, as well as the static page. A stale upstream therefore fails the deploy rather than passing it.
-
-A backend restart outside a deploy, such as Zerops replacing a container that fails its health check, is not covered by either, and needs the dashboard restarted with it. Resolving per request would remove that case as well. It needs a `resolver` directive with a literal DNS address, because nginx does not read `/etc/resolv.conf`, and Zerops does not document one. The Zerops CLI points its VPN's DNS at the project network's gateway ([`zcli` `src/wg/darwin.go`](https://github.com/zeropsio/zcli/blob/main/src/wg/darwin.go)), so the address differs per project and has to be read from `/etc/resolv.conf` in a running musiccloud container.
+The dashboard deploy probes `https://dashboard.musiccloud.io/api/admin/auth/setup-status`, which goes through the proxy, as well as the static page. A resolver that does not answer therefore fails the deploy rather than passing it.
 
 ## Deployment note
 

@@ -78,18 +78,19 @@ test("deploys the developer site without waiting on anything but its own change 
   assert.match(developerJob, /if: needs\.detect-changes\.outputs\.developer == 'true'/);
 });
 
-test("deploys the dashboard again after every backend deploy, because its nginx keeps the backend's address", () => {
+test("deploys the dashboard on its own changes only, because its nginx resolves the backend per request", async () => {
   const dashboardJob = job("deploy-dashboard");
+  const siteConfig = await readFile(new URL("../apps/dashboard/site_config.tmpl", import.meta.url), "utf8");
 
-  assert.match(dashboardJob, /needs: \[detect-changes, deploy-backend\]/);
-  const condition = dashboardJob.match(/^ {4}if: (.*)$/m)?.[1] ?? "";
-  // A backend that deployed is enough on its own, whatever changed.
-  assert.match(condition, /needs\.deploy-backend\.result == 'success' \|\|/);
-  // Without a backend deploy, only a dashboard change deploys it.
-  assert.match(
-    condition,
-    /\(needs\.deploy-backend\.result == 'skipped' && needs\.detect-changes\.outputs\.dashboard == 'true'\)/,
-  );
+  assert.match(dashboardJob, /needs: detect-changes\n/);
+  assert.match(dashboardJob, /if: needs\.detect-changes\.outputs\.dashboard == 'true'\n/);
+  // A proxy_pass naming the host resolves once at start, which is what forced
+  // the redeploy. Every proxy goes through the variable instead.
+  assert.match(siteConfig, /^ {4}resolver \S+ ipv6=off valid=\d+s;$/m);
+  assert.match(siteConfig, /^ {4}set \$backend_upstream backend\.zerops:4000;$/m);
+  const proxies = [...siteConfig.matchAll(/proxy_pass (\S+);/g)].map((match) => match[1]);
+  assert.ok(proxies.length > 0);
+  for (const target of proxies) assert.equal(target, "http://$backend_upstream");
 });
 
 test("probes the dashboard's proxy to the backend, not only its static page", () => {
