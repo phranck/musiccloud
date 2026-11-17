@@ -267,6 +267,18 @@ button,
   opacity: 0;
 }
 
+/* The prose of a support prompt reads at the page's own size rather than the
+   card's smaller one, because it carries the actual message. Ported from
+   lmaa.space's `.lmaa-prompt-copy`.
+
+   Stated on the prose alone and in rem. The block keeps text-sm, which is what
+   the headings inside it compute their em steps from, so they stay the size a
+   heading in a card is. Raising the block instead would take them with it. */
+.mc-prompt-copy p,
+.mc-prompt-copy li {
+  font-size: 1rem;
+}
+
 /* The sponsor wall, ported from lmaa.space's `.lmaa-sponsor-*` rules.
    Two and a half cards fit across the content, so a third card is always half
    visible and the row says without a word that it holds more. The width is

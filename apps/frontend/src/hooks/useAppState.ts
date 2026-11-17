@@ -24,6 +24,7 @@ import { setResolveMode } from "@/lib/resolve/resolveMode";
 import { prefetchArtistInfo } from "@/lib/share/artist-info-client";
 import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
+import { recordResolvedLink } from "@/lib/support/resolved-links";
 import {
   type ActiveResult,
   type AppAction,
@@ -104,9 +105,10 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
     genreSearchPayload
   );
 
-  useResolvedShareUrl(
-    active?.shareUrl ?? (screen.type === AppStateType.CcResult ? screen.ccActive.shareUrl : undefined),
-  );
+  const resultShareUrl =
+    active?.shareUrl ?? (screen.type === AppStateType.CcResult ? screen.ccActive.shareUrl : undefined);
+  useResolvedShareUrl(resultShareUrl);
+  useCountResolvedLink(resultShareUrl);
 
   const inFlight = useInFlightRequest();
 
@@ -314,6 +316,21 @@ function useResolvedShareUrl(shortUrl: string | undefined): void {
       ownsRoute.current = false;
     }
   }, [shortUrl]);
+}
+
+/**
+ * Counts a resolved link in the reader's browser for the support prompts,
+ * once a result is on screen.
+ *
+ * Keyed by the result's share address, so showing the same result again after
+ * going back is not counted twice. Nothing about it leaves the browser.
+ *
+ * @param shareUrl - Current commercial or CC result URL, absent outside a result.
+ */
+function useCountResolvedLink(shareUrl: string | undefined): void {
+  useEffect(() => {
+    if (shareUrl) recordResolvedLink(shareUrl);
+  }, [shareUrl]);
 }
 
 /**

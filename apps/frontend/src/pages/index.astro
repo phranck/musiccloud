@@ -5,13 +5,15 @@ import { LandingPage } from "@/components/landing/LandingPage";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { SHARE_REDIRECT_SCRIPT } from "@/lib/inline-scripts";
+import { loadSupportPrompts } from "@/lib/support/support-prompts";
 
 // Independent calls, requested together: the first byte waits for the slowest
 // of them, not for their sum.
-const [footerNav, randomExample, ccRandomExample] = await Promise.all([
+const [footerNav, randomExample, ccRandomExample, supportPrompts] = await Promise.all([
   fetchNavigation("footer", visitorAddress(Astro)),
   fetchRandomExample(visitorAddress(Astro)),
   fetchCcRandomExample(visitorAddress(Astro)),
+  loadSupportPrompts("landing-page", visitorAddress(Astro)),
 ]);
 const exampleShortId = randomExample?.shortId ?? null;
 const ccExampleShortId = ccRandomExample?.shortId ?? null;
@@ -62,7 +64,13 @@ const shareImageUrl = `${SITE_ORIGIN.site}/og/musiccloud.jpg`;
   <script is:inline set:html={SHARE_REDIRECT_SCRIPT}></script>
 
   <div class="min-h-dvh flex flex-col">
-    <LandingPage client:idle footerNav={footerNav} exampleShortId={exampleShortId} ccExampleShortId={ccExampleShortId} />
+    <LandingPage
+      client:idle
+      footerNav={footerNav}
+      exampleShortId={exampleShortId}
+      ccExampleShortId={ccExampleShortId}
+      supportPrompts={supportPrompts}
+    />
   </div>
 
   <!-- Mounted with null initialPage so nav clicks on overlay-mode pages
