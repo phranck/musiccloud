@@ -11,6 +11,16 @@ import { fileURLToPath } from "node:url";
 const appDir = dirname(fileURLToPath(import.meta.url));
 const envFile = resolve(appDir, ".env.local");
 
+/**
+ * The `NODE_ENV` this start gives the server when nothing set one: `development`.
+ * This script only ever runs the local dev server, so the run is a development
+ * environment, and code that is allowed only there, such as the support prompts'
+ * always-show switch, works locally. A value from the shell or `.env.local` still
+ * wins. Every other `NODE_ENV` read in the backend compares against `production`
+ * alone, so naming the run changes nothing else.
+ */
+const DEVELOPMENT_ENV = "development";
+
 if (existsSync(envFile)) {
   for (const line of readFileSync(envFile, "utf8").split("\n")) {
     const trimmed = line.trim();
@@ -25,6 +35,8 @@ if (existsSync(envFile)) {
     if (key) process.env[key] ??= val;
   }
 }
+
+process.env.NODE_ENV ??= DEVELOPMENT_ENV;
 
 const server = spawn(process.execPath, ["dist/server.js"], {
   stdio: "inherit",

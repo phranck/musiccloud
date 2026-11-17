@@ -29,6 +29,8 @@ This repository has no project-local `app` runner or runner configuration.
 Local development uses the package scripts in `package.json`, such as
 `pnpm dev:backend` and `pnpm dev:all`.
 
+The backend's dev start, `start-dev.mjs`, loads `.env.local` and then sets `NODE_ENV` to `development` where neither the shell nor `.env.local` set it, because that start only ever runs the local dev server. Code allowed only in development, such as the support prompts' always-show switch, therefore works locally, while a deployed process without `NODE_ENV` still refuses it.
+
 For every supervised application with a configured port, readiness requires all
 of these conditions:
 
