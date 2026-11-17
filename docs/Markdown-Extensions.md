@@ -14,7 +14,7 @@ Only masks `1`, `2`, and `3` are valid. Rendering always receives one concrete c
 
 ## Two registries, and which one decides what
 
-A shortcode is declared once, in `packages/shared/src/markdown-shortcodes/`. That declaration carries its token, its notation, its placement, whether it takes a target or a body, every parameter with its type and default, its worked examples, and the contexts it is allowed in. The renderer, the editor's syntax colouring and the reference panel in the dashboard all read that one declaration, so nothing about a shortcode is written twice and adding one cannot leave the help behind.
+A shortcode is declared once, in `packages/shared/src/markdown-shortcodes/`. That declaration carries its token, its notation, its placement, whether it takes a target or a body, every parameter with its type and default, its worked examples, and the contexts it is allowed in. The renderer, the editor's syntax coloring and the reference panel in the dashboard all read that one declaration, so nothing about a shortcode is written twice and adding one cannot leave the help behind.
 
 `apps/backend/src/services/markdown/extension-registry.ts` is the other half. It wires those declarations into marked and adds what is not a shortcode at all: footnotes, code fences, and heading anchors. Where an entry there renders a shortcode, it takes its context mask from the shared declaration rather than stating one of its own.
 
@@ -34,6 +34,7 @@ A shortcode is declared once, in `packages/shared/src/markdown-shortcodes/`. Tha
 | `mcFields` | `[[fields … ]]` | Yes | Yes |
 | `mcPill` | `[[pill:…]]` | Yes | Yes |
 | `mcKbd` | `{{Key}}` | Yes | Yes |
+| `mcSupportLadder` | `[[support-ladder … ]]` | Yes | No |
 
 Each descriptor there contains a unique extension name, a non-zero known context mask, a factory that creates an isolated marked extension, and the token types that prove the syntax was parsed as an extension.
 
@@ -55,6 +56,7 @@ Validation inspects parsed token types, not raw substring matches. Extension-lik
 | `pill` | `[[pill:…]]` | Inline | Forbidden | Required | Yes | Yes |
 | `plans` | `[[plans]]` | Block | Forbidden | Forbidden | No | Yes |
 | `spacer` | `[[spacer]]` | Block | Forbidden | Forbidden | Yes | Yes |
+| `support-ladder` | `[[support-ladder … ]]` | Block | Children | Forbidden | Yes | No |
 | `vstack` | `[[vstack { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
 | `youtube` | `[[youtube:…]]` | Block | Forbidden | Required | Yes | Yes |
 
@@ -62,7 +64,7 @@ The list is sorted by token, which is also the order the reference panel lists t
 
 One notation for all of them, so a writer learns `[[token]]` once. A container carries its content between braces, `[[token { … }]]`, and the two inline forms differ where they have to: a shortcode taking a target writes it after a colon, and `{{Key}}` is short because a single key is not worth more.
 
-Four more are children rather than shortcodes of their own, so each means something inside one container and nothing at the top level of a page: `field` inside a fields list, and `header`, `body` and `footer` inside a card. The registry declares them under their parent, and the editor's reference shows them there.
+Others are children rather than shortcodes of their own, so each means something inside one container and nothing at the top level of a page: `field` inside a fields list, `header`, `body` and `footer` inside a card, and the parts of the support ladder described below. The registry declares them under their parent, and the editor's reference shows them there.
 
 **Braces mean content, and no braces mean children.** A container written `[[token { … }]]` holds page content, and one written `[[token … ]]` holds the parts it names. A card is written either way: with braces it is all body, which is how most cards are written, and without them it names its header, its body and its footer in whatever order suits the writing, and the card decides where each goes. A fields list is only ever the second, because it holds its entries and nothing else.
 
@@ -98,6 +100,22 @@ The sanitizer admits `svg` and `path` under a tight attribute allowlist, and the
 
 The identifier is read out of whatever the page wrote, and the embed address is then built from `YOUTUBE_EMBED_HOST` in `packages/shared/src/markdown-shortcodes/media.ts`, so nothing a page writes decides where the frame loads from. The same constant is what `frame-src` names in the reported content policy and in the dashboard's nginx template, which a test holds together.
 
+## The support ladder
+
+`[[support-ladder … ]]` is the giving block of the support page, and only the site renders it. It holds four kinds of child:
+
+- `bankaccount` holds one `variant` per tab, and a variant holds a `qrcode` for the look of its GiroCode and an `info` for the notice under the payee lines.
+- `interval` is one tab, `once`, `monthly` or `sponsor`. It holds its suggested amounts as `option` children and its free amount field as `custom`.
+- `paypalme` and `ghsponsor` are the two routes out. Each address must be `https` and on the route's own host, and the route is dropped otherwise.
+
+A page writes its amounts with the sponsoring site variables, such as `amount={amountMonth}`. Variables are put in before the page is parsed, so the suggested amounts follow the running costs entered in the dashboard.
+
+The ladder is something a reader operates, so the backend does not draw it. `apps/backend/src/services/markdown/support-ladder-extension.ts` renders every text field of the tree as Markdown and writes the whole configuration as JSON into the `data-mc-support-ladder` attribute of an empty `div`. `packages/shared/src/support-ladder.ts` defines that shape and is the one reader of it.
+
+Markdown passes raw HTML through, so a page could write the attribute by hand. The sanitizer therefore reads it against the shared shape, drops whatever does not fit, and runs every HTML field through its own allowlist. After sanitizing, `bindSupportLadderSettings` writes the payee and the sponsor minimum from the sponsoring settings into every marker. A page can therefore never name the account a transfer goes to.
+
+The site mounts `SupportLadder` on the marker in `MarkdownHtml`. The GiroCode follows EPC069-12 and is drawn for single payments and sponsorships only, because the format has no field for an interval. PayPal.Me stands under single payments only, GitHub Sponsors under single and monthly payments, and the sponsor tab offers the transfer alone. `qr-code-styling` draws the code and is loaded the first time a code is drawn, so a page without a ladder never fetches it.
+
 ## Rendering and validation
 
 `renderMarkdown(markdown, context)` caches one Marked instance per concrete context and shares one lazily created Shiki highlighter. A renderer installs only extensions allowed in its context.
@@ -116,4 +134,4 @@ Privacy and Terms keep one stable Page identity and one canonical editorial titl
 
 `/docs` and `/pricing` are the two exceptions, named in `PORTAL_EDITORIAL_RESERVED_PATHS`. Everything a reader reads on either comes from a page edited in the dashboard, so a sentence on one is an edit rather than a deployment. Each stays an Astro route because a route carries what a stored page cannot: which header tab is current, and the notice shown to somebody who arrived from a signup that needs a plan chosen.
 
-Only those two exact paths are editorial. Everything beneath `/docs/` stays system-owned, so the API reference, the search targets, the OpenAPI output, the SDK output and every generated artefact under `/docs/**` are never editorial backfill sources.
+Only those two exact paths are editorial. Everything beneath `/docs/` stays system-owned, so the API reference, the search targets, the OpenAPI output, the SDK output and every generated artifact under `/docs/**` are never editorial backfill sources.
