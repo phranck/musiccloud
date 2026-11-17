@@ -45,6 +45,7 @@ import { adminSponsoringRoutes } from "./routes/admin-sponsoring.js";
 import { adminSponsorRoutes } from "./routes/admin-sponsors.js";
 import { adminSponsorshipRequestRoutes } from "./routes/admin-sponsorship-requests.js";
 import adminSseRoutes from "./routes/admin-sse.js";
+import { adminSupportPromptRoutes } from "./routes/admin-support-prompts.js";
 import { adminTiersRoutes } from "./routes/admin-tiers.js";
 import adminUserRoutes from "./routes/admin-users.js";
 import appAccessRoutes from "./routes/app-access.js";
@@ -77,6 +78,7 @@ import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
 import publicSponsorRoutes from "./routes/public-sponsors.js";
 import publicSponsorshipRoutes from "./routes/public-sponsorships.js";
+import publicSupportPromptRoutes from "./routes/public-support-prompts.js";
 import publicTiersRoutes from "./routes/public-tiers.js";
 import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
@@ -627,6 +629,9 @@ async function buildApp(options: BuildAppOptions = {}) {
   // Announcing a sponsorship before paying (public, no auth - the support
   // page's form, five requests an hour per address on each route)
   await app.register(publicSponsorshipRoutes);
+  // What may be shown inside the site today (public, no auth - the landing
+  // page and the share page read it during SSR)
+  await app.register(publicSupportPromptRoutes);
 
   // Email asset serve endpoint (public, no auth - sent-email <img> tags are
   // fetched by the recipient's mail client, which has no admin JWT to
@@ -694,6 +699,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(adminDonationRoutes);
     await adminApp.register(adminSponsorRoutes);
     await adminApp.register(adminSponsorshipRequestRoutes);
+    await adminApp.register(adminSupportPromptRoutes);
     await adminApp.register(adminPluginsRoutes);
     await adminApp.register(adminCrawlerRoutes);
     await adminApp.register(developerPortalAvailabilityAdminRoutes);

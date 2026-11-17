@@ -61,11 +61,23 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/**
+ * How one render reads its source, beyond the surface it is rendered for.
+ *
+ * @property breaks - Whether a single line break in a paragraph becomes `<br>`. `false` by
+ *   default, which is how a page body reads. A support prompt renders with `true`, as on
+ *   lmaa.space, because its few lines are written as they should stand.
+ */
+export interface MarkdownBodyOptions {
+  breaks?: boolean;
+}
+
 async function parseWithContextRenderer(
   markdown: string,
   context: SingleContentContext,
   registry: MarkdownExtensionRegistry,
   siteValues: SiteVariableValues | undefined,
+  bodyOptions: MarkdownBodyOptions,
 ): Promise<string> {
   const cached = getCachedMarkdownRenderer(context, registry);
   const previousRender = cached.queue;
@@ -79,7 +91,11 @@ async function parseWithContextRenderer(
     // The site variables travel as a parse option, which marked hands to every
     // extension of this one render, so the renderer cached across renders
     // carries none of them.
-    const options: MarkdownRenderOptions = { async: true, [SITE_VALUES_OPTION]: siteValues };
+    const options: MarkdownRenderOptions = {
+      async: true,
+      breaks: bodyOptions.breaks ?? false,
+      [SITE_VALUES_OPTION]: siteValues,
+    };
     return await cached.renderer.parse(markdown, options);
   } finally {
     releaseQueue();
@@ -95,6 +111,8 @@ async function parseWithContextRenderer(
  * @param siteValues - The render's site variables, which the support ladder
  *   reads its payee and sponsor minimum from. Without them the ladder draws no
  *   transfer card.
+ * @param bodyOptions - How the source is read, see {@link MarkdownBodyOptions}. A page body's
+ *   reading by default.
  * @returns The HTML, not yet sanitized.
  * @throws MarkdownContextError when the body uses a shortcode the surface does not allow.
  */
@@ -103,6 +121,7 @@ export async function renderMarkdown(
   context: SingleContentContext,
   registry: MarkdownExtensionRegistry = MARKDOWN_EXTENSION_REGISTRY,
   siteValues?: SiteVariableValues,
+  bodyOptions: MarkdownBodyOptions = {},
 ): Promise<string> {
   assertSingleContentContext(context);
   if (!markdown || !markdown.trim()) return "";
@@ -119,7 +138,7 @@ export async function renderMarkdown(
   resetContainerDepth();
 
   try {
-    return await parseWithContextRenderer(markdown, context, registry, siteValues);
+    return await parseWithContextRenderer(markdown, context, registry, siteValues, bodyOptions);
   } catch (error) {
     console.error("[renderBody] marked.parse threw, falling back to escaped text:", error);
     return `<pre>${escapeHtml(markdown)}</pre>`;

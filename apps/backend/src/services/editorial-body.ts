@@ -9,7 +9,7 @@
  */
 import { expandSiteVariables, type SingleContentContext, type SiteVariableValues } from "@musiccloud/shared";
 import { MARKDOWN_EXTENSION_REGISTRY } from "./markdown/extension-registry.js";
-import { renderMarkdown } from "./markdown/renderer.js";
+import { type MarkdownBodyOptions, renderMarkdown } from "./markdown/renderer.js";
 import { sanitizeMarkdownHtml } from "./markdown/sanitizer.js";
 import { bindSupportLadderSettings } from "./markdown/support-ladder-extension.js";
 import { resolveSiteVariableValues } from "./site-variables.js";
@@ -28,15 +28,19 @@ import { resolveSiteVariableValues } from "./site-variables.js";
  * @param content - The stored body; `null`, `undefined` or blank renders to an empty string.
  * @param context - The one surface the body is rendered for.
  * @param siteValues - The site variables, as {@link resolveSiteVariableValues} reads them.
+ * @param bodyOptions - How the source is read, a page body's reading by default.
  * @returns HTML restricted to the sanitizer's allowlist.
  */
 export async function renderEditorialBodyWith(
   content: string | null | undefined,
   context: SingleContentContext,
   siteValues: SiteVariableValues,
+  bodyOptions: MarkdownBodyOptions = {},
 ): Promise<string> {
   const expanded = expandSiteVariables(content ?? "", siteValues);
-  const html = sanitizeMarkdownHtml(await renderMarkdown(expanded, context, MARKDOWN_EXTENSION_REGISTRY, siteValues));
+  const html = sanitizeMarkdownHtml(
+    await renderMarkdown(expanded, context, MARKDOWN_EXTENSION_REGISTRY, siteValues, bodyOptions),
+  );
   return bindSupportLadderSettings(html, siteValues);
 }
 

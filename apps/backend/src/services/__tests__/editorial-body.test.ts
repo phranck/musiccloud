@@ -114,6 +114,20 @@ describe("renderEditorialBody", () => {
     );
   });
 
+  it("keeps a single line break inside a paragraph unless asked to break there", async () => {
+    // A page body reads a single line break as a space. A support prompt asks
+    // for the break, because its few lines are written as they should stand.
+    expect(await renderEditorialBody("One line\nand the next.", ContentContext.Frontend)).toBe(
+      "<p>One line\nand the next.</p>\n",
+    );
+    const { renderEditorialBodyWith } = await import("../editorial-body.js");
+    const { resolveSiteVariableValues } = await import("../site-variables.js");
+    const siteValues = await resolveSiteVariableValues();
+    expect(
+      await renderEditorialBodyWith("One line\nand the next.", ContentContext.Frontend, siteValues, { breaks: true }),
+    ).toBe("<p>One line<br>and the next.</p>\n");
+  });
+
   it("renders nothing for an empty body", async () => {
     expect(await renderEditorialBody(null, ContentContext.Frontend)).toBe("");
   });
