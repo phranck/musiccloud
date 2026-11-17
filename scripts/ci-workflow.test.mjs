@@ -4,6 +4,9 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+/** The repository's root folder, where git commands run. */
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 const deployService = await readFile(new URL("../.github/workflows/deploy-service.yml", import.meta.url), "utf8");
 const zerops = await readFile(new URL("../zerops.yml", import.meta.url), "utf8");
@@ -202,7 +205,7 @@ test("leaves the knowledge graph output out of the archive zcli pushes", () => {
   // skips a marked folder whole. The attribute sits on the folder, not on the
   // files inside it, so the folder is what is asked about.
   const attribute = execFileSync("git", ["check-attr", "export-ignore", "graphify-out"], {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    cwd: repositoryRoot,
     encoding: "utf8",
   });
   assert.match(attribute, /: export-ignore: set$/m);
@@ -227,9 +230,14 @@ test("installs only each service's own packages, from a store Zerops caches", ()
     const install = setup.match(/- pnpm install (.*)$/m)?.[1] ?? "";
 
     assert.match(install, new RegExp(`--filter @musiccloud/${name}\\.\\.\\.`), name);
-    // Zerops caches only paths under /build/source, so the store has to be one.
-    assert.match(install, /--store-dir \.pnpm-store\b/, name);
-    assert.match(setup, /\n {6}cache:\n {8}- \.pnpm-store\n/, name);
+    // Zerops caches only paths under /build/source, so the store is a relative
+    // path, and the one the cache names.
+    const store = install.match(/--store-dir (\S+)/)?.[1] ?? "";
+    assert.match(store, /^\.[a-z-]+$/, name);
+    assert.ok(setup.includes(`\n      cache:\n        - ${store}\n`), name);
+    // Zerops restores the cache without overwriting the source, so a path the
+    // repository already holds would discard the cached store on every build.
+    assert.equal(execFileSync("git", ["ls-files", store], { cwd: repositoryRoot, encoding: "utf8" }), "", name);
   }
   // The portal's prebuild runs the backend's OpenAPI export.
   assert.match(zeropsSetup("developer"), /--filter @musiccloud\/backend\.\.\./);
