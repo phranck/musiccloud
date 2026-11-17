@@ -1,10 +1,16 @@
-import { PENDING_SPONSORSHIP_DAYS, type PendingSponsorship, type Sponsor } from "@musiccloud/shared";
+import {
+  PENDING_SPONSORSHIP_DAYS,
+  type PendingSponsorship,
+  SPONSORING_DEFAULTS,
+  type Sponsor,
+} from "@musiccloud/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderElementsAtWidth } from "@/test-layout";
 
 const mocks = vi.hoisted(() => ({
+  fetchSponsoringConfig: vi.fn(),
   fetchSponsorshipRequests: vi.fn(),
   takeOverSponsorshipRequest: vi.fn(),
   deleteSponsorshipRequest: vi.fn(),
@@ -12,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
+  fetchSponsoringConfig: mocks.fetchSponsoringConfig,
   fetchSponsorshipRequests: mocks.fetchSponsorshipRequests,
   takeOverSponsorshipRequest: mocks.takeOverSponsorshipRequest,
   deleteSponsorshipRequest: mocks.deleteSponsorshipRequest,
@@ -30,6 +37,9 @@ const sm = dashboardCopy.sponsoring;
 
 /** Milliseconds in a day. */
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The sponsoring minimum the mocked settings hold, 75 euros, which differs from `SPONSORING_DEFAULTS`. */
+const STORED_MINIMUM_CENTS = 7_500;
 
 /** A width at which the table shows its secondary columns too. */
 const WIDE_TABLE_PX = 1400;
@@ -109,6 +119,10 @@ describe("SponsorshipRequestsPage", () => {
     vi.setSystemTime(NOW);
     renderElementsAtWidth(WIDE_TABLE_PX);
     for (const mock of Object.values(mocks)) mock.mockReset();
+    mocks.fetchSponsoringConfig.mockResolvedValue({
+      ...SPONSORING_DEFAULTS,
+      sponsorMinimumCents: STORED_MINIMUM_CENTS,
+    });
     mocks.fetchSponsorshipRequests.mockResolvedValue([OPEN, EXPIRED]);
   });
 
@@ -164,6 +178,16 @@ describe("SponsorshipRequestsPage", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(invalidate).toHaveBeenCalledWith({ queryKey: SPONSORSHIP_REQUESTS_QUERY_KEY });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: LEDGER_QUERY_KEY });
+  });
+
+  it("presets the stored sponsoring minimum when the request announced nothing", async () => {
+    renderPage();
+
+    fireEvent.click(within(await rowOf("Grace")).getByRole("button", { name: sm.requestTakeOver }));
+    const dialog = await screen.findByRole("dialog");
+
+    await waitFor(() => expect(mocks.fetchSponsoringConfig).toHaveBeenCalled());
+    expect((within(dialog).getByLabelText(sm.amountLabel) as HTMLInputElement).value).toBe("75");
   });
 
   it("keeps Take over off while the amount is no amount the route accepts", async () => {

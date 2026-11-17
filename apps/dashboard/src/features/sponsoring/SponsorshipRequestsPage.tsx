@@ -6,6 +6,7 @@ import {
   PENDING_SPONSORSHIP_DAYS,
   type PendingSponsorship,
   pendingSponsorshipDaysLeft,
+  SPONSORING_DEFAULTS,
 } from "@musiccloud/shared";
 import { HandHeartIcon, HourglassMediumIcon, TrashIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,7 +22,9 @@ import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import {
   deleteSponsorshipRequest,
+  fetchSponsoringConfig,
   fetchSponsorshipRequests,
+  SPONSORING_CONFIG_QUERY_KEY,
   SPONSORSHIP_REQUESTS_QUERY_KEY,
 } from "@/features/sponsoring/api";
 import { localDay } from "@/features/sponsoring/donationForm";
@@ -185,6 +188,8 @@ function useRequestColumns(
 export function SponsorshipRequestsPage() {
   const queryClient = useQueryClient();
   const listQuery = useQuery({ queryKey: SPONSORSHIP_REQUESTS_QUERY_KEY, queryFn: fetchSponsorshipRequests });
+  const configQuery = useQuery({ queryKey: SPONSORING_CONFIG_QUERY_KEY, queryFn: fetchSponsoringConfig });
+  const sponsorMinimumCents = configQuery.data?.sponsorMinimumCents ?? SPONSORING_DEFAULTS.sponsorMinimumCents;
   const [takeOverTarget, setTakeOverTarget] = useState<PendingSponsorship | null>(null);
   const [removeTarget, setRemoveTarget] = useState<PendingSponsorship | null>(null);
   const [now] = useState(() => new Date());
@@ -248,7 +253,13 @@ export function SponsorshipRequestsPage() {
         </DashboardSection>
       )}
 
-      {takeOverTarget && <SponsorshipTakeoverDialog request={takeOverTarget} onClose={() => setTakeOverTarget(null)} />}
+      {takeOverTarget && (
+        <SponsorshipTakeoverDialog
+          request={takeOverTarget}
+          sponsorMinimumCents={sponsorMinimumCents}
+          onClose={() => setTakeOverTarget(null)}
+        />
+      )}
 
       <RemoveConfirmDialog
         summary={removeTarget && requestSummary(removeTarget)}
