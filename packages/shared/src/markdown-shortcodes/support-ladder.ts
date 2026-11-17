@@ -213,7 +213,7 @@ export const SUPPORT_LADDER_OPTION_SHORTCODE = {
       name: "amount",
       type: ShortcodeParamType.String,
       required: true,
-      label: "Amount in euros, such as 20 or {amountMonth}",
+      label: "Amount in euros",
     },
     { name: "description", aliases: ["text"], type: ShortcodeParamType.String, label: "What it pays for. Markdown" },
     { name: "recommended", type: ShortcodeParamType.Boolean, label: "Open the tab on this amount" },
@@ -291,7 +291,7 @@ export const SUPPORT_LADDER_INTERVAL_SHORTCODE = {
       placeholders: [
         {
           name: SUPPORT_LADDER_YEARLY_TOTAL_PLACEHOLDER_NAME,
-          description: "the sum this interval comes to over a year",
+          description: "the sum this tab comes to over a year",
         },
       ],
     },

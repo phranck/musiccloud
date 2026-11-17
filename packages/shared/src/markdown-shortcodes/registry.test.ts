@@ -20,7 +20,6 @@ import {
   ShortcodeRenderMode,
   ShortcodeSyntax,
   ShortcodeTargetRule,
-  writtenPlaceholder,
 } from "./types.js";
 
 describe("the registry", () => {
@@ -90,6 +89,9 @@ function everyParam(): { token: string; param: ShortcodeParamDefinition }[] {
   return found;
 }
 
+/** Anything written as `{name}`, which is the notation all three kinds share. */
+const BRACED_NAME = /\{[a-zA-Z][a-zA-Z0-9]*\}/;
+
 /** How a placeholder's name is typed between its braces: a letter, then letters and digits. */
 const PLACEHOLDER_NAME = /^[a-zA-Z][a-zA-Z0-9]*$/;
 
@@ -128,14 +130,16 @@ describe("shortcode parameter placeholders", () => {
     expect(declared(ShortcodeToken.Interval, "belowMinimum")).toEqual([SUPPORT_LADDER_MINIMUM_PLACEHOLDER_NAME]);
   });
 
-  it("never explains a declared placeholder again in its parameter's label", () => {
-    // The panel lists the declaration under the parameter, so a label that
-    // explains it as well says the same thing twice in two places.
-    for (const { token, param } of everyParam()) {
-      for (const placeholder of param.placeholders ?? []) {
-        expect(param.label ?? "", `[[${token}]] ${param.name}`).not.toContain(writtenPlaceholder(placeholder.name));
-      }
-    }
+  it("never explains a placeholder inside a label", () => {
+    // A placeholder named in prose is findable only by opening that one
+    // shortcode and reading that one sentence, which is what `placeholders`
+    // exists to stop. The panel renders the structured field and cannot render
+    // the sentence.
+    const offenders = everyParam()
+      .filter(({ param }) => param.label !== undefined && BRACED_NAME.test(param.label))
+      .map(({ token, param }) => `[[${token}]] ${param.name}: ${param.label}`);
+
+    expect(offenders).toEqual([]);
   });
 });
 
