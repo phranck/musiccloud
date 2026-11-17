@@ -2,15 +2,17 @@
  * @file Renders `[[support-ladder]]` as a marker the site mounts the ladder on.
  *
  * The ladder is a component the reader operates, so the backend cannot draw
- * it. What it does is read the tree, render every text field as Markdown, add
- * who is paid from the sponsoring settings, and write the result as one JSON
- * value into an empty element. The site parses that value and draws the
- * ladder in its place.
+ * it. What it does is read the tree, render every text field as Markdown, and
+ * write the result as one JSON value into an empty element. The site parses
+ * that value and draws the ladder in its place.
  *
- * Who is paid comes from the site variables of the render, never from the
- * page, so a page cannot name a different account. A render without them,
- * such as a preview, carries an empty payee and the site draws no transfer
- * card.
+ * Who is paid and the sponsor minimum come from the sponsoring settings, never
+ * from the page. Markdown passes raw HTML through, so a page could write a
+ * marker by hand, and the marker alone cannot tell where it came from.
+ * {@link bindSupportLadderSettings} therefore writes both into every marker of
+ * the sanitized page, whatever stood there before. A render that does not
+ * bind, such as a preview, carries an empty payee and the site draws no
+ * transfer card.
  */
 
 import {
@@ -18,6 +20,7 @@ import {
   normalizeAccountCode,
   type ParsedShortcode,
   parseShortcodes,
+  parseSupportLadderAttribute,
   readShortcodeAt,
   readSupportLadderConfig,
   type ShortcodeParamValue,
@@ -30,6 +33,10 @@ import {
   SupportRouteToken,
 } from "@musiccloud/shared";
 import type { MarkedExtension, MarkedOptions, Token, Tokens } from "marked";
+import { type DefaultTreeAdapterMap, parseFragment, serialize } from "parse5";
+
+/** A node of a parsed page that holds other nodes. */
+type HtmlParent = DefaultTreeAdapterMap["parentNode"];
 
 /**
  * The parse option a render passes its site variables in.
@@ -109,9 +116,10 @@ function childrenOf(node: ParsedShortcode, token: string): ParsedShortcode[] {
  * what fits the configuration's shape.
  *
  * @param ladder - The resolved `[[support-ladder]]` node.
- * @param siteValues - The render's site variables, or `undefined` when the
- *   render carries none.
- * @returns The configuration, or `null` when no tab offers anything.
+ * @param siteValues - The render's site variables, which name the transfer
+ *   purposes a page leaves out, or `undefined` when the render carries none.
+ * @returns The configuration with an empty payee and no sponsor minimum, which
+ *   {@link bindSupportLadderSettings} fills in, or `null` when no tab offers anything.
  */
 export function buildSupportLadderConfig(
   ladder: ParsedShortcode,
@@ -174,12 +182,6 @@ export function buildSupportLadderConfig(
           icon: route.params.icon,
         };
       }),
-    payee: {
-      name: siteValues?.payeeName ?? "",
-      iban: normalizeAccountCode(siteValues?.payeeIban ?? ""),
-      bic: normalizeAccountCode(siteValues?.payeeBic ?? ""),
-    },
-    minSponsorAmountEur: siteValues?.amountSponsorMin ?? 0,
     labels: Object.fromEntries(SUPPORT_LADDER_LABEL_KEYS.map((key) => [key, text(ladder.params[key])])),
   });
 }
@@ -247,4 +249,47 @@ export function createSupportLadderExtension(): MarkedExtension {
       },
     ],
   };
+}
+
+/**
+ * Writes who is paid and the sponsor minimum into every ladder of a page.
+ *
+ * Runs on the sanitized page, so every marker that reaches it has already been
+ * read against the shared shape. Each one gets the payee and the minimum from
+ * the settings, whatever it carried, which is what keeps a hand-written marker
+ * from naming another account.
+ *
+ * @param html - The sanitized page.
+ * @param siteValues - The site variables, which carry the sponsoring settings.
+ * @returns The page with every ladder bound to the settings. A page without a
+ *   ladder is returned as it is.
+ */
+export function bindSupportLadderSettings(html: string, siteValues: SiteVariableValues): string {
+  if (!html.includes(SUPPORT_LADDER_ATTRIBUTE)) return html;
+
+  const settings = {
+    payee: {
+      name: siteValues.payeeName,
+      iban: normalizeAccountCode(siteValues.payeeIban),
+      bic: normalizeAccountCode(siteValues.payeeBic),
+    },
+    minSponsorAmountEur: siteValues.amountSponsorMin,
+  };
+
+  const bind = (parent: HtmlParent): void => {
+    for (const child of parent.childNodes) {
+      if (!("tagName" in child)) continue;
+      for (const attribute of child.attrs) {
+        if (attribute.name !== SUPPORT_LADDER_ATTRIBUTE) continue;
+        const config = parseSupportLadderAttribute(attribute.value);
+        // The shared reader checks the payee's shape again on the site.
+        if (config) attribute.value = JSON.stringify({ ...config, ...settings });
+      }
+      bind(child);
+    }
+  };
+
+  const fragment = parseFragment(html);
+  bind(fragment);
+  return serialize(fragment);
 }

@@ -5,10 +5,15 @@ import {
   SUPPORT_LADDER_ATTRIBUTE,
   type SupportLadderConfig,
 } from "@musiccloud/shared";
-import { describe, expect, it } from "vitest";
-import { MARKDOWN_EXTENSION_REGISTRY } from "../markdown/extension-registry.js";
-import { renderMarkdown } from "../markdown/renderer.js";
-import { sanitizeMarkdownHtml } from "../markdown/sanitizer.js";
+import { describe, expect, it, vi } from "vitest";
+
+// The values are handed in below; nothing here reads them from the database.
+vi.mock("../site-variables.js", () => ({ resolveSiteVariableValues: vi.fn() }));
+
+const { renderEditorialBodyWith } = await import("../editorial-body.js");
+const { renderMarkdown } = await import("../markdown/renderer.js");
+const { sanitizeMarkdownHtml } = await import("../markdown/sanitizer.js");
+const { bindSupportLadderSettings } = await import("../markdown/support-ladder-extension.js");
 
 /** Site variables with a payee and a sponsor minimum of 40 euros; every other value is zero. */
 const SITE_VALUES = {
@@ -61,12 +66,11 @@ function readMarker(html: string): SupportLadderConfig | null {
  * Renders a body on the site the way a content page does, with the site variables.
  *
  * @param markdown - The body.
+ * @param values - The site variables, {@link SITE_VALUES} unless a test changes one.
  * @returns The served HTML.
  */
-async function served(markdown: string): Promise<string> {
-  return sanitizeMarkdownHtml(
-    await renderMarkdown(markdown, ContentContext.Frontend, MARKDOWN_EXTENSION_REGISTRY, SITE_VALUES),
-  );
+function served(markdown: string, values: SiteVariableValues = SITE_VALUES): Promise<string> {
+  return renderEditorialBodyWith(markdown, ContentContext.Frontend, values);
 }
 
 describe("[[support-ladder]]", () => {
@@ -96,6 +100,18 @@ describe("[[support-ladder]]", () => {
     expect(config?.minSponsorAmountEur).toBe(40);
     expect(config?.bankAccount?.purposeDonation).toBe("Donation: musiccloud.io");
     expect(config?.bankAccount?.purposeSponsor).toBe("Sponsor: musiccloud.io");
+  });
+
+  it("follows the running costs where a page writes its amounts as site variables", async () => {
+    const page =
+      '[[support-ladder [[interval key="once" [[option amount={amountMonthHalf}]] [[option amount={amountMonth}]]]]]]';
+    const amounts = async (amountMonth: number) =>
+      readMarker(
+        await served(page, { ...SITE_VALUES, amountMonth, amountMonthHalf: amountMonth / 2 }),
+      )?.intervals[0]?.options.map((option) => option.amountEur);
+
+    expect(await amounts(20)).toEqual([10, 20]);
+    expect(await amounts(30)).toEqual([15, 30]);
   });
 
   it("carries an empty payee when the render has no site variables, so no transfer card is drawn", async () => {
@@ -145,6 +161,23 @@ describe("the support ladder's marker in the sanitizer", () => {
     expect(config?.intervals[0]?.text).toBe('<p>Hi</p><img src="x">');
     expect(config?.routes).toEqual([]);
     expect(config).not.toHaveProperty("injected");
+  });
+
+  it("pays the account in the settings, whatever account a hand-written marker names", async () => {
+    const forged = JSON.stringify({
+      intervals: [{ key: "once", options: [{ amountEur: 5 }] }],
+      payee: { name: "Mallory", iban: "DE89370400440532013000", bic: "" },
+      minSponsorAmountEur: 1,
+    }).replace(/"/g, "&quot;");
+
+    const config = readMarker(await served(`<div ${SUPPORT_LADDER_ATTRIBUTE}="${forged}"></div>`));
+
+    expect(config?.payee).toEqual({ name: "Frank Gregor", iban: "AT611904300234573201", bic: "BKAUATWW" });
+    expect(config?.minSponsorAmountEur).toBe(40);
+  });
+
+  it("leaves a page without a ladder as it is", () => {
+    expect(bindSupportLadderSettings("<p>Plain.</p>", SITE_VALUES)).toBe("<p>Plain.</p>");
   });
 
   it("drops a marker whose value is not a ladder", () => {
