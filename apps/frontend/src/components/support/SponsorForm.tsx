@@ -40,6 +40,7 @@ import { eurosToCents } from "./amountInput";
 import { LadderField } from "./LadderField";
 import { LadderNotice } from "./LadderNotice";
 import { LADDER_INPUT_CLASS, ladderFieldLabelId } from "./ladderFieldParts";
+import { LadderNoticeTone } from "./ladderNoticeTone";
 
 /** Rows the sentence field shows before it scrolls: 3, which a sentence of the longest allowed length fills. */
 const CLAIM_ROWS = 3;
@@ -433,11 +434,13 @@ export function SponsorStep({ issued, amountEur, earnsSponsorship, text }: Spons
 
   if (issued && !correcting) {
     return (
-      <LadderNotice>
+      // In the success tone, because it says something has already happened
+      // rather than something to read before acting.
+      <LadderNotice tone={LadderNoticeTone.Success}>
         <div className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
           <div>
-            <p className="m-0 font-semibold text-text-primary">{text.issuedTitle}</p>
-            <p className="m-0">{text.issuedText}</p>
+            <p className="m-0 font-semibold">{text.issuedTitle}</p>
+            <p className="m-0 text-text-muted">{text.issuedText}</p>
           </div>
           <div className="flex justify-end">
             <EmbossedButton

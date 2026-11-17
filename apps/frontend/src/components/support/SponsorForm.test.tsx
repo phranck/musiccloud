@@ -216,6 +216,19 @@ describe("the sponsor form", () => {
     expect(line(SUPPORT_LADDER_LABEL_DEFAULTS.fieldReference)?.textContent).toBe(RECEIPT.referenceFormatted);
   });
 
+  it("says the reference is ready in the success tone", async () => {
+    fetchMock.mockResolvedValue(answer(201, RECEIPT));
+    renderLadder();
+    fillForm();
+    fireEvent.click(screen.getByRole("button", { name: SPONSOR_FORM_DEFAULTS.submitLabel }));
+
+    const title = await screen.findByText(SPONSOR_FORM_DEFAULTS.issuedTitle);
+    const notice = title.closest<HTMLElement>(".recessed-gradient-border");
+
+    expect(notice?.style.backgroundImage).toContain("--color-success-tint");
+    expect(notice?.querySelector("svg.text-success")).not.toBeNull();
+  });
+
   it("stamps a correction with the moment it was sent, as it stamps a new reference", async () => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(FIRST_SENT_MS);
     fetchMock.mockResolvedValue(answer(201, RECEIPT));
