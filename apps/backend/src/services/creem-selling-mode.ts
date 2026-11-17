@@ -18,8 +18,14 @@ import { configuredCreemModes } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { getSetting, setSetting } from "./site-settings.js";
 
-/** The `site_settings` key holding the selling environment. */
-const SELLING_MODE_KEY = "creem_selling_mode";
+/**
+ * The `site_settings` key holding the selling environment.
+ *
+ * Exported so the generic settings route can refuse it: only
+ * {@link setSellingMode} may write it, because only that function checks the
+ * caller's role and whether the target environment can sell.
+ */
+export const SELLING_MODE_KEY = "creem_selling_mode";
 
 /**
  * The environment the shop sells from until somebody says otherwise.

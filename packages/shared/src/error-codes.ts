@@ -181,6 +181,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "POST /api/app/attest for a key id that is already stored. Apple asks that a public key belong to one installation only, so the row is never overwritten.",
     source: "apps/backend/src/routes/app-access.ts",
   },
+  "MC-REQ-0010": {
+    code: "MC-REQ-0010",
+    httpStatus: 400,
+    userMessage: "The setting {key} is changed on its own screen in the dashboard, not here.",
+    internalNote:
+      "The generic site-settings PATCH named a key that a dedicated route owns, such as the Creem selling mode. That route checks the caller's role and the value; writing the key here would skip both. Nothing from the request is written.",
+    source: "apps/backend/src/routes/site-settings.ts siteSettingsAdminRoutes",
+  },
   "MC-AUTH-0001": {
     code: "MC-AUTH-0001",
     httpStatus: 401,

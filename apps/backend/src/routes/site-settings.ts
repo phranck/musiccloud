@@ -12,7 +12,21 @@
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
+import { replyWithApiError } from "../lib/infra/api-error-handler.js";
+import { SELLING_MODE_KEY } from "../services/creem-selling-mode.js";
 import { getAllSettings, getDesignTokens, getSetting, setSetting } from "../services/site-settings.js";
+
+/**
+ * Keys the generic PATCH refuses, because a route of their own writes them.
+ *
+ * Each of those routes checks the caller's role and the value before writing,
+ * and this route checks neither, so accepting the key here would skip both.
+ * Every entry is the constant its owning service exports, so the key is spelled
+ * once. Contains `creem_selling_mode`, whose route is
+ * `PATCH /api/admin/developer/creem-selling-mode`.
+ */
+const KEYS_WITH_THEIR_OWN_ROUTE: ReadonlySet<string> = new Set([SELLING_MODE_KEY]);
 
 /**
  * Public read for a single well-known flag (`tracking_enabled`). Kept
@@ -75,22 +89,33 @@ export async function siteSettingsPublicRoutes(app: FastifyInstance) {
 }
 
 /**
- * Admin CRUD for all site settings. The PATCH body is an untyped map of
- * string settings; no whitelist of allowed keys exists on the backend. This
- * is intentional: new settings can be introduced by the frontend without a
- * backend deploy. Access is gated entirely by the admin JWT check added in
- * `server.ts` (the `authenticateAdmin` hook), so only trusted operators
- * can write arbitrary keys.
+ * Admin read and write for site settings. The PATCH body is an untyped map of
+ * string settings, so a new setting can be introduced by the dashboard without
+ * a backend deploy.
+ *
+ * `authenticateAdmin` admits every dashboard role, moderators included, because
+ * all of them carry the JWT claim `role: "admin"`. Both routes therefore check
+ * for an owner or an admin themselves, which matches the dashboard: the screens
+ * that use them sit in the Administration area, whose minimum role is `admin`.
+ * A key in {@link KEYS_WITH_THEIR_OWN_ROUTE} is refused for every role.
  */
 export async function siteSettingsAdminRoutes(app: FastifyInstance) {
-  app.get(ENDPOINTS.admin.siteSettings.base, async () => {
+  app.get(ENDPOINTS.admin.siteSettings.base, async (request, reply) => {
+    if (!(await requireOwnerOrAdmin(request, reply))) return;
     return getAllSettings();
   });
 
   app.patch<{ Body: Record<string, string> }>(ENDPOINTS.admin.siteSettings.base, async (request, reply) => {
+    if (!(await requireOwnerOrAdmin(request, reply))) return;
     const updates = request.body;
     if (!updates || typeof updates !== "object") {
       return reply.status(400).send({ error: "INVALID_BODY", message: "Request body must be a JSON object." });
+    }
+    // Checked before the first write, so a refused request leaves every
+    // setting as it was rather than writing the keys that came before.
+    const ownedElsewhere = Object.keys(updates).find((key) => KEYS_WITH_THEIR_OWN_ROUTE.has(key));
+    if (ownedElsewhere) {
+      return replyWithApiError(reply, "MC-REQ-0010", { context: { key: ownedElsewhere } });
     }
     // Values are coerced to strings because the settings store is
     // string-only; numbers/booleans from the admin UI serialize losslessly.
