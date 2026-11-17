@@ -1,4 +1,9 @@
-import { PLANS_PLACEHOLDER_ATTRIBUTE } from "@musiccloud/shared";
+import {
+  mapSupportLadderHtml,
+  PLANS_PLACEHOLDER_ATTRIBUTE,
+  parseSupportLadderAttribute,
+  SUPPORT_LADDER_ATTRIBUTE,
+} from "@musiccloud/shared";
 import { type DefaultTreeAdapterMap, parseFragment, serialize } from "parse5";
 
 type HtmlChild = DefaultTreeAdapterMap["childNode"];
@@ -74,8 +79,10 @@ const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
   code: new Set(["class"]),
   // A row of cards carries the gap a page asked for. `sanitizeStyle` accepts
   // one property here, `gap`, and only as a plain CSS length, so nothing else
-  // can travel in on a `div`. The plans marker carries no value at all.
-  div: new Set([PLANS_PLACEHOLDER_ATTRIBUTE, "style"]),
+  // can travel in on a `div`. The plans marker carries no value at all. The
+  // support ladder's marker carries its configuration, which
+  // `sanitizeSupportLadder` reads and cleans before it may stand.
+  div: new Set([PLANS_PLACEHOLDER_ATTRIBUTE, SUPPORT_LADDER_ATTRIBUTE, "style"]),
   dl: new Set(["style"]),
   img: new Set(["alt", "height", "src", "width"]),
   input: new Set(["checked", "disabled", "type"]),
@@ -191,7 +198,26 @@ function sanitizedAttributeValue(element: HtmlElement, name: string, value: stri
   // The plans marker says where the plans go and nothing more, so whatever a
   // page wrote after it is dropped and the bare attribute survives.
   if (name === PLANS_PLACEHOLDER_ATTRIBUTE) return "";
+  if (name === SUPPORT_LADDER_ATTRIBUTE) return sanitizeSupportLadder(value);
   return value;
+}
+
+/**
+ * Cleans the support ladder's configuration.
+ *
+ * Markdown passes raw HTML through, so a page could write this attribute by
+ * hand rather than through `[[support-ladder]]`. It is therefore read against
+ * the shared shape, which drops everything else and every address a route may
+ * not lead to, and every HTML field in it goes through this allowlist as the
+ * rest of the page does.
+ *
+ * @param value - The attribute's value.
+ * @returns The cleaned configuration as JSON, or `null` to drop the attribute
+ *   when it holds no usable ladder.
+ */
+function sanitizeSupportLadder(value: string): string | null {
+  const config = parseSupportLadderAttribute(value);
+  return config ? JSON.stringify(mapSupportLadderHtml(config, sanitizeMarkdownHtml)) : null;
 }
 
 function sanitizeAttributes(element: HtmlElement): void {

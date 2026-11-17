@@ -32,6 +32,7 @@ import {
   type ShortcodeParamValue,
   type SingleContentContext,
   SPACER_SHORTCODE,
+  SUPPORT_LADDER_SHORTCODE,
   VSTACK_SHORTCODE,
   YOUTUBE_SHORTCODE,
 } from "@musiccloud/shared";
@@ -47,6 +48,7 @@ import { createIconExtension } from "./icon-extension.js";
 import { createMediaExtension } from "./media-extension.js";
 import { createPlansExtension } from "./plans-extension.js";
 import { createStackExtension } from "./stack-extension.js";
+import { createSupportLadderExtension } from "./support-ladder-extension.js";
 
 const BOTH_CONTENT_CONTEXTS = ContentContext.Frontend | ContentContext.DeveloperPortal;
 const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
@@ -522,6 +524,12 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
     allowedContextMask: PLANS_SHORTCODE.allowedContextMask,
     createMarkedExtension: createPlansExtension,
     tokenTypes: ["mcPlans"],
+  },
+  {
+    name: "mcSupportLadder",
+    allowedContextMask: SUPPORT_LADDER_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createSupportLadderExtension,
+    tokenTypes: ["mcSupportLadder"],
   },
   {
     name: "mcFields",

@@ -8,6 +8,7 @@
  * touches the database.
  */
 import { expandSiteVariables, type SingleContentContext } from "@musiccloud/shared";
+import { MARKDOWN_EXTENSION_REGISTRY } from "./markdown/extension-registry.js";
 import { renderMarkdown } from "./markdown/renderer.js";
 import { sanitizeMarkdownHtml } from "./markdown/sanitizer.js";
 import { resolveSiteVariableValues } from "./site-variables.js";
@@ -17,8 +18,10 @@ import { resolveSiteVariableValues } from "./site-variables.js";
  *
  * Variables are expanded before the Markdown is parsed, so a name works
  * wherever a person can type it: in prose, in a heading, and inside a
- * shortcode's attribute alike. The result is sanitized last, because Markdown
- * passes raw HTML through and both surfaces inject the string as it stands.
+ * shortcode's attribute alike. The same values reach the render, because the
+ * support ladder takes who is paid from them rather than from the page. The
+ * result is sanitized last, because Markdown passes raw HTML through and both
+ * surfaces inject the string as it stands.
  *
  * @param content - The stored body; `null`, `undefined` or blank renders to an empty string.
  * @param context - The one surface the body is rendered for.
@@ -28,6 +31,7 @@ export async function renderEditorialBody(
   content: string | null | undefined,
   context: SingleContentContext,
 ): Promise<string> {
-  const expanded = expandSiteVariables(content ?? "", await resolveSiteVariableValues());
-  return sanitizeMarkdownHtml(await renderMarkdown(expanded, context));
+  const siteValues = await resolveSiteVariableValues();
+  const expanded = expandSiteVariables(content ?? "", siteValues);
+  return sanitizeMarkdownHtml(await renderMarkdown(expanded, context, MARKDOWN_EXTENSION_REGISTRY, siteValues));
 }
