@@ -2,11 +2,17 @@ import { type NavItem, NavTarget } from "@musiccloud/shared";
 import { ListIcon } from "@phosphor-icons/react";
 import { type MouseEvent, useCallback, useId, useRef, useState } from "react";
 
-import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
+import { recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import {
+  HEADER_CONTROL_RAISED_CLASS,
+  HEADER_CONTROL_TRACK_CLASS,
+  HEADER_RAISED_RADIUS_STYLE,
+} from "@/components/navigation/headerControlStyle";
 import { useDismissableLayer } from "@/components/ui/useDismissableLayer";
 import { commonCopy } from "@/copy/common";
 import { navHref, navLabel } from "@/lib/nav";
+import { cn } from "@/lib/utils";
 
 interface HeaderNavMenuProps {
   /** Admin-managed header nav links to list in the dropdown. */
@@ -18,13 +24,6 @@ interface HeaderNavMenuProps {
    */
   onNavClick: (event: MouseEvent<HTMLAnchorElement>, item: NavItem) => void;
 }
-
-/** Raised-control radius — the switcher's indicator-cell radius, shared by the trigger and the dropdown panel. */
-const RAISED_RADIUS_STYLE = {
-  "--neu-radius-base": raisedControlRadius,
-  "--neu-radius-sm": raisedControlRadius,
-  borderRadius: "var(--neu-radius)",
-} as React.CSSProperties;
 
 /**
  * Header navigation: a glass hamburger button — built from the same recessed
@@ -48,7 +47,7 @@ export function HeaderNavMenu({ navItems, onNavClick }: HeaderNavMenuProps) {
 
   return (
     <div ref={containerRef} className="relative">
-      <RecessedCard className="mc-glass-nav-track flex p-1" radius={recessedSurfaceRadius}>
+      <RecessedCard className={HEADER_CONTROL_TRACK_CLASS} radius={recessedSurfaceRadius}>
         <RecessedCard.Body className="contents">
           <button
             type="button"
@@ -56,8 +55,8 @@ export function HeaderNavMenu({ navItems, onNavClick }: HeaderNavMenuProps) {
             aria-expanded={open}
             aria-controls={menuId}
             aria-label={commonCopy.navigation.menu}
-            style={RAISED_RADIUS_STYLE}
-            className="embossed-gradient-border mc-glass-nav-indicator mc-txt-nav-bright relative z-10 flex size-[34px] cursor-pointer items-center justify-center overflow-hidden rounded-lg border-none focus-visible:outline-2 focus-visible:outline-white/40 focus-visible:outline-offset-2"
+            style={HEADER_RAISED_RADIUS_STYLE}
+            className={cn(HEADER_CONTROL_RAISED_CLASS, "w-[34px]")}
           >
             <ListIcon weight="duotone" className="size-[18px]" aria-hidden="true" />
           </button>
@@ -74,7 +73,7 @@ export function HeaderNavMenu({ navItems, onNavClick }: HeaderNavMenuProps) {
           <nav
             id={menuId}
             aria-label={commonCopy.navigation.menu}
-            style={RAISED_RADIUS_STYLE}
+            style={HEADER_RAISED_RADIUS_STYLE}
             className="recessed-gradient-border mc-glass-nav-track flex min-w-[10rem] origin-top animate-menu-drop-in flex-col gap-0.5 overflow-hidden p-1"
           >
             {navItems.map((item) => (

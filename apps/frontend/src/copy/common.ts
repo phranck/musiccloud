@@ -48,4 +48,10 @@ export const commonCopy = {
     /** The label of the cross that closes a support prompt, lmaa.space's "Ausblenden". */
     dismiss: "Hide",
   },
+  support: {
+    /** The header link to the support page, from the `sm` breakpoint on. */
+    headerLabel: "Support musiccloud",
+    /** The same link below the `sm` breakpoint, where the header is narrow. */
+    headerShortLabel: "Support",
+  },
 } as const;
