@@ -1,6 +1,6 @@
 import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
 import { ApiTokenStatus } from "@musiccloud/shared";
-import { Code as CodeIcon, Copy as CopyIcon, SpinnerGap as SpinnerGapIcon } from "@phosphor-icons/react";
+import { CodeIcon, CopyIcon, SpinnerGapIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -18,6 +18,7 @@ import {
   useUpdateDeveloperProject,
 } from "@/features/developer/hooks/useDeveloperData";
 import { formatDate, hasLimitOverride, parseLimitOverride } from "@/features/developer/lib";
+import { useClipboardCopy } from "@/lib/hooks/useClipboardCopy";
 import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";
 
 /**
@@ -52,7 +53,7 @@ export function ClientDetailPage() {
   const activateToken = useActivateToken();
   const deactivateToken = useDeactivateToken();
   const updateProject = useUpdateDeveloperProject();
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useClipboardCopy();
   // The issued token exists only in the response that created it, so this is
   // the one place it can be read. Leaving the page loses it, which is what
   // makes it a secret.
@@ -61,12 +62,6 @@ export function ClientDetailPage() {
   const [saved, setSaved] = useState(false);
 
   const client = data?.clients.find((c) => c.id === id) ?? null;
-
-  const handleCopy = async (raw: string) => {
-    await navigator.clipboard.writeText(raw);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   if (isLoading || !data) {
     return (
@@ -219,7 +214,7 @@ export function ClientDetailPage() {
                   {revealedToken && (
                     <button
                       type="button"
-                      onClick={() => handleCopy(revealedToken)}
+                      onClick={() => void copy(revealedToken)}
                       aria-label={copied ? messages.common.copied : dm.tokenRevealCopy}
                       title={copied ? messages.common.copied : dm.tokenRevealCopy}
                       className="shrink-0 text-[var(--ds-text-muted)] hover:text-[var(--ds-accent)] transition-colors"

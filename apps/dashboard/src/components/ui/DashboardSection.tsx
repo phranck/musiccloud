@@ -21,6 +21,12 @@ export interface DashboardSectionProps {
 export interface DashboardSectionHeaderProps {
   icon: ReactNode;
   title: ReactNode;
+  /**
+   * One line under the title that says what the card is for, in the muted small
+   * type lmaa.space's section header uses. Absent by default, and then the
+   * header shows the title alone.
+   */
+  subtitle?: string;
   /** Optional right-aligned content (e.g. a toggle switch). */
   addOn?: ReactNode;
   renderAddOn?: () => ReactNode;
@@ -64,7 +70,14 @@ export function DashboardSection({ children, expanded = true, className = "" }: 
 
 /* ---- DashboardSection.Header -------------------------------------- */
 
-function DashboardSectionHeader({ icon, title, addOn, renderAddOn, className = "" }: DashboardSectionHeaderProps) {
+function DashboardSectionHeader({
+  icon,
+  title,
+  subtitle,
+  addOn,
+  renderAddOn,
+  className = "",
+}: DashboardSectionHeaderProps) {
   const { expanded } = use(DashboardSectionContext);
   const addOnContent = renderAddOn ? renderAddOn() : addOn;
 
@@ -77,6 +90,7 @@ function DashboardSectionHeader({ icon, title, addOn, renderAddOn, className = "
       <span className="shrink-0 text-[var(--ds-text-muted)]">{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block text-lg font-medium font-serif text-[var(--ds-text)]">{title}</span>
+        {subtitle && <span className="block truncate text-xs font-sans text-[var(--ds-text-muted)]">{subtitle}</span>}
       </span>
       {addOnContent && <span className="ml-auto flex shrink-0 items-center gap-2">{addOnContent}</span>}
     </div>

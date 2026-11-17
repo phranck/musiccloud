@@ -19,7 +19,11 @@ vi.mock("@/features/auth/AuthContext", () => ({
   useAuth: () => ({ user: { role: mocks.role } }),
 }));
 
-vi.mock("@/components/ui/PageHeader", () => ({ PageHeader: () => null }));
+// The real header hands its actions to the layout's slot, which this test does
+// not mount, so the stand-in renders them in a marked element of its own.
+vi.mock("@/components/ui/PageHeader", () => ({
+  PageHeader: ({ children }: { children?: React.ReactNode }) => <div data-testid="page-header">{children}</div>,
+}));
 
 import { dashboardCopy } from "@/copy/dashboard";
 import { SponsoringSettingsPage } from "./SponsoringSettingsPage";
@@ -55,14 +59,47 @@ describe("SponsoringSettingsPage", () => {
     mocks.role = "owner";
   });
 
-  it("shows the costs it derives every suggested amount from", async () => {
-    renderPage();
+  it("arranges lmaa.space's four cards, with the yearly sum in the costs header", async () => {
+    const { container } = renderPage();
+    await screen.findByLabelText(sm.payeeIbanLabel);
 
-    expect(
-      await screen.findByText(
-        "Annual cost €230, a month €19.17. Suggested amounts: €5 a week, €20 a month, €60 a quarter, €230 a year.",
-      ),
-    ).not.toBeNull();
+    const titles = [...container.querySelectorAll(".font-serif")].map((title) => title.textContent);
+    expect(titles).toEqual([sm.costsTitle, sm.sponsorMinimumTitle, sm.payeeTitle, sm.purposesTitle]);
+    expect(screen.getByText(sm.costsHint)).not.toBeNull();
+    expect(screen.getByText("€230")).not.toBeNull();
+    expect(screen.getByText(sm.payeeDescription)).not.toBeNull();
+    expect(screen.getByText(sm.purposesDescription)).not.toBeNull();
+  });
+
+  it("names every site variable where lmaa.space names it, each with a copy button", async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    renderPage();
+    await screen.findByLabelText(sm.payeeIbanLabel);
+
+    const shown = [...document.querySelectorAll("code")].map((code) => code.textContent);
+    expect(shown).toEqual([
+      "{annualCost}",
+      "{monthlyCost}",
+      "{payeeName}",
+      "{payeeIban}",
+      "{payeeBic}",
+      "{purposeDonation}",
+      "{purposeSponsor}",
+      "{purposePaypal}",
+    ]);
+    expect(screen.getAllByRole("button", { name: dashboardCopy.common.copy })).toHaveLength(shown.length);
+
+    fireEvent.click(screen.getAllByRole("button", { name: dashboardCopy.common.copy })[2] as HTMLElement);
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("{payeeName}"));
+  });
+
+  it("puts Save in the page header and in no card", async () => {
+    renderPage();
+    await screen.findByLabelText(sm.payeeIbanLabel);
+
+    const save = screen.getByRole("button", { name: dashboardCopy.common.save });
+    expect(screen.getByTestId("page-header").contains(save)).toBe(true);
   });
 
   it("keeps Save off until something changed, and off while the IBAN is wrong", async () => {
@@ -104,5 +141,7 @@ describe("SponsoringSettingsPage", () => {
     const iban = (await screen.findByLabelText(sm.payeeIbanLabel)) as HTMLInputElement;
     expect(screen.getByText(sm.ownerOnly)).not.toBeNull();
     expect(iban.closest("fieldset")?.disabled).toBe(true);
+    fireEvent.change(iban, { target: { value: "at61 1904 3002 3457 3201" } });
+    expect((screen.getByRole("button", { name: dashboardCopy.common.save }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
