@@ -166,6 +166,33 @@ test("derives both change maps from the workspace graph, with no hand-written pa
 });
 
 /**
+ * Slices one setup out of `zerops.yml`, up to the next one.
+ *
+ * @param {string} name - The setup's name, such as `backend`.
+ * @returns {string} Its lines.
+ */
+function zeropsSetup(name) {
+  const start = zerops.indexOf(`  - setup: ${name}\n`);
+  assert.notEqual(start, -1, `zerops.yml has no setup named ${name}`);
+  const next = zerops.indexOf("  - setup: ", start + 1);
+  return next === -1 ? zerops.slice(start) : zerops.slice(start, next);
+}
+
+test("installs only each service's own packages, from a store Zerops caches", () => {
+  for (const name of ["backend", "frontend", "developer", "dashboard"]) {
+    const setup = zeropsSetup(name);
+    const install = setup.match(/- pnpm install (.*)$/m)?.[1] ?? "";
+
+    assert.match(install, new RegExp(`--filter @musiccloud/${name}\\.\\.\\.`), name);
+    // Zerops caches only paths under /build/source, so the store has to be one.
+    assert.match(install, /--store-dir \.pnpm-store\b/, name);
+    assert.match(setup, /\n {6}cache:\n {8}- \.pnpm-store\n/, name);
+  }
+  // The portal's prebuild runs the backend's OpenAPI export.
+  assert.match(zeropsSetup("developer"), /--filter @musiccloud\/backend\.\.\./);
+});
+
+/**
  * Corepack runs the version `packageManager` names in package.json. A second
  * statement of it is a second answer that can drift from the first.
  */
