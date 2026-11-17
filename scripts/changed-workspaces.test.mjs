@@ -71,8 +71,8 @@ test("a change to the CI workflow validates everything and deploys nothing", () 
   ]);
 });
 
-test("a change to zerops.yml or a root tsconfig deploys every service", () => {
-  for (const file of ["zerops.yml", "tsconfig.base.json"]) {
+test("a change to zerops.yml, .gitattributes or a root tsconfig deploys every service", () => {
+  for (const file of ["zerops.yml", ".gitattributes", "tsconfig.base.json"]) {
     assert.deepEqual(marked(repositoryWorkspaces, [file], Purpose.Deploy), ["backend", "dashboard", "developer", "frontend"], file);
   }
 });
