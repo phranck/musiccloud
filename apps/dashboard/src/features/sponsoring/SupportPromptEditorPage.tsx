@@ -307,6 +307,7 @@ export function SupportPromptEditorPage() {
                       label={text.thresholdBasisLabel}
                       value={fields.thresholdBasis}
                       options={THRESHOLD_BASIS_OPTIONS}
+                      minWidthFromOptions
                       className="shrink-0"
                       onChange={(thresholdBasis) => update({ thresholdBasis })}
                     />
@@ -349,6 +350,7 @@ export function SupportPromptEditorPage() {
                       label={text.buttonAlignmentLabel}
                       value={fields.buttonAlignment}
                       options={BUTTON_ALIGNMENT_OPTIONS}
+                      minWidthFromOptions
                       className="shrink-0"
                       onChange={(buttonAlignment) => update({ buttonAlignment })}
                     />
@@ -357,6 +359,7 @@ export function SupportPromptEditorPage() {
                     label={text.buttonHrefLabel}
                     value={fields.buttonHref}
                     options={pageOptions}
+                    searchable
                     onChange={(buttonHref) => update({ buttonHref })}
                   />
                 </div>
