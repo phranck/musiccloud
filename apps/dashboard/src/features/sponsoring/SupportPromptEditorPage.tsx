@@ -2,6 +2,7 @@ import {
   DashboardActionButton,
   DashboardActionId,
   DashboardActionStatus,
+  DashboardDatePicker,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
 import {
@@ -98,52 +99,6 @@ function emptyPrompt(name: string): SupportPromptInput {
 function toInput(prompt: SupportPrompt): SupportPromptInput {
   const { id: _id, updatedAt: _updatedAt, ...fields } = prompt;
   return fields;
-}
-
-/** Props of {@link ClearableDayField}. */
-interface ClearableDayFieldProps {
-  /** The input's id, which its label points at. */
-  id: string;
-  /** The label above the input. */
-  label: string;
-  /** The day as `YYYY-MM-DD`, or `null` for none. */
-  value: string | null;
-  /** Receives the chosen day, or `null` once it is cleared. */
-  onChange: (value: string | null) => void;
-}
-
-/**
- * A day picker that can be emptied again, because an empty day means the
- * window has no limit on that side.
- *
- * The Clear button appears only while a day is set, as in lmaa.space's
- * clearable picker.
- *
- * @param props - See {@link ClearableDayFieldProps}.
- * @returns The field.
- */
-function ClearableDayField({ id, label, value, onChange }: ClearableDayFieldProps) {
-  return (
-    <div className="flex items-end gap-2">
-      <DashboardInput
-        id={id}
-        type="date"
-        label={label}
-        fieldClassName="flex-1 min-w-0"
-        value={value ?? ""}
-        onChange={(event) => onChange(event.target.value || null)}
-      />
-      {value && (
-        <DashboardActionButton
-          action={DashboardActionId.Close}
-          label={messages.common.clear}
-          size="control"
-          type="button"
-          onClick={() => onChange(null)}
-        />
-      )}
-    </div>
-  );
 }
 
 /**
@@ -394,17 +349,23 @@ export function SupportPromptEditorPage() {
               />
               <DashboardSection.Body>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <ClearableDayField
+                  {/* An empty day means the window has no limit on that side,
+                      so both days can be emptied again. */}
+                  <DashboardDatePicker
                     id="support-prompt-starts-at"
                     label={text.startsAtLabel}
-                    value={fields.startsAt}
-                    onChange={(startsAt) => update({ startsAt })}
+                    placeholder={messages.common.pickDate}
+                    clearLabel={messages.common.clear}
+                    value={fields.startsAt ?? ""}
+                    onChange={(startsAt) => update({ startsAt: startsAt || null })}
                   />
-                  <ClearableDayField
+                  <DashboardDatePicker
                     id="support-prompt-ends-at"
                     label={text.endsAtLabel}
-                    value={fields.endsAt}
-                    onChange={(endsAt) => update({ endsAt })}
+                    placeholder={messages.common.pickDate}
+                    clearLabel={messages.common.clear}
+                    value={fields.endsAt ?? ""}
+                    onChange={(endsAt) => update({ endsAt: endsAt || null })}
                   />
                 </div>
               </DashboardSection.Body>

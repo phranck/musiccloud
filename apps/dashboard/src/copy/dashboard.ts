@@ -11,6 +11,7 @@ export const dashboardCopy = {
     saveError: "Error saving",
     edit: "Edit",
     clear: "Clear",
+    pickDate: "Pick a date",
     delete: "Delete",
     remove: "Remove",
     duplicate: "Duplicate",

@@ -3,5 +3,6 @@ export * from "./DashboardActionButton.js";
 export * from "./DashboardButton.js";
 export * from "./DashboardButtonTypes.js";
 export * from "./DashboardControls.js";
+export * from "./DashboardDatePicker.js";
 export * from "./dashboardButtonClasses.js";
 export * from "./tableSort.js";
