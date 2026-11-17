@@ -23,18 +23,13 @@ import { fetchSupportPrompts } from "@/api/client";
  *
  * @property prompts - The prompts for this slot, in the order the server prefers them.
  * @property limits - What bounds one reader across every prompt together.
- * @property devAlwaysShow - Whether every limit is set aside, which only ever happens outside
- *   production. The backend decides it; the site only follows.
- * @property liveIds - Every prompt that is live right now, across all slots. The reader's store
- *   holds a record per prompt and forgets the ones that no longer exist. Deciding that from one
- *   slot's prompts alone would forget the other slots' records, and somebody who dismissed a
- *   prompt on one page would meet it again after visiting another.
+ * @property devAlwaysShow - Whether every limit is set aside, which only ever happens in
+ *   development and in tests. The backend decides it; the site only follows.
  */
 export interface SupportPromptSlotData {
   prompts: PublicSupportPrompt[];
   limits: SupportPromptLimits;
   devAlwaysShow: boolean;
-  liveIds: string[];
 }
 
 /** Nothing to show, which is also the answer when the backend is unreachable. */
@@ -44,15 +39,15 @@ const EMPTY: SupportPromptSlotData = {
   // not silently missing from the page that could not reach the backend.
   limits: SUPPORT_PROMPT_LIMIT_DEFAULTS,
   devAlwaysShow: false,
-  liveIds: [],
 };
 
 /**
  * Loads the prompts for one slot.
  *
- * A page that cannot reach the backend still renders: a missing ask is worth
- * less than a broken page, so the failure is swallowed deliberately and the
- * slot stays empty.
+ * A page that cannot reach the backend still renders, because a missing ask is
+ * worth less than a broken page. The failure is swallowed deliberately and the
+ * slot stays empty. It forgets nothing the reader's browser remembers, because
+ * that store never drops a record for a prompt it was not sent.
  *
  * @param slot - The place asking.
  * @param clientIp - The visitor's address, forwarded for the backend's rate limit.
@@ -65,7 +60,6 @@ export async function loadSupportPrompts(slot: SupportPromptSlot, clientIp?: str
       prompts: payload.prompts.filter((prompt) => prompt.slot === slot),
       limits: payload.limits,
       devAlwaysShow: payload.devAlwaysShow ?? false,
-      liveIds: payload.prompts.map((prompt) => prompt.id),
     };
   } catch {
     return EMPTY;

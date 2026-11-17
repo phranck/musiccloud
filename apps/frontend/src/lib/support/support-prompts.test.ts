@@ -41,16 +41,6 @@ describe("loadSupportPrompts", () => {
     expect(data.prompts.map((entry) => entry.id)).toEqual(["a", "d"]);
   });
 
-  it("names every live prompt, not only the ones for this slot", async () => {
-    // The reader's store keeps a record per prompt and forgets the ones that no
-    // longer exist. Told only about this slot's prompts it would forget the
-    // other slots' records, and somebody who dismissed a prompt on one page
-    // would meet it again after visiting another.
-    const data = await loadSupportPrompts("share-page");
-
-    expect(data.liveIds).toEqual(["a", "b", "c", "d"]);
-  });
-
   it("forwards the visitor's address, so the backend counts per visitor", async () => {
     await loadSupportPrompts("landing-page", "203.0.113.7");
 
@@ -63,7 +53,6 @@ describe("loadSupportPrompts", () => {
     const data = await loadSupportPrompts("share-page");
 
     expect(data.prompts).toEqual([]);
-    expect(data.liveIds).toEqual([]);
     expect(data.devAlwaysShow).toBe(false);
   });
 });

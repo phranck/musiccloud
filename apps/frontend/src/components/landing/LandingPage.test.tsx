@@ -253,7 +253,6 @@ const LANDING_PROMPTS = {
   prompts: [LANDING_PROMPT],
   limits: SUPPORT_PROMPT_LIMIT_DEFAULTS,
   devAlwaysShow: false,
-  liveIds: [LANDING_PROMPT.id],
 };
 
 /** The short id the live example links to in these tests. */

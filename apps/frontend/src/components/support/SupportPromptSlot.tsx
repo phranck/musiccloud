@@ -72,17 +72,16 @@ function persist(store: SupportPromptStore): void {
 /**
  * Reads the store, treating a browser that refuses storage as one that holds nothing.
  *
- * @param liveIds - The prompts that still exist, whose records are kept.
- * @returns The store.
+ * @returns The store, with every record it held.
  */
-function readStore(liveIds: readonly string[]): SupportPromptStore {
+function readStore(): SupportPromptStore {
   let raw: string | null = null;
   try {
     raw = window.localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY);
   } catch {
     raw = null;
   }
-  return parseStore(raw, liveIds);
+  return parseStore(raw);
 }
 
 /** Where the invitation stands, named as the stacks name it. */
@@ -149,8 +148,8 @@ type PageViewInput = Omit<SupportPromptSlotProps, "className">;
  * @param input - The slot and its data.
  * @returns The prompt to draw with its text filled in, or `null` for none.
  */
-function takePageView({ slot, prompts, limits, liveIds, devAlwaysShow, shareId }: PageViewInput): ShownPrompt | null {
-  let store = readStore(liveIds);
+function takePageView({ slot, prompts, limits, devAlwaysShow, shareId }: PageViewInput): ShownPrompt | null {
+  let store = readStore();
   if (slot === "share-page" && shareId) {
     store = countShareView(store, shareId);
     persist(store);
@@ -270,7 +269,6 @@ export function SupportPromptSlot({
   slot,
   prompts,
   limits,
-  liveIds,
   devAlwaysShow,
   shareId,
   className,
@@ -278,8 +276,8 @@ export function SupportPromptSlot({
   const [pageView] = useState(createPageViewStore);
   const subscribe = useCallback(
     (onChange: () => void) =>
-      pageView.subscribe(onChange, () => takePageView({ slot, prompts, limits, liveIds, devAlwaysShow, shareId })),
-    [pageView, slot, prompts, limits, liveIds, devAlwaysShow, shareId],
+      pageView.subscribe(onChange, () => takePageView({ slot, prompts, limits, devAlwaysShow, shareId })),
+    [pageView, slot, prompts, limits, devAlwaysShow, shareId],
   );
   const shown = useSyncExternalStore(subscribe, pageView.read, serverPageView);
 
@@ -287,13 +285,13 @@ export function SupportPromptSlot({
   const visible = shown.prompt;
 
   function close() {
-    persist(recordDismissed(readStore(liveIds), visible.id, limits, Date.now()));
+    persist(recordDismissed(readStore(), visible.id, limits, Date.now()));
     sendMusicSignal(SupportPromptSignal.Dismissed, { prompt: visible.name, id: visible.id, slot });
     pageView.write(null);
   }
 
   function follow() {
-    persist(recordResolved(readStore(liveIds), visible.id));
+    persist(recordResolved(readStore(), visible.id));
     sendMusicSignal(SupportPromptSignal.Clicked, { prompt: visible.name, id: visible.id, slot });
   }
 

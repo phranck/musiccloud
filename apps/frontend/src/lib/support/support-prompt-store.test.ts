@@ -225,7 +225,7 @@ describe("the quiet period after a showing and after a dismissal", () => {
 
   it("remembers what started the quiet period across a reload", () => {
     const store = recordDismissed(emptyStore(), "a", limits, now);
-    const reloaded = parseStore(JSON.stringify(store), ["a"]);
+    const reloaded = parseStore(JSON.stringify(store));
 
     expect(choosePrompt([candidate("a")], reloaded, limits, progress, now + 89 * dayMs)).toBeNull();
   });
@@ -248,24 +248,27 @@ describe("countShareView", () => {
 
 describe("parseStore", () => {
   it("returns an empty store for nothing, for rubbish, and for the wrong shape", () => {
-    expect(parseStore(null, [])).toEqual(emptyStore());
-    expect(parseStore("{not json", [])).toEqual(emptyStore());
-    expect(parseStore('"a string"', [])).toEqual(emptyStore());
+    expect(parseStore(null)).toEqual(emptyStore());
+    expect(parseStore("{not json")).toEqual(emptyStore());
+    expect(parseStore('"a string"')).toEqual(emptyStore());
   });
 
   it("drops what it cannot read rather than failing", () => {
-    const store = parseStore('{"shown":"many","prompts":{"a":null}}', ["a"]);
+    const store = parseStore('{"shown":"many","prompts":{"a":null}}');
     expect(store.shown).toBe(0);
     expect(store.prompts).toEqual({});
   });
 
-  it("forgets prompts that no longer exist", () => {
+  it("keeps the record of every prompt, whether or not the site delivers it today", () => {
+    // The site only learns which prompts are live. One that is unpublished for
+    // a while, or that a failed load leaves out, is not a deleted one.
     const raw = JSON.stringify({
       shown: 2,
-      prompts: { alive: { shown: 1, dismissed: 0, resolved: false }, gone: { shown: 5 } },
+      prompts: { delivered: { shown: 1, dismissed: 0, resolved: false }, paused: { shown: 1, dismissed: 1 } },
     });
-    const store = parseStore(raw, ["alive"]);
-    expect(Object.keys(store.prompts)).toEqual(["alive"]);
+    const store = parseStore(raw);
+    expect(Object.keys(store.prompts)).toEqual(["delivered", "paused"]);
+    expect(store.prompts.paused.dismissed).toBe(1);
     expect(store.shown).toBe(2);
   });
 });

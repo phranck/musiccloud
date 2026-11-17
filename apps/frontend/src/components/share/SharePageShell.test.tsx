@@ -30,7 +30,6 @@ const SHARE_PROMPTS = {
   prompts: [SHARE_PROMPT],
   limits: SUPPORT_PROMPT_LIMIT_DEFAULTS,
   devAlwaysShow: false,
-  liveIds: [SHARE_PROMPT.id],
 };
 
 /** The result's configuration, which the stubbed layout ignores. */

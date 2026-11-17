@@ -320,7 +320,7 @@ export const dashboardCopy = {
       emptyTitle: "No prompt yet",
       emptyHint: "Create one to ask for support in the flow of the site.",
       deleteTitle: "Delete prompt",
-      deleteMessage: "It disappears from the site at once, and what readers dismissed so far is forgotten with it.",
+      deleteMessage: "It disappears from the site at once.",
       states: {
         draft: "Draft",
         scheduled: "Scheduled",

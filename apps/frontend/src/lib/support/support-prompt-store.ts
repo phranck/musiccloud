@@ -111,14 +111,18 @@ function emptyRecord(): SupportPromptRecord {
 /**
  * Reads a store back from what was stored, dropping anything unusable.
  *
- * Records for prompts that no longer exist are dropped, so a deleted prompt
- * leaves nothing behind in anybody's browser.
+ * Every readable record is kept, including those of prompts the site does not
+ * deliver today. The site only ever learns which prompts are live, and a
+ * prompt that is unpublished for a while, whose window lapses before it is
+ * extended, or that a failed load leaves out is not a deleted one. Forgetting
+ * its record would show a reader again what they had closed or followed.
+ * Prompts are written by hand and few, so the records stay small. This differs
+ * from lmaa.space, which drops the records of prompts it was not sent.
  *
  * @param raw - What the storage held, or `null` when it held nothing.
- * @param knownIds - The prompts that still exist.
  * @returns A store that is safe to use, whatever was in the storage.
  */
-export function parseStore(raw: string | null, knownIds: readonly string[]): SupportPromptStore {
+export function parseStore(raw: string | null): SupportPromptStore {
   const store = emptyStore();
   if (!raw) return store;
 
@@ -140,11 +144,10 @@ export function parseStore(raw: string | null, knownIds: readonly string[]): Sup
   store.shareViews = Number.isFinite(candidate.shareViews) ? Number(candidate.shareViews) : 0;
   store.lastShareId = typeof candidate.lastShareId === "string" ? candidate.lastShareId : null;
 
-  const known = new Set(knownIds);
   const records = candidate.prompts;
   if (records && typeof records === "object") {
     for (const [id, record] of Object.entries(records)) {
-      if (!known.has(id) || typeof record !== "object" || record === null) continue;
+      if (typeof record !== "object" || record === null) continue;
       const entry = record as Partial<SupportPromptRecord>;
       store.prompts[id] = {
         shown: Number.isFinite(entry.shown) ? Number(entry.shown) : 0,

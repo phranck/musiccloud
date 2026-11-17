@@ -32,7 +32,6 @@ const DATA = {
   prompts: [PROMPT],
   limits: SUPPORT_PROMPT_LIMIT_DEFAULTS,
   devAlwaysShow: false,
-  liveIds: [PROMPT.id],
 };
 
 /** What the analytics events of {@link PROMPT} carry, and nothing else. */
@@ -77,7 +76,7 @@ describe("SupportPromptSlot", () => {
 
     expect(signalMocks.sendMusicSignal).toHaveBeenLastCalledWith(SupportPromptSignal.Dismissed, EVENT_DATA);
     await waitFor(() => expect(screen.queryByText("You opened 3 shares.")).toBeNull());
-    const store = parseStore(window.localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY), [PROMPT.id]);
+    const store = parseStore(window.localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY));
     expect(store.prompts[PROMPT.id].dismissed).toBe(1);
     expect(store.snoozedUntil).toBeGreaterThan(Date.now());
   });
@@ -89,7 +88,7 @@ describe("SupportPromptSlot", () => {
     fireEvent.click(await screen.findByRole("link", { name: /Support musiccloud/ }));
 
     expect(signalMocks.sendMusicSignal).toHaveBeenLastCalledWith(SupportPromptSignal.Clicked, EVENT_DATA);
-    const store = parseStore(window.localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY), [PROMPT.id]);
+    const store = parseStore(window.localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY));
     expect(store.prompts[PROMPT.id].resolved).toBe(true);
   });
 
@@ -97,8 +96,38 @@ describe("SupportPromptSlot", () => {
     openSharePage("one").unmount();
     openSharePage("one").unmount();
 
-    const store = parseStore(window.localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY), [PROMPT.id]);
+    const store = parseStore(window.localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY));
     expect(store.shareViews).toBe(1);
+  });
+
+  it("keeps a followed prompt done through a share page whose load failed", async () => {
+    openSharePage("one").unmount();
+    openSharePage("two").unmount();
+    openSharePage("three");
+    fireEvent.click(await screen.findByRole("link", { name: /Support musiccloud/ }));
+
+    // A failed load hands the slot no prompts at all, and the share page still
+    // writes the store back after counting the visit.
+    render(<SupportPromptSlot slot="share-page" shareId="four" {...DATA} prompts={[]} />);
+
+    const store = parseStore(window.localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY));
+    expect(store.shareViews).toBe(4);
+    expect(store.prompts[PROMPT.id].resolved).toBe(true);
+  });
+
+  it("keeps a dismissed prompt dismissed while it is unpublished and after it is published again", async () => {
+    openSharePage("one").unmount();
+    openSharePage("two").unmount();
+    openSharePage("three");
+    fireEvent.click(await screen.findByRole("button", { name: "Hide" }));
+
+    // Unpublished: the site is not sent the prompt for a while.
+    render(<SupportPromptSlot slot="share-page" shareId="four" {...DATA} prompts={[]} />);
+    // Published again.
+    openSharePage("five");
+
+    const store = parseStore(window.localStorage.getItem(SUPPORT_PROMPT_STORAGE_KEY));
+    expect(store.prompts[PROMPT.id].dismissed).toBe(1);
   });
 
   it("reads the resolved links on the landing page", async () => {
