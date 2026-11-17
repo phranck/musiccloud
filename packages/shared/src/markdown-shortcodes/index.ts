@@ -16,6 +16,7 @@ export * from "./registry.js";
 /** The stacks and the spacer, and the defaults their renderer has to agree with. */
 export * from "./stacks.js";
 /** The support ladder and every node that may stand inside it. */
+export * from "./sponsors.js";
 export * from "./support-ladder.js";
 /** The token of every shortcode a page may use. */
 export * from "./tokens.js";

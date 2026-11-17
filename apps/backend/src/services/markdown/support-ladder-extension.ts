@@ -34,6 +34,8 @@ import {
 } from "@musiccloud/shared";
 import type { MarkedExtension, MarkedOptions, Token, Tokens } from "marked";
 import { type DefaultTreeAdapterMap, parseFragment, serialize } from "parse5";
+import { escapeHtml } from "../../lib/html.js";
+import { shortcodeText } from "./shortcode-text.js";
 
 /** A node of a parsed page that holds other nodes. */
 type HtmlParent = DefaultTreeAdapterMap["parentNode"];
@@ -65,27 +67,8 @@ const ROUTE_FALLBACK_TITLES: Readonly<Record<string, string>> = {
   [SupportRouteToken.GithubSponsors]: "GitHub Sponsors",
 };
 
-/**
- * Turns the escape sequences an author types inside a quoted attribute into
- * the characters they stand for, so `\n` writes a line break into a text.
- *
- * @param value - The attribute as written.
- * @returns The text with `\n` and `\t` replaced.
- */
-function unescapeText(value: string): string {
-  return value.replace(/\\n/g, "\n").replace(/\\t/g, "\t");
-}
-
-/**
- * Reads a string parameter.
- *
- * @param value - The parameter as the parser resolved it.
- * @returns The trimmed text, unescaped, or empty when the parameter is absent
- *   or not a string.
- */
-function text(value: ShortcodeParamValue | undefined): string {
-  return typeof value === "string" ? unescapeText(value.trim()) : "";
-}
+/** Reads a string parameter, as every island shortcode does. */
+const text = shortcodeText;
 
 /**
  * Reads an amount in euros as an author writes one.
@@ -187,16 +170,6 @@ export function buildSupportLadderConfig(
 }
 
 /**
- * Escapes a value for a double-quoted HTML attribute.
- *
- * @param value - The value.
- * @returns The value with `&`, `<`, `>` and `"` escaped.
- */
-function escapeAttribute(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-/**
  * The ladder as a marked extension.
  *
  * @returns The extension, ready to register.
@@ -244,7 +217,7 @@ export function createSupportLadderExtension(): MarkedExtension {
           const config = mapSupportLadderHtml(ladder.config, (index) =>
             index === "" ? "" : this.parser.parse(ladder.texts[Number(index)] ?? []),
           );
-          return `<div ${SUPPORT_LADDER_ATTRIBUTE}="${escapeAttribute(JSON.stringify(config))}"></div>\n`;
+          return `<div ${SUPPORT_LADDER_ATTRIBUTE}="${escapeHtml(JSON.stringify(config))}"></div>\n`;
         },
       },
     ],

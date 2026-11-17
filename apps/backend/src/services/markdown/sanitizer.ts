@@ -1,7 +1,10 @@
 import {
+  mapSponsorWallHtml,
   mapSupportLadderHtml,
   PLANS_PLACEHOLDER_ATTRIBUTE,
+  parseSponsorWallAttribute,
   parseSupportLadderAttribute,
+  SPONSOR_WALL_ATTRIBUTE,
   SUPPORT_LADDER_ATTRIBUTE,
 } from "@musiccloud/shared";
 import { type DefaultTreeAdapterMap, parseFragment, serialize } from "parse5";
@@ -81,8 +84,9 @@ const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
   // one property here, `gap`, and only as a plain CSS length, so nothing else
   // can travel in on a `div`. The plans marker carries no value at all. The
   // support ladder's marker carries its configuration, which
-  // `sanitizeSupportLadder` reads and cleans before it may stand.
-  div: new Set([PLANS_PLACEHOLDER_ATTRIBUTE, SUPPORT_LADDER_ATTRIBUTE, "style"]),
+  // `sanitizeSupportLadder` reads and cleans before it may stand, and the
+  // sponsor wall's marker carries its texts, which `sanitizeSponsorWall` cleans.
+  div: new Set([PLANS_PLACEHOLDER_ATTRIBUTE, SPONSOR_WALL_ATTRIBUTE, SUPPORT_LADDER_ATTRIBUTE, "style"]),
   dl: new Set(["style"]),
   img: new Set(["alt", "height", "src", "width"]),
   input: new Set(["checked", "disabled", "type"]),
@@ -199,6 +203,7 @@ function sanitizedAttributeValue(element: HtmlElement, name: string, value: stri
   // page wrote after it is dropped and the bare attribute survives.
   if (name === PLANS_PLACEHOLDER_ATTRIBUTE) return "";
   if (name === SUPPORT_LADDER_ATTRIBUTE) return sanitizeSupportLadder(value);
+  if (name === SPONSOR_WALL_ATTRIBUTE) return sanitizeSponsorWall(value);
   return value;
 }
 
@@ -218,6 +223,23 @@ function sanitizedAttributeValue(element: HtmlElement, name: string, value: stri
 function sanitizeSupportLadder(value: string): string | null {
   const config = parseSupportLadderAttribute(value);
   return config ? JSON.stringify(mapSupportLadderHtml(config, sanitizeMarkdownHtml)) : null;
+}
+
+/**
+ * Cleans the sponsor wall's texts.
+ *
+ * A page could write this attribute by hand, as it could the ladder's, so it is
+ * read against the shared shape, which keeps only strings of the expected
+ * length, and every HTML field goes through this allowlist as the rest of the
+ * page does.
+ *
+ * @param value - The attribute's value.
+ * @returns The cleaned texts as JSON, or `null` to drop the attribute when it
+ *   holds no JSON object.
+ */
+function sanitizeSponsorWall(value: string): string | null {
+  const config = parseSponsorWallAttribute(value);
+  return config ? JSON.stringify(mapSponsorWallHtml(config, sanitizeMarkdownHtml)) : null;
 }
 
 function sanitizeAttributes(element: HtmlElement): void {

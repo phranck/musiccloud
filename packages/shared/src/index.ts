@@ -49,6 +49,7 @@ export * from "./site-variables.js";
 export * from "./social-media.js";
 export * from "./sponsoring.js";
 export * from "./sponsors.js";
+export * from "./sponsor-wall.js";
 export * from "./support-ladder.js";
 export * from "./tier-icons.js";
 export * from "./umami-proxy.js";
