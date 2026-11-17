@@ -208,12 +208,29 @@ export function fundingProgress(annualCostCents: number, donatedYearCents: numbe
  * @property donatedYearCents - The sum over the last {@link FundingWindowDays.Year} days.
  * @property donatedMonthCents - The sum over the last {@link FundingWindowDays.Month} days.
  * @property byMonth - Per calendar month of the funding year, oldest first,
- *   the sum per route. A month without payments is present with an empty map.
+ *   the sum per route and the part of it linked to a sponsor. A month without
+ *   payments is present with an empty map and zero.
  * @property byProvider - The funding year's sum per route.
  */
 export interface DonationTotals {
   donatedYearCents: number;
   donatedMonthCents: number;
-  byMonth: { month: string; byProvider: Partial<Record<DonationProviderValue, number>> }[];
+  byMonth: DonationMonth[];
   byProvider: Partial<Record<DonationProviderValue, number>>;
+}
+
+/**
+ * One calendar month of the ledger.
+ *
+ * The free donations are not stored beside the sponsored part, because they are
+ * the month's sum minus that part, and a second figure could disagree with it.
+ *
+ * @property month - The month, `YYYY-MM`.
+ * @property byProvider - What came in per route; a missing route brought nothing.
+ * @property sponsoredCents - The part of the month's sum linked to a sponsor, 0 to that sum.
+ */
+export interface DonationMonth {
+  month: string;
+  byProvider: Partial<Record<DonationProviderValue, number>>;
+  sponsoredCents: number;
 }

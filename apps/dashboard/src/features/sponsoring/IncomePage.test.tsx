@@ -17,17 +17,17 @@ vi.mock("./api", async (importOriginal) => ({
 vi.mock("@/components/ui/PageHeader", () => ({ PageHeader: () => null }));
 
 import { dashboardCopy } from "@/copy/dashboard";
-import { fundingSentence, IncomePage, incomeChartPoints, routeRows } from "./IncomePage";
+import { fundingSentence, IncomePage, incomeChartPoints, incomeSplitPoints, routeRows } from "./IncomePage";
 
 const sm = dashboardCopy.sponsoring;
 
-/** 120 euros over the year: 100 by bank transfer, 20 by PayPal, 20 of it in the last 30 days. */
+/** 120 euros over the year: 100 by bank transfer, 80 of it from a sponsor, 20 by PayPal, 20 of it in the last 30 days. */
 const TOTALS: DonationTotals = {
   donatedYearCents: 12_000,
   donatedMonthCents: 2_000,
   byMonth: [
-    { month: "2026-10", byProvider: { "bank-transfer": 10_000 } },
-    { month: "2026-11", byProvider: { paypal: 2_000 } },
+    { month: "2026-10", byProvider: { "bank-transfer": 10_000 }, sponsoredCents: 8_000 },
+    { month: "2026-11", byProvider: { paypal: 2_000 }, sponsoredCents: 0 },
   ],
   byProvider: { "bank-transfer": 10_000, paypal: 2_000 },
 };
@@ -47,6 +47,20 @@ describe("incomeChartPoints", () => {
       { startedAt: "2026-10-01T00:00:00.000Z", total: 10_000, parts: { "bank-transfer": 10_000 } },
       { startedAt: "2026-11-01T00:00:00.000Z", total: 2_000, parts: { paypal: 2_000 } },
     ]);
+  });
+});
+
+describe("incomeSplitPoints", () => {
+  it("splits each month into its sponsored part and the free donations, which add up to the month", () => {
+    const points = incomeSplitPoints(TOTALS.byMonth);
+
+    expect(points).toEqual([
+      { startedAt: "2026-10-01T00:00:00.000Z", total: 10_000, parts: { sponsored: 8_000, free: 2_000 } },
+      { startedAt: "2026-11-01T00:00:00.000Z", total: 2_000, parts: { sponsored: 0, free: 2_000 } },
+    ]);
+    for (const point of points) {
+      expect(Object.values(point.parts ?? {}).reduce((sum, cents) => sum + (cents ?? 0), 0)).toBe(point.total);
+    }
   });
 });
 
@@ -95,6 +109,16 @@ describe("IncomePage", () => {
     expect(await screen.findByText("€120 of €230 came in. €110 is still missing.")).not.toBeNull();
     expect(screen.getByRole("meter", { name: sm.fundingBarLabel }).getAttribute("value")).toBe("52");
     expect(screen.getByText("Last 30 days: €20.")).not.toBeNull();
+  });
+
+  it("draws the split chart with sponsoring and free donations in its legend", async () => {
+    renderPage();
+
+    expect(await screen.findByText(sm.splitTitle)).not.toBeNull();
+    // The legend belongs to the chart figure, which `UsageChart` loads lazily,
+    // so it arrives after the section's heading.
+    expect(await screen.findByText(sm.splitSponsored)).not.toBeNull();
+    expect(await screen.findByText(sm.splitFree)).not.toBeNull();
   });
 
   it("lists each route with its amount and share", async () => {

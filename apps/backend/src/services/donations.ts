@@ -9,6 +9,7 @@
 import {
   type Donation,
   type DonationInput,
+  type DonationMonth,
   type DonationProviderValue,
   type DonationTotals,
   FundingWindowDays,
@@ -134,11 +135,12 @@ export async function deleteDonation(id: string): Promise<boolean> {
   return (result.rowCount ?? 0) > 0;
 }
 
-/** One row of the per-month, per-route sum. */
+/** One row of the per-month, per-route sum, with the part of it linked to a sponsor. */
 interface MonthProviderRow {
   month: string;
   provider: DonationProviderValue;
   total: string;
+  sponsored: string;
 }
 
 /**
@@ -181,7 +183,8 @@ export async function readDonationTotals(today: string = utcDay()): Promise<Dona
       [yearStart, monthStart, today],
     ),
     pool.query<MonthProviderRow>(
-      `SELECT to_char(received_on, 'YYYY-MM') AS month, provider, SUM(amount_cents) AS total
+      `SELECT to_char(received_on, 'YYYY-MM') AS month, provider, SUM(amount_cents) AS total,
+              COALESCE(SUM(amount_cents) FILTER (WHERE sponsor_id IS NOT NULL), 0) AS sponsored
          FROM donations
         WHERE received_on >= $1::date AND received_on <= $2::date
         GROUP BY 1, 2`,
@@ -197,10 +200,12 @@ export async function readDonationTotals(today: string = utcDay()): Promise<Dona
     ),
   ]);
 
-  const byMonth = months.map((month) => ({ month, byProvider: {} as Partial<Record<DonationProviderValue, number>> }));
+  const byMonth: DonationMonth[] = months.map((month) => ({ month, byProvider: {}, sponsoredCents: 0 }));
   for (const row of perMonth.rows) {
     const entry = byMonth.find((candidate) => candidate.month === row.month);
-    if (entry) entry.byProvider[row.provider] = Number(row.total);
+    if (!entry) continue;
+    entry.byProvider[row.provider] = Number(row.total);
+    entry.sponsoredCents += Number(row.sponsored);
   }
   const byProvider: Partial<Record<DonationProviderValue, number>> = {};
   for (const row of yearByProvider.rows) byProvider[row.provider] = Number(row.total);

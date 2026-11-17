@@ -80,7 +80,11 @@ describe.skipIf(!integrationDatabaseUrl())("donations ledger (integration)", () 
     });
     expect(totals.byMonth).toHaveLength(13);
     expect(totals.byMonth[0]?.month).toBe("2000-06");
-    expect(totals.byMonth.at(-1)).toEqual({ month: "2001-06", byProvider: { [DonationProvider.Paypal]: 2_000 } });
+    expect(totals.byMonth.at(-1)).toEqual({
+      month: "2001-06",
+      byProvider: { [DonationProvider.Paypal]: 2_000 },
+      sponsoredCents: 0,
+    });
   });
 
   it("changes and removes a donation", async () => {

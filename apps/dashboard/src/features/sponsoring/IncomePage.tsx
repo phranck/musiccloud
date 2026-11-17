@@ -16,7 +16,7 @@ import {
   formatEuroCents,
   fundingProgress,
 } from "@musiccloud/shared";
-import { ChartBarIcon, SignpostIcon, TargetIcon } from "@phosphor-icons/react";
+import { ChartBarIcon, MedalIcon, SignpostIcon, TargetIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
@@ -50,6 +50,23 @@ const PROVIDER_SERIES: readonly UsageChartSeries[] = DONATION_PROVIDERS.map((pro
   key: provider,
   label: sm.provider[provider],
 }));
+
+/**
+ * The two parts every month splits into.
+ *
+ * - `Sponsored`: payments linked to an annual sponsor.
+ * - `Free`: every other payment, the month's sum minus the sponsored part.
+ */
+const IncomeKind = {
+  Sponsored: "sponsored",
+  Free: "free",
+} as const;
+
+/** The split chart's series, sponsoring at the bottom. */
+const KIND_SERIES: readonly UsageChartSeries[] = [
+  { key: IncomeKind.Sponsored, label: sm.splitSponsored },
+  { key: IncomeKind.Free, label: sm.splitFree },
+];
 
 /** One row of the by-route table. */
 interface RouteRow {
@@ -107,6 +124,24 @@ export function incomeChartPoints(byMonth: DonationTotals["byMonth"]): UsageChar
     total: sumCents(byProvider),
     parts: byProvider,
   }));
+}
+
+/**
+ * Turns the ledger's months into the split chart's steps.
+ *
+ * @param byMonth - The sums per calendar month, oldest first.
+ * @returns One step per month, its whole income in `total`, split into the
+ *   sponsored part and the free donations, which together make that total.
+ */
+export function incomeSplitPoints(byMonth: DonationTotals["byMonth"]): UsageChartPoint[] {
+  return byMonth.map(({ month, byProvider, sponsoredCents }) => {
+    const total = sumCents(byProvider);
+    return {
+      startedAt: `${month}${MONTH_START_SUFFIX}`,
+      total,
+      parts: { [IncomeKind.Sponsored]: sponsoredCents, [IncomeKind.Free]: total - sponsoredCents },
+    };
+  });
 }
 
 /**
@@ -176,7 +211,8 @@ function FundingMeter({ ratio }: FundingMeterProps) {
 
 /**
  * What came in: how far the last 365 days carry the annual cost, the income
- * per calendar month stacked by route, and each route's share of the year.
+ * per calendar month stacked by route and split into sponsoring and free
+ * donations, and each route's share of the year.
  *
  * Every figure comes from the donations ledger and the stored running costs,
  * through the same `fundingProgress` the support page uses, so this page and
@@ -221,6 +257,20 @@ export function IncomePage() {
             label={sm.chartLabel}
             height={INCOME_CHART_HEIGHT}
             series={PROVIDER_SERIES}
+            formatValue={formatEuroCents}
+          />
+        </DashboardSection.Body>
+      </DashboardSection>
+
+      <DashboardSection>
+        <DashboardSection.Header icon={<MedalIcon weight="duotone" className="size-4" />} title={sm.splitTitle} />
+        <DashboardSection.Body>
+          <UsageChart
+            points={incomeSplitPoints(totals.byMonth)}
+            bucket={UsageChartBucket.Month}
+            label={sm.splitLabel}
+            height={INCOME_CHART_HEIGHT}
+            series={KIND_SERIES}
             formatValue={formatEuroCents}
           />
         </DashboardSection.Body>
