@@ -105,8 +105,8 @@ The identifier is read out of whatever the page wrote, and the embed address is 
 
 `[[support-ladder … ]]` is the giving block of the support page, and only the site renders it. It holds four kinds of child:
 
-- `bankaccount` holds one `variant` per tab, and a variant holds a `qrcode` for the look of its GiroCode and an `info` for the notice under the payee lines.
-- `interval` is one tab, `once`, `monthly` or `sponsor`. It holds its suggested amounts as `option` children and its free amount field as `custom`. The sponsor tab may also hold a `sponsorform`, described below.
+- `bankaccount` holds one `variant` per tab, and a variant holds a `qrcode` for the look of its GiroCode and an `info` for the notice under the payee lines. The sponsor variant may also hold a `sponsorform`, described below.
+- `interval` is one tab, `once`, `monthly` or `sponsor`. It holds its suggested amounts as `option` children and its free amount field as `custom`.
 - `paypalme` and `ghsponsor` are the two routes out. Each address must be `https` and on the route's own host, and the route is dropped otherwise.
 
 A page writes its amounts with the sponsoring site variables, such as `amount={amountMonth}`. Variables are put in before the page is parsed, so the suggested amounts follow the running costs entered in the dashboard.
@@ -119,16 +119,17 @@ The site mounts `SupportLadder` on the marker in `MarkdownHtml`. The GiroCode fo
 
 ## The sponsor form
 
-`[[sponsorform]]` stands inside `[[interval key="sponsor"]]` and turns the sponsor tab into a request for a payment reference. Somebody who means to sponsor gives their name, one profile address, their own sentence and whether they want to be named on the site. The site answers with an ISO 11649 reference that opens with `RF`, two check digits and `MCSP`. The transfer card and the GiroCode then carry that reference in place of the sponsorship purpose, because a transfer carries one of the two and never both. Without the node the tab shows no form and the transfer carries the purpose as before. On any other tab the node is dropped.
+`[[sponsorform]]` stands inside `[[variant key="sponsor"]]` of the `bankaccount` and turns the sponsor tab into a request for a payment reference. The ladder shows the form on the tab whose transfer card carries one, so the page decides where the form belongs. Somebody who means to sponsor gives their name, one profile address, their own sentence and whether they want to be named on the site. The switch for being named starts on. The site answers with an ISO 11649 reference that opens with `RF`, two check digits and `MCSP`. The transfer card and the GiroCode then carry that reference in place of the sponsorship purpose, because a transfer carries one of the two and never both. Without the node no form appears and the transfer carries the purpose as before. Inside `[[interval]]` the node is dropped.
 
 ```text
-[[interval key="sponsor" label="Become a sponsor"
-  [[custom label="Your amount"]]
-  [[sponsorform submitLabel="Get my payment reference"]]
+[[bankaccount
+  [[variant key="sponsor" title="Bank transfer or GiroCode" icon="sepa"
+    [[sponsorform submitLabel="Get my payment reference"]]
+  ]]
 ]]
 ```
 
-Every word the form shows is a parameter of the node, and every one is optional. The defaults, the parameter names and what each one labels are declared once in `packages/shared/src/sponsor-form.ts`, and the editor's reference lists them. The words are plain text rather than Markdown, at most 160 characters each. A refusal is shown with the backend's own message and error ID, so no parameter words one.
+Every word the form shows is a parameter of the node, and every one is optional. The defaults, the parameter names and what each one labels are declared once in `packages/shared/src/sponsor-form.ts`, and the editor's reference lists them. The words are plain text rather than Markdown, at most 160 characters each. A refusal is worded by `failureRateLimited` when the site answers `429` and by `failureRejected` otherwise, and the backend's `MC-*` code and error ID follow that sentence, as in `That did not work. Please check your details and try again. (MC-REQ-0013) Error ID: …`.
 
 The reference lives in the visitor's browser for 60 days, which is how long the backend keeps an unclaimed request. Reloading the page therefore shows the same reference, and the form opens again on what was sent, so a correction rewrites the request under the same reference.
 

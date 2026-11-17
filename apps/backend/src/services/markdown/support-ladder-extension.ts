@@ -114,7 +114,6 @@ export function buildSupportLadderConfig(
   return readSupportLadderConfig({
     intervals: childrenOf(ladder, ShortcodeToken.Interval).map((interval) => {
       const custom = childrenOf(interval, ShortcodeToken.Custom)[0];
-      const sponsorForm = childrenOf(interval, ShortcodeToken.SponsorForm)[0];
       return {
         key: interval.params.key,
         label: text(interval.params.label),
@@ -133,11 +132,6 @@ export function buildSupportLadderConfig(
               text: text(custom.params.text),
             }
           : null,
-        // Plain text rather than Markdown, because the site sets each word as
-        // text. The shared reader keeps it on the sponsor tab only.
-        sponsorForm: sponsorForm
-          ? Object.fromEntries(SPONSOR_FORM_LABEL_KEYS.map((key) => [key, text(sponsorForm.params[key])]))
-          : null,
       };
     }),
     bankAccount: bankAccount
@@ -146,6 +140,7 @@ export function buildSupportLadderConfig(
           purposeSponsor: text(bankAccount.params.purposeSponsor) || (siteValues?.purposeSponsor ?? ""),
           variants: childrenOf(bankAccount, ShortcodeToken.Variant).map((variant) => {
             const qr = childrenOf(variant, ShortcodeToken.QrCode)[0];
+            const sponsorForm = childrenOf(variant, ShortcodeToken.SponsorForm)[0];
             return {
               key: variant.params.key,
               title: text(variant.params.title),
@@ -154,6 +149,12 @@ export function buildSupportLadderConfig(
               icon: variant.params.icon,
               qr: qr ? { ...qr.params, image: text(qr.params.image) || undefined } : undefined,
               info: text(childrenOf(variant, ShortcodeToken.Info)[0]?.params.text),
+              // Plain text rather than Markdown, because the site sets each word
+              // as text. Naming the node with nothing on it gives the form with
+              // its own defaults.
+              sponsorForm: sponsorForm
+                ? Object.fromEntries(SPONSOR_FORM_LABEL_KEYS.map((key) => [key, text(sponsorForm.params[key])]))
+                : null,
             };
           }),
         }

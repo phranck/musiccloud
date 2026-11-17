@@ -8,8 +8,8 @@
  * so a new word is added in one place.
  *
  * Every text is plain, so the site sets it as text and never as markup. A
- * refusal from the backend is shown with the backend's own message, which
- * carries its `MC-*` code, so no entry here words a refusal.
+ * refusal is worded by `failureRateLimited` or `failureRejected`, and the site
+ * follows that sentence with the backend's `MC-*` code and error ID.
  */
 
 /** What the counter under the sentence writes for the characters still free: `{n}`. */
@@ -30,7 +30,10 @@ export const SPONSOR_FORM_REMAINING_PLACEHOLDER = "{n}";
  * - `issuedTitle`, `issuedText`: what replaces the form once a reference is issued.
  * - `changeLabel`: the button that opens the form again on what was sent.
  * - `failureTitle`, `failureClose`: the heading and the button of the dialog a refusal opens.
- * - `failureOffline`: what that dialog says when the site could not be reached at all.
+ * - `failureRateLimited`: what that dialog says when the site answered `429`
+ *   because the form was sent too often.
+ * - `failureRejected`: what it says for any other refusal.
+ * - `failureOffline`: what it says when the site could not be reached at all.
  */
 export const SPONSOR_FORM_LABELS = {
   nameLabel: { value: "Name", label: "Label of the name field" },
@@ -61,6 +64,14 @@ export const SPONSOR_FORM_LABELS = {
   changeLabel: { value: "Change my details", label: "Label of the button that opens the form again" },
   failureTitle: { value: "That did not work", label: "Heading of the dialog a refusal opens" },
   failureClose: { value: "Got it", label: "Button that closes that dialog" },
+  failureRateLimited: {
+    value: "That was a few times just now. Please try again later.",
+    label: "What the dialog says when the form was sent too often",
+  },
+  failureRejected: {
+    value: "That did not work. Please check your details and try again.",
+    label: "What the dialog says when the details were refused",
+  },
   failureOffline: {
     value: "The site could not be reached. Please check your connection and try again.",
     label: "What the dialog says when the site could not be reached",

@@ -85,10 +85,10 @@ export interface SupportLadderProps {
  * EPC069-12 has no field for an interval and cannot express a standing order.
  * The monthly tab shows the same details as text.
  *
- * Where the page names a `[[sponsorform]]` on the sponsor tab, the tab asks for
- * the sponsor's details between the amount and the transfer, and from the
- * sponsor minimum up the transfer carries the payment reference the form issued
- * in place of the purpose.
+ * Where the page names a `[[sponsorform]]` in the transfer card's variant for
+ * the tab in view, the tab asks for the sponsor's details between the amount
+ * and the transfer, and from the sponsor minimum up the transfer carries the
+ * payment reference the form issued in place of the purpose.
  *
  * @param props - See {@link SupportLadderProps}.
  * @returns The ladder.
@@ -186,9 +186,12 @@ export function SupportLadder({ config }: SupportLadderProps) {
     shownKey === SupportIntervalKey.Sponsor && minSponsorAmountEur > 0 && amountEur >= minSponsorAmountEur;
   const remittance =
     (earnsSponsorship ? bankAccount?.purposeSponsor : undefined) || (bankAccount?.purposeDonation ?? "");
-  // The page decides whether the sponsor tab asks for details, by naming a
-  // `[[sponsorform]]` in it. Only then does a sponsorship carry a reference.
-  const sponsorFormText = interval.sponsorForm ? { ...SPONSOR_FORM_DEFAULTS, ...interval.sponsorForm } : null;
+  // The wording of the form, when the transfer card in view carries one. Its
+  // presence decides whether this tab asks anything of the reader at all, so
+  // the page says where the form belongs, by naming a `[[sponsorform]]` in a
+  // variant, rather than the component deciding it from a key. Only then does
+  // a sponsorship carry a reference.
+  const sponsorFormText = variant?.sponsorForm ? { ...SPONSOR_FORM_DEFAULTS, ...variant.sponsorForm } : null;
 
   return (
     <section
