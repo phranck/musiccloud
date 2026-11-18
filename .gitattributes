@@ -1,5 +1,0 @@
-# `zcli push` packs the deploy with `git archive`, which leaves out every path
-# marked `export-ignore`. The knowledge graph output is generated, read by no
-# build, and makes up most of the tracked tree, so each of the four services
-# would otherwise upload it with every deploy.
-/graphify-out export-ignore

@@ -20,7 +20,11 @@ __pycache__/
 vite.config.js
 vite.config.d.ts
 
-# Graphify knowledge-graph output is versioned with the project.
+# Graphify knowledge-graph output (local only, regenerated on request)
+graphify-out/
+
+# grat dev-server state (local only; the project's services stay in grat.config)
+.grat/
 
 # Astro
 .astro/
