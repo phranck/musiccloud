@@ -10,15 +10,18 @@
  * somebody who may not use the route. Each acting route takes at most
  * {@link BANK_CONNECTION_BODY_LIMIT_BYTES}, and answers `MC-BANK-0001` before it
  * does anything when the deployment holds no credential. Reading the account
- * now belongs to the import and is not a route here yet.
+ * now is one of the acting routes, because it reaches the bank account too.
  */
 
 import {
   BANK_CONNECTION_BODY_LIMIT_BYTES,
   BANK_CONNECTION_CALLBACK_SCHEMA,
+  BANK_READ_REQUEST_SCHEMA,
   type BankConnectionCallback,
   BankErrorCode,
+  type BankReadRequest,
   ENDPOINTS,
+  isCalendarDay,
 } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { requireOwner, requireOwnerOrAdmin } from "../lib/admin-caller.js";
@@ -31,6 +34,10 @@ import {
   getBankConnectionStatus,
 } from "../services/bank-connection.js";
 import { BankConnectionError } from "../services/bank-connection-error.js";
+import { runBankIngestion } from "../services/bank-ingestion.js";
+
+/** The code a body is refused under when it passed the schema but names a day that does not exist. */
+const MALFORMED_REQUEST_CODE = "MC-REQ-0001";
 
 /**
  * Lets only the owner through, as a `preValidation` hook.
@@ -119,5 +126,28 @@ export async function adminBankConnectionRoutes(app: FastifyInstance) {
     ENDPOINTS.admin.sponsoring.bankConnection,
     { preValidation: ownerOnly, bodyLimit: BANK_CONNECTION_BODY_LIMIT_BYTES },
     async (request, reply) => act(reply, () => disconnectBank(request.log)),
+  );
+
+  /**
+   * Reads the account now rather than waiting for the next background run.
+   * This is the account holder asking for their own information, which Article
+   * 36(5)(a) of Commission Delegated Regulation (EU) 2018/389 does not cap, so
+   * it draws on a budget of its own and cannot lock the background run out.
+   * The body takes an optional day to start at and nothing else, and a day that
+   * does not exist is refused like any malformed body. A read that did nothing
+   * answers why with 200, because that is an ordinary answer rather than a fault.
+   */
+  app.post(
+    ENDPOINTS.admin.sponsoring.bankConnectionSync,
+    {
+      preValidation: ownerOnly,
+      bodyLimit: BANK_CONNECTION_BODY_LIMIT_BYTES,
+      schema: { body: BANK_READ_REQUEST_SCHEMA },
+    },
+    async (request, reply) => {
+      const { from } = request.body as BankReadRequest;
+      if (from !== undefined && !isCalendarDay(from)) return replyWithApiError(reply, MALFORMED_REQUEST_CODE);
+      return act(reply, () => runBankIngestion("manual", from === undefined ? {} : { from }, request.log));
+    },
   );
 }
