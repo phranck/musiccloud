@@ -22,12 +22,20 @@
  * format. Unparseable values yield `undefined` so the UI can
  * distinguish "missing" from "zero".
  *
+ * ## Requests through `curl`
+ *
+ * Bandcamp's CDN answers Node's HTTP stack with a JavaScript client challenge
+ * instead of content, so every request goes through `bandcampTransport` in
+ * `transport.ts`, which runs `curl`. A request that still meets the challenge,
+ * or fails, is reported as Bandcamp being unavailable (status 503), never as
+ * "not found", because a "not found" makes the resolver skip Bandcamp for that
+ * item for a long time.
+ *
  * ## Search via Bandcamp's fuzzysearch endpoint
  *
- * Bandcamp's public HTML search is frequently guarded by a client challenge.
- * The adapter therefore uses the JSON endpoint also used by Bandcamp clients,
- * normalizes its track/album URLs, then fetches candidate pages for structured
- * JSON-LD / embedded album track data before confidence scoring.
+ * The adapter searches through the JSON endpoint also used by Bandcamp
+ * clients, normalizes its track/album URLs, then fetches candidate pages for
+ * structured JSON-LD / embedded album track data before confidence scoring.
  *
  * ## `sourceId = full URL`
  *
@@ -38,7 +46,6 @@
  * treat the sourceId as opaque.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
@@ -55,9 +62,19 @@ import { throwIfSearchIncomplete } from "../_shared/candidates.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
+import { bandcampTransport } from "./transport.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
+
+/** How long one Bandcamp request may take, 8 s, because an album page is about 300 KB. */
+const BANDCAMP_REQUEST_TIMEOUT_MS = 8000;
+
+/**
+ * The status a failed Bandcamp request is reported with. 503 says Bandcamp
+ * did not answer, so `serviceHttpError` builds Bandcamp's generic failure code
+ * rather than its "not found" code.
+ */
+const BANDCAMP_UNAVAILABLE_STATUS = 503;
 
 // Bandcamp URLs: {artist}.bandcamp.com/track/{slug}
 const BANDCAMP_TRACK_REGEX = /^https?:\/\/([a-z0-9-]+)\.bandcamp\.com\/track\/([a-z0-9-]+)/;
@@ -132,18 +149,30 @@ function parseDuration(iso: string): number | undefined {
   return (hours * 3600 + minutes * 60 + seconds) * 1000;
 }
 
-async function bandcampFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  return fetchWithTimeout(
-    url,
-    {
-      headers: {
-        "User-Agent": SCRAPER_USER_AGENT,
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    },
-    timeoutMs,
-  );
+/**
+ * Requests a Bandcamp page or the search endpoint through {@link bandcampTransport}.
+ *
+ * @param url - The Bandcamp address to request.
+ * @param kind - What is being fetched, for the error code and message.
+ * @param id - What the caller asked for: the page URL, or the search text.
+ * @param op - The operation, `Operation.Fetch` for a page and
+ *   `Operation.Search` for the search endpoint.
+ * @returns Bandcamp's answer. An error status such as 404 is returned, not thrown.
+ * @throws {ResolveError} Bandcamp's generic failure code, built from
+ *   {@link BANDCAMP_UNAVAILABLE_STATUS}, when the request fails or meets the
+ *   CDN's client challenge. The transport has logged the cause.
+ */
+async function bandcampFetch(
+  url: string,
+  kind: ResourceKind,
+  id: string,
+  op: Operation = Operation.Fetch,
+): Promise<Response> {
+  try {
+    return await bandcampTransport.request(url, BANDCAMP_REQUEST_TIMEOUT_MS);
+  } catch {
+    throw serviceHttpError(Service.BandCamp, BANDCAMP_UNAVAILABLE_STATUS, kind, id, op);
+  }
 }
 
 function parseJsonLd(html: string): BandcampJsonLd | null {
@@ -160,7 +189,7 @@ function parseJsonLd(html: string): BandcampJsonLd | null {
 }
 
 async function fetchTrackByUrl(trackUrl: string): Promise<NormalizedTrack | null> {
-  const response = await bandcampFetch(trackUrl);
+  const response = await bandcampFetch(trackUrl, ResourceKind.Track, trackUrl);
   // A page Bandcamp does not have answers 404, which is an answer. Any other
   // error status is a failure.
   if (response.status === 404) return null;
@@ -222,7 +251,7 @@ function normalizeBandcampResultUrl(rawUrl: string | undefined, kind: "track" | 
 
 async function searchBandcamp(query: string): Promise<BandcampSearchResult[]> {
   const searchUrl = `https://bandcamp.com/api/fuzzysearch/2/app_autocomplete?q=${encodeURIComponent(query)}&param_with_locations=true`;
-  const response = await bandcampFetch(searchUrl);
+  const response = await bandcampFetch(searchUrl, ResourceKind.Track, query, Operation.Search);
   // A search without results answers 200 with an empty list, so an error
   // status or a body that is not JSON is a failure rather than an answer.
   if (!response.ok) {
@@ -293,7 +322,7 @@ function trackUrlFromAlbum(albumUrl: string, titleLink: string | undefined): str
 }
 
 async function fetchTracksByAlbumUrl(albumUrl: string): Promise<NormalizedTrack[]> {
-  const response = await bandcampFetch(albumUrl);
+  const response = await bandcampFetch(albumUrl, ResourceKind.Album, albumUrl);
   if (response.status === 404) return [];
   if (!response.ok) throw serviceHttpError(Service.BandCamp, response.status, ResourceKind.Album, albumUrl);
 
@@ -391,7 +420,7 @@ function parseAlbumJsonLd(html: string): BandcampAlbumJsonLd | null {
 }
 
 async function fetchAlbumByUrl(albumUrl: string): Promise<NormalizedAlbum | null> {
-  const response = await bandcampFetch(albumUrl);
+  const response = await bandcampFetch(albumUrl, ResourceKind.Album, albumUrl);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.BandCamp, response.status, ResourceKind.Album, albumUrl);
   const html = await response.text();
