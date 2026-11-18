@@ -3,9 +3,9 @@
  * connection and letting it go, ported from lmaa.space
  * (`apps/backend/src/services/bank-connection.ts`).
  *
- * Reading the account and the read fields of the status belong to the import,
- * which adds them; until then the status answers them as `null` and `0`. The
- * service's information lines go to the logger the caller hands in, the request
+ * Reading the account is `bank-ingestion.ts`; the status here reports its last
+ * read from `bank-read-store.ts` and its next one from `bank-read-schedule.ts`.
+ * The service's information lines go to the logger the caller hands in, the request
  * logger on a route, and carry the authorization id, the account count and the
  * consent end. The token, the code, the state, the session and the account are
  * never logged.
@@ -32,6 +32,8 @@ import {
   revokeLiveBankConnection,
   takeAuthorizationState,
 } from "./bank-connection-store.js";
+import { nextBackgroundReadAt } from "./bank-read-schedule.js";
+import { type BankReadRecord, getLastBankRead } from "./bank-read-store.js";
 import { closeSession, createSession, startAuthorization } from "./enable-banking-client.js";
 
 /** The component every log line of this module names. */
@@ -77,10 +79,17 @@ const EXPECTED_ACCOUNT_COUNT = 1;
  * Turns the stored connection into what the dashboard shows.
  *
  * @param connection - The connection in force, or `null` where there is none.
- * @returns The status, which carries nothing that could reach the account. The
- *   read fields stand at `null` and `0` until the import fills them.
+ * @param lastRead - The most recent read of either kind, or `null`, the default,
+ *   before the first one and where the caller answers about the connection alone.
+ * @param nextRead - When the background run next reaches the bank, or `null`,
+ *   the default, where it will not.
+ * @returns The status, which carries nothing that could reach the account.
  */
-function toStatus(connection: BankConnectionRecord | null): BankConnectionStatus {
+function toStatus(
+  connection: BankConnectionRecord | null,
+  lastRead: BankReadRecord | null = null,
+  nextRead: Date | null = null,
+): BankConnectionStatus {
   return {
     configured: isEnableBankingConfigured(),
     connected: connection !== null,
@@ -88,12 +97,14 @@ function toStatus(connection: BankConnectionRecord | null): BankConnectionStatus
     institutionCountry: connection?.aspspCountry ?? "",
     consentValidUntil: connection?.consentValidUntil?.toISOString() ?? null,
     connectedAt: connection?.createdAt.toISOString() ?? null,
-    lastReadAt: null,
-    lastReadSucceeded: null,
-    lastReadImported: 0,
-    lastReadFilled: 0,
-    lastReadFailure: null,
-    nextReadAt: null,
+    lastReadAt: lastRead?.readAt.toISOString() ?? null,
+    lastReadSucceeded: lastRead?.succeeded ?? null,
+    lastReadImported: lastRead?.imported ?? 0,
+    lastReadFilled: lastRead?.filled ?? 0,
+    // Why it failed, so the card can say something the owner can act on
+    // rather than that it did not work.
+    lastReadFailure: lastRead?.failureReason ?? null,
+    nextReadAt: nextRead?.toISOString() ?? null,
   };
 }
 
@@ -101,7 +112,8 @@ function toStatus(connection: BankConnectionRecord | null): BankConnectionStatus
  * What the dashboard shows about the connection.
  *
  * @returns Whether the deployment is configured, whether a connection is in
- *   force, and when its consent lapses.
+ *   force, when its consent lapses, and when the account was last read and is
+ *   read next.
  *
  * @remarks
  * Every field comes from this site's own database. Nothing here is fetched from
@@ -109,7 +121,12 @@ function toStatus(connection: BankConnectionRecord | null): BankConnectionStatus
  * it knows rather than nothing.
  */
 export async function getBankConnectionStatus(): Promise<BankConnectionStatus> {
-  return toStatus(await getLiveBankConnection());
+  const [connection, lastRead] = await Promise.all([getLiveBankConnection(), getLastBankRead()]);
+  // After the connection, because whether a next read exists at all depends on
+  // it, and asking for one while nothing is connected reads a table for an
+  // answer that is already settled.
+  const nextRead = await nextBackgroundReadAt(connection, new Date());
+  return toStatus(connection, lastRead, nextRead);
 }
 
 /**

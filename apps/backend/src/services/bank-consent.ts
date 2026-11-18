@@ -6,7 +6,8 @@
  * every mail through its email actions, so the warning is the
  * `bankConsentNotice` action, addressed to the dashboard's owner, with lmaa's
  * words carried in as context variables. musiccloud has no push notifications,
- * so the mail is the only channel.
+ * so the mail is the only channel. The bank worker in `bank-ingestion.ts`
+ * looks at the consent every six hours, beside its read of the account.
  */
 
 import {
@@ -18,7 +19,6 @@ import {
   EmailAction,
   EmailRecipientKind,
 } from "@musiccloud/shared";
-import type { FastifyBaseLogger } from "fastify";
 import { getAdminRepository } from "../db/index.js";
 import { requireEnv } from "../lib/env.js";
 import { log } from "../lib/infra/logger.js";
@@ -30,22 +30,6 @@ const LOG_COMPONENT = "BankConsent";
 
 /** The role whose holder is warned, because connecting the bank is theirs alone. */
 const OWNER_ROLE = "owner";
-
-/**
- * How often the consent is looked at: every 6 hours, and once at start-up.
- *
- * The rhythm lmaa.space's bank worker runs on. The reached rung is recorded on
- * the connection, so a restart, a second container or an extra look cannot
- * repeat a warning; the interval only decides how soon one goes out.
- */
-const CONSENT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
-
-/**
- * The code a look that could not send its warning is logged under: the
- * generic server fault, because the cause is a missing owner address, an
- * unbound template or a mail provider, none of which is the bank's.
- */
-const UNSENT_WARNING_ERROR_CODE = "MC-SYS-0001";
 
 /** The rung that means the consent is gone, which a refused read reaches whatever the date says. */
 const LAPSED_STAGE: BankConsentNoticeStage = "lapsed";
@@ -167,8 +151,8 @@ export async function announceConsentStage(now = new Date()): Promise<void> {
  * @remarks
  * The date is only what the bank promised when it granted the consent; it may
  * withdraw earlier. A refused read is what happened rather than what was
- * expected, so it warns on its own trigger. The import calls it once it reads
- * the account.
+ * expected, so it warns on its own trigger. The import calls it when a read
+ * finds the consent lapsed.
  *
  * It shares the recorded rung with the staircase above, because both say the
  * same thing to the same person and saying it twice is what this design is
@@ -183,37 +167,4 @@ export async function announceConsentRefused(): Promise<void> {
   await setConsentNoticeStage(connection.id, LAPSED_STAGE);
 
   log.warn(LOG_COMPONENT, "the bank refused a read: consent has lapsed");
-}
-
-/**
- * Starts looking at the consent every {@link CONSENT_CHECK_INTERVAL_MS} and
- * looks once at once.
- *
- * @param logger - Where a started watch says so, such as the Fastify logger.
- * @returns The timer, unreferenced so it never keeps the process alive.
- *
- * @remarks
- * A failed look is logged as a deviation and the next one tries again, because
- * a warning that did not go out is not recorded as said. The import adds its
- * read to the same rhythm, as lmaa.space's bank worker runs both.
- */
-export function startBankConsentWatch(logger: Pick<FastifyBaseLogger, "info">): NodeJS.Timeout {
-  const look = () => {
-    void announceConsentStage().catch((error) =>
-      log.deviation(
-        {
-          component: LOG_COMPONENT,
-          errorCode: UNSENT_WARNING_ERROR_CODE,
-          operation: "bank_consent_notice",
-          outcome: "warning_not_sent",
-        },
-        error,
-      ),
-    );
-  };
-  look();
-  const timer = setInterval(look, CONSENT_CHECK_INTERVAL_MS);
-  timer.unref();
-  logger.info({ component: LOG_COMPONENT, intervalMs: CONSENT_CHECK_INTERVAL_MS }, "bank consent watch started");
-  return timer;
 }

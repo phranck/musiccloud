@@ -91,7 +91,7 @@ import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site
 import sponsorAvatarRoutes from "./routes/sponsor-avatar.js";
 import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
-import { startBankConsentWatch } from "./services/bank-consent.js";
+import { startBankWorker } from "./services/bank-ingestion.js";
 import { isEmailProviderHealthy } from "./services/email-provider.js";
 import { isPluginAvailable, validateAdapters } from "./services/index.js";
 import { startPendingSponsorshipExpiry } from "./services/pending-sponsorships.js";
@@ -715,12 +715,15 @@ async function buildApp(options: BuildAppOptions = {}) {
 
 async function start() {
   const app = await buildApp();
+  /** The bank worker's timer once it runs, `undefined` before; shutdown stops it so no read starts while the pools close. */
+  let bankWorker: NodeJS.Timeout | undefined;
 
   // Graceful shutdown
   const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
   for (const signal of signals) {
     process.on(signal, async () => {
       app.log.info(`Received ${signal}, shutting down gracefully...`);
+      clearInterval(bankWorker);
       await closeRuntimeDatabaseReadinessPool();
       await app.close();
       process.exit(0);
@@ -737,8 +740,9 @@ async function start() {
     app.log.info(`Backend listening on ${HOST}:${PORT}`);
     // Started after the migrations, because the sweep deletes from a table they create.
     startPendingSponsorshipExpiry(app.log);
-    // After the migrations as well, because it reads the bank connection's table.
-    startBankConsentWatch(app.log);
+    // After the migrations as well, because it reads the bank connection's tables:
+    // the consent warnings and the background read of the account, on one timer.
+    bankWorker = startBankWorker(app.log);
     validateAdapters();
     // Pre-warm Apple Music developer token (avoids first-request latency)
     if (isPluginAvailable(Service.AppleMusic)) warmAppleMusicToken();
