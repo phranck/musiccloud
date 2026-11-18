@@ -16,6 +16,7 @@
  * | `CFG`  | Configuration / environment missing                      |
  * | `MAP`  | Mapping / malformed response data                        |
  * | `BILL` | Billing: a Creem product, price or subscription operation |
+ * | `BANK` | The bank connection through Enable Banking                |
  *
  * ## Number scheme
  *
@@ -40,7 +41,7 @@
 
 import type { ServiceId } from "./services.js";
 
-export type ErrorArea = "URL" | "API" | "AUTH" | "RES" | "DB" | "CFG" | "MAP" | "REQ" | "SYS" | "BILL";
+export type ErrorArea = "URL" | "API" | "AUTH" | "RES" | "DB" | "CFG" | "MAP" | "REQ" | "SYS" | "BILL" | "BANK";
 
 /**
  * Canonical error code. Narrow enough to distinguish areas in the type system,
@@ -436,6 +437,78 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "A product mapping addresses its offer by plan and period through fk_tier_creem_products_offer, which has no update rule, so the period of an offer with a product in either environment is fixed.",
     source: "apps/backend/src/routes/admin-plan-offers.ts findBrokenOfferRule",
   },
+  // ─── Bank connection: Enable Banking ───────────────────────────────
+  "MC-BANK-0001": {
+    code: "MC-BANK-0001",
+    httpStatus: 503,
+    userMessage: "The bank connection is not configured.",
+    internalNote:
+      "ENABLE_BANKING_APPLICATION_ID and ENABLE_BANKING_PRIVATE_KEY are not set, so nothing can be signed for Enable Banking. Every acting bank connection route answers this before it does anything; the status route still answers.",
+    source: "apps/backend/src/routes/admin-bank-connection.ts, apps/backend/src/services/enable-banking-client.ts",
+  },
+  "MC-BANK-0002": {
+    code: "MC-BANK-0002",
+    httpStatus: 502,
+    userMessage: "The bank interface could not be reached.",
+    internalNote:
+      "The request to api.enablebanking.com failed before an answer arrived: a network failure, a redirect (refused by policy), or the 15 second timeout. The log names the path and the failure's name, never the token.",
+    source: "apps/backend/src/services/enable-banking-client.ts callEnableBanking",
+  },
+  "MC-BANK-0003": {
+    code: "MC-BANK-0003",
+    httpStatus: 502,
+    userMessage: "The bank interface refused the request.",
+    internalNote:
+      "Enable Banking answered with a status that is not a success. The log carries the path and the status, and nothing from the body.",
+    source: "apps/backend/src/services/enable-banking-client.ts callEnableBanking",
+  },
+  "MC-BANK-0004": {
+    code: "MC-BANK-0004",
+    httpStatus: 502,
+    userMessage: "The bank interface answered unexpectedly.",
+    internalNote:
+      "Enable Banking's answer did not fit the schema that keeps only the fields this site reads, or was not JSON. The log names the fields that were wrong, never their values.",
+    source: "apps/backend/src/services/enable-banking-client.ts parseAnswer",
+  },
+  "MC-BANK-0005": {
+    code: "MC-BANK-0005",
+    httpStatus: 500,
+    userMessage: "The request would have gone to an address that is not the bank's, so it was not made.",
+    internalNote:
+      "A request to Enable Banking would have left api.enablebanking.com, or a stored session or account identifier failed the path pattern or was a dot segment. Nothing was sent.",
+    source: "apps/backend/src/services/enable-banking-client.ts callEnableBanking, requirePathIdentifier",
+  },
+  "MC-BANK-0006": {
+    code: "MC-BANK-0006",
+    httpStatus: 400,
+    userMessage: "This authorization is no longer open.",
+    internalNote:
+      "The bank's return carried a state that matches no authorization this site started: never issued, already spent, or older than 15 minutes. No code was exchanged.",
+    source: "apps/backend/src/services/bank-connection.ts completeBankAuthorization",
+  },
+  "MC-BANK-0007": {
+    code: "MC-BANK-0007",
+    httpStatus: 502,
+    userMessage: "The bank connection reached an unexpected set of accounts.",
+    internalNote:
+      "The session Enable Banking issued reaches a number of accounts other than one. It was not stored and was closed at the provider; the log says whether closing worked.",
+    source: "apps/backend/src/services/bank-connection.ts completeBankAuthorization",
+  },
+  "MC-BANK-0008": {
+    code: "MC-BANK-0008",
+    httpStatus: 404,
+    userMessage: "No bank connection is in force.",
+    internalNote: "Disconnecting while every stored connection has already been withdrawn.",
+    source: "apps/backend/src/services/bank-connection.ts disconnectBank",
+  },
+  "MC-BANK-0009": {
+    code: "MC-BANK-0009",
+    httpStatus: 502,
+    userMessage: "The connection was withdrawn, but the consent could not be closed at the bank.",
+    internalNote:
+      "The connection was revoked locally and stays revoked, but Enable Banking would not close the session, so the consent behind it lapses on its own. The dashboard tells this apart from a refused disconnect.",
+    source: "apps/backend/src/services/bank-connection.ts disconnectBank",
+  },
   "MC-SYS-0002": {
     code: "MC-SYS-0002",
     httpStatus: 503,
@@ -652,7 +725,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
 };
 
 /** Pattern that recognises any well-formed MC error code, even if not in the registry. */
-export const MC_ERROR_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS|BILL)-\d{3,4}$/;
+export const MC_ERROR_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS|BILL|BANK)-\d{3,4}$/;
 
 /**
  * Builds the four digits of a per-service code from the service's prefix and
@@ -796,6 +869,9 @@ function defaultHttpStatusForArea(area: ErrorArea): number {
       // A billing failure is the payment provider refusing or unreachable,
       // which is an upstream problem rather than ours.
       return 502;
+    case "BANK":
+      // As with billing, an unnamed bank failure is the provider's.
+      return 502;
   }
 }
 
@@ -811,6 +887,8 @@ function defaultMessageForArea(area: ErrorArea): string {
       return "We couldn't resolve this request.";
     case "BILL":
       return "A billing operation could not be completed.";
+    case "BANK":
+      return "A bank connection operation could not be completed.";
     case "CFG":
       return "A required configuration is missing on the server.";
     case "DB":

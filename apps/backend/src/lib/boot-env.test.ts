@@ -138,4 +138,26 @@ describe("assertRequiredBootEnv (MC-110)", () => {
 
     expect(getCreemConfig).toHaveBeenCalledOnce();
   });
+
+  it.each([
+    ["ENABLE_BANKING_APPLICATION_ID", "0b6c1f2e-3d4a-4b5c-8d6e-7f8091a2b3c4", "ENABLE_BANKING_PRIVATE_KEY"],
+    ["ENABLE_BANKING_PRIVATE_KEY", "a-key", "ENABLE_BANKING_APPLICATION_ID"],
+  ])("refuses to boot with only %s of the Enable Banking credential", async (variable, value, missing) => {
+    vi.stubEnv("ENABLE_BANKING_APPLICATION_ID", "");
+    vi.stubEnv("ENABLE_BANKING_PRIVATE_KEY", "");
+    vi.stubEnv(variable, value);
+
+    const { assertRequiredBootEnv } = await import("./boot-env.js");
+
+    expect(() => assertRequiredBootEnv()).toThrow(new RegExp(missing));
+  });
+
+  it("boots without any Enable Banking credential, because the bank connection is optional", async () => {
+    vi.stubEnv("ENABLE_BANKING_APPLICATION_ID", "");
+    vi.stubEnv("ENABLE_BANKING_PRIVATE_KEY", "");
+
+    const { assertRequiredBootEnv } = await import("./boot-env.js");
+
+    expect(() => assertRequiredBootEnv()).not.toThrow();
+  });
 });
