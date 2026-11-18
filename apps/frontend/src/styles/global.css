@@ -290,6 +290,13 @@ button,
   color: var(--mc-text-card);
 }
 
+/* Bold text inside any card of a content page, a written card, a route, the
+   transfer or a sponsor, is semibold, a step above the prose class-maps'
+   medium, so it stands out against the card text around it. */
+.mc-markdown .embossed-gradient-border :is(strong, b) {
+  font-weight: var(--font-weight-semibold);
+}
+
 /* A heading that introduces a card, a row of cards, the sponsor wall or the
    support ladder begins where the cards' curve gives way to their straight
    edge, half the card radius in. `MarkdownHtml` publishes that inset as
