@@ -8,12 +8,13 @@
  *
  * What differs between the surfaces is not the arrangement but the material:
  * the spacing scale, the corner radius, the surface colour. Those arrive as the
- * five properties below, which each surface declares from its own tokens. The
+ * properties below, which each surface declares from its own tokens. The
  * fallbacks are what a surface that declares none of them gets, so the markup
  * is never unarranged.
  *
  *   --mc-shortcode-gap             space between the children of a stack
  *   --mc-shortcode-gap-tight       space between a picture and its caption
+ *   --mc-shortcode-card-gap        space between the cards of a row
  *   --mc-shortcode-radius          corner of a picture, a card, a video
  *   --mc-shortcode-surface         what a card-like block sits on
  *   --mc-shortcode-border          the line around one
@@ -256,6 +257,34 @@
    and it stays flat, exactly as a SwiftUI Spacer does. */
 .mc-spacer--flexible {
   flex-grow: 1;
+}
+
+/* A row of cards. Each surface draws the cards in its own material; how they
+   stand beside each other is the same on both. A page that names a gap carries
+   it inline, which outweighs the surface's own. */
+.mc-cards {
+  display: grid;
+  gap: var(--mc-shortcode-card-gap, 1rem);
+  /* One column until there is room for more. Everything narrower gets full
+     width cards, because two cards on a phone are two unreadable ones. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* `minmax(0, 1fr)` rather than `1fr`: a grid track's minimum is `auto`, so a
+   long unbroken word or a wide code block inside a card would push its column
+   past its share and the row past the page. */
+@media (min-width: 48rem) {
+  .mc-cards--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mc-cards--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mc-cards--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 /* A picture and, where there is one, what it is captioned with. */

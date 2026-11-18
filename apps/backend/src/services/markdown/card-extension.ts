@@ -27,7 +27,7 @@ import {
   type ShortcodeParamValue,
   type SingleContentContext,
 } from "@musiccloud/shared";
-import type { MarkedExtension, Token, Tokens } from "marked";
+import type { MarkedExtension, RendererThis, Token, Tokens } from "marked";
 import { insideContainer, isAtContainerLimit, resolveContainerSpacing } from "./containers.js";
 import { iconSetFor, renderSymbol } from "./icon-extension.js";
 
@@ -90,8 +90,23 @@ interface CardSections {
   footer: string | null;
 }
 
+/** The token type of a card written with braces, which is all content. */
+export const CARD_TOKEN_TYPE = "mcCard";
+
+/**
+ * The token type of a card written in its parts.
+ *
+ * A type of its own, because the parts are offered on fewer surfaces than the
+ * card is, and the context check decides by token type. The extension registry
+ * declares where this one may stand.
+ */
+export const SECTIONED_CARD_TOKEN_TYPE = "mcCardSectioned";
+
+/** The token type of a row of cards. */
+export const CARD_ROW_TOKEN_TYPE = "mcCardRow";
+
 interface McCardToken extends Tokens.Generic {
-  type: "mcCard";
+  type: typeof CARD_TOKEN_TYPE | typeof SECTIONED_CARD_TOKEN_TYPE;
   tokens: Token[];
   /** Whether the card is written in its three parts rather than as one body. */
   sectioned: boolean;
@@ -104,7 +119,7 @@ interface McCardToken extends Tokens.Generic {
 }
 
 interface McCardRowToken extends Tokens.Generic {
-  type: "mcCardRow";
+  type: typeof CARD_ROW_TOKEN_TYPE;
   tokens: Token[];
   columns: number;
   /** The gap as CSS, or `null` to let the stylesheet decide. */
@@ -228,11 +243,33 @@ function lexPart(lexer: { blockTokens(source: string): unknown }, value: string 
  * @param context - Which surface it renders for, which a header's symbol needs.
  * @returns The extension, ready to register.
  */
+/**
+ * Draws one card, in whichever of its two forms the tokenizer read.
+ *
+ * @param token - The card token, of either card token type.
+ * @returns The card's HTML: `mc-card` around its content, plus the
+ *   `mc-card--sectioned` class and the header, body and footer elements where
+ *   the card was written in its parts.
+ */
+function renderCard(this: RendererThis, token: Tokens.Generic): string {
+  const card = token as McCardToken;
+  const header = card.headerTokens
+    ? `<div class="${CARD_HEADER_CLASS}">${card.headerIcon ?? ""}${this.parser.parse(card.headerTokens)}</div>`
+    : "";
+  const footer = card.footerTokens
+    ? `<div class="${CARD_FOOTER_CLASS}">${this.parser.parse(card.footerTokens)}</div>`
+    : "";
+  const content = this.parser.parse(card.tokens);
+  const body = card.sectioned ? `<div class="${CARD_BODY_CLASS}">${content}</div>` : content;
+  const sectionedClass = card.sectioned ? ` ${CARD_CLASS}--sectioned` : "";
+  return `<div class="${CARD_CLASS}${sectionedClass}">${header}${body}${footer}</div>\n`;
+}
+
 export function createCardExtension(context: SingleContentContext): MarkedExtension {
   return {
     extensions: [
       {
-        name: "mcCard",
+        name: CARD_TOKEN_TYPE,
         level: "block",
         start(source: string) {
           return source.match(/\[\[card[\s{\]]/)?.index;
@@ -249,7 +286,7 @@ export function createCardExtension(context: SingleContentContext): MarkedExtens
           return insideContainer(() => {
             const sections = readCardSections(read, context);
             return {
-              type: "mcCard",
+              type: sections.sectioned ? SECTIONED_CARD_TOKEN_TYPE : CARD_TOKEN_TYPE,
               raw: read.raw,
               sectioned: sections.sectioned,
               tokens: this.lexer.blockTokens(sections.body) as Token[],
@@ -261,22 +298,13 @@ export function createCardExtension(context: SingleContentContext): MarkedExtens
             } satisfies McCardToken;
           });
         },
-        renderer(token) {
-          const card = token as McCardToken;
-          const header = card.headerTokens
-            ? `<div class="${CARD_HEADER_CLASS}">${card.headerIcon ?? ""}${this.parser.parse(card.headerTokens)}</div>`
-            : "";
-          const footer = card.footerTokens
-            ? `<div class="${CARD_FOOTER_CLASS}">${this.parser.parse(card.footerTokens)}</div>`
-            : "";
-          const content = this.parser.parse(card.tokens);
-          const body = card.sectioned ? `<div class="${CARD_BODY_CLASS}">${content}</div>` : content;
-          const sectionedClass = card.sectioned ? ` ${CARD_CLASS}--sectioned` : "";
-          return `<div class="${CARD_CLASS}${sectionedClass}">${header}${body}${footer}</div>\n`;
-        },
+        renderer: renderCard,
       },
+      // The sectioned form is read by the tokenizer above and only drawn here,
+      // so this entry needs a renderer and nothing else.
+      { name: SECTIONED_CARD_TOKEN_TYPE, renderer: renderCard },
       {
-        name: "mcCardRow",
+        name: CARD_ROW_TOKEN_TYPE,
         level: "block",
         start(source: string) {
           return source.match(/\[\[cards[\s{\]]/)?.index;
@@ -289,7 +317,7 @@ export function createCardExtension(context: SingleContentContext): MarkedExtens
           return insideContainer(
             () =>
               ({
-                type: "mcCardRow",
+                type: CARD_ROW_TOKEN_TYPE,
                 raw: read.raw,
                 tokens: this.lexer.blockTokens(read.body ?? "") as Token[],
                 columns: Number(read.params.columns),

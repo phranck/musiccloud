@@ -19,25 +19,34 @@ import {
 } from "./types.js";
 
 /**
- * Cards belong to the portal, and only there.
+ * Where a card and a row of cards may be written: on both surfaces.
  *
- * The portal's stylesheet gives `mc-card` the surface the hand-written pages
- * used; the site's has no such surface, so a card written into a page there
- * would render as an unstyled block. This is what the context mask is for, and
- * it is a smaller promise than offering the shortcode everywhere and having it
- * look wrong in one place. Extending it to the site is a stylesheet away.
+ * Each surface draws `mc-card` in its own material. The portal styles the
+ * class in its stylesheet, and the site's markdown transform replaces the
+ * element with its embossed card.
+ */
+const EVERY_CONTENT_CONTEXT = ContentContext.Frontend | ContentContext.DeveloperPortal;
+
+/**
+ * Where a card's header, body and footer may be written: in the portal only.
+ *
+ * The portal draws the header and the footer as bands reaching the card's
+ * edges. The site has no such bands for page content, so a card written in its
+ * parts is refused there rather than rendered as something the site does not
+ * draw. A card on the site is written in the short form, with braces.
  */
 const PORTAL_ONLY = ContentContext.DeveloperPortal;
 
 /**
  * The custom property carrying the gap between cards in a row.
  *
- * The value itself lives in the stylesheet, where the page's spacing is
- * decided. Naming the property rather than the figure is what keeps this from
- * becoming a second answer that drifts, and the editor's reference resolves it
- * against the page so a writer still sees the number.
+ * The value itself lives in the stylesheets, where each surface decides its
+ * spacing: `@musiccloud/shared/styles/markdown-shortcodes.css` reads it, and
+ * the site and the portal each declare it from their own tokens. Naming the
+ * property rather than a figure is what keeps this label from becoming a
+ * second answer that drifts.
  */
-export const CARD_ROW_DEFAULT_SPACING_TOKEN = "var(--mc-space-5)";
+export const CARD_ROW_DEFAULT_SPACING_TOKEN = "var(--mc-shortcode-card-gap)";
 
 /**
  * How deeply containers may be nested before the renderer stops.
@@ -181,9 +190,10 @@ const CARD_ROW_EXAMPLE = [
 /**
  * One card, holding whatever a page holds.
  *
- * Renders the portal's own card surface rather than a bare container, so a card
- * written into a page is the same shape as the ones the hand-written pages
- * used, and a change to the card geometry reaches both.
+ * Renders each surface's own card rather than a bare container: the portal's
+ * card surface there, and the embossed card on the site. A card written into a
+ * page is therefore the same shape as the cards around it, and a change to
+ * either surface's card geometry reaches it.
  */
 export const CARD_SHORTCODE = {
   token: ShortcodeToken.Card,
@@ -194,9 +204,9 @@ export const CARD_SHORTCODE = {
   body: ShortcodeBodyRule.Markdown,
   label: "Card",
   description:
-    "A card, taking the full width of the column it stands in. Written with braces it holds ordinary Markdown: headings, paragraphs, lists, code, any other shortcode, a row of cards, and another card. Written without them it holds its own parts instead, in whatever order suits the writing, and the card decides where each goes.",
+    "A card, taking the full width of the column it stands in. Written with braces it holds ordinary Markdown: headings, paragraphs, lists, code, any other shortcode, a row of cards, and another card. Written without them it holds its own parts instead, in whatever order suits the writing, and the card decides where each goes. The parts are drawn in the developer portal only, so a card on the site is written with braces.",
   examples: ["[[card {\n## What you get\n\nOne resolve call, every service it can find.\n}]]", CARD_SECTIONED_EXAMPLE],
-  allowedContextMask: PORTAL_ONLY,
+  allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [],
   children: [CARD_HEADER_SHORTCODE, CARD_BODY_SHORTCODE, CARD_FOOTER_SHORTCODE],
 } as const satisfies ShortcodeDefinition;
@@ -219,7 +229,7 @@ export const CARD_ROW_SHORTCODE = {
   description:
     "Stands the cards inside it side by side. On a narrow screen they drop underneath each other instead of getting too thin to read, which the stylesheet decides rather than the page.",
   examples: [CARD_ROW_EXAMPLE],
-  allowedContextMask: PORTAL_ONLY,
+  allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
     {
       name: "columns",

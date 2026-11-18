@@ -7,6 +7,7 @@ import {
 import parse, { domToReact, type Element, type HTMLReactParserOptions, type Text } from "html-react-parser";
 import { createElement, Fragment } from "react";
 
+import { embossedCardTextInset } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { BioAnchor } from "@/components/markdown/BioAnchor";
@@ -45,6 +46,27 @@ const CardStyle = {
  */
 const DEFAULT_CARD_PADDING = "0.75rem";
 const DEFAULT_CARD_RADIUS = "0.75rem";
+
+/**
+ * The class the backend gives a card written into a page with `[[card]]`.
+ *
+ * The element is replaced by an `EmbossedCard` that keeps the class, so the
+ * rhythm rules in `global.css` still find the card's content.
+ */
+const MARKDOWN_CARD_CLASS = "mc-card";
+
+/**
+ * Whether an element carries a class, compared as a whole token.
+ *
+ * @param el - The parsed element.
+ * @param className - The class to look for.
+ * @returns `true` where the element's `class` attribute lists `className`
+ *   itself, and `false` for a class that only begins with it, such as
+ *   `mc-card__header`.
+ */
+function hasClassToken(el: Element, className: string): boolean {
+  return el.attribs.class?.split(/\s+/).includes(className) ?? false;
+}
 
 /**
  * What a node is replaced with when it is to render nothing at all.
@@ -88,7 +110,8 @@ function anchorTextContent(el: Element): string {
  *
  * A `<div data-mc-support-ladder>` marker becomes the interactive
  * `SupportLadder`, a `<div data-mc-sponsor-wall>` marker the `SponsorWall`,
- * and a video link becomes a `VideoEmbed`.
+ * a `<div class="mc-card">` from `[[card]]` an `EmbossedCard`, and a video link
+ * becomes a `VideoEmbed`.
  *
  * When `linkifyText` is enabled, every plain-text run is additionally scanned for
  * URLs/emails which become `mc-cardlink` anchors (used for artist bios, whose
@@ -144,6 +167,19 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
       if (el.name === "div" && el.attribs[SPONSOR_WALL_ATTRIBUTE] !== undefined) {
         const config = parseSponsorWallAttribute(el.attribs[SPONSOR_WALL_ATTRIBUTE]);
         return config ? <SponsorWall config={config} /> : REMOVED_NODE;
+      }
+
+      // A card written into the page becomes the site's own card. Only the
+      // short form reaches the site, because the backend refuses a card written
+      // in its parts here, so the element's children are all content. The
+      // padding is the text inset, so the copy lines up with the titles of the
+      // section cards around it.
+      if (el.name === "div" && hasClassToken(el, MARKDOWN_CARD_CLASS)) {
+        return (
+          <EmbossedCard className={MARKDOWN_CARD_CLASS} padding={embossedCardTextInset}>
+            {domToReact(el.children as never, options)}
+          </EmbossedCard>
+        );
       }
 
       if (el.name !== "pre") return undefined;

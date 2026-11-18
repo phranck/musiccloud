@@ -217,11 +217,35 @@ button,
 .mc-markdown {
   --mc-shortcode-gap: 0.75rem;
   --mc-shortcode-gap-tight: 0.5rem;
+  --mc-shortcode-card-gap: var(--mc-gap-cards, 1.375rem);
   --mc-shortcode-radius: 0.75rem;
   --mc-shortcode-surface: var(--color-surface);
   --mc-shortcode-border: var(--color-border);
   --mc-shortcode-caption-color: var(--color-text-muted);
   --mc-shortcode-title-color: var(--color-text-primary);
+}
+
+/* A card written into a page with `[[card]]`, which `MarkdownHtml` draws as an
+   `EmbossedCard`. Its content keeps the page's rhythm inside, but not the outer
+   margins, which the card's own padding already provides. The content surface
+   clips, so those margins would not collapse into the card's edge but add to
+   it. Three classes outweigh the prose class-maps' one class and one element. */
+.mc-markdown .mc-card > .mc-card-content > :first-child {
+  margin-block-start: 0;
+}
+
+.mc-markdown .mc-card > .mc-card-content > :last-child {
+  margin-block-end: 0;
+}
+
+/* A card standing in the page keeps the same distance from what follows it as
+   two cards in a row keep from each other. In a row the row's gap does that. */
+.mc-markdown .mc-card:not(:last-child) {
+  margin-block-end: var(--mc-shortcode-card-gap);
+}
+
+.mc-markdown .mc-cards > .mc-card {
+  margin-block-end: 0;
 }
 
 /* The support ladder is a component standing inside a page's prose, and the

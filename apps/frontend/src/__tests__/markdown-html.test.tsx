@@ -26,6 +26,23 @@ describe("MarkdownHtml", () => {
     expect(pre?.getAttribute("data-card-wrapped")).toBe("true");
   });
 
+  it("draws a [[card]] as an EmbossedCard holding its content", () => {
+    render(<MarkdownHtml html='<div class="mc-card"><h2>Costs</h2><p>Servers.</p></div>' />);
+    const card = document.querySelector(".mc-markdown > .embossed-gradient-border.mc-card");
+    expect(card).not.toBeNull();
+    const content = card?.querySelector(":scope > .mc-card-content");
+    expect(content?.querySelector(":scope > h2")?.textContent).toBe("Costs");
+    expect(content?.querySelector(":scope > p")?.textContent).toBe("Servers.");
+    expect((card as HTMLElement).style.padding).toBe("var(--emb-padding)");
+    expect((card as HTMLElement).style.getPropertyValue("--emb-padding")).toBe("var(--mc-card-chrome-x)");
+  });
+
+  it("leaves a class that only begins with mc-card alone", () => {
+    render(<MarkdownHtml html='<div class="mc-cards mc-cards--2"><p>Row</p></div>' />);
+    expect(document.querySelector(".embossed-gradient-border")).toBeNull();
+    expect(document.querySelector(".mc-cards.mc-cards--2 > p")?.textContent).toBe("Row");
+  });
+
   it("renders <pre> without marker unchanged", () => {
     const html = "<pre><code>foo</code></pre>";
     render(<MarkdownHtml html={html} />);

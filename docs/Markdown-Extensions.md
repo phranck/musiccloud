@@ -25,7 +25,8 @@ A shortcode is declared once, in `packages/shared/src/markdown-shortcodes/`. Tha
 | `footnotes` | `Text[^id]` and `[^id]: Note`, through `marked-footnote` | Yes | Yes |
 | `codeFence` | Triple-backtick and triple-tilde blocks, with Shiki highlighting, `recessed` or `embossed`, and validated `padding=` and `radius=` | Yes | Yes |
 | `headingAnchors` | An identifier on every heading, numbered within one document | Yes | Yes |
-| `mcCard` | `[[card]]` and `[[cards]]` | No | Yes |
+| `mcCard` | `[[card { … }]]` and `[[cards]]` | Yes | Yes |
+| `mcCardSections` | `[[card … ]]` written in its parts, which `mcCard` reads and draws | No | Yes |
 | `mcStack` | `[[vstack]]`, `[[hstack]]` and `[[spacer]]` | Yes | Yes |
 | `mcMedia` | `[[image:…]]`, `[[pdf:…]]` and `[[youtube:…]]` | Yes | Yes |
 | `mcButton` | `[[button]]` | No | Yes |
@@ -45,8 +46,8 @@ Validation inspects parsed token types, not raw substring matches. Extension-lik
 | Shortcode | Notation | Placement | Body | Target | Frontend | Developer Portal |
 |---|---|---|---|---|:---:|:---:|
 | `button` | `[[button]]` | Inline | Forbidden | Forbidden | No | Yes |
-| `card` | `[[card { … }]]` or `[[card … ]]` | Block | Markdown | Forbidden | No | Yes |
-| `cards` | `[[cards { … }]]` | Block | Markdown | Forbidden | No | Yes |
+| `card` | `[[card { … }]]` or `[[card … ]]` | Block | Markdown | Forbidden | Yes | Yes |
+| `cards` | `[[cards { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
 | `fields` | `[[fields … ]]` | Block | Children | Forbidden | Yes | Yes |
 | `hstack` | `[[hstack { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
 | `icon` | `[[icon]]` | Inline | Forbidden | Forbidden | Yes | Yes |
@@ -75,7 +76,11 @@ A card's header and its footer are each written both ways, because most of them 
 
 Every parameter each one takes is in its declaration and in the reference panel, and is therefore not repeated here. A table of parameters in a document is a second answer to a question the code already answers, and it drifts.
 
-`button`, `card`, `cards` and `plans` are portal-only for two different reasons. A card is drawn by the portal's own stylesheet whilst the site draws its cards as neumorphic primitives, so widening it needs a mapping rather than a rule; #273 carries that. `plans` renders the developer plans, which have no meaning on the music site, and that is a product decision rather than a styling one.
+`button` and `plans` are portal-only. `plans` renders the developer plans, which have no meaning on the music site, and that is a product decision rather than a styling one.
+
+A card stands on both surfaces, and each draws it in its own material. The portal styles `mc-card` in `apps/developer/src/styles/editorial.css`. On the site, `apps/frontend/src/components/markdown/MarkdownHtml.tsx` replaces the element with an `EmbossedCard`, whose text sits at the same inset as the title of a section card. A row of cards wraps the same way on both, because its columns are set in the shared stylesheet below.
+
+A card written in its parts is portal-only, because the site draws no header or footer bands for page content. The card extension reads that form as its own token type, `mcCardSectioned`, and the `mcCardSections` entry in the registry declares where it may stand, so a page on the site that writes one is refused. A card on the site is written with braces.
 
 ## How the markup is arranged
 
