@@ -12,6 +12,7 @@ import {
   type NavId,
   type NavItem,
   type PublicContentPage,
+  type PublicContentPageStub,
   parseApiErrorResponse,
   parseDesignTokens,
   type SharePageResponse,
@@ -667,6 +668,29 @@ export async function fetchPublicContentPage(
     return { kind: "success", data: (await res.json()) as PublicContentPage };
   } catch (error) {
     return transportFailureResult(error);
+  }
+}
+
+/**
+ * The content pages published on the site, as the sitemap lists them.
+ *
+ * @param clientIp - The visitor's address, forwarded so the backend's rate
+ *   limit counts the visitor rather than this server.
+ * @returns Each page's slug and title, or `null` when the backend did not
+ *   answer with a list, so the caller can refuse rather than publish a sitemap
+ *   that has lost every page.
+ */
+export async function fetchPublishedContentPages(clientIp?: string): Promise<PublicContentPageStub[] | null> {
+  try {
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.content.list),
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
+      5000,
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as PublicContentPageStub[];
+  } catch {
+    return null;
   }
 }
 

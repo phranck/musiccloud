@@ -28,6 +28,7 @@ import type {
   PageDisplayMode,
   PageTitleAlignment,
   PageType,
+  PublicContentPageStub,
   SingleContentContext,
 } from "@musiccloud/shared";
 import {
@@ -275,13 +276,14 @@ export async function getAdminUsernamesByIds(pool: Pool, ids: string[]): Promise
 // ============================================================================
 
 /**
- * Lists slug + title of every published page, ordered by title. Used by
- * the public site to render nav-independent page lists.
+ * Lists slug + title of every page published on the site, ordered by title.
+ * The site's sitemap lists these pages.
  *
  * @param pool - Postgres connection pool.
+ * @returns Each page's slug and title.
  */
-export async function listPublishedContentPages(pool: Pool): Promise<Array<{ slug: string; title: string }>> {
-  const result = await pool.query<{ slug: string; title: string }>(
+export async function listPublishedContentPages(pool: Pool): Promise<PublicContentPageStub[]> {
+  const result = await pool.query<PublicContentPageStub>(
     `SELECT content_pages.slug, content_pages.title
        FROM content_pages
       WHERE ${PUBLISHED_IN_FRONTEND_CONDITION}

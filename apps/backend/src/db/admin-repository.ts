@@ -21,6 +21,7 @@ import type {
   PageDisplayMode,
   PageTitleAlignment,
   PageType,
+  PublicContentPageStub,
   SingleContentContext,
 } from "@musiccloud/shared";
 import type { ArtistCredit } from "../services/types.js";
@@ -906,11 +907,11 @@ export interface AdminRepository {
 
   // Public reads (no auth) — published pages only
   /**
-   * Lists published content pages.
+   * Lists the content pages published on the site.
    *
-   * @returns The matching rows.
+   * @returns Each page's slug and title.
    */
-  listPublishedContentPages(): Promise<Array<{ slug: string; title: string }>>;
+  listPublishedContentPages(): Promise<PublicContentPageStub[]>;
   /** Lists every context publication assigned to a stable page identity. */
   listContentPublications(pageId: string): Promise<ContentPublicationRow[]>;
   /** Resolves one published page by canonical path inside a content context. */
