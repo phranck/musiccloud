@@ -260,6 +260,14 @@ describe("buildMusiccloudReadinessExpectations", () => {
       expect(result.privileges).toContainEqual({ table, privilege });
     }
   });
+
+  it.each(["bank_connections", "bank_authorization_states"])("requires CRUD access for the bank table %s", (table) => {
+    const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
+
+    for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
+      expect(result.privileges).toContainEqual({ table, privilege });
+    }
+  });
 });
 
 describe("readLatestDrizzleMigrationHash", () => {

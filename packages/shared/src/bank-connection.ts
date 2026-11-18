@@ -46,6 +46,22 @@ export const BANK_CONSENT_NOTICE_DAYS = {
   imminent: 3,
 } as const;
 
+/**
+ * The warnings a lapsing consent produces, in the order they are reached.
+ *
+ * - `soon`: {@link BANK_CONSENT_NOTICE_DAYS} `soon` days or fewer are left.
+ * - `imminent`: {@link BANK_CONSENT_NOTICE_DAYS} `imminent` days or fewer are left.
+ * - `lapsed`: the consent has run out, or a read was refused.
+ *
+ * Three in half a year, and each of them once. More often and they stop being
+ * read, which is the failure they exist to prevent. The connection records the
+ * furthest one already sent, and the database holds that column to this list.
+ */
+export const BANK_CONSENT_NOTICE_STAGES = ["soon", "imminent", "lapsed"] as const;
+
+/** One rung of {@link BANK_CONSENT_NOTICE_STAGES}. */
+export type BankConsentNoticeStage = (typeof BANK_CONSENT_NOTICE_STAGES)[number];
+
 /** The dashboard page that shows the connection and starts, renews and ends it. */
 export const BANK_CONNECTION_DASHBOARD_PATH = "/sponsoring/bank-connection";
 

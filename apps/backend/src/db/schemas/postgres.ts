@@ -1,6 +1,7 @@
 import {
   API_CLIENT_STATUSES,
   API_TOKEN_STATUSES,
+  BANK_CONSENT_NOTICE_STAGES,
   BILLING_PERIODS,
   CLIENT_REGISTRATION_TYPES,
   CREEM_MODES,
@@ -2566,3 +2567,84 @@ export const supportPrompts = pgTable(
 export type SupportPromptRow = typeof supportPrompts.$inferSelect;
 /** One `support_prompts` row as Drizzle writes it, the defaulted columns optional. */
 export type SupportPromptInsert = typeof supportPrompts.$inferInsert;
+
+/**
+ * The link to the bank account, as it stands and as it stood before, ported
+ * from lmaa.space's `bank_connections`. musiccloud holds its own consent here
+ * and shares no row with lmaa.space.
+ *
+ * A connection is a session at Enable Banking plus the one account that
+ * session reaches. It lapses when the consent behind it expires, and renewing
+ * it means walking the same authorization again, so a renewal writes a new row
+ * and marks the old one revoked rather than overwriting it. That keeps it
+ * answerable since when which connection was in force, which matters as soon
+ * as a period shows no payments and somebody has to tell a quiet month from a
+ * connection that had already lapsed.
+ *
+ * `session_id` is the credential that reaches the account, so it is never
+ * logged and never served on a route. `consent_valid_until` is what the
+ * provider stated on creation, `NULL` where it stated nothing. `revoked_at` is
+ * `NULL` while the row is live. `consent_notice_stage` is the furthest warning
+ * about this consent already sent, one of `BANK_CONSENT_NOTICE_STAGES`, `NULL`
+ * until the first; a renewal starts a new row, which starts the warnings again.
+ */
+export const bankConnections = pgTable(
+  "bank_connections",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id").notNull(),
+    accountUid: text("account_uid").notNull(),
+    aspspName: text("aspsp_name").notNull().default(""),
+    aspspCountry: text("aspsp_country").notNull().default(""),
+    consentValidUntil: timestamp("consent_valid_until", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    consentNoticeStage: text("consent_notice_stage"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // At most one live connection, enforced by the database rather than by the
+    // service that writes it. The indexed expression is the same for every live
+    // row and the index covers only those rows, so a second one cannot be
+    // written even if two requests complete an authorization at once.
+    uniqueIndex("uq_bank_connections_one_live")
+      .on(sql`(${table.revokedAt} IS NULL)`)
+      .where(sql`${table.revokedAt} IS NULL`),
+    index("idx_bank_connections_created_at").on(table.createdAt),
+    check(
+      "chk_bank_connections_consent_notice_stage",
+      sql`${table.consentNoticeStage} IS NULL OR ${table.consentNoticeStage} IN (${sqlValueList(BANK_CONSENT_NOTICE_STAGES)})`,
+    ),
+  ],
+);
+
+/** One `bank_connections` row as Drizzle reads it. */
+export type BankConnectionRow = typeof bankConnections.$inferSelect;
+/** One `bank_connections` row as Drizzle writes it, the defaulted columns optional. */
+export type BankConnectionInsert = typeof bankConnections.$inferInsert;
+
+/**
+ * An authorization that has been started and not yet come back, ported from
+ * lmaa.space's `bank_authorization_states`.
+ *
+ * The bank returns the person to the dashboard carrying a code and the value
+ * this row holds. Recognizing that value is what says the return belongs to an
+ * authorization this site started, so the row is removed as it is recognized
+ * and a second return with the same value finds nothing. `state` is 32 random
+ * bytes as hex, 256 bits in 64 characters. `authorization_id` is what Enable
+ * Banking called the authorization, kept for the log, empty where it named
+ * none. After `expires_at` the row no longer counts, whether or not it is
+ * still there.
+ */
+export const bankAuthorizationStates = pgTable(
+  "bank_authorization_states",
+  {
+    state: text("state").primaryKey(),
+    authorizationId: text("authorization_id").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("idx_bank_authorization_states_expires_at").on(table.expiresAt)],
+);
+
+/** One `bank_authorization_states` row as Drizzle reads it. */
+export type BankAuthorizationStateRow = typeof bankAuthorizationStates.$inferSelect;
