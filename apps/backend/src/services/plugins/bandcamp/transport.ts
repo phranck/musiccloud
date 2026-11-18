@@ -74,6 +74,9 @@ const ACCEPT_HEADER = "Accept: text/html,application/xhtml+xml,application/xml;q
 /** The `Accept-Language` header, so Bandcamp answers in English. */
 const ACCEPT_LANGUAGE_HEADER = "Accept-Language: en-US,en;q=0.9";
 
+/** The `Content-Type` header of a request that POSTs JSON, such as Bandcamp's app endpoints. */
+const JSON_CONTENT_TYPE_HEADER = "Content-Type: application/json";
+
 /** The title of the challenge page Bandcamp's CDN sends instead of content. */
 const CLIENT_CHALLENGE_TITLE_PATTERN = /<title>\s*Client Challenge\s*<\/title>/i;
 
@@ -169,9 +172,11 @@ export function isClientChallenge(body: string): boolean {
  *
  * @param url - The validated URL.
  * @param timeoutMs - The request's time budget.
+ * @param jsonBody - A JSON document to POST, or `undefined` for a GET.
  * @returns The argument list.
  */
-function curlArguments(url: URL, timeoutMs: number): string[] {
+function curlArguments(url: URL, timeoutMs: number, jsonBody: string | undefined): string[] {
+  const post = jsonBody === undefined ? [] : ["--header", JSON_CONTENT_TYPE_HEADER, "--data-binary", jsonBody];
   return [
     "-q",
     "--silent",
@@ -193,6 +198,7 @@ function curlArguments(url: URL, timeoutMs: number): string[] {
     ACCEPT_HEADER,
     "--header",
     ACCEPT_LANGUAGE_HEADER,
+    ...post,
     "--write-out",
     WRITE_OUT_FORMAT,
     "--",
@@ -267,13 +273,15 @@ function unavailable(
  *
  * @param url - The address, which must pass {@link isBandcampUrl}.
  * @param timeoutMs - The time budget of each hop.
+ * @param jsonBody - A JSON document to POST, as Bandcamp's app endpoints
+ *   take it, or `undefined` (the default) for a GET.
  * @returns The final answer, with its status, content type and body.
  * @throws {Error} When the URL, or a redirect target, is not a Bandcamp address.
  * @throws {UpstreamUnavailableError} When `curl` fails, the redirect limit is
  *   reached, or the CDN answers with its client challenge. Each of these is
  *   logged as a deviation.
  */
-async function request(url: string, timeoutMs: number): Promise<Response> {
+async function request(url: string, timeoutMs: number, jsonBody?: string): Promise<Response> {
   let target = new URL(url);
   for (let redirects = 0; ; redirects += 1) {
     if (!isBandcampUrl(target)) {
@@ -290,7 +298,7 @@ async function request(url: string, timeoutMs: number): Promise<Response> {
 
     let output: CurlOutput;
     try {
-      output = await curlRunner.run(curlArguments(target, timeoutMs), timeoutMs + PROCESS_KILL_GRACE_MS);
+      output = await curlRunner.run(curlArguments(target, timeoutMs, jsonBody), timeoutMs + PROCESS_KILL_GRACE_MS);
     } catch (error) {
       throw unavailable(target, "curl_failed", "Bandcamp request failed", {}, error);
     }

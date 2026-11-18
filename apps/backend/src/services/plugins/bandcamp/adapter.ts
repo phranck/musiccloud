@@ -31,6 +31,13 @@
  * "not found", because a "not found" makes the resolver skip Bandcamp for that
  * item for a long time.
  *
+ * ## Labels that name their bands in the title
+ *
+ * Some labels publish their bands' releases on the label's own account as
+ * `Band - Title`, and every structured field names the label as the artist.
+ * `creditedRelease` in `label-credits.ts` recognises such an account by its
+ * discography and reads the band out of the title.
+ *
  * ## Search via Bandcamp's fuzzysearch endpoint
  *
  * The adapter searches through the JSON endpoint also used by Bandcamp
@@ -62,6 +69,7 @@ import { throwIfSearchIncomplete } from "../_shared/candidates.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import { type BandcampAccount, creditedRelease } from "./label-credits.js";
 import { bandcampTransport } from "./transport.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -204,12 +212,16 @@ async function fetchTrackByUrl(trackUrl: string): Promise<NormalizedTrack | null
   if (jsonLd?.name) {
     const artist =
       embedData?.artist ?? embedData?.album_embed_data?.artist ?? tralbumData?.current?.artist ?? jsonLd.byArtist?.name;
+    const albumName = jsonLd.inAlbum?.name ?? embedData?.album_embed_data?.album_title;
+    // A label that names its bands only in album titles gives the label as the
+    // track's artist, so the band comes from the album's title.
+    const credit = await creditedRelease(albumName, artist, parseBandAccount(html));
     return {
       sourceService: "bandcamp",
       sourceId: trackUrl,
       title: jsonLd.name,
-      artists: [artist ?? "Unknown Artist"],
-      albumName: jsonLd.inAlbum?.name ?? embedData?.album_embed_data?.album_title,
+      artists: [credit?.artist ?? artist ?? "Unknown Artist"],
+      albumName: credit?.title ?? albumName,
       durationMs: jsonLd.duration ? parseDuration(jsonLd.duration) : undefined,
       artworkUrl: jsonLd.image,
       releaseDate: jsonLd.datePublished,
@@ -316,6 +328,23 @@ function parseEmbedData(html: string): BandcampEmbedData | null {
   }
 }
 
+/**
+ * Reads the account that publishes a page from its `data-band` attribute.
+ *
+ * @param html - A Bandcamp track or album page.
+ * @returns The account's id and name, or `null` when the page has no usable `data-band`.
+ */
+function parseBandAccount(html: string): BandcampAccount | null {
+  const match = /data-band="([^"]+)"/.exec(html);
+  if (!match?.[1]) return null;
+  try {
+    const data = JSON.parse(decodeHtmlAttribute(match[1])) as { id?: unknown; name?: unknown };
+    return typeof data.id === "number" && typeof data.name === "string" ? { id: data.id, name: data.name } : null;
+  } catch {
+    return null;
+  }
+}
+
 function trackUrlFromAlbum(albumUrl: string, titleLink: string | undefined): string {
   if (!titleLink) return albumUrl.split("?")[0];
   return new URL(titleLink, albumUrl).toString().split("?")[0];
@@ -331,7 +360,9 @@ async function fetchTracksByAlbumUrl(albumUrl: string): Promise<NormalizedTrack[
   if (!jsonLd) return [];
 
   const tralbum = parseTralbumData(html);
-  const artist = jsonLd.byArtist?.name ?? "Unknown Artist";
+  const credit = await creditedRelease(jsonLd.name, jsonLd.byArtist?.name, parseBandAccount(html));
+  const artist = credit?.artist ?? jsonLd.byArtist?.name ?? "Unknown Artist";
+  const albumName = credit?.title ?? jsonLd.name;
   const jsonLdTracks = jsonLd.track?.itemListElement ?? [];
   const maxLength = Math.max(jsonLdTracks.length, tralbum?.trackinfo?.length ?? 0);
   const tracks: NormalizedTrack[] = [];
@@ -348,7 +379,7 @@ async function fetchTracksByAlbumUrl(albumUrl: string): Promise<NormalizedTrack[
       sourceId: webUrl,
       title,
       artists: [tralbumTrack?.artist ?? artist],
-      albumName: jsonLd.name,
+      albumName,
       durationMs:
         tralbumTrack?.duration !== undefined
           ? Math.round(tralbumTrack.duration * 1000)
@@ -427,7 +458,8 @@ async function fetchAlbumByUrl(albumUrl: string): Promise<NormalizedAlbum | null
   const jsonLd = parseAlbumJsonLd(html);
   if (!jsonLd) return null;
 
-  const artist = jsonLd.byArtist?.name ?? "Unknown Artist";
+  const credit = await creditedRelease(jsonLd.name, jsonLd.byArtist?.name, parseBandAccount(html));
+  const artist = credit?.artist ?? jsonLd.byArtist?.name ?? "Unknown Artist";
   const tracks: AlbumTrackEntry[] = [];
   for (const item of jsonLd.track?.itemListElement ?? []) {
     if (item.item?.name) {
@@ -442,7 +474,7 @@ async function fetchAlbumByUrl(albumUrl: string): Promise<NormalizedAlbum | null
   return {
     sourceService: "bandcamp",
     sourceId: albumUrl.split("?")[0],
-    title: jsonLd.name!,
+    title: credit?.title ?? jsonLd.name!,
     artists: [artist],
     releaseDate: jsonLd.datePublished,
     totalTracks: jsonLd.numTracks ?? (tracks.length > 0 ? tracks.length : undefined),

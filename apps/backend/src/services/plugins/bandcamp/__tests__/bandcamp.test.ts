@@ -319,6 +319,48 @@ describe("Bandcamp: client challenge", () => {
 });
 
 // =============================================================================
+// Label accounts
+// =============================================================================
+
+describe("Bandcamp: a label that names its bands in the title", () => {
+  const labelAccount = { id: 2602468135, name: "Iron BoneHead Productions" };
+  const albumUrl = "https://ironboneheadproductions.bandcamp.com/album/temple-nightside-cenotaph-severance";
+  const albumJsonLd = {
+    "@type": "MusicAlbum",
+    name: "Temple Nightside - Cenotaph Severance",
+    url: albumUrl,
+    byArtist: { name: labelAccount.name },
+    numTracks: 1,
+    track: { itemListElement: [{ position: 1, item: { "@type": "MusicRecording", name: "Seething Dissolve" } }] },
+  };
+  const albumPage = `<html><script type="application/ld+json">${JSON.stringify(albumJsonLd)}</script><div data-band="${JSON.stringify(labelAccount).replace(/"/g, "&quot;")}"></div></html>`;
+  const labelTitles = [
+    "Temple Nightside - Cenotaph Severance",
+    "Sabbat - Sabbatrinity",
+    "Profanatica - Rotting Incarnation of God",
+    "Necrowretch - Swords of Dajjal",
+    "Kommandant - The Draconian Archetype",
+  ];
+
+  /**
+   * The label's page names the label as the album's artist, so the album
+   * resolved under the label and no other service found it.
+   */
+  it("resolves the album under the band, with the band taken out of the title", async () => {
+    vi.spyOn(bandcampTransport, "request").mockImplementation(async (url) =>
+      url.includes("band_details")
+        ? Response.json({ discography: labelTitles.map((title) => ({ title })) })
+        : new Response(albumPage, { status: 200 }),
+    );
+
+    const album = await bandcampAdapter.getAlbum?.(albumUrl);
+
+    expect(album?.title).toBe("Cenotaph Severance");
+    expect(album?.artists).toEqual(["Temple Nightside"]);
+  });
+});
+
+// =============================================================================
 // Metadata
 // =============================================================================
 
