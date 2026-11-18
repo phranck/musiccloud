@@ -26,6 +26,10 @@ Bandcamp's CDN answers requests from Node's HTTP stack with a JavaScript "Client
 
 A request that meets the challenge anyway, or that `curl` cannot complete, is reported as Bandcamp being unavailable with `MC-API-8201`, never as "not found" (`MC-API-8204`). A "not found" makes the resolver skip Bandcamp for that item.
 
+## Labels That Name Their Bands In The Title
+
+Some labels publish their bands' releases on the label's own account and name each one `Band - Title`, while every structured field on the page names the label as the artist. When a release title reads that way, names an artist other than the account, and the page names the account as the artist, the adapter reads the account's release titles from Bandcamp's `band_details` app endpoint. If the account has at least 5 releases and at least 80 % of them name another artist as `Band - Title`, the release resolves as `Title` by `Band`, and a track takes its band from its album title. The rule lives in `src/services/plugins/bandcamp/label-credits.ts`. A failed lookup keeps the page's data and logs `"operation":"bandcamp_account_releases"`.
+
 ## Operational Notes
 
 Bandcamp is scraping-based. The adapter can break when page markup or embedded metadata changes, or when the CDN starts challenging `curl` as well. Keep confidence thresholds conservative because cover tracks and remixes are common.

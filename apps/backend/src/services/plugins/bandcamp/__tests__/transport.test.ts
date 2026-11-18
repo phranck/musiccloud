@@ -81,6 +81,20 @@ describe("Bandcamp transport: the curl call", () => {
     expect(await response.json()).toEqual({ results: [] });
   });
 
+  /** Bandcamp's app endpoints take their parameters as a JSON document by POST. */
+  it("POSTs a JSON body with its content type, and sends no body without one", async () => {
+    const run = vi.spyOn(curlRunner, "run").mockResolvedValue({ stdout: "{}", stderr: curlStderr(200) });
+
+    await bandcampTransport.request("https://bandcamp.com/api/mobile/24/band_details", TIMEOUT_MS, '{"band_id":1}');
+    await bandcampTransport.request(ALBUM_URL, TIMEOUT_MS);
+
+    const [postArgs] = run.mock.calls[0] ?? [[]];
+    const [getArgs] = run.mock.calls[1] ?? [[]];
+    expect(postArgs[postArgs.indexOf("--data-binary") + 1]).toBe('{"band_id":1}');
+    expect(postArgs).toContain("Content-Type: application/json");
+    expect(getArgs).not.toContain("--data-binary");
+  });
+
   /** An error status is Bandcamp's answer, so the adapter decides what a 404 means. */
   it("returns an error status instead of throwing", async () => {
     vi.spyOn(curlRunner, "run").mockResolvedValue({ stdout: "Not Found", stderr: curlStderr(404) });
