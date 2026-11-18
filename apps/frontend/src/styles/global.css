@@ -180,10 +180,10 @@ button,
 }
 
 /* The text inside a content page's cards, by day and at night: a light grey
-   (`#eeeeee`) that stays clear on the light day glass without the glare of pure
+   (`#e0e0e0`) that stays clear on the light day glass without the glare of pure
    white. */
 :root {
-  --mc-text-card: #eeeeee;
+  --mc-text-card: #e0e0e0;
 }
 
 /* The focus language every surface that marks itself draws in: an accent edge

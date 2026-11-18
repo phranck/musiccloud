@@ -12,7 +12,7 @@
 /**
  * Text to read, such as a tab's description or a card's explanation: 18px
  * (`text-lg`), in the card text color `--mc-text-card` from `global.css`,
- * `#eeeeee` by day and at night.
+ * `#e0e0e0` by day and at night.
  */
 export const SUPPORT_TEXT_CLASS = "text-lg text-[var(--mc-text-card)]";
 
