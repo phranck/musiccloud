@@ -28,6 +28,7 @@ import authPlugin from "./plugins/auth.js";
 import { adminApiAccessRoutes } from "./routes/admin-api-access.js";
 import adminArtistProfileRoutes from "./routes/admin-artist-profile.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
+import { adminBankConnectionRoutes } from "./routes/admin-bank-connection.js";
 import adminContentRoutes from "./routes/admin-content.js";
 import adminCrawlerRoutes from "./routes/admin-crawler.js";
 import { adminCreemProductRoutes } from "./routes/admin-creem-products.js";
@@ -700,6 +701,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(adminDonationRoutes);
     await adminApp.register(adminSponsorRoutes);
     await adminApp.register(adminSponsorshipRequestRoutes);
+    await adminApp.register(adminBankConnectionRoutes);
     await adminApp.register(adminSupportPromptRoutes);
     await adminApp.register(adminPluginsRoutes);
     await adminApp.register(adminCrawlerRoutes);
