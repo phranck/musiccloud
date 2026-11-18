@@ -105,6 +105,20 @@ export const EMAIL_ACTIONS = {
     recipientKind: EmailRecipientKind.DeveloperAccount,
     required: true,
   },
+  /**
+   * A warning to the owner that the bank consent is running out, 14 and 3 days
+   * before it lapses and once it has. One action for all three warnings, whose
+   * words arrive as context variables, so one template covers them. Required,
+   * because a warning that went out to nobody is not recorded as said and is
+   * tried again at the next check.
+   */
+  bankConsentNotice: {
+    key: "bankConsentNotice",
+    label: "Bank consent running out",
+    contextVariables: ["bankConsentSubject", "bankConsentMessage", "bankConnectionUrl"],
+    recipientKind: EmailRecipientKind.AdminUser,
+    required: true,
+  },
 } as const satisfies Record<string, EmailActionMeta>;
 
 /** An action key from {@link EMAIL_ACTIONS}. */
@@ -124,6 +138,8 @@ export const EmailAction = {
   DeveloperApiTokenCreated: "developerApiTokenCreated",
   /** An invitation into the developer portal while it is closed. */
   DeveloperPortalInviteSent: "developerPortalInviteSent",
+  /** A warning to the owner that the bank consent is running out or has lapsed. */
+  BankConsentNotice: "bankConsentNotice",
 } as const satisfies Record<string, EmailActionKey>;
 
 /**
