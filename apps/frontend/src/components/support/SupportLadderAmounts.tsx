@@ -185,7 +185,14 @@ export function AmountGrid({
   );
 
   return (
-    <div className={cn("grid gap-[var(--mc-support-step-3)]", hasOptions && "sm:grid-cols-2 lg:grid-cols-4")}>
+    // The cards stand 13.5px apart side by side, as on lmaa.space, and 18px
+    // apart from row to row, a step more.
+    <div
+      className={cn(
+        "grid gap-x-[var(--mc-support-step-3)] gap-y-[var(--mc-support-step-4)]",
+        hasOptions && "sm:grid-cols-2 lg:grid-cols-4",
+      )}
+    >
       {interval.options.map((option) => {
         const active = !customActive && option.amountEur === amountEur;
         return (

@@ -249,9 +249,9 @@ export function SupportLadder({ config }: SupportLadderProps) {
 
       <div
         className={cn(
-          // The transfer and the routes stand a step apart, and the amounts a
-          // further step above them, as lmaa.space spaces them.
-          "mc-support-ladder__body flex flex-col gap-[var(--mc-support-step-3)]",
+          // The transfer and the routes stand 18px apart, a step more than
+          // lmaa.space's 13.5px, and the amounts a further step above them.
+          "mc-support-ladder__body flex flex-col gap-[var(--mc-support-step-4)]",
           intervalKey !== shownKey && "is-fading",
         )}
         style={{ "--mc-support-ladder-fade": `${BODY_FADE_MS}ms` } as CSSProperties}
@@ -260,7 +260,7 @@ export function SupportLadder({ config }: SupportLadderProps) {
           // One card for everything the sponsor tab asks, because choosing the
           // amount, saying who you are, and being told the reference is ready
           // are three steps of one errand rather than three separate offers.
-          <ContentCard className="mb-[var(--mc-support-step-3)]">
+          <ContentCard className="mb-[var(--mc-support-step-4)]">
             <div className="flex flex-col gap-[var(--mc-support-step-4)]">
               <AmountGrid
                 // A fresh tab starts without a complaint about the tab before it.
@@ -299,7 +299,7 @@ export function SupportLadder({ config }: SupportLadderProps) {
           // notice beside it, and the two are read together.
           <div
             className={cn(
-              "mb-[var(--mc-support-step-3)] grid gap-[var(--mc-support-step-3)]",
+              "mb-[var(--mc-support-step-4)] grid gap-[var(--mc-support-step-4)]",
               interval.hint && !hasOptions && "md:grid-cols-2",
             )}
           >

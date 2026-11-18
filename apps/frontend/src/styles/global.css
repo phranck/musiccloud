@@ -290,6 +290,30 @@ button,
   color: var(--mc-text-card);
 }
 
+/* A heading that opens a second section inside a card keeps 22.5px above it,
+   which with the paragraph's own 22.5px below it makes 45px, the room a block
+   of the page keeps below itself. The page's 48.6px above a section heading
+   would split one card into two. */
+.mc-markdown .mc-card > .mc-card-content > :is(h2, h3):not(:first-child) {
+  margin-top: 22.5px;
+}
+
+/* A picture in a page's content, written with the image shortcode, stands
+   centered in the column with its caption under it, and never wider than the
+   column. One that opens a page in place of its title, such as the logo on the
+   support page, keeps the 24.3px a page title keeps below it. */
+.mc-markdown .mc-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24.3px;
+}
+
+.mc-markdown .mc-figure__image {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Bold text inside any card of a content page, a written card, a route, the
    transfer or a sponsor, is semibold, a step above the prose class-maps'
    medium, so it stands out against the card text around it. */
