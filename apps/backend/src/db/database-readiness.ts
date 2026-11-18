@@ -85,9 +85,11 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "sponsors",
   "sponsor_avatars",
   "pending_sponsorships",
+  "retired_sponsorship_references",
   "support_prompts",
   "bank_connections",
   "bank_authorization_states",
+  "bank_account_reads",
 ] as const;
 
 const VINYL_WRITE_TABLES = ["vinyl_layouts"] as const;
@@ -113,21 +115,24 @@ const APP_ATTEST_WRITE_TABLES = ["app_attest_keys", "app_attest_challenges"] as 
  * The donations ledger, which every funding figure on the site and in the
  * dashboard is summed from, the annual sponsors its payments are linked to,
  * the copies of their pictures, the sponsorship requests waiting to be taken
- * over, and the support prompts that lead to the support page.
+ * over, the references of requests that are gone, which every removal of a
+ * request writes, and the support prompts that lead to the support page.
  */
 const SPONSORING_WRITE_TABLES = [
   "donations",
   "sponsors",
   "sponsor_avatars",
   "pending_sponsorships",
+  "retired_sponsorship_references",
   "support_prompts",
 ] as const;
 /**
- * The bank connection: the connection in force with the ones it replaced, and
- * the authorizations started and not yet returned. Starting, completing,
- * renewing and withdrawing a connection writes both.
+ * The bank connection: the connection in force with the ones it replaced, the
+ * authorizations started and not yet returned, and the reads of the account.
+ * Starting, completing, renewing and withdrawing a connection writes the first
+ * two, and every read claims and finishes a row of the third.
  */
-const BANK_CONNECTION_WRITE_TABLES = ["bank_connections", "bank_authorization_states"] as const;
+const BANK_CONNECTION_WRITE_TABLES = ["bank_connections", "bank_authorization_states", "bank_account_reads"] as const;
 const RUNTIME_WRITE_TABLES = [
   ...VINYL_WRITE_TABLES,
   ...CONTEXTUAL_EDITORIAL_WRITE_TABLES,

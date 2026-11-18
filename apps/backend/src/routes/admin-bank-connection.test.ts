@@ -28,8 +28,14 @@ const serviceMocks = vi.hoisted(() => ({
 
 const configMocks = vi.hoisted(() => ({ isEnableBankingConfigured: vi.fn(() => true) }));
 
+const ingestionMocks = vi.hoisted(() => ({ runBankIngestion: vi.fn() }));
+
 vi.mock("../services/bank-connection.js", () => serviceMocks);
 vi.mock("../lib/enable-banking-config.js", () => configMocks);
+vi.mock("../services/bank-ingestion.js", () => ingestionMocks);
+
+/** What a read that ran answers. */
+const readResult = { ran: true, from: "2026-08-30", to: "2026-09-04", read: 3, imported: 1, filled: 0, skipped: 2 };
 
 /** A value of the shape and length the site issues. */
 const ISSUED = "a".repeat(64);
@@ -59,6 +65,7 @@ beforeEach(async () => {
   serviceMocks.beginBankAuthorization.mockResolvedValue({ url: "https://bank.example" });
   serviceMocks.completeBankAuthorization.mockResolvedValue({ ...disconnected, connected: true });
   serviceMocks.disconnectBank.mockResolvedValue(disconnected);
+  ingestionMocks.runBankIngestion.mockResolvedValue(readResult);
 
   app = Fastify({ logger: false });
   registerApiErrorHandling(app);
@@ -125,6 +132,7 @@ describe("the bank connection in the dashboard", () => {
     ["start an authorization", "POST", ENDPOINTS.admin.sponsoring.bankConnectionAuthorize, undefined],
     ["spend a return", "POST", ENDPOINTS.admin.sponsoring.bankConnectionSession, { code: "code-1", state: ISSUED }],
     ["disconnect", "DELETE", ENDPOINTS.admin.sponsoring.bankConnection, undefined],
+    ["read the account", "POST", ENDPOINTS.admin.sponsoring.bankConnectionSync, {}],
   ] as const)("lets only the owner %s, because it reaches the bank account", async (_case, method, url, payload) => {
     const response = await send(method, url, "admin", payload);
 
@@ -133,6 +141,7 @@ describe("the bank connection in the dashboard", () => {
     expect(serviceMocks.beginBankAuthorization).not.toHaveBeenCalled();
     expect(serviceMocks.completeBankAuthorization).not.toHaveBeenCalled();
     expect(serviceMocks.disconnectBank).not.toHaveBeenCalled();
+    expect(ingestionMocks.runBankIngestion).not.toHaveBeenCalled();
   });
 
   it("refuses an admin before reading the body, so the schema never answers them", async () => {
@@ -218,6 +227,73 @@ describe("the bank connection in the dashboard", () => {
       const response = await send("GET", ENDPOINTS.admin.sponsoring.bankConnection, "owner");
 
       expect(response.statusCode).toBe(200);
+    });
+
+    it("refuses to read the account", async () => {
+      const response = await send("POST", ENDPOINTS.admin.sponsoring.bankConnectionSync, "owner", {});
+
+      expect(response.statusCode).toBe(503);
+      expect(response.json()).toMatchObject({ error: BankErrorCode.NotConfigured, errorId: expect.any(String) });
+      expect(ingestionMocks.runBankIngestion).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("reading the account now", () => {
+    it("reads the days the read takes by itself, as the owner asking", async () => {
+      const response = await send("POST", ENDPOINTS.admin.sponsoring.bankConnectionSync, "owner", {});
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual(readResult);
+      expect(ingestionMocks.runBankIngestion).toHaveBeenCalledWith(
+        "manual",
+        {},
+        expect.objectContaining({ info: expect.any(Function) }),
+      );
+    });
+
+    it("takes its body as an object, so a request without one is refused", async () => {
+      const response = await send("POST", ENDPOINTS.admin.sponsoring.bankConnectionSync, "owner");
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ error: "MC-REQ-0001" });
+      expect(ingestionMocks.runBankIngestion).not.toHaveBeenCalled();
+    });
+
+    it("starts at the day it was given", async () => {
+      await send("POST", ENDPOINTS.admin.sponsoring.bankConnectionSync, "owner", { from: "2026-06-01" });
+
+      expect(ingestionMocks.runBankIngestion).toHaveBeenCalledWith("manual", { from: "2026-06-01" }, expect.anything());
+    });
+
+    it("answers a read that did nothing as an ordinary answer", async () => {
+      ingestionMocks.runBankIngestion.mockResolvedValue({ ran: false, reason: "budget_spent" });
+
+      const response = await send("POST", ENDPOINTS.admin.sponsoring.bankConnectionSync, "owner", {});
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ ran: false, reason: "budget_spent" });
+    });
+
+    it.each([
+      ["a day that does not exist", { from: "2026-02-30" }],
+      ["a day in another shape", { from: "1.6.2026" }],
+      ["a day that is not text", { from: 20260601 }],
+      ["anything else in the body", { from: "2026-06-01", to: "2026-06-30" }],
+    ])("is refused for %s", async (_case, body) => {
+      const response = await send("POST", ENDPOINTS.admin.sponsoring.bankConnectionSync, "owner", body);
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ error: "MC-REQ-0001", errorId: expect.any(String) });
+      expect(ingestionMocks.runBankIngestion).not.toHaveBeenCalled();
+    });
+
+    it("refuses a body larger than the bank routes take", async () => {
+      const response = await send("POST", ENDPOINTS.admin.sponsoring.bankConnectionSync, "owner", {
+        from: "x".repeat(BANK_CONNECTION_BODY_LIMIT_BYTES * 2),
+      });
+
+      expect(response.statusCode).toBe(413);
+      expect(ingestionMocks.runBankIngestion).not.toHaveBeenCalled();
     });
   });
 

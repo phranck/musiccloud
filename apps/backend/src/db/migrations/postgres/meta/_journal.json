@@ -855,6 +855,13 @@
       "when": 1794966094163,
       "tag": "0121_bank_connections",
       "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1794968625823,
+      "tag": "0122_bank_account_reads",
+      "breakpoints": true
     }
   ]
 }

@@ -509,6 +509,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "The connection was revoked locally and stays revoked, but Enable Banking would not close the session, so the consent behind it lapses on its own. The dashboard tells this apart from a refused disconnect.",
     source: "apps/backend/src/services/bank-connection.ts disconnectBank",
   },
+  "MC-BANK-0010": {
+    code: "MC-BANK-0010",
+    httpStatus: 500,
+    userMessage: "The account could not be read.",
+    internalNote:
+      "A read of the account broke off for a reason the bank client does not name, such as a database failure while booking an entry. The read is recorded as failed with this code, and the deviation log carries the window and the cause's redacted message, never an amount, a reference or a remittance text.",
+    source: "apps/backend/src/services/bank-ingestion.ts runBankIngestion",
+  },
   "MC-SYS-0002": {
     code: "MC-SYS-0002",
     httpStatus: 503,

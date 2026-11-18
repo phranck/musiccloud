@@ -22,6 +22,15 @@ const BODY_PATTERN = /^[A-Za-z0-9]+$/;
 /** What follows `RF` and the two check digits, at most, per ISO 11649 clause 5: 21. */
 export const MAX_CREDITOR_REFERENCE_BODY = 21;
 
+/** What opens every reference before its body: `RF` and the two check digits, 4 characters. */
+const CREDITOR_REFERENCE_HEAD_LENGTH = 4;
+
+/**
+ * The longest a whole reference can be, head and body together: 25 characters.
+ * Reading a reference off a remittance text joins words up to this length and no further.
+ */
+export const MAX_CREDITOR_REFERENCE_LENGTH = CREDITOR_REFERENCE_HEAD_LENGTH + MAX_CREDITOR_REFERENCE_BODY;
+
 /**
  * The characters a drawn reference body is made of: 32 of them.
  *

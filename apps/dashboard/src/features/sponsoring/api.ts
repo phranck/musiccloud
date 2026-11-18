@@ -8,6 +8,8 @@ import {
   type BankAuthorizationStart,
   type BankConnectionCallback,
   type BankConnectionStatus,
+  type BankReadRequest,
+  type BankReadResult,
   type Donation,
   type DonationInput,
   type DonationTotals,
@@ -309,4 +311,15 @@ export function completeBankAuthorization(callback: BankConnectionCallback): Pro
  */
 export function disconnectBank(): Promise<BankConnectionStatus> {
   return api.delete<BankConnectionStatus>(ENDPOINTS.admin.sponsoring.bankConnection);
+}
+
+/**
+ * Reads the account now rather than waiting for the next background read, and
+ * books what belongs to musiccloud. The backend admits the owner alone.
+ *
+ * @param request - The day to start at, or `{}` for the days the read takes by itself.
+ * @returns What the read did, or why it did nothing, which is an ordinary answer rather than a failure.
+ */
+export function syncBank(request: BankReadRequest): Promise<BankReadResult> {
+  return api.post<BankReadResult>(ENDPOINTS.admin.sponsoring.bankConnectionSync, request);
 }

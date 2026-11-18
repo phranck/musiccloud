@@ -252,6 +252,7 @@ describe("buildMusiccloudReadinessExpectations", () => {
     "sponsors",
     "sponsor_avatars",
     "pending_sponsorships",
+    "retired_sponsorship_references",
     "support_prompts",
   ])("requires CRUD access for the sponsoring table %s", (table) => {
     const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
@@ -261,7 +262,11 @@ describe("buildMusiccloudReadinessExpectations", () => {
     }
   });
 
-  it.each(["bank_connections", "bank_authorization_states"])("requires CRUD access for the bank table %s", (table) => {
+  it.each([
+    "bank_connections",
+    "bank_authorization_states",
+    "bank_account_reads",
+  ])("requires CRUD access for the bank table %s", (table) => {
     const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
 
     for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {

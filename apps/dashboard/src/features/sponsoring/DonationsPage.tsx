@@ -18,6 +18,7 @@ import { PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import { DONATION_LIST_QUERY_KEY, deleteDonation, fetchDonations, LEDGER_QUERY_KEY } from "@/features/sponsoring/api";
+import { BankConnectionCard } from "@/features/sponsoring/BankConnectionCard";
 import { DonationEditCard } from "@/features/sponsoring/DonationEditCard";
 import { type EditTarget, EditTargetKind } from "@/features/sponsoring/editTarget";
 import { RemoveConfirmDialog } from "@/features/sponsoring/RemoveConfirmDialog";
@@ -111,6 +112,8 @@ function useDonationColumns(
  *
  * The rows are the only source of every funding figure, so the page says so
  * while it is empty, and a removal names its consequence before it happens.
+ * The bank connection's card stands above them, saying when the account was
+ * last read and read next, while the deployment holds a credential.
  *
  * @returns The page.
  */
@@ -155,6 +158,12 @@ export function DonationsPage() {
           type="button"
         />
       </PageHeader>
+
+      {/* First on the page, because it decides whether everything under it is
+          current. A payment somebody is missing is looked for in this list, so
+          when the account was last read, and the button that reads it again,
+          belong at the top of it. */}
+      <BankConnectionCard className="mb-4 shrink-0" />
 
       {listQuery.isLoading && <ContentLoadingView className="flex-1 min-h-0" />}
 

@@ -22,9 +22,13 @@ const storeMocks = vi.hoisted(() => ({
   takeAuthorizationState: vi.fn(),
 }));
 
+const readMocks = vi.hoisted(() => ({ getLastBankRead: vi.fn(), nextBackgroundReadAt: vi.fn() }));
+
 vi.mock("./enable-banking-client.js", () => clientMocks);
 vi.mock("../lib/enable-banking-config.js", () => configMocks);
 vi.mock("./bank-connection-store.js", () => storeMocks);
+vi.mock("./bank-read-store.js", () => ({ getLastBankRead: readMocks.getLastBankRead }));
+vi.mock("./bank-read-schedule.js", () => ({ nextBackgroundReadAt: readMocks.nextBackgroundReadAt }));
 
 import {
   beginBankAuthorization,
@@ -67,6 +71,8 @@ describe("the bank connection", () => {
     vi.clearAllMocks();
     vi.stubEnv("DASHBOARD_URL", "https://dashboard.example");
     configMocks.isEnableBankingConfigured.mockReturnValue(true);
+    readMocks.getLastBankRead.mockResolvedValue(null);
+    readMocks.nextBackgroundReadAt.mockResolvedValue(null);
     clientMocks.closeSession.mockResolvedValue(undefined);
     storeMocks.insertAuthorizationState.mockImplementation(
       async (state: string, authorizationId: string, expiresAt: Date) => ({
@@ -122,6 +128,44 @@ describe("the bank connection", () => {
       expect(status.connected).toBe(true);
       expect(JSON.stringify(status)).not.toContain(storedConnection.sessionId);
       expect(JSON.stringify(status)).not.toContain(storedConnection.accountUid);
+    });
+
+    it("reports the last read with its counts and the next background read", async () => {
+      storeMocks.getLiveBankConnection.mockResolvedValue(storedConnection);
+      readMocks.getLastBankRead.mockResolvedValue({
+        readAt: new Date("2026-09-04T06:00:00.000Z"),
+        succeeded: true,
+        imported: 2,
+        filled: 1,
+        failureReason: null,
+      });
+      readMocks.nextBackgroundReadAt.mockResolvedValue(new Date("2026-09-04T12:00:00.000Z"));
+
+      expect(await getBankConnectionStatus()).toMatchObject({
+        lastReadAt: "2026-09-04T06:00:00.000Z",
+        lastReadSucceeded: true,
+        lastReadImported: 2,
+        lastReadFilled: 1,
+        lastReadFailure: null,
+        nextReadAt: "2026-09-04T12:00:00.000Z",
+      });
+      expect(readMocks.nextBackgroundReadAt).toHaveBeenCalledWith(storedConnection, expect.any(Date));
+    });
+
+    it("names why the last read failed, as its code", async () => {
+      storeMocks.getLiveBankConnection.mockResolvedValue(storedConnection);
+      readMocks.getLastBankRead.mockResolvedValue({
+        readAt: new Date("2026-09-04T06:00:00.000Z"),
+        succeeded: false,
+        imported: 0,
+        filled: 0,
+        failureReason: BankErrorCode.RequestRefused,
+      });
+
+      expect(await getBankConnectionStatus()).toMatchObject({
+        lastReadSucceeded: false,
+        lastReadFailure: BankErrorCode.RequestRefused,
+      });
     });
 
     it("says whether the deployment holds a credential at all", async () => {

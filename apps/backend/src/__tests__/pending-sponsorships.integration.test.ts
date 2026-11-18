@@ -22,7 +22,9 @@ import {
   expirePendingSponsorships,
   listPendingSponsorships,
   takeOverPendingSponsorship,
+  takeOverPendingSponsorshipByReference,
   updatePendingSponsorship,
+  wasSponsorshipReferenceIssued,
 } from "../services/pending-sponsorships.js";
 import { connectRepositoriesToIntegrationDatabase, integrationDatabaseUrl } from "./integration-database.js";
 
@@ -50,10 +52,16 @@ describe.skipIf(!integrationDatabaseUrl())("sponsorship requests (integration)",
     vi.clearAllMocks();
   });
 
+  /** Every reference the run was issued, whose retired rows the clean-up removes. */
+  const issuedReferences: string[] = [];
+
   afterAll(async () => {
     await client.query("DELETE FROM donations WHERE name = $1", [MARKER]);
     await client.query("DELETE FROM sponsors WHERE name = $1", [MARKER]);
     await client.query("DELETE FROM pending_sponsorships WHERE name = $1", [MARKER]);
+    await client.query("DELETE FROM retired_sponsorship_references WHERE reference = ANY($1::text[])", [
+      issuedReferences,
+    ]);
     await client.end();
     await closeDatabasePool();
   });
@@ -75,7 +83,18 @@ describe.skipIf(!integrationDatabaseUrl())("sponsorship requests (integration)",
   async function announce(change: Partial<PendingSponsorshipInput> = {}) {
     const result = await createPendingSponsorship({ ...FORM, ...change });
     if (!result.ok) throw new Error(`announcement refused: ${result.reason}`);
+    issuedReferences.push(result.value.reference);
     return result.value;
+  }
+
+  /**
+   * Says whether a reference stands in `retired_sponsorship_references`.
+   *
+   * @param reference - The reference as stored.
+   */
+  async function isRetired(reference: string): Promise<boolean> {
+    const rows = await client.query("SELECT 1 FROM retired_sponsorship_references WHERE reference = $1", [reference]);
+    return rows.rowCount === 1;
   }
 
   it("stores a request under a reference of musiccloud's own and lists it", async () => {
@@ -189,6 +208,79 @@ describe.skipIf(!integrationDatabaseUrl())("sponsorship requests (integration)",
       [old.id, young.id],
     ]);
     expect(left.rows.map((row) => row.id)).toEqual([young.id]);
+  });
+
+  it("keeps the reference of every request that leaves, however it leaves", async () => {
+    const takenOver = await announce();
+    const removed = await announce();
+    const expired = await announce();
+    // Far enough back that no other row predates it, so the sweep takes this one alone.
+    await client.query("UPDATE pending_sponsorships SET created_at = '1980-01-01' WHERE id = $1", [expired.id]);
+
+    expect(await wasSponsorshipReferenceIssued(takenOver.reference)).toBe(true);
+    await takeOverPendingSponsorship(takenOver.id, { amountCents: 6_000, paidOn: "2001-03-01" });
+    await deletePendingSponsorship(removed.id);
+    // Sixty days before 1980-03-10 is 1980-01-10, which only the expired request predates.
+    await expirePendingSponsorships(new Date("1980-03-10T00:00:00Z"));
+
+    for (const request of [takenOver, removed, expired]) {
+      expect(await isRetired(request.reference)).toBe(true);
+      expect(await wasSponsorshipReferenceIssued(request.reference)).toBe(true);
+    }
+  });
+
+  it("does not take a sound reference in musiccloud's form for one it issued", async () => {
+    expect(await wasSponsorshipReferenceIssued("RF71MCSP000000000000")).toBe(false);
+  });
+
+  it("takes a request over by the reference its transfer carried, with the bank's key on the payment", async () => {
+    const stored = await announce();
+    const printed = stored.reference.replace(/(.{4})/g, "$1 ").toLowerCase();
+    const externalRef = `sepa:${MARKER}-by-reference`;
+
+    const result = await takeOverPendingSponsorshipByReference(
+      printed,
+      { amountCents: 6_000, paidOn: "2001-03-01" },
+      externalRef,
+    );
+    if (!result.ok) throw new Error(`takeover refused: ${result.reason}`);
+
+    const donations = await client.query<{ external_ref: string; sponsor_id: string }>(
+      "SELECT external_ref, sponsor_id FROM donations WHERE sponsor_id = $1",
+      [result.value.id],
+    );
+    expect(donations.rows).toEqual([{ external_ref: externalRef, sponsor_id: result.value.id }]);
+    expect(await isRetired(stored.reference)).toBe(true);
+
+    const again = await takeOverPendingSponsorshipByReference(
+      stored.reference,
+      { amountCents: 6_000, paidOn: "2001-03-01" },
+      externalRef,
+    );
+    expect(again.ok ? null : again.reason).toBe("not_found");
+  });
+
+  it("writes nothing and keeps the request when its entry is already in the ledger", async () => {
+    const first = await announce();
+    const second = await announce({ claim: `${MARKER}-same-entry` });
+    const externalRef = `sepa:${MARKER}-same-entry`;
+    await takeOverPendingSponsorshipByReference(
+      first.reference,
+      { amountCents: 6_000, paidOn: "2001-03-01" },
+      externalRef,
+    );
+
+    await expect(
+      takeOverPendingSponsorshipByReference(
+        second.reference,
+        { amountCents: 6_000, paidOn: "2001-03-01" },
+        externalRef,
+      ),
+    ).rejects.toMatchObject({ constraint: "uq_donations_external_ref" });
+
+    const kept = await client.query("SELECT 1 FROM pending_sponsorships WHERE id = $1", [second.id]);
+    expect(kept.rowCount).toBe(1);
+    expect(await isRetired(second.reference)).toBe(false);
   });
 
   it("restarts the sixty days when a request is corrected", async () => {

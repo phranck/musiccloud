@@ -94,12 +94,20 @@ export async function createDonation(input: DonationInput): Promise<Donation> {
  *
  * @param db - The pool, or the client of an open transaction.
  * @param input - The validated donation.
+ * @param externalRef - The bank's own key of a payment the bank import read,
+ *   `sepa:<entry reference>`, or `null`, the default, for one entered by hand. Its
+ *   unique index refuses the same entry a second time with a unique violation on
+ *   `uq_donations_external_ref`, which is how a second read recognizes it.
  * @returns The stored donation.
  */
-export async function insertDonation(db: DatabaseQueryable, input: DonationInput): Promise<Donation> {
+export async function insertDonation(
+  db: DatabaseQueryable,
+  input: DonationInput,
+  externalRef: string | null = null,
+): Promise<Donation> {
   const result = await db.query<DonationRow>(
-    `INSERT INTO donations (id, name, published, amount_cents, received_on, provider, note, sponsor_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO donations (id, name, published, amount_cents, received_on, provider, note, sponsor_id, external_ref)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING ${DONATION_COLUMNS}`,
     [
       nanoid(),
@@ -110,9 +118,35 @@ export async function insertDonation(db: DatabaseQueryable, input: DonationInput
       input.provider,
       input.note,
       input.sponsorId,
+      externalRef,
     ],
   );
   return toDonation(result.rows[0] as DonationRow);
+}
+
+/**
+ * Gives a payment the ledger already holds the name it was stored without.
+ *
+ * @param externalRef - The entry as the ledger names it, `sepa:<entry reference>`.
+ * @param name - The name as the statement writes it. Nothing is written when it is empty,
+ *   since a read that learned no name has nothing to add.
+ * @returns `true` when a row was completed, `false` when none matched or the one that did
+ *   already carried a name.
+ *
+ * @remarks
+ * Only a row whose name is empty is touched, and only that field of it. A name an
+ * operator typed into the editor is better than the statement's, and a read repeating
+ * over days already read must not undo that. The condition sits in the statement rather
+ * than in a read followed by a write, so two overlapping reads cannot both decide the
+ * row was empty.
+ */
+export async function fillDonationPayerName(externalRef: string, name: string): Promise<boolean> {
+  if (!name) return false;
+  const result = await getDatabasePool().query(
+    "UPDATE donations SET name = $2, updated_at = NOW() WHERE external_ref = $1 AND name = ''",
+    [externalRef, name],
+  );
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
