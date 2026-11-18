@@ -31,12 +31,6 @@ export const contentCardInset = `calc(${embossedCardContentInset} / 2 + ${emboss
  * that introduce a card.
  */
 export const cardTextInset = `calc(${embossedCardOuterRadius} / 2)`;
-/**
- * How far text standing on the page above a recessed well is drawn in: half
- * the well's radius, 8px at the 16px radius the well takes on the page, for
- * the same reason as {@link cardTextInset}.
- */
-export const recessedTextInset = `calc(${recessedSurfaceRadius} / 2)`;
 
 const CONTROL_RADIUS_BASE = `max(4px, calc(var(--mc-recessed-radius-base, ${recessedSurfaceRadius}) - var(--mc-recessed-padding, ${recessedControlInset})))`;
 const CONTROL_RADIUS_SM = `max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-recessed-radius-base, ${recessedSurfaceRadius})) - var(--mc-recessed-padding, ${recessedControlInset})))`;

@@ -16,7 +16,7 @@ import {
 } from "@musiccloud/shared";
 import { type CSSProperties, useEffect, useEffectEvent, useReducer, useRef, useSyncExternalStore } from "react";
 import { ContentCard } from "@/components/cards/ContentCard";
-import { cardTextInset, recessedTextInset } from "@/components/cards/cardGeometry";
+import { cardTextInset } from "@/components/cards/cardGeometry";
 import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { prefersReducedMotion } from "@/lib/motion/setup";
 import {
@@ -220,13 +220,13 @@ export function SupportLadder({ config }: SupportLadderProps) {
     >
       {(segments.length > 1 || intervalText !== "") && (
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-          {/* Drawn in to where the curve beneath it ends: the sponsor tab's
-              card, or the well every other tab opens with. */}
+          {/* Drawn in to where the curve of the cards beneath it ends: the
+              sponsor tab's card, or the amount cards every other tab opens with. */}
           {intervalText && (
             <LadderRichText
               html={intervalText}
               className={cn("min-w-0 flex-1", SUPPORT_TEXT_CLASS)}
-              inset={sponsorFormText ? cardTextInset : recessedTextInset}
+              inset={cardTextInset}
             />
           )}
           {segments.length > 1 && (

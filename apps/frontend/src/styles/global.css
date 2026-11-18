@@ -32,13 +32,15 @@
      ladder's notice that a payment reference is ready: the success color at the
      strength lmaa.space tints its own confirmation with. */
   --color-success-tint: color-mix(in srgb, var(--color-success) 12%, transparent);
-  /* The ground, the edge and the text of something to read before acting, such
-     as the support ladder's reminder to compare the banking app: the accent in
-     the three steps lmaa.space draws its info notice in, a faint ground, a
-     clear edge, and text light enough to read on the ground. */
-  --color-info-tint: color-mix(in srgb, var(--color-accent) 16%, transparent);
-  --color-info-border: color-mix(in srgb, var(--color-accent) 50%, transparent);
-  --color-info-text: color-mix(in srgb, var(--color-accent) 60%, white);
+  /* The accent in the three steps lmaa.space marks something with: a faint
+     ground, a clear edge, and text light enough to read on that ground. The
+     support ladder draws its info notice and its chosen amount in them. */
+  --color-accent-tint: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  --color-accent-edge: color-mix(in srgb, var(--color-accent) 50%, transparent);
+  --color-accent-text: color-mix(in srgb, var(--color-accent) 60%, white);
+  /* An edge that only separates, such as the dashed line around the support
+     ladder's free amount: the muted text color at 40%. */
+  --color-edge-subtle: color-mix(in srgb, var(--color-text-muted) 40%, transparent);
 
   /* Hardware display palette */
   --color-vfd-phosphor: #7aebff;
@@ -307,19 +309,39 @@ button,
   opacity: 0;
 }
 
-/* The ladder's fields and tracks stand on the sky, where the recessed tint
-   (`--recessed-night-t`, `--segTrack-night-t`) sinks into the ground at night.
-   At night they take the card material (`--card-night-t`) instead, and by day
-   they keep their own tint. `SUPPORT_WELL_CLASS` in `supportSurface.ts` names
-   the class. Two classes outweigh the single-class resolvers in `glass.css`,
-   and the track's rule follows the well's so it wins on the switch, which
-   carries both. */
-.mc-support-well.recessed-gradient-border {
-  --_t: color-mix(in srgb, var(--recessed-day-t) calc(var(--g-dayness) * 100%), var(--card-night-t));
-}
-
+/* The ladder's tab switch stands on the sky, where the track's recessed tint
+   (`--segTrack-night-t`) sinks into the ground at night. At night it takes the
+   card material (`--card-night-t`) instead, and by day it keeps its own tint.
+   `SUPPORT_WELL_CLASS` in `supportSurface.ts` names the class. Two classes
+   outweigh the single-class resolver in `glass.css`. */
 .mc-support-well.mc-glass-seg-track {
   --_t: color-mix(in srgb, var(--segTrack-day-t) calc(var(--g-dayness) * 100%), var(--card-night-t));
+}
+
+/* The ladder's amounts are content cards, as lmaa.space draws them. The chosen
+   one lays the accent tint over the card's material and carries the accent
+   edge; the free amount carries a dashed edge, which turns to the accent once
+   it holds a value. The edge is an outline drawn inside the card, so it follows
+   the card's corner and moves nothing. `AMOUNT_CARD_CLASS` and
+   `AMOUNT_FIELD_CLASS` in `SupportLadderAmounts.tsx` name the classes. */
+:is(.mc-amount-card, .mc-amount-field) {
+  outline-offset: -1px;
+}
+
+.mc-amount-field {
+  outline: 1px dashed var(--color-edge-subtle);
+}
+
+.mc-amount-card.is-chosen {
+  outline: 1px solid var(--color-accent-edge);
+}
+
+.mc-amount-field.is-chosen {
+  outline-color: var(--color-accent-edge);
+}
+
+:is(.mc-amount-card, .mc-amount-field).is-chosen > .mc-card-material {
+  background-image: linear-gradient(var(--color-accent-tint), var(--color-accent-tint));
 }
 
 /* The prose of a support prompt reads at the page's own size rather than the

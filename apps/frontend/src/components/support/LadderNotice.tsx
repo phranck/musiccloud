@@ -34,25 +34,25 @@ const SUCCESS_TINT_STYLE: CSSProperties = {
 
 /**
  * The ground and edge the info tone lays over the well's material, in
- * `--color-info-tint` and `--color-info-border`, as lmaa.space draws its info
+ * `--color-accent-tint` and `--color-accent-edge`, as lmaa.space draws its info
  * notice.
  */
 const INFO_TINT_STYLE: CSSProperties = {
-  backgroundImage: "linear-gradient(var(--color-info-tint), var(--color-info-tint))",
-  border: "1px solid var(--color-info-border)",
+  backgroundImage: "linear-gradient(var(--color-accent-tint), var(--color-accent-tint))",
+  border: "1px solid var(--color-accent-edge)",
 };
 
 /**
  * The look of each tone, held as data so a further tone is one entry here.
- * Info is the mark and the text in `--color-info-text` over an accent tint with
- * an accent edge, as lmaa.space draws it. Success is the check mark in the
+ * Info is the mark and the text in `--color-accent-text` over an accent tint
+ * with an accent edge, as lmaa.space draws it. Success is the check mark in the
  * success color on primary text over a success tint.
  */
 const TONES: Record<LadderNoticeToneValue, ToneLook> = {
   [LadderNoticeTone.Info]: {
     icon: InfoIcon,
-    iconClassName: "text-info-text",
-    textClassName: "text-info-text",
+    iconClassName: "text-accent-text",
+    textClassName: "text-accent-text",
     style: INFO_TINT_STYLE,
   },
   [LadderNoticeTone.Success]: {

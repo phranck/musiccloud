@@ -14,9 +14,9 @@ interface LadderRichTextProps {
   role?: string;
   /**
    * How far the text is drawn in on both sides, for text standing on the page
-   * above a rounded surface: `cardTextInset` above a card, `recessedTextInset`
-   * above a well, both from `cardGeometry.ts`. No inset where absent, which is
-   * right inside a padded card and for text with nothing rounded beneath it.
+   * above a card: `cardTextInset` from `cardGeometry.ts`. No inset where
+   * absent, which is right inside a padded card and for text with nothing
+   * rounded beneath it.
    */
   inset?: string;
 }

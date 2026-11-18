@@ -8,7 +8,7 @@ import {
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cardTextInset, recessedTextInset } from "@/components/cards/cardGeometry";
+import { cardTextInset } from "@/components/cards/cardGeometry";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 
 import { SUPPORT_WELL_CLASS } from "./supportSurface";
@@ -144,8 +144,14 @@ const SURFACE_SELECTOR = ".embossed-gradient-border, .recessed-gradient-border";
 /** The class of the element that holds a tab's blocks, one after another. */
 const LADDER_BODY_SELECTOR = ".mc-support-ladder__body";
 
-/** The fields and tracks that take the card material at night, by `SUPPORT_WELL_CLASS`. */
+/** What takes the card material at night, by `SUPPORT_WELL_CLASS`. */
 const WELL_SELECTOR = `.${SUPPORT_WELL_CLASS}`;
+
+/** A content card, which is an embossed card. */
+const CARD_SELECTOR = ".embossed-gradient-border";
+
+/** What `SupportLadderAmounts.tsx` marks the card holding the amount in force with. */
+const CHOSEN_CLASS = "is-chosen";
 
 /**
  * The block of the ladder's body that holds an element, which is the card or
@@ -272,50 +278,47 @@ describe("SupportLadder", () => {
     expect(amount.closest(SURFACE_SELECTOR)).toBe(blockHolding(container, amount));
   });
 
-  it("keeps the free field in its own well on a tab without a form", () => {
+  it("sets every suggested amount and the free field on a card of its own, as lmaa.space does", () => {
+    renderLadder();
+
+    const cards = [/€5/, /€10/].map((name) => screen.getByRole("button", { name }).querySelector(CARD_SELECTOR));
+    const fieldCard = screen.getByLabelText("Another amount").closest(CARD_SELECTOR);
+
+    expect(cards.every((card) => card !== null)).toBe(true);
+    expect(new Set(cards).size).toBe(cards.length);
+    expect(fieldCard).not.toBeNull();
+    expect(cards).not.toContain(fieldCard);
+    expect(screen.getByRole("heading", { name: "Another amount" })).toBeTruthy();
+  });
+
+  it("marks the chosen amount's card, and the free field's card once it holds a value", () => {
+    renderLadder();
+
+    const chosenCard = () => screen.getByRole("button", { name: /€10/ }).querySelector(CARD_SELECTOR);
+    const fieldCard = () => screen.getByLabelText("Another amount").closest(CARD_SELECTOR);
+    expect(chosenCard()?.classList.contains(CHOSEN_CLASS)).toBe(true);
+    expect(fieldCard()?.classList.contains(CHOSEN_CLASS)).toBe(false);
+
+    fireEvent.change(screen.getByLabelText("Another amount"), { target: { value: "12" } });
+
+    expect(chosenCard()?.classList.contains(CHOSEN_CLASS)).toBe(false);
+    expect(fieldCard()?.classList.contains(CHOSEN_CLASS)).toBe(true);
+  });
+
+  it("gives the night's card material to the tab switch alone", () => {
     const { container } = renderLadder();
 
-    const amount = screen.getByLabelText("Another amount");
-
-    expect(screen.queryByRole("heading", { name: "Another amount" })).toBeNull();
-    expect(amount.closest(SURFACE_SELECTOR)).not.toBe(blockHolding(container, amount));
-  });
-
-  it("marks the fields, the amount grid and the tab switch on the page as the ladder's wells, and nothing else", () => {
-    renderLadder();
-
     const switchTrack = screen.getByRole("button", { name: "Once" }).closest(SURFACE_SELECTOR);
-    const fieldWell = screen.getByLabelText("Another amount").closest(SURFACE_SELECTOR);
-    const gridWell = screen.getByRole("button", { name: /€5/ }).parentElement?.closest(SURFACE_SELECTOR);
 
     expect(switchTrack?.matches(WELL_SELECTOR)).toBe(true);
-    expect(fieldWell?.matches(WELL_SELECTOR)).toBe(true);
-    expect(gridWell?.matches(WELL_SELECTOR)).toBe(true);
-    // The transfer card is a card, so it keeps the card material it already has.
-    expect(screen.getByText("Bank transfer").closest(WELL_SELECTOR)).toBeNull();
+    expect(container.querySelectorAll(WELL_SELECTOR)).toHaveLength(1);
   });
 
-  it("draws text standing on the page in to where the curve beneath it ends", async () => {
+  it("draws the tab's text in to where the curve of the cards beneath it ends", async () => {
     renderLadder();
-
-    const labelRow = screen.getByText("Another amount", { selector: "label" }).parentElement as HTMLElement;
-    expect(labelRow.style.paddingInline).toBe(recessedTextInset);
 
     await chooseTab("Monthly", () => expect(screen.getByText("That is €120 a year.")).toBeTruthy());
     expect((screen.getByText("That is €120 a year.").parentElement as HTMLElement).style.paddingInline).toBe(
-      recessedTextInset,
-    );
-  });
-
-  it("draws the help text under the free field in to the card that follows it", () => {
-    renderLadder({
-      ...LADDER,
-      intervals: LADDER.intervals.map((interval) =>
-        interval.custom ? { ...interval, custom: { ...interval.custom, text: "<p>Any amount helps.</p>" } } : interval,
-      ),
-    });
-
-    expect((screen.getByText("Any amount helps.").parentElement as HTMLElement).style.paddingInline).toBe(
       cardTextInset,
     );
   });
