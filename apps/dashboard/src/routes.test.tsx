@@ -1,6 +1,11 @@
+import { BANK_CONNECTION_CALLBACK_DASHBOARD_PATH, BANK_CONNECTION_DASHBOARD_PATH } from "@musiccloud/shared";
+import { isValidElement } from "react";
 import { matchRoutes } from "react-router";
 import { describe, expect, it } from "vitest";
+import { RequireArea } from "@/features/auth/RequireArea";
+import { BANK_CONNECTION_CALLBACK_ROUTE, BANK_CONNECTION_ROUTE } from "@/features/sponsoring/bankConnectionPaths";
 import { routes } from "@/routes";
+import { AdminArea } from "@/shared/constants/domain";
 
 describe("Dashboard route retirement", () => {
   it("has no dedicated Dynamic Forms route", () => {
@@ -23,6 +28,27 @@ describe("Dashboard route retirement", () => {
         path,
       ).toBe(false);
     }
+  });
+});
+
+describe("Bank connection routes", () => {
+  it.each([
+    [BANK_CONNECTION_DASHBOARD_PATH, BANK_CONNECTION_ROUTE],
+    // The backend builds the address the bank returns to from the same constant,
+    // so the return lands on this route rather than in the catch-all.
+    [BANK_CONNECTION_CALLBACK_DASHBOARD_PATH, BANK_CONNECTION_CALLBACK_ROUTE],
+  ])("resolves %s behind the owner's guard", (pathname, routePath) => {
+    const matches = matchRoutes(routes, pathname) ?? [];
+
+    expect(matches.at(-1)?.route.path).toBe(routePath);
+    expect(
+      matches.some(
+        ({ route }) =>
+          isValidElement<{ area: AdminArea }>(route.element) &&
+          route.element.type === RequireArea &&
+          route.element.props.area === AdminArea.BankConnection,
+      ),
+    ).toBe(true);
   });
 });
 

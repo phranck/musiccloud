@@ -62,6 +62,13 @@ zerops:
         # SMTP2GO_API_KEY: <from SMTP2GO -> Settings -> API Keys (send permission)>
         # EMAIL_FROM_ADDRESS: <verified SMTP2GO sender address, e.g. noreply@musiccloud.io>
         # EMAIL_FROM_NAME: <display name for outgoing emails, e.g. musiccloud>
+        # The bank connection (Sponsoring -> Bank connection in the dashboard).
+        # Optional, but both or neither: the boot fails with only one of them.
+        # Both come from musiccloud's own application in the Enable Banking
+        # control panel, whose registered return address is
+        # <DASHBOARD_URL>/sponsoring/bank-connection/callback.
+        # ENABLE_BANKING_APPLICATION_ID: <the application's id, a UUID>
+        # ENABLE_BANKING_PRIVATE_KEY: <the application's RSA private key as PEM; line breaks may be written as \n>
       initCommands:
         - "true"
       start: sh -c 'PORT=4000 exec node apps/backend/dist/server.js'

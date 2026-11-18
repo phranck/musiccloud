@@ -848,6 +848,13 @@
       "when": 1794953190560,
       "tag": "0120_support_prompts",
       "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1794966094163,
+      "tag": "0121_bank_connections",
+      "breakpoints": true
     }
   ]
 }

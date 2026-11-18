@@ -5,6 +5,7 @@ export * from "./api-access-audit.js";
 export * from "./artist-identity.js";
 export * from "./artist-profile-cache.js";
 export * from "./audio-format.js";
+export * from "./bank-connection.js";
 export * from "./billing.js";
 export * from "./card-geometry.js";
 export * from "./code-fence-languages.js";

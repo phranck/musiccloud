@@ -28,6 +28,7 @@ import authPlugin from "./plugins/auth.js";
 import { adminApiAccessRoutes } from "./routes/admin-api-access.js";
 import adminArtistProfileRoutes from "./routes/admin-artist-profile.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
+import { adminBankConnectionRoutes } from "./routes/admin-bank-connection.js";
 import adminContentRoutes from "./routes/admin-content.js";
 import adminCrawlerRoutes from "./routes/admin-crawler.js";
 import { adminCreemProductRoutes } from "./routes/admin-creem-products.js";
@@ -90,6 +91,7 @@ import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site
 import sponsorAvatarRoutes from "./routes/sponsor-avatar.js";
 import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
+import { startBankConsentWatch } from "./services/bank-consent.js";
 import { isEmailProviderHealthy } from "./services/email-provider.js";
 import { isPluginAvailable, validateAdapters } from "./services/index.js";
 import { startPendingSponsorshipExpiry } from "./services/pending-sponsorships.js";
@@ -699,6 +701,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(adminDonationRoutes);
     await adminApp.register(adminSponsorRoutes);
     await adminApp.register(adminSponsorshipRequestRoutes);
+    await adminApp.register(adminBankConnectionRoutes);
     await adminApp.register(adminSupportPromptRoutes);
     await adminApp.register(adminPluginsRoutes);
     await adminApp.register(adminCrawlerRoutes);
@@ -734,6 +737,8 @@ async function start() {
     app.log.info(`Backend listening on ${HOST}:${PORT}`);
     // Started after the migrations, because the sweep deletes from a table they create.
     startPendingSponsorshipExpiry(app.log);
+    // After the migrations as well, because it reads the bank connection's table.
+    startBankConsentWatch(app.log);
     validateAdapters();
     // Pre-warm Apple Music developer token (avoids first-request latency)
     if (isPluginAvailable(Service.AppleMusic)) warmAppleMusicToken();

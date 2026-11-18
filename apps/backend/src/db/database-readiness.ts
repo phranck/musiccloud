@@ -86,6 +86,8 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "sponsor_avatars",
   "pending_sponsorships",
   "support_prompts",
+  "bank_connections",
+  "bank_authorization_states",
 ] as const;
 
 const VINYL_WRITE_TABLES = ["vinyl_layouts"] as const;
@@ -120,6 +122,12 @@ const SPONSORING_WRITE_TABLES = [
   "pending_sponsorships",
   "support_prompts",
 ] as const;
+/**
+ * The bank connection: the connection in force with the ones it replaced, and
+ * the authorizations started and not yet returned. Starting, completing,
+ * renewing and withdrawing a connection writes both.
+ */
+const BANK_CONNECTION_WRITE_TABLES = ["bank_connections", "bank_authorization_states"] as const;
 const RUNTIME_WRITE_TABLES = [
   ...VINYL_WRITE_TABLES,
   ...CONTEXTUAL_EDITORIAL_WRITE_TABLES,
@@ -128,6 +136,7 @@ const RUNTIME_WRITE_TABLES = [
   ...DEVELOPER_PORTAL_WRITE_TABLES,
   ...APP_ATTEST_WRITE_TABLES,
   ...SPONSORING_WRITE_TABLES,
+  ...BANK_CONNECTION_WRITE_TABLES,
 ] as const;
 
 export function buildMusiccloudReadinessExpectations(

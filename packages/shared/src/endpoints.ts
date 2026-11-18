@@ -331,6 +331,15 @@ export const ENDPOINTS = {
       requestDetail: (id: string) => `/api/admin/sponsoring/requests/${encodeURIComponent(id)}`,
       /** POST: turn one request into a sponsor and a donation in one transaction. Owner or admin. */
       requestTakeover: (id: string) => `/api/admin/sponsoring/requests/${encodeURIComponent(id)}/takeover`,
+      /**
+       * GET: what the dashboard shows about the bank connection, from the database alone. Owner or admin.
+       * DELETE: withdraw the connection in force and close its consent at the bank. Owner only.
+       */
+      bankConnection: "/api/admin/sponsoring/bank-connection",
+      /** POST: start an authorization at Enable Banking; answers the bank's address to send the browser to. Owner only. */
+      bankConnectionAuthorize: "/api/admin/sponsoring/bank-connection/authorize",
+      /** POST: spend the bank's return, `{ code, state }`, and put the connection in force. Owner only. */
+      bankConnectionSession: "/api/admin/sponsoring/bank-connection/session",
     },
 
     supportPrompts: {

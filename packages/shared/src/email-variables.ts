@@ -153,6 +153,25 @@ export const EMAIL_VARIABLES = {
     description: "Name of the developer's registered application/client.",
     sampleValue: "My Music App",
   },
+  bankConsentSubject: {
+    name: "bankConsentSubject",
+    scope: EmailVariableScope.Context,
+    description: "What the warning about the lapsing bank consent says in one line, for the subject.",
+    sampleValue: "The bank connection expires in two weeks",
+  },
+  bankConsentMessage: {
+    name: "bankConsentMessage",
+    scope: EmailVariableScope.Context,
+    description: "What the warning about the lapsing bank consent says, in a sentence or two.",
+    sampleValue:
+      "The consent for reading the account expires soon. Renewing takes two minutes and is done in the dashboard under Sponsoring, Bank connection.",
+  },
+  bankConnectionUrl: {
+    name: "bankConnectionUrl",
+    scope: EmailVariableScope.Context,
+    description: "The dashboard page where the bank connection is renewed.",
+    sampleValue: "https://dashboard.musiccloud.io/sponsoring/bank-connection",
+  },
 } as const satisfies Record<string, EmailVariableMeta>;
 
 /** A variable name the catalog defines. */

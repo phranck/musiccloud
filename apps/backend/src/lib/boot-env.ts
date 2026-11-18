@@ -1,5 +1,6 @@
 import { APP_SESSION_SECRET_VARIABLE, assertAppSessionSecret } from "../services/app-attest/session-token.js";
 import { getCreemConfig, hasAnyCreemKeyVariable } from "./creem-config.js";
+import { getEnableBankingConfig } from "./enable-banking-config.js";
 import { requireEnv } from "./env.js";
 
 /**
@@ -47,6 +48,9 @@ const REQUIRED_PRODUCTION_ENV = ["INTERNAL_API_KEY"] as const;
  *   dev-only.
  * @throws Error when a Creem key is set but the config is otherwise
  *   inconsistent (re-thrown from {@link getCreemConfig}).
+ * @throws Error when only one half of the Enable Banking credential is set,
+ *   or its application id is not a UUID (re-thrown from
+ *   {@link getEnableBankingConfig}).
  * @throws {AppSessionUnconfiguredError} When production has no
  *   `APP_SESSION_SECRET`, or any environment has one shorter than 32 bytes.
  */
@@ -76,4 +80,9 @@ export function assertRequiredBootEnv(): void {
   if (hasAnyCreemKeyVariable()) {
     getCreemConfig();
   }
+
+  // The bank connection is optional too, but its two variables are one
+  // credential in two halves. Reading it here turns a half-set credential into
+  // a loud boot failure rather than a bank page that refuses every request.
+  getEnableBankingConfig();
 }

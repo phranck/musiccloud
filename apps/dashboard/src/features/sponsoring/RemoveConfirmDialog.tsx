@@ -5,6 +5,7 @@ import {
   DashboardButtonVariant,
 } from "@musiccloud/dashboard-ui";
 import { TrashIcon } from "@phosphor-icons/react";
+import type { ReactNode } from "react";
 
 import { SaveErrorMessage } from "@/components/ui/SaveErrorMessage";
 import { dashboardCopy } from "@/copy/dashboard";
@@ -14,8 +15,14 @@ const messages = dashboardCopy;
 
 /** Props of {@link RemoveConfirmDialog}. */
 export interface RemoveConfirmDialogProps {
-  /** The row about to be removed, as one line naming it, or `null` while the dialog is closed. */
+  /**
+   * The row about to be removed, as one line naming it, or `null` while the
+   * dialog is closed. An empty line opens the dialog without naming a row, for
+   * a removal that has only one possible subject.
+   */
   summary: string | null;
+  /** The icon beside the title. The trash can by default; another where the removal is not a deletion. */
+  titleIcon?: ReactNode;
   /** The dialog's title, such as "Remove donation?". */
   title: string;
   /** What removing the row does, said before it happens. */
@@ -42,6 +49,7 @@ export interface RemoveConfirmDialogProps {
  */
 export function RemoveConfirmDialog({
   summary,
+  titleIcon = <TrashIcon weight="duotone" className={dialogHeaderIconClass} />,
   title,
   description,
   confirmLabel = messages.common.remove,
@@ -51,12 +59,7 @@ export function RemoveConfirmDialog({
   onClose,
 }: RemoveConfirmDialogProps) {
   return (
-    <Dialog
-      open={summary !== null}
-      title={title}
-      titleIcon={<TrashIcon weight="duotone" className={dialogHeaderIconClass} />}
-      onClose={onClose}
-    >
+    <Dialog open={summary !== null} title={title} titleIcon={titleIcon} onClose={onClose}>
       <div className="px-6 py-3 space-y-2">
         {summary && <p className="text-sm font-medium text-[var(--ds-text)]">{summary}</p>}
         <p className="text-sm text-[var(--ds-text-muted)]">{description}</p>

@@ -1,5 +1,6 @@
-import type { ContentPageSummary } from "@musiccloud/shared";
+import { BANK_CONNECTION_DASHBOARD_PATH, type ContentPageSummary } from "@musiccloud/shared";
 import {
+  BankIcon,
   CaretCircleDoubleDownIcon,
   CaretCircleDoubleUpIcon,
   CaretDownIcon,
@@ -51,7 +52,10 @@ import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import { isMetaDirty } from "@/features/content/state/slices/metaSlice";
 import { SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
+import { BankConnectionStateBadge } from "@/features/sponsoring/BankConnectionStateBadge";
+import { BankConnectionState, resolveBankConnectionState } from "@/features/sponsoring/bankConnectionState";
 import { SUPPORT_PROMPTS_PATH } from "@/features/sponsoring/supportPromptPaths";
+import { useBankConnection } from "@/features/sponsoring/useBankConnection";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import { AdminArea, canAccessArea } from "@/shared/constants/domain";
 import type { AdminRole } from "@/shared/types/admin";
@@ -629,15 +633,38 @@ function SidebarDeveloperSection({
  *
  * Shown to every role that may open the Administration area. It links to the
  * income overview, the donations ledger, the annual sponsors, the sponsorship
- * requests waiting for their transfer, the support prompts, and the settings.
- * The settings can be read by an admin and changed by the owner alone, which
- * the page itself says.
+ * requests waiting for their transfer, the support prompts, the bank
+ * connection, and the settings. The settings can be read by an admin and
+ * changed by the owner alone, which the page itself says. The bank connection
+ * is the owner's alone, so it is listed only where the role may open it, with
+ * the connection's state beside it once the site holds a credential.
  *
+ * @param props.showBankConnection - Whether the signed-in role may open the bank connection. While `false` its status is not fetched.
  * @param props.onItemClick - Called after a link is followed, so a mobile drawer can close.
  * @param props.s - The sidebar's labels.
  * @returns The section.
  */
-function SidebarSponsoringSection({ onItemClick, s }: { onItemClick?: () => void; s: SidebarLabels }) {
+function SidebarSponsoringSection({
+  showBankConnection,
+  onItemClick,
+  s,
+}: {
+  showBankConnection: boolean;
+  onItemClick?: () => void;
+  s: SidebarLabels;
+}) {
+  const { data: bankStatus } = useBankConnection(showBankConnection);
+  const bankState = bankStatus ? resolveBankConnectionState(bankStatus, new Date()) : null;
+  // Memoized because `DashboardSection.Item` takes its add-on only as a built
+  // element, so an inline one would be a new element on every render.
+  const bankStateBadge = useMemo(
+    () =>
+      bankState !== null && bankState !== BankConnectionState.Unconfigured ? (
+        <BankConnectionStateBadge state={bankState} />
+      ) : undefined,
+    [bankState],
+  );
+
   return (
     <div className="mt-3">
       <DashboardSection>
@@ -691,6 +718,18 @@ function SidebarSponsoringSection({ onItemClick, s }: { onItemClick?: () => void
               />
             )}
           </NavLink>
+          {showBankConnection && (
+            <NavLink to={BANK_CONNECTION_DASHBOARD_PATH} onClick={onItemClick} className="contents">
+              {({ isActive }) => (
+                <DashboardSection.Item
+                  icon={<BankIcon weight="duotone" className="w-4 h-4" />}
+                  label={s.bankConnection}
+                  active={isActive}
+                  addOn={bankStateBadge}
+                />
+              )}
+            </NavLink>
+          )}
           <NavLink to="/sponsoring/settings" onClick={onItemClick} className="contents">
             {({ isActive }) => (
               <DashboardSection.Item
@@ -723,6 +762,7 @@ export function Sidebar({
   const isAdmin = canAccessArea(role, AdminArea.Administration);
   const showUsers = canAccessArea(role, AdminArea.Users);
   const showDeveloperSettings = canAccessArea(role, AdminArea.DeveloperSettings);
+  const showBankConnection = canAccessArea(role, AdminArea.BankConnection);
   const { data: stats } = useAdminStats();
 
   const [groupStatus, setGroupStatus] = useState<Record<string, boolean>>(() =>
@@ -858,7 +898,9 @@ export function Sidebar({
         {isAdmin && <SidebarDeveloperSection showSettings={showDeveloperSettings} onItemClick={onItemClick} s={s} />}
 
         {/* Sponsoring */}
-        {isAdmin && <SidebarSponsoringSection onItemClick={onItemClick} s={s} />}
+        {isAdmin && (
+          <SidebarSponsoringSection showBankConnection={showBankConnection} onItemClick={onItemClick} s={s} />
+        )}
 
         {/* System */}
         {isAdmin && (
