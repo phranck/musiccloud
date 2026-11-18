@@ -340,6 +340,11 @@ export const ENDPOINTS = {
       bankConnectionAuthorize: "/api/admin/sponsoring/bank-connection/authorize",
       /** POST: spend the bank's return, `{ code, state }`, and put the connection in force. Owner only. */
       bankConnectionSession: "/api/admin/sponsoring/bank-connection/session",
+      /**
+       * POST: read the account now, `{ from? }`, and book what is musiccloud's; answers what the
+       * read did or why it did nothing. Owner only, with a read budget of its own.
+       */
+      bankConnectionSync: "/api/admin/sponsoring/bank-connection/sync",
     },
 
     supportPrompts: {

@@ -2,6 +2,7 @@ import {
   API_CLIENT_STATUSES,
   API_TOKEN_STATUSES,
   BANK_CONSENT_NOTICE_STAGES,
+  BANK_READ_KINDS,
   BILLING_PERIODS,
   CLIENT_REGISTRATION_TYPES,
   CREEM_MODES,
@@ -2517,6 +2518,31 @@ export type PendingSponsorshipRow = typeof pendingSponsorships.$inferSelect;
 export type PendingSponsorshipInsert = typeof pendingSponsorships.$inferInsert;
 
 /**
+ * Every sponsorship reference whose request is gone from
+ * {@link pendingSponsorships}, ported from lmaa.space's
+ * `retired_sponsorship_references`.
+ *
+ * A request leaves when it is taken over, when it expires unclaimed and when an
+ * operator removes it, and its reference must still be recognized afterwards: a
+ * standing order keeps paying under it, and a payment can arrive after its
+ * request expired. The bank import books a reference only where musiccloud
+ * issued it, and an issued reference stands either in `pending_sponsorships` or
+ * here. Every way a request leaves writes its reference here in the same
+ * transaction.
+ *
+ * Only the reference is kept, upper case and without its printed spaces. It is
+ * drawn at random and names nobody, so what the request said about the person
+ * still goes when the request does. `retired_at` is when the request left.
+ */
+export const retiredSponsorshipReferences = pgTable("retired_sponsorship_references", {
+  reference: text("reference").primaryKey(),
+  retiredAt: timestamp("retired_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One `retired_sponsorship_references` row as Drizzle reads it. */
+export type RetiredSponsorshipReferenceRow = typeof retiredSponsorshipReferences.$inferSelect;
+
+/**
  * Support prompts: the short asks that appear inside the site rather than on a
  * page of their own, ported from lmaa.space's `support_prompts`.
  *
@@ -2648,3 +2674,47 @@ export const bankAuthorizationStates = pgTable(
 
 /** One `bank_authorization_states` row as Drizzle reads it. */
 export type BankAuthorizationStateRow = typeof bankAuthorizationStates.$inferSelect;
+
+/**
+ * Every time the backend read the bank account, and what came of it, ported
+ * from lmaa.space's `bank_account_reads`.
+ *
+ * Two questions are answered from this table. How many background reads
+ * happened in the sliding 24 hours, which Article 36(5) of Commission Delegated
+ * Regulation (EU) 2018/389 caps at four while nobody is asking, and whether a
+ * read has ever finished, which tells the first read (90 days back) from every
+ * later one (5 days back). A stored row is what makes both survive a restart; a
+ * timer does not, because a deployment starts it again and two containers
+ * briefly run one each.
+ *
+ * `kind` is one of `BANK_READ_KINDS`, counted apart because the owner asking
+ * is not capped and must not lock the background run out. `succeeded` is
+ * `false` until the read finished. `booked_through` is the last day a finished
+ * read covered, `YYYY-MM-DD`, and `NULL` while a read is in flight and on one
+ * that failed. `failure_reason` is the `MC-BANK-*` code a failed read broke off
+ * with, `NULL` otherwise. The four counts are how many entries came back, how
+ * many became a ledger row, how many stood there and were completed, and how
+ * many stood there unchanged; they hold counts and nothing about any entry.
+ */
+export const bankAccountReads = pgTable(
+  "bank_account_reads",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow(),
+    succeeded: boolean("succeeded").notNull().default(false),
+    bookedThrough: text("booked_through"),
+    failureReason: text("failure_reason"),
+    transactionsRead: integer("transactions_read").notNull().default(0),
+    imported: integer("imported").notNull().default(0),
+    filled: integer("filled").notNull().default(0),
+    skipped: integer("skipped").notNull().default(0),
+  },
+  (table) => [
+    index("idx_bank_account_reads_read_at").on(table.readAt),
+    check("chk_bank_account_reads_kind", sql`${table.kind} IN (${sqlValueList(BANK_READ_KINDS)})`),
+  ],
+);
+
+/** One `bank_account_reads` row as Drizzle reads it. */
+export type BankAccountReadRow = typeof bankAccountReads.$inferSelect;

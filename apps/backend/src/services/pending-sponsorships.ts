@@ -5,7 +5,9 @@
  * Ported from lmaa.space (`apps/backend/src/services/pending-sponsorships.ts`).
  * One thing differs on purpose: the takeover writes the sponsor, the payment and
  * the removal of the request in one transaction, so a failure leaves nothing
- * half written.
+ * half written. Every removal of a request keeps its reference in
+ * `retired_sponsorship_references`, so the bank import can tell a reference
+ * musiccloud issued from one somebody built.
  */
 
 import { randomBytes } from "node:crypto";
@@ -30,7 +32,7 @@ import {
 } from "@musiccloud/shared";
 import type { FastifyBaseLogger } from "fastify";
 import { nanoid } from "nanoid";
-import { getDatabasePool, withDatabaseTransaction } from "../db/pool.js";
+import { type DatabaseQueryable, getDatabasePool, withDatabaseTransaction } from "../db/pool.js";
 import { log } from "../lib/infra/logger.js";
 import { detectPlatformFromHost } from "../lib/preview-image.js";
 import { insertDonation } from "./donations.js";
@@ -295,15 +297,110 @@ export async function listPendingSponsorships(): Promise<PendingSponsorship[]> {
   return result.rows.map(toPendingSponsorship);
 }
 
+/** Selects one request by its id, `$1`. */
+const REQUEST_BY_ID = "id = $1";
+
+/** Selects every request made before a moment, `$1`. */
+const REQUESTS_CREATED_BEFORE = "created_at < $1";
+
 /**
- * Removes one request.
+ * Removes the requests a condition selects and keeps their references.
+ *
+ * Every way a request leaves goes through here, the takeover, the operator's
+ * removal and the expiry, so no reference musiccloud issued is forgotten. The
+ * caller runs it inside a transaction: a request never goes without its
+ * reference being kept, and a reference is never kept for a request that
+ * stayed. A reference retired once already is left as it stands, because the
+ * row records that it was issued and a second write could only say the same.
+ *
+ * @param client - The open transaction's client.
+ * @param condition - {@link REQUEST_BY_ID} or {@link REQUESTS_CREATED_BEFORE}, never request input.
+ * @param params - The condition's one parameter.
+ * @returns How many requests were removed.
+ */
+async function retirePendingSponsorships(
+  client: DatabaseQueryable,
+  condition: typeof REQUEST_BY_ID | typeof REQUESTS_CREATED_BEFORE,
+  params: unknown[],
+): Promise<number> {
+  const removed = await client.query<{ reference: string }>(
+    `DELETE FROM pending_sponsorships WHERE ${condition} RETURNING reference`,
+    params,
+  );
+  if (removed.rows.length > 0) {
+    await client.query(
+      `INSERT INTO retired_sponsorship_references (reference)
+       SELECT unnest($1::text[])
+       ON CONFLICT (reference) DO NOTHING`,
+      [removed.rows.map((row) => row.reference)],
+    );
+  }
+  return removed.rows.length;
+}
+
+/**
+ * Says whether musiccloud issued a reference, whatever became of its request.
+ *
+ * @param reference - The reference as it is stored, upper case and without spaces.
+ * @returns `true` when a request still carries it or it was retired with one,
+ *   `false` when musiccloud never issued it.
+ *
+ * @remarks
+ * Anybody can build a reference in musiccloud's form whose check digits hold, so
+ * the form alone books nothing. This lookup is what the bank import makes
+ * before it books a payment under one.
+ */
+export async function wasSponsorshipReferenceIssued(reference: string): Promise<boolean> {
+  const result = await getDatabasePool().query<{ issued: boolean }>(
+    `SELECT EXISTS (SELECT 1 FROM pending_sponsorships WHERE reference = $1)
+         OR EXISTS (SELECT 1 FROM retired_sponsorship_references WHERE reference = $1) AS issued`,
+    [reference],
+  );
+  return result.rows[0]?.issued === true;
+}
+
+/**
+ * Turns the request a reference was issued for into a sponsor, as
+ * {@link takeOverPendingSponsorship} does from the operator's side.
+ *
+ * @param reference - The reference as a transfer carried it, spaces and any case allowed.
+ * @param payment - What arrived and the day it did, as the statement says.
+ * @param externalRef - The bank's own key of the entry, `sepa:<entry reference>`.
+ * @returns The sponsor as stored, or `not_found` when no request carries that
+ *   reference. That is the ordinary case for a reference already taken over or
+ *   expired, so the caller treats it as nothing to take over rather than as a fault.
+ */
+export async function takeOverPendingSponsorshipByReference(
+  reference: string,
+  payment: PendingSponsorshipTakeover,
+  externalRef: string,
+): Promise<SponsorshipOutcome<Sponsor>> {
+  const stored = normalizeSponsorshipReference(reference);
+  if (!stored) return { ok: false, reason: SponsorshipRefusal.NotFound };
+
+  const found = await getDatabasePool().query<{ id: string }>(
+    "SELECT id FROM pending_sponsorships WHERE reference = $1",
+    [stored],
+  );
+  const id = found.rows[0]?.id;
+  if (!id) return { ok: false, reason: SponsorshipRefusal.NotFound };
+
+  return takeOverPendingSponsorship(id, payment, externalRef);
+}
+
+/**
+ * Removes one request and keeps its reference, so a transfer that still
+ * arrives under it is recognized as one musiccloud issued.
  *
  * @param id - The request's id.
  * @returns `true` when a row was removed, `false` when none has that id.
  */
 export async function deletePendingSponsorship(id: string): Promise<boolean> {
-  const result = await getDatabasePool().query("DELETE FROM pending_sponsorships WHERE id = $1", [id]);
-  return (result.rowCount ?? 0) > 0;
+  const removed = await withDatabaseTransaction(
+    (client) => retirePendingSponsorships(client, REQUEST_BY_ID, [id]),
+    "pending_sponsorship_delete",
+  );
+  return removed > 0;
 }
 
 /**
@@ -321,13 +418,22 @@ export async function deletePendingSponsorship(id: string): Promise<boolean> {
  * consent stays withheld, because what the person agreed to is the Sponsor
  * Wall, which the sponsor's `published` governs.
  *
+ * The request's reference is kept in `retired_sponsorship_references` in the
+ * same transaction, so a later transfer under it is still recognized as one
+ * musiccloud issued.
+ *
  * @param id - The request's id.
  * @param payment - What arrived, in cents, and the day it did.
+ * @param externalRef - The bank's own key of the entry, `sepa:<entry reference>`, for a
+ *   payment the bank import read; `null`, the default, for one the operator entered. The
+ *   ledger's unique index on it is what keeps a second read of the same entry from
+ *   booking it again, which then fails this whole transaction rather than half of it.
  * @returns The sponsor as stored, or `not_found` when no request has that id.
  */
 export async function takeOverPendingSponsorship(
   id: string,
   payment: PendingSponsorshipTakeover,
+  externalRef: string | null = null,
 ): Promise<SponsorshipOutcome<Sponsor>> {
   const before = await getDatabasePool().query<RequestRow>(
     `SELECT ${REQUEST_COLUMNS} FROM pending_sponsorships WHERE id = $1`,
@@ -357,16 +463,20 @@ export async function takeOverPendingSponsorship(
       published: current.published,
       paidOn: payment.paidOn,
     });
-    await insertDonation(client, {
-      name: current.name,
-      published: false,
-      amountCents: payment.amountCents,
-      receivedOn: payment.paidOn,
-      provider: DonationProvider.BankTransfer,
-      note: `Sponsorship ${formatCreditorReference(current.reference)}`,
-      sponsorId: created.id,
-    });
-    await client.query("DELETE FROM pending_sponsorships WHERE id = $1", [id]);
+    await insertDonation(
+      client,
+      {
+        name: current.name,
+        published: false,
+        amountCents: payment.amountCents,
+        receivedOn: payment.paidOn,
+        provider: DonationProvider.BankTransfer,
+        note: `Sponsorship ${formatCreditorReference(current.reference)}`,
+        sponsorId: created.id,
+      },
+      externalRef,
+    );
+    await retirePendingSponsorships(client, REQUEST_BY_ID, [id]);
     return { ...created, amountCents: payment.amountCents };
   }, "pending_sponsorship_takeover");
 
@@ -379,16 +489,18 @@ export async function takeOverPendingSponsorship(
  * Removes the requests nobody took over within {@link PENDING_SPONSORSHIP_DAYS}.
  *
  * They hold a name, an address and a sentence given for a payment that never
- * arrived, so there is no reason left to keep them.
+ * arrived, so there is no reason left to keep them. Their references are kept,
+ * because a payment can still arrive after its request expired, and the
+ * reference alone names nobody.
  *
  * @param now - The moment to measure against. Defaults to now.
  * @returns How many were removed.
  */
 export async function expirePendingSponsorships(now: Date = new Date()): Promise<number> {
-  const result = await getDatabasePool().query("DELETE FROM pending_sponsorships WHERE created_at < $1", [
-    pendingSponsorshipCutoff(now),
-  ]);
-  return result.rowCount ?? 0;
+  return withDatabaseTransaction(
+    (client) => retirePendingSponsorships(client, REQUESTS_CREATED_BEFORE, [pendingSponsorshipCutoff(now)]),
+    "pending_sponsorship_expiry",
+  );
 }
 
 /**

@@ -10,6 +10,8 @@
  * dashboard routes.
  */
 
+import { DAY_PATTERN } from "./donations.js";
+
 /** How many characters the value carried through the return has: 64, which is 32 random bytes as hex. */
 export const BANK_AUTHORIZATION_STATE_LENGTH = 64;
 
@@ -88,6 +90,8 @@ export const BANK_CONNECTION_CALLBACK_DASHBOARD_PATH = `${BANK_CONNECTION_DASHBO
  * - `UnexpectedAccounts`: the session reaches a number of accounts other than one.
  * - `NotConnected`: disconnecting while no connection is in force.
  * - `CloseFailed`: the connection was withdrawn locally, but the provider would not close the consent.
+ * - `ReadFailed`: a read of the account broke off for a reason the bank client does not name, such as
+ *   a database failure while booking. A read records it as its failure, so the dashboard still names one.
  */
 export const BankErrorCode = {
   NotConfigured: "MC-BANK-0001",
@@ -99,6 +103,7 @@ export const BankErrorCode = {
   UnexpectedAccounts: "MC-BANK-0007",
   NotConnected: "MC-BANK-0008",
   CloseFailed: "MC-BANK-0009",
+  ReadFailed: "MC-BANK-0010",
 } as const;
 
 /** A {@link BankErrorCode} member value. */
@@ -155,12 +160,15 @@ export const BANK_CONNECTION_CALLBACK_SCHEMA = {
  * @property lastReadSucceeded - Whether that read finished, or `null` where there has been none.
  * @property lastReadImported - How many payments that read took into the ledger, `0` before the first read.
  * @property lastReadFilled - How many payments that read completed rather than added, `0` before the first read.
- * @property lastReadFailure - Why the last read failed, as the bank client's error code, or `null`
- *   where it succeeded and before the first read.
- * @property nextReadAt - When the background run next reaches the bank, or `null` where it will not.
+ * @property lastReadFailure - Why the last read failed, as a {@link BankErrorCode} value, or `null`
+ *   where it succeeded and before the first read. A code rather than a sentence, so the wording
+ *   belongs to the dashboard, which maps it to a fixed text.
+ * @property nextReadAt - When the background run next reaches the bank, or `null` where it will not:
+ *   with no connection in force, and once the consent has lapsed. A time that is not in the future
+ *   means the read is due now.
  *
- * The six read fields belong to reading the account, which the import adds.
- * Until then the backend answers them as `null` and `0`.
+ * The six read fields come from the stored reads of the account, the most recent one of either
+ * kind, and from the schedule of the background run.
  */
 export interface BankConnectionStatus {
   configured: boolean;
@@ -185,3 +193,94 @@ export interface BankConnectionStatus {
 export interface BankAuthorizationStart {
   url: string;
 }
+
+/**
+ * Who asked the bank for the account's entries.
+ *
+ * - `background`: the backend's own run every six hours. It draws on a budget of
+ *   four reads in a sliding 24 hours, which Article 36(5) of Commission Delegated
+ *   Regulation (EU) 2018/389 allows while the account holder is not asking.
+ * - `manual`: the owner pressing Read now in the dashboard, which is the account
+ *   holder asking for their own information. It draws on a budget of its own, so
+ *   it can never lock the background run out.
+ *
+ * The database holds the read table's `kind` column to this list.
+ */
+export const BANK_READ_KINDS = ["background", "manual"] as const;
+
+/** One of {@link BANK_READ_KINDS}. */
+export type BankReadKind = (typeof BANK_READ_KINDS)[number];
+
+/**
+ * What the owner may ask a read for: the day it starts at, and nothing else.
+ *
+ * The end is always today, because a read exists to bring the ledger up to
+ * date and a window ending in the past cannot.
+ *
+ * @property from - The first day to ask the bank for, `YYYY-MM-DD`. Left out,
+ *   the read takes the days it takes by itself. A day after today is ignored,
+ *   because a range whose start lies after its end is one the bank refuses. How
+ *   far back the bank goes is its own decision, and a range it refuses comes back
+ *   as a failed read.
+ */
+export interface BankReadRequest {
+  from?: string;
+}
+
+/**
+ * The request schema of a read.
+ *
+ * `from` matches `YYYY-MM-DD`; whether it names a day that exists is checked by
+ * the route, because a pattern cannot tell 2026-02-30 from 2026-02-28. The body
+ * is a JSON object, `{}` where no day is asked for, and may name nothing else: `propertyNames` refuses an unknown
+ * property, because Fastify's validator strips unknown properties under
+ * `additionalProperties` rather than refusing them.
+ */
+export const BANK_READ_REQUEST_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  propertyNames: { enum: ["from"] },
+  properties: {
+    from: { type: "string", pattern: DAY_PATTERN },
+  },
+} as const;
+
+/**
+ * Why a read did nothing.
+ *
+ * - `NotConnected`: no connection is in force.
+ * - `ConsentExpired`: the consent has lapsed, so nothing is asked and nothing is written.
+ * - `BudgetSpent`: the read's kind has used up its reads in the sliding 24 hours.
+ * - `ReadFailed`: the bank was asked and the read broke off; the read carries the failure.
+ */
+export const BankReadSkip = {
+  NotConnected: "not_connected",
+  ConsentExpired: "consent_expired",
+  BudgetSpent: "budget_spent",
+  ReadFailed: "read_failed",
+} as const;
+
+/** A {@link BankReadSkip} member value. */
+export type BankReadSkipValue = (typeof BankReadSkip)[keyof typeof BankReadSkip];
+
+/**
+ * What a read of the account did, or why it did nothing. The read route answers
+ * with it; a read that did nothing is an ordinary answer rather than a failure.
+ *
+ * When it ran:
+ *
+ * @property from - The first day asked for, `YYYY-MM-DD`.
+ * @property to - The last day asked for, which is today, `YYYY-MM-DD`.
+ * @property read - How many entries came back, before anything was decided about them.
+ * @property imported - How many became a row in the ledger.
+ * @property filled - How many stood in the ledger already and were completed from the entry.
+ * @property skipped - How many stood in the ledger already and had nothing to add.
+ *
+ * When it did not:
+ *
+ * @property reason - One of {@link BankReadSkip}.
+ * @property failure - With `read_failed` only, the {@link BankErrorCode} value the read broke off with.
+ */
+export type BankReadResult =
+  | { ran: true; from: string; to: string; read: number; imported: number; filled: number; skipped: number }
+  | { ran: false; reason: BankReadSkipValue; failure?: BankErrorCodeValue };

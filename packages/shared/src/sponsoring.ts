@@ -89,11 +89,25 @@ export interface SponsoringConfig {
 }
 
 /**
+ * The word a transfer's remittance text has to contain to count as a donation
+ * to musiccloud: `musiccloud.io`.
+ *
+ * The bank import books a transfer without a sponsorship reference only when
+ * its purpose contains this, matched without regard to case or spacing. It is
+ * the production host rather than whatever host a deployment runs under,
+ * because the account belongs to production and payers write the site's name.
+ * Every default purpose below carries it, which is what makes a transfer made
+ * from the support page findable.
+ */
+export const SPONSORING_REMITTANCE_MARKER = "musiccloud.io";
+
+/**
  * The setting in force while nothing has been saved.
  *
  * No costs, no account, and a sponsor minimum of 4,000 cents (40 euros), the
- * figure lmaa.space starts from. The purposes name `musiccloud.io`, because the
- * bank import recognises a donation by that host in the remittance text.
+ * figure lmaa.space starts from. The purposes name
+ * {@link SPONSORING_REMITTANCE_MARKER}, because the bank import recognizes a
+ * donation by it.
  */
 export const SPONSORING_DEFAULTS: SponsoringConfig = {
   costs: [],
@@ -101,9 +115,9 @@ export const SPONSORING_DEFAULTS: SponsoringConfig = {
   payeeName: "",
   payeeIban: "",
   payeeBic: "",
-  purposeDonation: "Donation: musiccloud.io",
-  purposeSponsor: "Sponsor: musiccloud.io",
-  purposePaypal: "musiccloud.io",
+  purposeDonation: `Donation: ${SPONSORING_REMITTANCE_MARKER}`,
+  purposeSponsor: `Sponsor: ${SPONSORING_REMITTANCE_MARKER}`,
+  purposePaypal: SPONSORING_REMITTANCE_MARKER,
 };
 
 /** A text field restricted to {@link SEPA_TEXT_PATTERN}, at most `maxLength` long. */
