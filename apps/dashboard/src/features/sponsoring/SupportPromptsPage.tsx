@@ -23,6 +23,7 @@ import {
   useSupportPromptLimits,
   useSupportPrompts,
 } from "@/features/sponsoring/useSupportPrompts";
+import { useRememberedFlag } from "@/lib/useRememberedFlag";
 
 /** The dashboard's copy. */
 const messages = dashboardCopy;
@@ -40,15 +41,6 @@ const SKELETON_ROW_COUNT = 5;
 
 /** The length of a day written as `YYYY-MM-DD`, the start of an ISO 8601 timestamp: 10 characters. */
 const ISO_DAY_LENGTH = 10;
-
-/**
- * Reads whether this browser left the limits open.
- *
- * @returns `true` when they were left open, `false` when closed or never touched.
- */
-function readLimitsExpanded(): boolean {
-  return localStorage.getItem(LIMITS_EXPANDED_STORAGE_KEY) === String(true);
-}
 
 /**
  * Lists the asks that appear inside the site, ported from lmaa.space's support
@@ -72,17 +64,7 @@ export function SupportPromptsPage() {
 
   // Whether the limits stand open is a decision about this screen rather than
   // about the data, so it belongs to the browser it was made in.
-  const [limitsExpanded, setLimitsExpanded] = useState(readLimitsExpanded);
-
-  /**
-   * Opens or closes the limits and remembers the choice in this browser.
-   *
-   * @param next - Whether they stand open afterwards.
-   */
-  function changeLimitsExpanded(next: boolean) {
-    localStorage.setItem(LIMITS_EXPANDED_STORAGE_KEY, String(next));
-    setLimitsExpanded(next);
-  }
+  const [limitsExpanded, changeLimitsExpanded] = useRememberedFlag(LIMITS_EXPANDED_STORAGE_KEY, false);
 
   const today = new Date().toISOString().slice(0, ISO_DAY_LENGTH);
   // The defaults come from the shared contract rather than being written out
