@@ -22,8 +22,8 @@ import {
 } from "@musiccloud/shared";
 import { HeartIcon, SealIcon } from "@phosphor-icons/react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
-
 import { ContentCard } from "@/components/cards/ContentCard";
+import { cardTextInset } from "@/components/cards/cardGeometry";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { fetchCurrentSponsors } from "@/lib/support/sponsors";
 import { cn } from "@/lib/utils";
@@ -193,7 +193,10 @@ export function SponsorWall({ config }: SponsorWallProps) {
 
   return (
     <section className="mc-sponsor-wall my-[var(--mc-gap-cards,1.5rem)] flex flex-col gap-[var(--mc-gap-cards,1.5rem)]">
-      <LadderRichText html={text.text} className={SUPPORT_TEXT_CLASS} />
+      {/* The introduction stands above the row of cards, so it is drawn in to
+          where their curve ends. The costs line below has nothing rounded
+          beneath it and stays at the page's edge. */}
+      <LadderRichText html={text.text} className={SUPPORT_TEXT_CLASS} inset={cardTextInset} />
 
       {cards.length === 0 ? (
         <ContentCard className="mc-sponsor-wall__empty">

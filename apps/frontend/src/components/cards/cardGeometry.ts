@@ -22,6 +22,21 @@ export const raisedControlRadius = `calc(${recessedSurfaceRadius} - ${recessedCo
  * `ContentCard` reads it.
  */
 export const contentCardInset = `calc(${embossedCardContentInset} / 2 + ${embossedCardOuterRadius} / 2)`;
+/**
+ * How far text standing on the page above an embossed card is drawn in from
+ * the card's edge: half the card's outer radius, 14px at the 28px radius, so
+ * the text begins where the curve gives way to the straight edge. Text inside
+ * a padded card does not take it, because the padding already holds it off the
+ * curve. `MarkdownHtml` publishes it as `--mc-card-text-inset` for headings
+ * that introduce a card.
+ */
+export const cardTextInset = `calc(${embossedCardOuterRadius} / 2)`;
+/**
+ * How far text standing on the page above a recessed well is drawn in: half
+ * the well's radius, 8px at the 16px radius the well takes on the page, for
+ * the same reason as {@link cardTextInset}.
+ */
+export const recessedTextInset = `calc(${recessedSurfaceRadius} / 2)`;
 
 const CONTROL_RADIUS_BASE = `max(4px, calc(var(--mc-recessed-radius-base, ${recessedSurfaceRadius}) - var(--mc-recessed-padding, ${recessedControlInset})))`;
 const CONTROL_RADIUS_SM = `max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-recessed-radius-base, ${recessedSurfaceRadius})) - var(--mc-recessed-padding, ${recessedControlInset})))`;

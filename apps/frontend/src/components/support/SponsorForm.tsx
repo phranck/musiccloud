@@ -41,6 +41,7 @@ import { LadderField } from "./LadderField";
 import { LadderNotice } from "./LadderNotice";
 import { LADDER_INPUT_CLASS, ladderFieldLabelId } from "./ladderFieldParts";
 import { LadderNoticeTone } from "./ladderNoticeTone";
+import { SUPPORT_WELL_CLASS } from "./supportSurface";
 import { SUPPORT_LABEL_CLASS, SUPPORT_SMALL_PRINT_CLASS } from "./supportType";
 
 /** Rows the sentence field shows before it scrolls: 3, which a sentence of the longest allowed length fills. */
@@ -368,7 +369,7 @@ function SponsorForm({ amountEur, earnsSponsorship, correcting, text, onIssued }
       {/* The last decision and the button that acts on it share one row, with
           the button where a form ends, and stack on a narrow screen. */}
       <div className="flex flex-wrap items-center justify-between gap-[var(--mc-gap-rowitem,0.75rem)]">
-        <RecessedCard className={recessedControlInsetClassName}>
+        <RecessedCard className={cn(recessedControlInsetClassName, SUPPORT_WELL_CLASS)}>
           <EmbossedButton
             as="button"
             role="switch"
@@ -385,7 +386,7 @@ function SponsorForm({ amountEur, earnsSponsorship, correcting, text, onIssued }
             {text.publishedLabel}
           </EmbossedButton>
         </RecessedCard>
-        <RecessedCard className={cn(recessedControlInsetClassName, "max-sm:w-full")}>
+        <RecessedCard className={cn(recessedControlInsetClassName, SUPPORT_WELL_CLASS, "max-sm:w-full")}>
           <EmbossedButton
             as="button"
             type="submit"

@@ -7,6 +7,7 @@ import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 
 import { ContentCard } from "@/components/cards/ContentCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { cn } from "@/lib/utils";
 
 import { LadderCardHead } from "./LadderCardHead";
 import { LadderNotice } from "./LadderNotice";
@@ -41,9 +42,11 @@ export function RouteCard({ route }: RouteCardProps) {
           <LadderRichText html={route.hint} />
         </LadderNotice>
       )}
-      {/* The type is set on the wrapper, because the ladder's reset makes the
-          link inherit; see `.mc-support-ladder` in `global.css`. */}
-      <div className={SUPPORT_LABEL_CLASS}>
+      {/* The button stands at the card's end on the right, as lmaa.space sets
+          it, one row gap further from what it follows than the rows above
+          keep. The type is set on the wrapper, because the ladder's reset makes
+          the link inherit; see `.mc-support-ladder` in `global.css`. */}
+      <div className={cn("flex justify-end pt-[var(--mc-gap-rowitem,0.75rem)]", SUPPORT_LABEL_CLASS)}>
         <EmbossedButton
           href={route.url}
           target="_blank"

@@ -5,7 +5,7 @@
 import { SupportIntervalKey, type SupportLadderInterval } from "@musiccloud/shared";
 import { useId, useState } from "react";
 
-import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { cardTextInset, recessedControlInsetClassName, recessedTextInset } from "@/components/cards/cardGeometry";
 import { gridCornerStyle } from "@/components/cards/gridCornerStyle";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -15,6 +15,7 @@ import { formatEuro } from "./amountInput";
 import { LadderField } from "./LadderField";
 import { LadderRichText } from "./LadderRichText";
 import { LADDER_INPUT_CLASS, ladderFieldLabelId } from "./ladderFieldParts";
+import { SUPPORT_WELL_CLASS } from "./supportSurface";
 import { SUPPORT_QUALIFIER_CLASS, SUPPORT_TEXT_CLASS, SUPPORT_TEXT_SIZE_CLASS } from "./supportType";
 
 /** The currency sign the free field stands behind. */
@@ -125,7 +126,7 @@ export function AmountGrid({
   return (
     <div className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
       {interval.options.length > 0 && (
-        <RecessedCard className={recessedControlInsetClassName}>
+        <RecessedCard className={cn(recessedControlInsetClassName, SUPPORT_WELL_CLASS)}>
           <div className="grid grid-cols-2 gap-[var(--mc-gap-grid,0.125rem)]">
             {interval.options.map((option, index) => {
               const active = !customActive && option.amountEur === amountEur;
@@ -176,7 +177,13 @@ export function AmountGrid({
               </div>
             </>
           ) : (
-            <LadderField controlId={fieldId} label={interval.custom.label} wellClassName="flex items-center gap-2">
+            <LadderField
+              controlId={fieldId}
+              label={interval.custom.label}
+              wellClassName="flex items-center gap-2"
+              // Without `bare` the field stands on the page, under no card.
+              labelInset={recessedTextInset}
+            >
               <span aria-hidden="true" className="pl-3 text-lg font-bold text-text-secondary">
                 {EURO_SIGN}
               </span>
@@ -186,7 +193,14 @@ export function AmountGrid({
               )}
             </LadderField>
           )}
-          <LadderRichText html={interval.custom.text} className={SUPPORT_TEXT_CLASS} />
+          {/* On the page the transfer card or a route card follows, so the text
+              is drawn in to where that card's curve ends. In a `bare` field the
+              card around it already holds it off the curve. */}
+          <LadderRichText
+            html={interval.custom.text}
+            className={SUPPORT_TEXT_CLASS}
+            inset={bare ? undefined : cardTextInset}
+          />
           {belowMinimum && minimumNotice && (
             <LadderRichText
               html={minimumNotice}

@@ -5,9 +5,9 @@ import {
   SUPPORT_LADDER_ATTRIBUTE,
 } from "@musiccloud/shared";
 import parse, { domToReact, type Element, type HTMLReactParserOptions, type Text } from "html-react-parser";
-import { createElement, Fragment } from "react";
-
+import { type CSSProperties, createElement, Fragment } from "react";
 import { ContentCard } from "@/components/cards/ContentCard";
+import { cardTextInset } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { BioAnchor } from "@/components/markdown/BioAnchor";
@@ -206,6 +206,13 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
   return options;
 }
 
+/**
+ * The geometry every markdown surface publishes for its stylesheet rules:
+ * `--mc-card-text-inset`, half the card radius from `cardTextInset`, so the
+ * value is derived in one place and the CSS reads it.
+ */
+const MARKDOWN_STYLE = { "--mc-card-text-inset": cardTextInset } as CSSProperties;
+
 const parserOptions = makeParserOptions(false);
 const parserOptionsLinkify = makeParserOptions(true);
 
@@ -233,9 +240,10 @@ export function MarkdownHtml({
 }) {
   // `mc-markdown` is what the shared shortcode stylesheet reads its material
   // from, so every surface rendering this markup carries it whatever prose
-  // classes it also brings.
+  // classes it also brings. `--mc-card-text-inset` is what `global.css` draws a
+  // heading in by when a card stands beneath it.
   return (
-    <div className={className ? `mc-markdown ${className}` : "mc-markdown"}>
+    <div className={className ? `mc-markdown ${className}` : "mc-markdown"} style={MARKDOWN_STYLE}>
       {parse(html, linkifyText ? parserOptionsLinkify : parserOptions)}
     </div>
   );

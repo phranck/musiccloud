@@ -15,8 +15,8 @@ import {
   writtenPlaceholder,
 } from "@musiccloud/shared";
 import { type CSSProperties, useEffect, useEffectEvent, useReducer, useRef, useSyncExternalStore } from "react";
-
 import { ContentCard } from "@/components/cards/ContentCard";
+import { cardTextInset, recessedTextInset } from "@/components/cards/cardGeometry";
 import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { prefersReducedMotion } from "@/lib/motion/setup";
 import {
@@ -40,6 +40,7 @@ import {
   SupportLadderActionType,
   supportLadderReducer,
 } from "./supportLadderState";
+import { SUPPORT_WELL_CLASS } from "./supportSurface";
 import { SUPPORT_TEXT_CLASS } from "./supportType";
 
 /** Months in a year, which a monthly amount is multiplied by for its yearly total: 12. */
@@ -219,11 +220,24 @@ export function SupportLadder({ config }: SupportLadderProps) {
     >
       {(segments.length > 1 || intervalText !== "") && (
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-          {intervalText && <LadderRichText html={intervalText} className={cn("min-w-0 flex-1", SUPPORT_TEXT_CLASS)} />}
+          {/* Drawn in to where the curve beneath it ends: the sponsor tab's
+              card, or the well every other tab opens with. */}
+          {intervalText && (
+            <LadderRichText
+              html={intervalText}
+              className={cn("min-w-0 flex-1", SUPPORT_TEXT_CLASS)}
+              inset={sponsorFormText ? cardTextInset : recessedTextInset}
+            />
+          )}
           {segments.length > 1 && (
             <fieldset className="m-0 ml-auto min-w-0 border-0 p-0">
               <legend className="sr-only">{text.frequencyGroup}</legend>
-              <EmbossedSegmentedControl segments={segments} value={intervalKey} onChange={chooseInterval} />
+              <EmbossedSegmentedControl
+                segments={segments}
+                value={intervalKey}
+                onChange={chooseInterval}
+                trackClassName={cn("mc-glass-seg-track", SUPPORT_WELL_CLASS)}
+              />
             </fieldset>
           )}
         </div>

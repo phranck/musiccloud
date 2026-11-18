@@ -1,7 +1,7 @@
 import { SPONSOR_WALL_ATTRIBUTE, SUPPORT_LADDER_ATTRIBUTE } from "@musiccloud/shared";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { contentCardInset } from "@/components/cards/cardGeometry";
+import { cardTextInset, contentCardInset } from "@/components/cards/cardGeometry";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 
 describe("MarkdownHtml", () => {
@@ -39,6 +39,12 @@ describe("MarkdownHtml", () => {
     expect(style.padding).toBe("var(--emb-padding)");
     expect(style.getPropertyValue("--emb-padding")).toBe(contentCardInset);
     expect(style.getPropertyValue("--mc-card-content-inset")).toBe(contentCardInset);
+  });
+
+  it("publishes half the card radius for the headings that introduce a card", () => {
+    const { container } = render(<MarkdownHtml html="<h2>Costs</h2><p>Servers.</p>" />);
+    const root = container.querySelector(".mc-markdown") as HTMLElement;
+    expect(root.style.getPropertyValue("--mc-card-text-inset")).toBe(cardTextInset);
   });
 
   it("leaves a class that only begins with mc-card alone", () => {
