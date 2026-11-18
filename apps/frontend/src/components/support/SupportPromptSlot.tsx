@@ -312,10 +312,7 @@ export function SupportPromptSlot({
                 <XCircleIcon weight="duotone" className="size-5" />
               </button>
 
-              <MarkdownHtml
-                html={shown.html}
-                className="mc-prompt-copy prose prose-invert max-w-none pr-8 text-sm text-text-secondary"
-              />
+              <MarkdownHtml html={shown.html} className="mc-prompt-copy pr-8 text-sm text-text-secondary" />
 
               {/* The same invitation the sponsor wall carries, so the ask looks
                   like one thing across the site rather than like two. Saying no

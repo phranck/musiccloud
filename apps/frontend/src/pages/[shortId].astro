@@ -13,6 +13,7 @@ import { fetchPublicContentPage, fetchRandomExample, fetchShareData } from "@/ap
 import { LandingPage } from "@/components/landing/LandingPage";
 import { ContentPageMarkdown } from "@/components/layout/ContentPageMarkdown";
 import DeferredFooter from "@/components/layout/DeferredFooter.astro";
+import { MD_FULLSCREEN } from "@/components/layout/overlayContentProseClassMaps";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import { SegmentedPageFullscreen } from "@/components/layout/SegmentedPageFullscreen";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
@@ -181,7 +182,7 @@ const exampleShortId = overlayMode ? ((await fetchRandomExample(clientIp))?.shor
             client:load
             html={contentPage.contentHtml}
             recessed={contentPage.contentCardStyle === "recessed"}
-            className="prose prose-invert max-w-none"
+            className={MD_FULLSCREEN}
           />
         )}
       </main>
@@ -191,10 +192,10 @@ const exampleShortId = overlayMode ? ((await fetchRandomExample(clientIp))?.shor
       <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12">
         {contentPage.pageType === "segmented" ? (
           contentPage.segments.map((segment) => (
-            <MarkdownHtml html={segment.contentHtml} className="prose prose-invert max-w-none mb-8" />
+            <MarkdownHtml html={segment.contentHtml} className={`${MD_FULLSCREEN} mb-8`} />
           ))
         ) : (
-          <MarkdownHtml html={contentPage.contentHtml} className="prose prose-invert max-w-none" />
+          <MarkdownHtml html={contentPage.contentHtml} className={MD_FULLSCREEN} />
         )}
       </main>
     )}
