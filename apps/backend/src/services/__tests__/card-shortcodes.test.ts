@@ -54,12 +54,23 @@ describe("[[card]]", () => {
     expect(out).toContain("[[cardigan]]");
   });
 
-  it("is not offered on the site, which has no card surface", async () => {
-    // Rendering it there would produce an unstyled block, so the context mask
-    // refuses the page rather than serving one that looks broken.
-    await expect(renderMarkdown("[[card {\nSome copy.\n}]]", ContentContext.Frontend)).rejects.toThrow(
-      /only allowed in Developer Portal/,
-    );
+  it("renders on the site as well, which maps the element onto its own card", async () => {
+    const out = await renderMarkdown("[[card {\nSome copy.\n}]]", ContentContext.Frontend);
+
+    expect(out).toContain('<div class="mc-card">');
+    expect(out).toContain("Some copy.");
+  });
+
+  it("stands a row of cards on the site as well", async () => {
+    const out = await renderMarkdown("[[cards {\n[[card {\nOne\n}]]\n}]]", ContentContext.Frontend);
+
+    expect(out).toContain(`class="mc-cards mc-cards--${DEFAULT_CARD_COLUMNS}"`);
+  });
+
+  it("refuses a card written in its parts on the site, which draws no bands", async () => {
+    await expect(
+      renderMarkdown('[[card\n[[header text="## A"]]\n[[body {\nB\n}]]\n]]', ContentContext.Frontend),
+    ).rejects.toThrow(/only allowed in Developer Portal/);
   });
 });
 

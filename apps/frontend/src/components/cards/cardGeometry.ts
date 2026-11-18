@@ -13,6 +13,15 @@ export const embossedCardContentInset = `${CARD_CONTENT_INSET_PX}px`;
 export const recessedSurfaceRadius = `calc(${embossedCardOuterRadius} - ${embossedCardContentInset})`;
 export const recessedControlInset = `${RECESSED_CONTROL_INSET_PX}px`;
 export const raisedControlRadius = `calc(${recessedSurfaceRadius} - ${recessedControlInset})`;
+/**
+ * The inset at which text sits inside an embossed card: the content inset
+ * plus half the inner radius, which `glass.css` resolves as
+ * `--mc-card-chrome-x` on the card from that card's own radius. A section
+ * header's title stands at the same inset, so text written straight into a
+ * card lines up with the titles of the cards around it. Read on the card
+ * element itself, so it is only meaningful as that card's own padding.
+ */
+export const embossedCardTextInset = "var(--mc-card-chrome-x)";
 
 const CONTROL_RADIUS_BASE = `max(4px, calc(var(--mc-recessed-radius-base, ${recessedSurfaceRadius}) - var(--mc-recessed-padding, ${recessedControlInset})))`;
 const CONTROL_RADIUS_SM = `max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-recessed-radius-base, ${recessedSurfaceRadius})) - var(--mc-recessed-padding, ${recessedControlInset})))`;

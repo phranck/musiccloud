@@ -1,6 +1,9 @@
 import {
   BUNDLED_CODE_FENCE_LANGUAGES,
   BUTTON_SHORTCODE,
+  CARD_BODY_SHORTCODE,
+  CARD_FOOTER_SHORTCODE,
+  CARD_HEADER_SHORTCODE,
   CARD_SHORTCODE,
   CODE_THEME,
   CODE_THEME_NAME,
@@ -43,7 +46,12 @@ import { markedHighlight } from "marked-highlight";
 import { type BundledLanguage, type BundledTheme, createHighlighter, type HighlighterGeneric } from "shiki";
 import mcQueryGrammar from "../grammars/mc-query.tmLanguage.json" with { type: "json" };
 import { createButtonExtension } from "./button-extension.js";
-import { createCardExtension } from "./card-extension.js";
+import {
+  CARD_ROW_TOKEN_TYPE,
+  CARD_TOKEN_TYPE,
+  createCardExtension,
+  SECTIONED_CARD_TOKEN_TYPE,
+} from "./card-extension.js";
 import { createHeadingAnchorExtension } from "./heading-anchors.js";
 import { createIconExtension } from "./icon-extension.js";
 import { createMediaExtension } from "./media-extension.js";
@@ -489,7 +497,19 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
     name: "mcCard",
     allowedContextMask: CARD_SHORTCODE.allowedContextMask,
     createMarkedExtension: (context) => createCardExtension(context),
-    tokenTypes: ["mcCard", "mcCardRow"],
+    tokenTypes: [CARD_TOKEN_TYPE, CARD_ROW_TOKEN_TYPE],
+  },
+  {
+    // A card written in its parts is read and drawn by the card extension
+    // above, so this entry installs nothing. It exists to say where that form
+    // may stand, which is wherever all three of its parts are offered.
+    name: "mcCardSections",
+    allowedContextMask:
+      CARD_HEADER_SHORTCODE.allowedContextMask &
+      CARD_BODY_SHORTCODE.allowedContextMask &
+      CARD_FOOTER_SHORTCODE.allowedContextMask,
+    createMarkedExtension: () => ({}),
+    tokenTypes: [SECTIONED_CARD_TOKEN_TYPE],
   },
   {
     // One extension for all three, because a spacer only means anything inside

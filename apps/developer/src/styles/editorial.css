@@ -27,6 +27,7 @@
        surface and the site both import; these are the portal's values for it. */
     --mc-shortcode-gap: var(--mc-space-3);
     --mc-shortcode-gap-tight: var(--mc-space-2);
+    --mc-shortcode-card-gap: var(--mc-space-4);
     --mc-shortcode-radius: var(--mc-card-inner-radius, var(--radius-button));
     --mc-shortcode-surface: var(--color-surface);
     --mc-shortcode-border: var(--color-border);
@@ -284,31 +285,6 @@
     mask-image: var(--mc-editorial-tick-mask);
     mask-repeat: no-repeat;
     mask-size: contain;
-  }
-
-  .mc-cards {
-    display: grid;
-    gap: var(--mc-space-4);
-    /* One column until there is room for more. Everything narrower gets full
-       width cards, because two cards on a phone are two unreadable ones. */
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* `minmax(0, 1fr)` rather than `1fr`: a grid track's minimum is `auto`, so a
-     long unbroken word or a wide code block inside a card would push its column
-     past its share and the row past the page. */
-  @media (min-width: 48rem) {
-    .mc-cards--2 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .mc-cards--3 {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .mc-cards--4 {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
   }
 
   .editorial-markdown h1:not([class]),
