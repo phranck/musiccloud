@@ -19,7 +19,6 @@ import { useMemo } from "react";
 import { ContentCard } from "@/components/cards/ContentCard";
 import { cn } from "@/lib/utils";
 
-import { CopyValueButton } from "./CopyValueButton";
 import { GiroCode } from "./GiroCode";
 import { LadderCardHead } from "./LadderCardHead";
 import { LadderNotice } from "./LadderNotice";
@@ -49,14 +48,12 @@ const REFERENCE_MASK = formatCreditorReference(
  *
  * @property label - What the line is, such as "IBAN".
  * @property value - What the line shows.
- * @property copy - What its button copies, which may differ from what it shows; no button where absent.
  * @property missing - What the line is read out as while its value is only a mask, and which marks it as
  *   missing; absent for a line with a real value.
  */
 interface TransferLine {
   label: string;
   value: string;
-  copy?: string;
   missing?: string;
 }
 
@@ -92,8 +89,8 @@ export interface TransferCardProps {
 /**
  * The account to pay into, with the GiroCode beside it.
  *
- * Every line is one a reader copies into a banking app, so each has a copy
- * button and is set in a monospaced face to compare character by character.
+ * Every line is one a reader types into a banking app, so each is set in a
+ * monospaced face to compare character by character.
  * The GiroCode carries the same details; where they cannot form a valid code,
  * the code is left out and the lines remain.
  *
@@ -140,32 +137,46 @@ export function TransferCard({
 
   const amountLine = amountEur > 0 ? `${amountText}${monthly ? ` ${text.perMonth}` : ""}` : text.amountOpen;
   const reference: TransferLine = issued
-    ? { label: text.fieldReference, value: issued.referenceFormatted, copy: issued.reference }
+    ? { label: text.fieldReference, value: issued.referenceFormatted }
     : { label: text.fieldReference, value: REFERENCE_MASK, missing: text.referenceMissing };
   const lines: TransferLine[] = [
-    { label: text.fieldName, value: payee.name, copy: payee.name },
-    { label: text.fieldIban, value: groupIban(payee.iban), copy: payee.iban },
-    ...(payee.bic ? [{ label: text.fieldBic, value: payee.bic, copy: payee.bic }] : []),
-    ...(purpose ? [{ label: text.fieldPurpose, value: purpose, copy: purpose }] : []),
+    { label: text.fieldName, value: payee.name },
+    { label: text.fieldIban, value: groupIban(payee.iban) },
+    ...(payee.bic ? [{ label: text.fieldBic, value: payee.bic }] : []),
+    ...(purpose ? [{ label: text.fieldPurpose, value: purpose }] : []),
     ...(referenceLine ? [reference] : []),
-    { label: text.fieldAmount, value: amountLine, copy: amountEur > 0 ? amountEur.toFixed(2) : undefined },
+    { label: text.fieldAmount, value: amountLine },
   ];
 
+  // The distances are lmaa.space's: the text close under the heading, the code
+  // and its column the widest step below it and from each other, and at least
+  // a step between the lines and the notice.
   return (
-    <ContentCard className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
+    <ContentCard className="flex flex-col">
       <LadderCardHead title={variant.title} icon={variant.icon} />
-      <LadderRichText html={variant.text} className={SUPPORT_TEXT_CLASS} />
+      <LadderRichText html={variant.text} className={cn("mt-[var(--mc-support-step-1)]", SUPPORT_TEXT_CLASS)} />
 
-      <div className="flex flex-wrap items-start gap-[var(--mc-gap-cards,1.5rem)]">
-        {payload && <GiroCode payload={payload} style={qr} label={text.qrAlt} />}
-        <div className="flex min-w-[16rem] flex-1 flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
-          <dl className="grid grid-cols-[auto_1fr_auto] items-center gap-x-[var(--mc-gap-rowitem,0.75rem)] gap-y-1 text-base">
+      <div className="mt-[var(--mc-support-step-6)] flex flex-wrap gap-[var(--mc-support-step-6)]">
+        {/* The code sits at the foot of the row and the notice at the foot of
+            the column, which stretches to the row, so the two always end on
+            one line, whichever of them is taller. */}
+        {payload && (
+          <div className="self-end">
+            <GiroCode payload={payload} style={qr} label={text.qrAlt} />
+          </div>
+        )}
+        <div className="flex min-w-[var(--mc-support-column-min)] flex-1 flex-col">
+          <dl className="grid grid-cols-[auto_1fr] content-start gap-x-[var(--mc-support-step-6)] gap-y-[var(--mc-support-step-0-5)] text-lg leading-[1.35]">
             {lines.map((line) => (
               <div key={line.label} className="contents">
-                <dt className="text-text-muted">{line.label}</dt>
+                <dt className="text-[var(--mc-text-card)]">{line.label}</dt>
+                {/* Monospaced, because these are figures somebody copies into a
+                    banking app and compares character by character; 0.92em
+                    takes back the width the face gains over the text, as
+                    lmaa.space sets it. */}
                 <dd
                   className={cn(
-                    "m-0 min-w-0 break-all font-mono font-semibold",
+                    "m-0 min-w-0 break-all font-mono text-[0.92em] font-semibold",
                     line.missing ? "text-error" : "text-text-primary",
                   )}
                 >
@@ -179,23 +190,15 @@ export function TransferCard({
                     line.value
                   )}
                 </dd>
-                {line.copy ? (
-                  <CopyValueButton
-                    value={line.copy}
-                    label={line.label}
-                    copyLabel={text.copy}
-                    copiedLabel={text.copied}
-                  />
-                ) : (
-                  <span />
-                )}
               </div>
             ))}
           </dl>
           {variant.info && (
-            <LadderNotice>
-              <LadderRichText html={variant.info} />
-            </LadderNotice>
+            <div className="mt-auto pt-[var(--mc-support-step-4)]">
+              <LadderNotice>
+                <LadderRichText html={variant.info} />
+              </LadderNotice>
+            </div>
           )}
         </div>
       </div>

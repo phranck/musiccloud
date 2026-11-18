@@ -25,21 +25,46 @@ const MARK_SECONDARY = "#b3b3b3";
 /** PayPal's darkest blue on the site's cards, where the two Ps overlap. */
 const MARK_SHADOW = "#808080";
 
-/** Width of a lockup beside a card heading, in pixels: 96. Its height follows from the file. */
-export const BRAND_LOCKUP_WIDTH_PX = 96;
+/**
+ * Width of a lockup beside a card heading, in pixels: 102, as lmaa.space sets
+ * it. Its height follows from the file, so each brand keeps its proportions.
+ */
+const BRAND_LOCKUP_WIDTH_PX = 102;
 
 /**
- * Each brand's published file, and each of its colors as the file writes it
- * with the color the site draws instead.
+ * How much narrower PayPal's lockup is set, in pixels: 2, as lmaa.space sets
+ * it, because PayPal draws its lockup without the margin GitHub builds into
+ * theirs, and at the same width it would carry more weight beside them.
  */
-const LOCKUPS: Record<SupportBrandIconValue, { svg: string; colors: Record<string, string> }> = {
-  [SupportBrandIcon.Github]: { svg: githubLockupSvg, colors: { black: MARK } },
+const PAYPAL_LOCKUP_NARROWING_PX = 2;
+
+/**
+ * Each brand's published file, the width it is shown at, and each of its colors
+ * as the file writes it with the color the site draws instead.
+ */
+const LOCKUPS: Record<SupportBrandIconValue, { svg: string; width: number; colors: Record<string, string> }> = {
+  [SupportBrandIcon.Github]: { svg: githubLockupSvg, width: BRAND_LOCKUP_WIDTH_PX, colors: { black: MARK } },
   [SupportBrandIcon.Paypal]: {
     svg: paypalLockupSvg,
+    width: BRAND_LOCKUP_WIDTH_PX - PAYPAL_LOCKUP_NARROWING_PX,
     colors: { "#003087": MARK, "#0070e0": MARK_SECONDARY, "#001c64": MARK_SHADOW },
   },
-  [SupportBrandIcon.Sepa]: { svg: sepaLockupSvg, colors: { "rgb(13.72549%,31.372549%,66.27451%)": MARK } },
+  [SupportBrandIcon.Sepa]: {
+    svg: sepaLockupSvg,
+    width: BRAND_LOCKUP_WIDTH_PX,
+    colors: { "rgb(13.72549%,31.372549%,66.27451%)": MARK },
+  },
 };
+
+/**
+ * The width a brand's lockup is shown at beside a card heading.
+ *
+ * @param icon - The brand.
+ * @returns The width in pixels: 102, or 100 for PayPal.
+ */
+export function brandLockupWidth(icon: SupportBrandIconValue): number {
+  return LOCKUPS[icon].width;
+}
 
 /**
  * Redraws an SVG in other colors.

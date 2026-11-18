@@ -13,8 +13,15 @@ import type { CSSProperties } from "react";
 /** Promoted corner, where a row or tile meets the well's rounded corner: the control's own radius. */
 export const GROUPED_CORNER_FULL = "var(--neu-radius)";
 
-/** Interior corner between grouped rows or tiles, capped at 5px. */
-export const GROUPED_CORNER_INNER = "min(5px, var(--neu-radius))";
+/**
+ * The site's small corner: 5px, the most an interior corner between grouped
+ * rows or tiles may take, and the slight rounding a plain square such as the
+ * support ladder's GiroCode takes.
+ */
+export const SMALL_CORNER_RADIUS = "5px";
+
+/** Interior corner between grouped rows or tiles, capped at {@link SMALL_CORNER_RADIUS}. */
+export const GROUPED_CORNER_INNER = `min(${SMALL_CORNER_RADIUS}, var(--neu-radius))`;
 
 /**
  * Carries a row's resolved control radius into its nested artwork frame. The
@@ -26,8 +33,8 @@ const GROUPED_ROW_RADIUS = "var(--mc-grouped-row-radius)";
 /** Promoted artwork corner, concentric with its row: the row radius less the row's `--mc-pad-track` padding. */
 export const GROUPED_ARTWORK_OUTER = `max(0px, calc(${GROUPED_ROW_RADIUS} - var(--mc-pad-track, 0.25rem)))`;
 
-/** Interior artwork corner, capped at 5px against the row's radius. */
-export const GROUPED_ARTWORK_INNER = `min(5px, ${GROUPED_ROW_RADIUS})`;
+/** Interior artwork corner, capped at {@link SMALL_CORNER_RADIUS} against the row's radius. */
+export const GROUPED_ARTWORK_INNER = `min(${SMALL_CORNER_RADIUS}, ${GROUPED_ROW_RADIUS})`;
 
 /** Which of the well's rounded edges a single-column list meets. Both default to `true`. */
 export interface GroupedListEdges {

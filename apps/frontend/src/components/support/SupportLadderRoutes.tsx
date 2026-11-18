@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { LadderCardHead } from "./LadderCardHead";
 import { LadderNotice } from "./LadderNotice";
 import { LadderRichText } from "./LadderRichText";
-import { SUPPORT_LABEL_CLASS, SUPPORT_TEXT_CLASS } from "./supportType";
+import { SUPPORT_BUTTON_SIZE_CLASS, SUPPORT_LABEL_CLASS, SUPPORT_TEXT_CLASS } from "./supportType";
 
 /** Props of {@link RouteCard}. */
 export interface RouteCardProps {
@@ -34,24 +34,26 @@ export interface RouteCardProps {
  */
 export function RouteCard({ route }: RouteCardProps) {
   return (
-    <ContentCard className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
+    <ContentCard className="flex flex-col">
       <LadderCardHead title={route.title} icon={route.icon} />
-      <LadderRichText html={route.text} className={SUPPORT_TEXT_CLASS} />
+      {/* The distances between the parts are lmaa.space's: the text close
+          under the heading, the notice a step further, and the button the
+          widest step from what it follows. */}
+      <LadderRichText html={route.text} className={cn("mt-[var(--mc-support-step-1)]", SUPPORT_TEXT_CLASS)} />
       {route.hint && (
-        <LadderNotice>
+        <LadderNotice className="mt-[var(--mc-support-step-3)]">
           <LadderRichText html={route.hint} />
         </LadderNotice>
       )}
       {/* The button stands at the card's end on the right, as lmaa.space sets
-          it, one row gap further from what it follows than the rows above
-          keep. The type is set on the wrapper, because the ladder's reset makes
+          it. The type is set on the wrapper, because the ladder's reset makes
           the link inherit; see `.mc-support-ladder` in `global.css`. */}
-      <div className={cn("flex justify-end pt-[var(--mc-gap-rowitem,0.75rem)]", SUPPORT_LABEL_CLASS)}>
+      <div className={cn("mt-[var(--mc-support-step-6)] flex justify-end", SUPPORT_LABEL_CLASS)}>
         <EmbossedButton
           href={route.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2"
+          className={cn("inline-flex items-center gap-2", SUPPORT_BUTTON_SIZE_CLASS)}
         >
           {route.button}
           <ArrowSquareOutIcon weight="bold" aria-hidden="true" className="size-4" />

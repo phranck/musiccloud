@@ -14,15 +14,6 @@ export const recessedSurfaceRadius = `calc(${embossedCardOuterRadius} - ${emboss
 export const recessedControlInset = `${RECESSED_CONTROL_INSET_PX}px`;
 export const raisedControlRadius = `calc(${recessedSurfaceRadius} - ${recessedControlInset})`;
 /**
- * The padding of a content card, equal on all four sides: half the content
- * inset plus half the outer radius, which is 20px at the 28px radius. It is
- * the inset `glass.css` resolves as `--mc-card-chrome-x` for a section card's
- * title, written from the root tokens rather than from that property so a
- * content card can publish it as its own content inset without a cycle.
- * `ContentCard` reads it.
- */
-export const contentCardInset = `calc(${embossedCardContentInset} / 2 + ${embossedCardOuterRadius} / 2)`;
-/**
  * How far text standing on the page above an embossed card is drawn in from
  * the card's edge: half the card's outer radius, 14px at the 28px radius, so
  * the text begins where the curve gives way to the straight edge. Text inside

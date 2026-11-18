@@ -41,7 +41,7 @@ import {
   supportLadderReducer,
 } from "./supportLadderState";
 import { SUPPORT_WELL_CLASS } from "./supportSurface";
-import { SUPPORT_TEXT_CLASS } from "./supportType";
+import { SUPPORT_TAB_CELL_CLASS, SUPPORT_TEXT_CLASS } from "./supportType";
 
 /** Months in a year, which a monthly amount is multiplied by for its yearly total: 12. */
 const MONTHS_PER_YEAR = 12;
@@ -216,16 +216,19 @@ export function SupportLadder({ config }: SupportLadderProps) {
   return (
     <section
       ref={sectionRef}
-      className="mc-support-ladder my-[var(--mc-gap-cards,1.5rem)] flex flex-col gap-[var(--mc-gap-cards,1.5rem)]"
+      // The distances are lmaa.space's, from the spacing scale in `global.css`:
+      // the widest step between the tab switch and the amounts, and the room
+      // a block of lmaa's page keeps below itself.
+      className="mc-support-ladder mt-0 mb-[var(--mc-support-step-10)] flex flex-col gap-[var(--mc-support-step-6)]"
     >
       {(segments.length > 1 || intervalText !== "") && (
-        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-x-[var(--mc-support-step-6)] gap-y-[var(--mc-support-step-3)]">
           {/* Drawn in to where the curve of the cards beneath it ends: the
               sponsor tab's card, or the amount cards every other tab opens with. */}
           {intervalText && (
             <LadderRichText
               html={intervalText}
-              className={cn("min-w-0 flex-1", SUPPORT_TEXT_CLASS)}
+              className={cn("mc-sky-text min-w-0 flex-1", SUPPORT_TEXT_CLASS)}
               inset={cardTextInset}
             />
           )}
@@ -237,6 +240,7 @@ export function SupportLadder({ config }: SupportLadderProps) {
                 value={intervalKey}
                 onChange={chooseInterval}
                 trackClassName={cn("mc-glass-seg-track", SUPPORT_WELL_CLASS)}
+                textCellClassName={SUPPORT_TAB_CELL_CLASS}
               />
             </fieldset>
           )}
@@ -245,7 +249,9 @@ export function SupportLadder({ config }: SupportLadderProps) {
 
       <div
         className={cn(
-          "mc-support-ladder__body flex flex-col gap-[var(--mc-gap-cards,1.5rem)]",
+          // The transfer and the routes stand a step apart, and the amounts a
+          // further step above them, as lmaa.space spaces them.
+          "mc-support-ladder__body flex flex-col gap-[var(--mc-support-step-3)]",
           intervalKey !== shownKey && "is-fading",
         )}
         style={{ "--mc-support-ladder-fade": `${BODY_FADE_MS}ms` } as CSSProperties}
@@ -254,8 +260,8 @@ export function SupportLadder({ config }: SupportLadderProps) {
           // One card for everything the sponsor tab asks, because choosing the
           // amount, saying who you are, and being told the reference is ready
           // are three steps of one errand rather than three separate offers.
-          <ContentCard>
-            <div className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
+          <ContentCard className="mb-[var(--mc-support-step-3)]">
+            <div className="flex flex-col gap-[var(--mc-support-step-4)]">
               <AmountGrid
                 // A fresh tab starts without a complaint about the tab before it.
                 key={shownKey}
@@ -292,7 +298,10 @@ export function SupportLadder({ config }: SupportLadderProps) {
           // against each other. A tab with a single field has room to set the
           // notice beside it, and the two are read together.
           <div
-            className={cn("grid gap-[var(--mc-gap-rowitem,0.75rem)]", interval.hint && !hasOptions && "md:grid-cols-2")}
+            className={cn(
+              "mb-[var(--mc-support-step-3)] grid gap-[var(--mc-support-step-3)]",
+              interval.hint && !hasOptions && "md:grid-cols-2",
+            )}
           >
             {interval.hint && (
               <LadderNotice>

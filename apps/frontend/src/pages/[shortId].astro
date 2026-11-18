@@ -166,11 +166,15 @@ const exampleShortId = overlayMode ? ((await fetchRandomExample(clientIp))?.shor
         the column, keeps the shadows whole on a wide screen. */}
     {contentPage && contentPage.displayMode === "fullscreen" && (
       <div class="flex-1 flex flex-col w-full overflow-x-clip">
-      <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12 animate-slide-up">
+      {/* The text column is `max-w-page` (810px, lmaa.space's measure); the
+          column's padding stands outside it, so the cap is the measure plus
+          `sm:px-6` on both sides. The title takes lmaa's 40.5px and 24.3px
+          below it, and stands on the sky, so it carries the sky text shadow. */}
+      <main id="main-content" class="flex-1 w-full max-w-[calc(var(--container-page)+3rem)] mx-auto px-4 sm:px-6 pt-content-safe pb-12 animate-slide-up">
         {contentPage.showTitle && contentPage.pageType !== "segmented" && (
           <h1
             class:list={[
-              "text-3xl sm:text-4xl font-bold tracking-[-0.04em] mb-8",
+              "mc-sky-text text-3xl sm:text-[40.5px] font-bold tracking-[-0.04em] mb-[24.3px]",
               {
                 "text-left": contentPage.titleAlignment === "left",
                 "text-center": contentPage.titleAlignment === "center",

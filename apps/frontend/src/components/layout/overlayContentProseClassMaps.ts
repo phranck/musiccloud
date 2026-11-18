@@ -134,19 +134,20 @@ const OVERLAY_TYPE: ProseTypeScale = {
 };
 
 /**
- * Type on a fullscreen page, under the page's own title at `text-3xl` and
- * `sm:text-4xl` (30px and 36px) in `[shortId].astro`. Text reads at `text-lg`
- * (18px), above the 17px floor for text. A section heading takes `text-2xl`
- * (24px), the step between that title and the text, and a section opens with
- * `mt-10` (40px) of room above it.
+ * Type on a fullscreen page, in lmaa.space's measures, which lmaa states in
+ * rem on an 18px root and which stand here in the pixels they come to. The
+ * page's own title in `[shortId].astro` is 40.5px. A section heading is 27px
+ * with 48.6px of room above it and 10.8px below; text reads at 18px
+ * (`text-lg`) on a 1.75 line with 22.5px between paragraphs; a list is
+ * indented 29.25px with 4.5px between its items.
  */
 const FULLSCREEN_TYPE: ProseTypeScale = {
-  h1: "[&_h1]:text-3xl [&_h1]:font-semibold [&_h1]:tracking-[-0.02em] [&_h1]:mb-4 [&_h1]:mt-0",
-  h2: "[&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-[-0.01em] [&_h2]:mb-3 [&_h2]:mt-10 [&_h2:first-child]:mt-0",
+  h1: "[&_h1]:text-[40.5px] [&_h1]:font-semibold [&_h1]:tracking-[-0.02em] [&_h1]:mb-[24.3px] [&_h1]:mt-0",
+  h2: "[&_h2]:text-[27px] [&_h2]:font-semibold [&_h2]:tracking-[-0.01em] [&_h2]:mb-[10.8px] [&_h2]:mt-[48.6px] [&_h2:first-child]:mt-0",
   h3: "[&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mb-2 [&_h3]:mt-6",
-  p: "[&_p]:text-lg [&_p]:leading-relaxed [&_p]:mb-4",
-  ul: "[&_ul]:text-lg [&_ul]:pl-6 [&_ul]:mb-4 [&_ul]:space-y-1.5 [&_ul]:list-disc",
-  ol: "[&_ol]:text-lg [&_ol]:pl-6 [&_ol]:mb-4 [&_ol]:space-y-1.5 [&_ol]:list-decimal",
+  p: "[&_p]:text-lg [&_p]:leading-[1.75] [&_p]:mb-[22.5px]",
+  ul: "[&_ul]:text-lg [&_ul]:pl-[29.25px] [&_ul]:mb-[22.5px] [&_ul]:space-y-[4.5px] [&_ul]:list-disc",
+  ol: "[&_ol]:text-lg [&_ol]:pl-[29.25px] [&_ol]:mb-[22.5px] [&_ol]:space-y-[4.5px] [&_ol]:list-decimal",
 };
 
 /**

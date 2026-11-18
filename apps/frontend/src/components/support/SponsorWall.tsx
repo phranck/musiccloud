@@ -32,7 +32,7 @@ import { formatEuro } from "./amountInput";
 import { LadderRichText } from "./LadderRichText";
 import { SponsorCard } from "./SponsorCard";
 import { chooseSupportInterval } from "./supportLadderEvents";
-import { SUPPORT_LABEL_CLASS, SUPPORT_TEXT_CLASS } from "./supportType";
+import { SUPPORT_BUTTON_SIZE_CLASS, SUPPORT_LABEL_CLASS, SUPPORT_TEXT_CLASS } from "./supportType";
 
 /**
  * How many cards fit across before the row starts to move: 2. Two and a half
@@ -192,11 +192,11 @@ export function SponsorWall({ config }: SponsorWallProps) {
   const cards = payload.sponsors.map((sponsor) => ({ sponsor, ...termOf(sponsor, today) }));
 
   return (
-    <section className="mc-sponsor-wall my-[var(--mc-gap-cards,1.5rem)] flex flex-col gap-[var(--mc-gap-cards,1.5rem)]">
+    <section className="mc-sponsor-wall mt-0 mb-[var(--mc-support-step-10)] flex flex-col gap-[var(--mc-support-step-3)]">
       {/* The introduction stands above the row of cards, so it is drawn in to
           where their curve ends. The costs line below has nothing rounded
           beneath it and stays at the page's edge. */}
-      <LadderRichText html={text.text} className={SUPPORT_TEXT_CLASS} inset={cardTextInset} />
+      <LadderRichText html={text.text} className={cn("mc-sky-text", SUPPORT_TEXT_CLASS)} inset={cardTextInset} />
 
       {cards.length === 0 ? (
         <ContentCard className="mc-sponsor-wall__empty">
@@ -216,10 +216,10 @@ export function SponsorWall({ config }: SponsorWallProps) {
           </div>
           <div className="mc-sponsor-wall__empty-body">
             <LadderRichText html={text.empty} className="mc-sponsor-wall__empty-text" />
-            <div className={SUPPORT_LABEL_CLASS}>
+            <div className={cn("mc-sponsor-wall__action", SUPPORT_LABEL_CLASS)}>
               <EmbossedButton
                 as="button"
-                className="inline-flex items-center gap-2"
+                className={cn("inline-flex items-center gap-2", SUPPORT_BUTTON_SIZE_CLASS)}
                 onClick={() => chooseSupportInterval(SupportIntervalKey.Sponsor)}
               >
                 <HeartIcon weight="fill" aria-hidden="true" className="size-4" />
@@ -246,7 +246,9 @@ export function SponsorWall({ config }: SponsorWallProps) {
         </div>
       )}
 
-      {payload.costsTotalCents > 0 && <LadderRichText html={costsLine} className={SUPPORT_TEXT_CLASS} />}
+      {payload.costsTotalCents > 0 && (
+        <LadderRichText html={costsLine} className={cn("mc-sky-text", SUPPORT_TEXT_CLASS)} />
+      )}
     </section>
   );
 }
