@@ -193,9 +193,9 @@ export function SponsorWall({ config }: SponsorWallProps) {
 
   return (
     <section className="mc-sponsor-wall mt-0 mb-[var(--mc-support-step-10)] flex flex-col gap-[var(--mc-support-step-3)]">
-      {/* The introduction stands above the row of cards, so it is drawn in to
-          where their curve ends. The costs line below has nothing rounded
-          beneath it and stays at the page's edge. */}
+      {/* The introduction above the row of cards and the costs line below it
+          are both drawn in to where the cards' curve ends, so the text of the
+          wall lines up with the cards it stands against. */}
       <LadderRichText html={text.text} className={cn("mc-sky-text", SUPPORT_TEXT_CLASS)} inset={cardTextInset} />
 
       {cards.length === 0 ? (
@@ -247,7 +247,7 @@ export function SponsorWall({ config }: SponsorWallProps) {
       )}
 
       {payload.costsTotalCents > 0 && (
-        <LadderRichText html={costsLine} className={cn("mc-sky-text", SUPPORT_TEXT_CLASS)} />
+        <LadderRichText html={costsLine} className={cn("mc-sky-text", SUPPORT_TEXT_CLASS)} inset={cardTextInset} />
       )}
     </section>
   );
