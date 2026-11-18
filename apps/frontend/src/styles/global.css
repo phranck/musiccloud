@@ -179,23 +179,17 @@ button,
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The text inside a content page's cards, by day and at night: a light grey
+   (`#eeeeee`) that stays clear on the light day glass without the glare of pure
+   white. */
+:root {
+  --mc-text-card: #eeeeee;
+}
+
 /* The focus language every surface that marks itself draws in: an accent edge
    flush on the element's own contour, a soft accent halo inside it, and one fade
    for both. The hero field takes the edge, and a playing track row
    (animations.css) takes the edge and the halo. */
-/* The text inside a content page's cards: by day the bright text level
-   (`--text-embossed-bright-day`), because the normal level reads pale on the
-   light day glass, and at night the normal level (`--text-embossed-normal-night`)
-   it had. It cross-fades with `--g-dayness` like every other text level, and is
-   declared on the root, where the levels and the day amount are. */
-:root {
-  --mc-text-card: color-mix(
-    in srgb,
-    var(--text-embossed-bright-day) calc(var(--g-dayness) * 100%),
-    var(--text-embossed-normal-night)
-  );
-}
-
 :root {
   --mc-focus-edge-width: 2px;
   --mc-focus-halo-blur: 10px;
