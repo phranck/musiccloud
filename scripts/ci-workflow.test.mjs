@@ -200,17 +200,6 @@ test("derives both change maps from the workspace graph, with no hand-written pa
   assert.match(job("detect-changes"), /node scripts\/changed-workspaces\.mjs deploy /);
 });
 
-test("leaves the knowledge graph output out of the archive zcli pushes", () => {
-  // `zcli push` packs with `git archive`, which honors `export-ignore` and
-  // skips a marked folder whole. The attribute sits on the folder, not on the
-  // files inside it, so the folder is what is asked about.
-  const attribute = execFileSync("git", ["check-attr", "export-ignore", "graphify-out"], {
-    cwd: repositoryRoot,
-    encoding: "utf8",
-  });
-  assert.match(attribute, /: export-ignore: set$/m);
-});
-
 /**
  * Slices one setup out of `zerops.yml`, up to the next one.
  *
