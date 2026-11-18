@@ -43,6 +43,8 @@ interface McImageToken extends Tokens.Generic {
   caption: string;
   width: number | null;
   height: number | null;
+  /** Where the picture leads when clicked, already checked, or `null` for no link. */
+  link: string | null;
 }
 
 interface McPdfToken extends Tokens.Generic {
@@ -162,6 +164,10 @@ export function createMediaExtension(): MarkedExtension {
           if (!read || !isSafeContentTarget(read.target)) return;
 
           const caption = text(read.params.caption);
+          // A link goes through the same check as the picture's own address. One
+          // that fails it is dropped and the picture stands without it, because
+          // the picture itself is still safe to show.
+          const link = text(read.params.link);
           return {
             type: "mcImage",
             raw: read.raw,
@@ -173,13 +179,17 @@ export function createMediaExtension(): MarkedExtension {
             caption,
             width: measurement(read.params.width),
             height: measurement(read.params.height),
+            link: link && isSafeContentTarget(link) ? link : null,
           } satisfies McImageToken;
         },
         renderer(token) {
           const image = token as McImageToken;
           const width = image.width === null ? "" : ` width="${image.width}"`;
           const height = image.height === null ? "" : ` height="${image.height}"`;
-          const picture = `<img class="mc-figure__image" src="${escapeHtmlAttribute(image.src)}" alt="${escapeHtmlAttribute(image.alt)}"${width}${height}>`;
+          const img = `<img class="mc-figure__image" src="${escapeHtmlAttribute(image.src)}" alt="${escapeHtmlAttribute(image.alt)}"${width}${height}>`;
+          const picture = image.link
+            ? `<a class="mc-figure__link" href="${escapeHtmlAttribute(image.link)}">${img}</a>`
+            : img;
           // A picture with a caption is a figure, which is the element that
           // says the two belong together. One without a caption is not, so it
           // gets a plain container and no empty `figcaption`.

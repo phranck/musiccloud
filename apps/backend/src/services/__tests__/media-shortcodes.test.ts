@@ -57,6 +57,23 @@ describe("[[image]]", () => {
   });
 });
 
+describe("[[image]] with a link", () => {
+  it("leads where the page named, and keeps that link through the sanitizer", async () => {
+    const out = sanitizeMarkdownHtml(await renderPortal('[[image:/img/logo.svg alt="musiccloud" link="/"]]'));
+
+    expect(out).toMatch(/<a class="mc-figure__link" href="\/"><img class="mc-figure__image" src="\/img\/logo.svg"/);
+  });
+
+  it("shows the picture without a link where the link leaves the site", async () => {
+    for (const link of ["javascript:alert(1)", "//evil.example/", "/\\evil.example/"]) {
+      const out = await renderPortal(`[[image:/img/logo.svg link="${link}"]]`);
+
+      expect(out, link).toContain('src="/img/logo.svg"');
+      expect(out, link).not.toContain("<a");
+    }
+  });
+});
+
 describe("[[pdf]]", () => {
   it("links the file as a card rather than as a bare link", async () => {
     const out = await renderPortal("[[pdf:/assets/terms.pdf]]");
