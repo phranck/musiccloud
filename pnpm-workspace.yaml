@@ -7,3 +7,11 @@ packages:
 # and ignores them in package.json. scripts/node-version.test.mjs checks both.
 overrides:
   "@types/node": "^22.20.5"
+# Astro writes `<link rel="preload" as="fetch">` for every server island it
+# fetches by GET and offers no option to turn that off. WebKit never hands such
+# a preload to the later `fetch()`, so Safari requested every island twice. The
+# patch drops the preload, and every browser fetches the island once when its
+# script runs. A new Astro version needs the patch carried over or dropped.
+# apps/frontend/src/serverIslandPreload.test.ts checks that it is in effect.
+patchedDependencies:
+  astro@5.17.3: patches/astro@5.17.3.patch
