@@ -1,5 +1,5 @@
 /**
- * @file A labeled field of the support ladder: the free amount and the sponsor form's fields.
+ * @file A labeled field of the support ladder: the sponsor form's fields.
  */
 
 import { SealWarningIcon } from "@phosphor-icons/react";
@@ -10,6 +10,7 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
 import { ladderFieldLabelId } from "./ladderFieldParts";
+import { SUPPORT_LABEL_CLASS, SUPPORT_SMALL_PRINT_CLASS } from "./supportType";
 
 /** Props of {@link LadderField}. */
 interface LadderFieldProps {
@@ -31,8 +32,8 @@ interface LadderFieldProps {
  * A label over a recessed well holding one control.
  *
  * The well is a `RecessedCard` with the recessed control inset as its padding,
- * the same well the amount tiles stand in, so every field of the ladder is set
- * into the page the same way. The mark of a required field is decoration,
+ * the same well the free amount's field stands in, so every field of the ladder
+ * is set into its card the same way. The mark of a required field is decoration,
  * because the control itself carries `required`.
  *
  * @param props - See {@link LadderFieldProps}.
@@ -49,11 +50,7 @@ export function LadderField({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-[var(--mc-gap-rowitem,0.75rem)]">
-        <label
-          id={ladderFieldLabelId(controlId)}
-          htmlFor={controlId}
-          className="text-sm font-semibold text-text-primary"
-        >
+        <label id={ladderFieldLabelId(controlId)} htmlFor={controlId} className={SUPPORT_LABEL_CLASS}>
           {label}
           {required && (
             <SealWarningIcon
@@ -63,7 +60,9 @@ export function LadderField({
             />
           )}
         </label>
-        {counter !== undefined && <span className="text-xs tabular-nums text-text-secondary">{counter}</span>}
+        {counter !== undefined && (
+          <span className={cn(SUPPORT_SMALL_PRINT_CLASS, "tabular-nums text-text-secondary")}>{counter}</span>
+        )}
       </div>
       <RecessedCard className={cn(recessedControlInsetClassName, wellClassName)}>{children}</RecessedCard>
     </div>

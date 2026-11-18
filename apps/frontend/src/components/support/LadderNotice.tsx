@@ -1,15 +1,16 @@
 /**
- * @file A notice of the support ladder, set into a card or standing as a surface of its own.
+ * @file A notice of the support ladder: a recessed well holding something to read before acting.
  */
 
 import { CheckCircleIcon, type Icon, InfoIcon } from "@phosphor-icons/react";
 import type { CSSProperties, ReactNode } from "react";
 
-import { raisedControlRadius } from "@/components/cards/cardGeometry";
+import { embossedCardContentInset } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
 import { LadderNoticeTone, type LadderNoticeToneValue } from "./ladderNoticeTone";
+import { SUPPORT_TEXT_SIZE_CLASS } from "./supportType";
 
 /**
  * How each tone draws itself.
@@ -32,15 +33,27 @@ const SUCCESS_TINT_STYLE: CSSProperties = {
 };
 
 /**
+ * The ground and edge the info tone lays over the well's material, in
+ * `--color-accent-tint` and `--color-accent-edge`, as lmaa.space draws its info
+ * notice.
+ */
+const INFO_TINT_STYLE: CSSProperties = {
+  backgroundImage: "linear-gradient(var(--color-accent-tint), var(--color-accent-tint))",
+  border: "1px solid var(--color-accent-edge)",
+};
+
+/**
  * The look of each tone, held as data so a further tone is one entry here.
- * Info is the accent mark on secondary text over the plain well. Success is the
- * check mark in the success color on primary text over a success tint.
+ * Info is the mark and the text in `--color-accent-text` over an accent tint
+ * with an accent edge, as lmaa.space draws it. Success is the check mark in the
+ * success color on primary text over a success tint.
  */
 const TONES: Record<LadderNoticeToneValue, ToneLook> = {
   [LadderNoticeTone.Info]: {
     icon: InfoIcon,
-    iconClassName: "text-[var(--color-accent)]",
-    textClassName: "text-text-secondary",
+    iconClassName: "text-accent-text",
+    textClassName: "text-accent-text",
+    style: INFO_TINT_STYLE,
   },
   [LadderNoticeTone.Success]: {
     icon: CheckCircleIcon,
@@ -56,13 +69,6 @@ interface LadderNoticeProps {
   children: ReactNode;
   /** Classes of the notice. */
   className?: string;
-  /**
-   * Whether the notice stands as a surface of its own rather than inside a card.
-   * `true` gives it the radius and padding of a card of the ladder, such as the
-   * transfer card. `false`, the default, gives it the control radius, because
-   * it sits inside a card the way a control does.
-   */
-  inset?: boolean;
   /** What the notice tells the reader, one of {@link LadderNoticeTone}. Defaults to `Info`. */
   tone?: LadderNoticeToneValue;
 }
@@ -72,23 +78,25 @@ interface LadderNoticeProps {
  * something that has already happened.
  *
  * A recessed well with a mark before the text, whose mark and colors come from
- * its tone. Inside a card it stands at the control level of the radius cascade.
- * As a surface of its own, beside the amounts of a tab that has no suggested
- * ones, it takes the card level.
+ * its tone. It takes the radius the card around it derives for its wells, and
+ * the card's content inset (`embossedCardContentInset`, 12px) as its padding,
+ * so its text does not touch its curve. Standing on the page beside the
+ * amounts, with no card around it, it takes the well radius of the radius
+ * cascade.
  *
  * @param props - See {@link LadderNoticeProps}.
  * @returns The notice.
  */
-export function LadderNotice({ children, className, inset = false, tone = LadderNoticeTone.Info }: LadderNoticeProps) {
+export function LadderNotice({ children, className, tone = LadderNoticeTone.Info }: LadderNoticeProps) {
   const { icon: Mark, iconClassName, textClassName, style } = TONES[tone];
 
   return (
     <RecessedCard
-      radius={inset ? undefined : raisedControlRadius}
-      className={cn("flex gap-2 text-sm", textClassName, className)}
+      padding={embossedCardContentInset}
+      className={cn("flex gap-2", SUPPORT_TEXT_SIZE_CLASS, textClassName, className)}
       style={style}
     >
-      <Mark weight="duotone" aria-hidden="true" className={cn("mt-0.5 size-4 shrink-0", iconClassName)} />
+      <Mark weight="duotone" aria-hidden="true" className={cn("mt-1 size-5 shrink-0", iconClassName)} />
       <div className="min-w-0">{children}</div>
     </RecessedCard>
   );

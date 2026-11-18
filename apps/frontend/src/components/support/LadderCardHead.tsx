@@ -8,6 +8,7 @@
 import type { SupportBrandIconValue } from "@musiccloud/shared";
 
 import { BRAND_LOCKUP_WIDTH_PX, brandLockupUrl } from "./brandLockups";
+import { SUPPORT_CARD_TITLE_CLASS } from "./supportType";
 
 /** Props of {@link LadderCardHead}. */
 interface LadderCardHeadProps {
@@ -31,7 +32,7 @@ export function LadderCardHead({ title, icon }: LadderCardHeadProps) {
     <div className="flex items-start justify-between gap-[var(--mc-gap-rowitem,0.75rem)]">
       {/* The type is set on the wrapper, because the ladder's prose reset makes
           its headings inherit; see `.mc-support-ladder` in `global.css`. */}
-      <div className="text-base font-semibold text-text-primary">
+      <div className={SUPPORT_CARD_TITLE_CLASS}>
         <h3>{title}</h3>
       </div>
       {icon && (

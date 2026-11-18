@@ -5,12 +5,14 @@
 import type { SupportLadderRoute } from "@musiccloud/shared";
 import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 
-import { RecessedCard } from "@/components/cards/RecessedCard";
+import { ContentCard } from "@/components/cards/ContentCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { cn } from "@/lib/utils";
 
 import { LadderCardHead } from "./LadderCardHead";
 import { LadderNotice } from "./LadderNotice";
 import { LadderRichText } from "./LadderRichText";
+import { SUPPORT_LABEL_CLASS, SUPPORT_TEXT_CLASS } from "./supportType";
 
 /** Props of {@link RouteCard}. */
 export interface RouteCardProps {
@@ -32,17 +34,19 @@ export interface RouteCardProps {
  */
 export function RouteCard({ route }: RouteCardProps) {
   return (
-    <RecessedCard className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
+    <ContentCard className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
       <LadderCardHead title={route.title} icon={route.icon} />
-      <LadderRichText html={route.text} className="text-sm text-text-secondary" />
+      <LadderRichText html={route.text} className={SUPPORT_TEXT_CLASS} />
       {route.hint && (
         <LadderNotice>
           <LadderRichText html={route.hint} />
         </LadderNotice>
       )}
-      {/* The type is set on the wrapper, because the ladder's reset makes the
-          link inherit; see `.mc-support-ladder` in `global.css`. */}
-      <div className="text-sm font-semibold text-text-primary">
+      {/* The button stands at the card's end on the right, as lmaa.space sets
+          it, one row gap further from what it follows than the rows above
+          keep. The type is set on the wrapper, because the ladder's reset makes
+          the link inherit; see `.mc-support-ladder` in `global.css`. */}
+      <div className={cn("flex justify-end pt-[var(--mc-gap-rowitem,0.75rem)]", SUPPORT_LABEL_CLASS)}>
         <EmbossedButton
           href={route.url}
           target="_blank"
@@ -53,6 +57,6 @@ export function RouteCard({ route }: RouteCardProps) {
           <ArrowSquareOutIcon weight="bold" aria-hidden="true" className="size-4" />
         </EmbossedButton>
       </div>
-    </RecessedCard>
+    </ContentCard>
   );
 }

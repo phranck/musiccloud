@@ -1,6 +1,7 @@
 import { SPONSOR_WALL_ATTRIBUTE, SUPPORT_LADDER_ATTRIBUTE } from "@musiccloud/shared";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { cardTextInset, contentCardInset } from "@/components/cards/cardGeometry";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 
 describe("MarkdownHtml", () => {
@@ -26,15 +27,24 @@ describe("MarkdownHtml", () => {
     expect(pre?.getAttribute("data-card-wrapped")).toBe("true");
   });
 
-  it("draws a [[card]] as an EmbossedCard holding its content", () => {
+  it("draws a [[card]] as a ContentCard holding its content", () => {
     render(<MarkdownHtml html='<div class="mc-card"><h2>Costs</h2><p>Servers.</p></div>' />);
     const card = document.querySelector(".mc-markdown > .embossed-gradient-border.mc-card");
     expect(card).not.toBeNull();
     const content = card?.querySelector(":scope > .mc-card-content");
     expect(content?.querySelector(":scope > h2")?.textContent).toBe("Costs");
     expect(content?.querySelector(":scope > p")?.textContent).toBe("Servers.");
-    expect((card as HTMLElement).style.padding).toBe("var(--emb-padding)");
-    expect((card as HTMLElement).style.getPropertyValue("--emb-padding")).toBe("var(--mc-card-chrome-x)");
+    // The card's padding is also the content inset its wells derive their radius from.
+    const style = (card as HTMLElement).style;
+    expect(style.padding).toBe("var(--emb-padding)");
+    expect(style.getPropertyValue("--emb-padding")).toBe(contentCardInset);
+    expect(style.getPropertyValue("--mc-card-content-inset")).toBe(contentCardInset);
+  });
+
+  it("publishes half the card radius for the headings that introduce a card", () => {
+    const { container } = render(<MarkdownHtml html="<h2>Costs</h2><p>Servers.</p>" />);
+    const root = container.querySelector(".mc-markdown") as HTMLElement;
+    expect(root.style.getPropertyValue("--mc-card-text-inset")).toBe(cardTextInset);
   });
 
   it("leaves a class that only begins with mc-card alone", () => {

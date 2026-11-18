@@ -3,13 +3,13 @@
  *
  * The surfaces share one structural template (spacing, typography, pill/kbd
  * geometry, field layout) and diverge in their per-element color literals and
- * their heading scale. The translucent surface uses graduated white
+ * their type scale. The translucent surface uses graduated white
  * opacities, the embossed surfaces collapse headings onto theme tokens, and a
- * fullscreen page scales its headings against its own page title.
+ * fullscreen page scales its headings and text against its own page title.
  *
  * Every class string here is a COMPLETE literal so Tailwind's JIT compiler can
  * see it verbatim. Class names are never composed from sub-token fragments:
- * the color map and the heading scale hold full per-element class literals,
+ * the color map and the type scale hold full per-element class literals,
  * and the structural template only concatenates those whole literals with the
  * equally whole non-color literals.
  */
@@ -101,58 +101,71 @@ const MD_FIELDS = [
 ].join(" ");
 
 /**
- * The size, weight and spacing of a surface's headings, as complete class
- * literals. A surface's headings are scaled against what stands above them,
- * which differs between a card and a whole page.
+ * The size, weight and spacing of a surface's headings and text, as complete
+ * class literals. A surface's type is scaled against what stands around it,
+ * which differs between a card in an overlay and a whole page.
  */
-interface ProseHeadingScale {
+interface ProseTypeScale {
   /** `<h1>` size, weight and margins. */
   h1: string;
   /** `<h2>` size, weight and margins, including the first heading's top margin. */
   h2: string;
   /** `<h3>` size, weight and margins. */
   h3: string;
+  /** `<p>` size, line height and bottom margin. */
+  p: string;
+  /** `<ul>` size, indent, margins, item spacing and marker. */
+  ul: string;
+  /** `<ol>` size, indent, margins, item spacing and marker. */
+  ol: string;
 }
 
 /**
- * Headings inside an overlay card, whose own title stands in the card header:
- * `h2` at `text-lg` (18px), a step above the 16px text.
+ * Type inside an overlay card, whose own title stands in the card header: text
+ * at `text-base` (16px) and `h2` at `text-lg` (18px), a step above it.
  */
-const OVERLAY_HEADINGS: ProseHeadingScale = {
+const OVERLAY_TYPE: ProseTypeScale = {
   h1: "[&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:mb-3 [&_h1]:mt-0",
   h2: "[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-6 [&_h2:first-child]:mt-0",
   h3: "[&_h3]:text-base [&_h3]:font-medium [&_h3]:mb-1 [&_h3]:mt-4",
+  p: "[&_p]:text-base [&_p]:leading-relaxed [&_p]:mb-3",
+  ul: "[&_ul]:text-base [&_ul]:pl-5 [&_ul]:mb-3 [&_ul]:space-y-1 [&_ul]:list-disc",
+  ol: "[&_ol]:text-base [&_ol]:pl-5 [&_ol]:mb-3 [&_ol]:space-y-1 [&_ol]:list-decimal",
 };
 
 /**
- * Headings on a fullscreen page, under the page's own title at `text-3xl` and
- * `sm:text-4xl` (30px and 36px) in `[shortId].astro`. A section heading takes
- * `text-2xl` (24px), so it reads as the step between that title and the 16px
- * text, and a section opens with `mt-10` (40px) of room above it.
+ * Type on a fullscreen page, under the page's own title at `text-3xl` and
+ * `sm:text-4xl` (30px and 36px) in `[shortId].astro`. Text reads at `text-lg`
+ * (18px), above the 17px floor for text. A section heading takes `text-2xl`
+ * (24px), the step between that title and the text, and a section opens with
+ * `mt-10` (40px) of room above it.
  */
-const FULLSCREEN_HEADINGS: ProseHeadingScale = {
+const FULLSCREEN_TYPE: ProseTypeScale = {
   h1: "[&_h1]:text-3xl [&_h1]:font-semibold [&_h1]:tracking-[-0.02em] [&_h1]:mb-4 [&_h1]:mt-0",
   h2: "[&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-[-0.01em] [&_h2]:mb-3 [&_h2]:mt-10 [&_h2:first-child]:mt-0",
-  h3: "[&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mb-2 [&_h3]:mt-6",
+  h3: "[&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mb-2 [&_h3]:mt-6",
+  p: "[&_p]:text-lg [&_p]:leading-relaxed [&_p]:mb-4",
+  ul: "[&_ul]:text-lg [&_ul]:pl-6 [&_ul]:mb-4 [&_ul]:space-y-1.5 [&_ul]:list-disc",
+  ol: "[&_ol]:text-lg [&_ol]:pl-6 [&_ol]:mb-4 [&_ol]:space-y-1.5 [&_ol]:list-decimal",
 };
 
 /**
  * Compose a full prose class-map from the shared structural template, a
- * per-surface {@link ProseColorMap} and a {@link ProseHeadingScale}. Each entry
+ * per-surface {@link ProseColorMap} and a {@link ProseTypeScale}. Each entry
  * concatenates whole literals, so Tailwind sees every class verbatim.
  *
  * @param c - the per-surface color literals to interleave
- * @param headings - the heading sizes, weights and margins for that surface
+ * @param type - the sizes, weights and margins of that surface's headings and text
  * @returns the space-joined prose class string for that surface
  */
-function buildProseClassMap(c: ProseColorMap, headings: ProseHeadingScale): string {
+function buildProseClassMap(c: ProseColorMap, type: ProseTypeScale): string {
   return [
-    `${c.h1} ${headings.h1}`,
-    `${c.h2} ${headings.h2}`,
-    `${c.h3} ${headings.h3}`,
-    `${c.p} [&_p]:text-base [&_p]:leading-relaxed [&_p]:mb-3`,
-    `${c.ul} [&_ul]:text-base [&_ul]:pl-5 [&_ul]:mb-3 [&_ul]:space-y-1 [&_ul]:list-disc`,
-    `${c.ol} [&_ol]:text-base [&_ol]:pl-5 [&_ol]:mb-3 [&_ol]:space-y-1 [&_ol]:list-decimal`,
+    `${c.h1} ${type.h1}`,
+    `${c.h2} ${type.h2}`,
+    `${c.h3} ${type.h3}`,
+    `${c.p} ${type.p}`,
+    `${c.ul} ${type.ul}`,
+    `${c.ol} ${type.ol}`,
     "[&_li]:leading-relaxed",
     `${c.strong} [&_strong]:font-medium`,
     "[&_a]:text-[var(--color-accent)] [&_a]:underline",
@@ -173,14 +186,14 @@ function buildProseClassMap(c: ProseColorMap, headings: ProseHeadingScale): stri
 }
 
 /** Prose class-map for the translucent overlay surface (graduated white opacities). */
-export const MD_TRANSLUCENT = buildProseClassMap(TRANSLUCENT_COLORS, OVERLAY_HEADINGS);
+export const MD_TRANSLUCENT = buildProseClassMap(TRANSLUCENT_COLORS, OVERLAY_TYPE);
 
 /** Prose class-map for the embossed overlay card and the segmented fullscreen card (theme tokens). */
-export const MD_EMBOSSED = buildProseClassMap(EMBOSSED_COLORS, OVERLAY_HEADINGS);
+export const MD_EMBOSSED = buildProseClassMap(EMBOSSED_COLORS, OVERLAY_TYPE);
 
 /**
  * Prose class-map for a fullscreen page's own content, standing straight on
  * the page under its title rather than inside a card (theme tokens, page
- * heading scale).
+ * type scale).
  */
-export const MD_FULLSCREEN = buildProseClassMap(EMBOSSED_COLORS, FULLSCREEN_HEADINGS);
+export const MD_FULLSCREEN = buildProseClassMap(EMBOSSED_COLORS, FULLSCREEN_TYPE);

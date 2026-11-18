@@ -12,6 +12,13 @@ interface LadderRichTextProps {
   className?: string;
   /** The wrapper's role, such as `status` for a notice that appears while typing. */
   role?: string;
+  /**
+   * How far the text is drawn in on both sides, for text standing on the page
+   * above a card: `cardTextInset` from `cardGeometry.ts`. No inset where
+   * absent, which is right inside a padded card and for text with nothing
+   * rounded beneath it.
+   */
+  inset?: string;
 }
 
 /**
@@ -24,10 +31,10 @@ interface LadderRichTextProps {
  * @param props - See {@link LadderRichTextProps}.
  * @returns The text, or nothing when it is empty.
  */
-export function LadderRichText({ html, className, role }: LadderRichTextProps) {
+export function LadderRichText({ html, className, role, inset }: LadderRichTextProps) {
   if (!html) return null;
   return (
-    <div role={role} className={className}>
+    <div role={role} className={className} style={inset ? { paddingInline: inset } : undefined}>
       {parse(html)}
     </div>
   );

@@ -5,9 +5,9 @@ import {
   SUPPORT_LADDER_ATTRIBUTE,
 } from "@musiccloud/shared";
 import parse, { domToReact, type Element, type HTMLReactParserOptions, type Text } from "html-react-parser";
-import { createElement, Fragment } from "react";
-
-import { embossedCardTextInset } from "@/components/cards/cardGeometry";
+import { type CSSProperties, createElement, Fragment } from "react";
+import { ContentCard } from "@/components/cards/ContentCard";
+import { cardTextInset } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { BioAnchor } from "@/components/markdown/BioAnchor";
@@ -50,7 +50,7 @@ const DEFAULT_CARD_RADIUS = "0.75rem";
 /**
  * The class the backend gives a card written into a page with `[[card]]`.
  *
- * The element is replaced by an `EmbossedCard` that keeps the class, so the
+ * The element is replaced by a `ContentCard` that keeps the class, so the
  * rhythm rules in `global.css` still find the card's content.
  */
 const MARKDOWN_CARD_CLASS = "mc-card";
@@ -110,7 +110,7 @@ function anchorTextContent(el: Element): string {
  *
  * A `<div data-mc-support-ladder>` marker becomes the interactive
  * `SupportLadder`, a `<div data-mc-sponsor-wall>` marker the `SponsorWall`,
- * a `<div class="mc-card">` from `[[card]]` an `EmbossedCard`, and a video link
+ * a `<div class="mc-card">` from `[[card]]` a `ContentCard`, and a video link
  * becomes a `VideoEmbed`.
  *
  * When `linkifyText` is enabled, every plain-text run is additionally scanned for
@@ -169,17 +169,12 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
         return config ? <SponsorWall config={config} /> : REMOVED_NODE;
       }
 
-      // A card written into the page becomes the site's own card. Only the
-      // short form reaches the site, because the backend refuses a card written
-      // in its parts here, so the element's children are all content. The
-      // padding is the text inset, so the copy lines up with the titles of the
-      // section cards around it.
+      // A card written into the page becomes the site's content card, the
+      // same surface every other card on a content page takes. Only the short
+      // form reaches the site, because the backend refuses a card written in
+      // its parts here, so the element's children are all content.
       if (el.name === "div" && hasClassToken(el, MARKDOWN_CARD_CLASS)) {
-        return (
-          <EmbossedCard className={MARKDOWN_CARD_CLASS} padding={embossedCardTextInset}>
-            {domToReact(el.children as never, options)}
-          </EmbossedCard>
-        );
+        return <ContentCard className={MARKDOWN_CARD_CLASS}>{domToReact(el.children as never, options)}</ContentCard>;
       }
 
       if (el.name !== "pre") return undefined;
@@ -211,6 +206,13 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
   return options;
 }
 
+/**
+ * The geometry every markdown surface publishes for its stylesheet rules:
+ * `--mc-card-text-inset`, half the card radius from `cardTextInset`, so the
+ * value is derived in one place and the CSS reads it.
+ */
+const MARKDOWN_STYLE = { "--mc-card-text-inset": cardTextInset } as CSSProperties;
+
 const parserOptions = makeParserOptions(false);
 const parserOptionsLinkify = makeParserOptions(true);
 
@@ -238,9 +240,10 @@ export function MarkdownHtml({
 }) {
   // `mc-markdown` is what the shared shortcode stylesheet reads its material
   // from, so every surface rendering this markup carries it whatever prose
-  // classes it also brings.
+  // classes it also brings. `--mc-card-text-inset` is what `global.css` draws a
+  // heading in by when a card stands beneath it.
   return (
-    <div className={className ? `mc-markdown ${className}` : "mc-markdown"}>
+    <div className={className ? `mc-markdown ${className}` : "mc-markdown"} style={MARKDOWN_STYLE}>
       {parse(html, linkifyText ? parserOptionsLinkify : parserOptions)}
     </div>
   );

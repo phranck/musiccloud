@@ -8,7 +8,10 @@ import {
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { cardTextInset } from "@/components/cards/cardGeometry";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
+
+import { SUPPORT_WELL_CLASS } from "./supportSurface";
 
 /** Every code the stand-in renderer was asked to draw, newest last. */
 const drawn = vi.hoisted(() => [] as string[]);
@@ -135,11 +138,20 @@ function line(label: string): string {
   return term.nextElementSibling?.textContent ?? "";
 }
 
-/** What every recessed surface carries, a card of the ladder and a well inside it alike. */
-const RECESSED_SURFACE_SELECTOR = ".recessed-gradient-border";
+/** What every surface carries: a card of the ladder, which is embossed, and a well, which is recessed. */
+const SURFACE_SELECTOR = ".embossed-gradient-border, .recessed-gradient-border";
 
 /** The class of the element that holds a tab's blocks, one after another. */
 const LADDER_BODY_SELECTOR = ".mc-support-ladder__body";
+
+/** What takes the card material at night, by `SUPPORT_WELL_CLASS`. */
+const WELL_SELECTOR = `.${SUPPORT_WELL_CLASS}`;
+
+/** A content card, which is an embossed card. */
+const CARD_SELECTOR = ".embossed-gradient-border";
+
+/** What `SupportLadderAmounts.tsx` marks the card holding the amount in force with. */
+const CHOSEN_CLASS = "is-chosen";
 
 /**
  * The block of the ladder's body that holds an element, which is the card or
@@ -263,16 +275,52 @@ describe("SupportLadder", () => {
     const amount = screen.getByLabelText("Your sponsorship");
 
     expect(screen.getByRole("heading", { name: "Your sponsorship" })).toBeTruthy();
-    expect(amount.closest(RECESSED_SURFACE_SELECTOR)).toBe(blockHolding(container, amount));
+    expect(amount.closest(SURFACE_SELECTOR)).toBe(blockHolding(container, amount));
   });
 
-  it("keeps the free field in its own well on a tab without a form", () => {
+  it("sets every suggested amount and the free field on a card of its own, as lmaa.space does", () => {
+    renderLadder();
+
+    const cards = [/€5/, /€10/].map((name) => screen.getByRole("button", { name }).querySelector(CARD_SELECTOR));
+    const fieldCard = screen.getByLabelText("Another amount").closest(CARD_SELECTOR);
+
+    expect(cards.every((card) => card !== null)).toBe(true);
+    expect(new Set(cards).size).toBe(cards.length);
+    expect(fieldCard).not.toBeNull();
+    expect(cards).not.toContain(fieldCard);
+    expect(screen.getByRole("heading", { name: "Another amount" })).toBeTruthy();
+  });
+
+  it("marks the chosen amount's card, and the free field's card once it holds a value", () => {
+    renderLadder();
+
+    const chosenCard = () => screen.getByRole("button", { name: /€10/ }).querySelector(CARD_SELECTOR);
+    const fieldCard = () => screen.getByLabelText("Another amount").closest(CARD_SELECTOR);
+    expect(chosenCard()?.classList.contains(CHOSEN_CLASS)).toBe(true);
+    expect(fieldCard()?.classList.contains(CHOSEN_CLASS)).toBe(false);
+
+    fireEvent.change(screen.getByLabelText("Another amount"), { target: { value: "12" } });
+
+    expect(chosenCard()?.classList.contains(CHOSEN_CLASS)).toBe(false);
+    expect(fieldCard()?.classList.contains(CHOSEN_CLASS)).toBe(true);
+  });
+
+  it("gives the night's card material to the tab switch alone", () => {
     const { container } = renderLadder();
 
-    const amount = screen.getByLabelText("Another amount");
+    const switchTrack = screen.getByRole("button", { name: "Once" }).closest(SURFACE_SELECTOR);
 
-    expect(screen.queryByRole("heading", { name: "Another amount" })).toBeNull();
-    expect(amount.closest(RECESSED_SURFACE_SELECTOR)).not.toBe(blockHolding(container, amount));
+    expect(switchTrack?.matches(WELL_SELECTOR)).toBe(true);
+    expect(container.querySelectorAll(WELL_SELECTOR)).toHaveLength(1);
+  });
+
+  it("draws the tab's text in to where the curve of the cards beneath it ends", async () => {
+    renderLadder();
+
+    await chooseTab("Monthly", () => expect(screen.getByText("That is €120 a year.")).toBeTruthy());
+    expect((screen.getByText("That is €120 a year.").parentElement as HTMLElement).style.paddingInline).toBe(
+      cardTextInset,
+    );
   });
 
   it("sets the notice beside the free field on a tab without suggested amounts or a form", async () => {
