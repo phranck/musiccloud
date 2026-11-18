@@ -1,0 +1,40 @@
+---
+/**
+ * The OpenGraph and Twitter tags of a page that is not a share page: what a
+ * link to it unfolds into in a messenger, a social network or a search result.
+ *
+ * Every page of this kind draws the same large card with the site's own
+ * picture, so the picture and the card's shape are fixed here and only the
+ * words and the address vary. Share pages write their own tags, because theirs
+ * describe a track, an album or an artist.
+ */
+import { SITE_LOCALE, SITE_NAME, SITE_SHARE_IMAGE } from "@/lib/seo/siteMeta";
+
+/** Props of the social tags. */
+interface Props {
+  /** The page's title as the card shows it, such as `Support musiccloud`. */
+  title: string;
+  /** The sentence under the title. */
+  description: string;
+  /** The page's canonical address, absolute. */
+  url: string;
+}
+
+const { title, description, url } = Astro.props;
+---
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={url} />
+<meta property="og:site_name" content={SITE_NAME} />
+<meta property="og:image" content={SITE_SHARE_IMAGE.url} />
+<meta property="og:image:width" content={String(SITE_SHARE_IMAGE.width)} />
+<meta property="og:image:height" content={String(SITE_SHARE_IMAGE.height)} />
+<meta property="og:image:alt" content={SITE_SHARE_IMAGE.alt} />
+<meta property="og:locale" content={SITE_LOCALE} />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={SITE_SHARE_IMAGE.url} />

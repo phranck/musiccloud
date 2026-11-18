@@ -21,7 +21,7 @@ describe("share route error entrypoints", () => {
     expect(routeSource).toContain("const [contentResult, shareResult, supportPrompts] = await Promise.all");
     expect(routeSource).not.toContain("<DeferredShareContent");
     expect(routeSource).not.toContain("if (treatAsBot)");
-    expect(routeSource).toContain("canonicalUrl={contentPage ?");
+    expect(routeSource).toContain("canonicalUrl={contentPageUrl ?? og?.url}");
   });
 
   it("preserves the fullscreen content entrance animation", () => {

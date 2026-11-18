@@ -338,6 +338,17 @@ export interface PublicPageSegment {
   contentHtml: string;
 }
 
+/**
+ * One published content page as `GET /api/v1/content` lists it: enough to
+ * address the page and name it, which is what a route table or a sitemap needs.
+ */
+export interface PublicContentPageStub {
+  /** The page's address under the site's root, such as `support-me`. */
+  slug: string;
+  /** The page's title, such as `Support musiccloud`. */
+  title: string;
+}
+
 export interface PublicContentPage {
   slug: string;
   title: string;

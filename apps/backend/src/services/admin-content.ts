@@ -7,6 +7,7 @@ import type {
   PageSegment,
   PageType,
   PublicContentPage,
+  PublicContentPageStub,
   PublicPageSegment,
 } from "@musiccloud/shared";
 import {
@@ -462,7 +463,7 @@ export async function deleteManagedContentPage(identity: string): Promise<Conten
 
 // -- Public reads -------------------------------------------------------------
 
-export async function getPublicContentPages(): Promise<Array<{ slug: string; title: string }>> {
+export async function getPublicContentPages(): Promise<PublicContentPageStub[]> {
   const repo = await getAdminRepository();
   return repo.listPublishedContentPages();
 }

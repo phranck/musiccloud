@@ -17,6 +17,7 @@ import { MD_FULLSCREEN } from "@/components/layout/overlayContentProseClassMaps"
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import { SegmentedPageFullscreen } from "@/components/layout/SegmentedPageFullscreen";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
+import SocialMeta from "@/components/seo/SocialMeta.astro";
 import { CcSharePageShell } from "@/components/share/CcSharePageShell";
 import { ShareErrorShell } from "@/components/share/ShareErrorShell";
 import { SharePageShell } from "@/components/share/SharePageShell";
@@ -24,6 +25,8 @@ import { commonCopy } from "@/copy/common";
 import { shareCopy } from "@/copy/share";
 import { SHARE_MEDIA_VIEW_SCRIPT } from "@/lib/inline-scripts";
 import { isBot } from "@/lib/isBot";
+import { describeContentPage } from "@/lib/seo/pageDescription";
+import { SITE_NAME, SITE_SHARE_IMAGE } from "@/lib/seo/siteMeta";
 import { resolveShortRouteResults } from "@/lib/share/short-route-result";
 import { loadSupportPrompts } from "@/lib/support/support-prompts";
 import {
@@ -119,17 +122,50 @@ if (data && isCcSharePageResponse(data)) {
 }
 
 const overlayMode = !!contentPage && contentPage.displayMode !== "fullscreen";
+
+// What a content page tells search engines and link previews. A page carries no
+// description of its own, so it is read from the page's first paragraph that
+// says something; a segmented page is read across its segments in order.
+const contentPageUrl = contentPage ? `${SITE_ORIGIN.site}/${contentPage.slug}` : undefined;
+const contentPageHtml = contentPage
+  ? contentPage.pageType === "segmented"
+    ? contentPage.segments.map((segment) => segment.contentHtml).join("")
+    : contentPage.contentHtml
+  : "";
+const contentPageDescription = contentPage ? describeContentPage(contentPageHtml) : undefined;
+// Every page needs one main heading for search engines and screen readers. A
+// page that shows no title and writes no heading of its own still gets it,
+// visually hidden, so the logo standing in for the title on `/support-me`
+// does not leave the page without one.
+const needsHiddenHeading =
+  !!contentPage && contentPage.pageType !== "segmented" && !contentPage.showTitle && !/<h1[\s>]/i.test(contentPageHtml);
 const exampleShortId = overlayMode ? ((await fetchRandomExample(clientIp))?.shortId ?? null) : null;
 ---
 
 <BaseLayout
   title={pageTitle}
-  canonicalUrl={contentPage ? `${SITE_ORIGIN.site}/${contentPage.slug}` : og?.url}
+  description={contentPageDescription}
+  canonicalUrl={contentPageUrl ?? og?.url}
   preloadImage={artworkUrl ?? undefined}
 >
   <Fragment slot="head">
     <script is:inline set:html={SHARE_MEDIA_VIEW_SCRIPT}></script>
   </Fragment>
+
+  {contentPage && contentPageUrl && contentPageDescription && (
+    <Fragment slot="head">
+      <SocialMeta title={contentPage.title} description={contentPageDescription} url={contentPageUrl} />
+      <script is:inline type="application/ld+json" set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": contentPage.title,
+        "description": contentPageDescription,
+        "url": contentPageUrl,
+        "image": SITE_SHARE_IMAGE.url,
+        "isPartOf": { "@type": "WebSite", "name": SITE_NAME, "url": SITE_ORIGIN.site },
+      })} />
+    </Fragment>
+  )}
 
   {og && (
     <Fragment slot="head">
@@ -185,6 +221,7 @@ const exampleShortId = overlayMode ? ((await fetchRandomExample(clientIp))?.shor
             {contentPage.title}
           </h1>
         )}
+        {needsHiddenHeading && <h1 class="sr-only">{contentPage.title}</h1>}
         {contentPage.pageType === "segmented" ? (
           <SegmentedPageFullscreen client:load page={contentPage} />
         ) : (
@@ -201,6 +238,7 @@ const exampleShortId = overlayMode ? ((await fetchRandomExample(clientIp))?.shor
 
     {contentPage && overlayMode && renderStaticContent && (
       <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12">
+        {needsHiddenHeading && <h1 class="sr-only">{contentPage.title}</h1>}
         {contentPage.pageType === "segmented" ? (
           contentPage.segments.map((segment) => (
             <MarkdownHtml html={segment.contentHtml} className={`${MD_FULLSCREEN} mb-8`} />
