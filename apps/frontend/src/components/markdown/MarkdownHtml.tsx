@@ -7,7 +7,7 @@ import {
 import parse, { domToReact, type Element, type HTMLReactParserOptions, type Text } from "html-react-parser";
 import { createElement, Fragment } from "react";
 
-import { embossedCardTextInset } from "@/components/cards/cardGeometry";
+import { ContentCard } from "@/components/cards/ContentCard";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { BioAnchor } from "@/components/markdown/BioAnchor";
@@ -50,7 +50,7 @@ const DEFAULT_CARD_RADIUS = "0.75rem";
 /**
  * The class the backend gives a card written into a page with `[[card]]`.
  *
- * The element is replaced by an `EmbossedCard` that keeps the class, so the
+ * The element is replaced by a `ContentCard` that keeps the class, so the
  * rhythm rules in `global.css` still find the card's content.
  */
 const MARKDOWN_CARD_CLASS = "mc-card";
@@ -110,7 +110,7 @@ function anchorTextContent(el: Element): string {
  *
  * A `<div data-mc-support-ladder>` marker becomes the interactive
  * `SupportLadder`, a `<div data-mc-sponsor-wall>` marker the `SponsorWall`,
- * a `<div class="mc-card">` from `[[card]]` an `EmbossedCard`, and a video link
+ * a `<div class="mc-card">` from `[[card]]` a `ContentCard`, and a video link
  * becomes a `VideoEmbed`.
  *
  * When `linkifyText` is enabled, every plain-text run is additionally scanned for
@@ -169,17 +169,12 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
         return config ? <SponsorWall config={config} /> : REMOVED_NODE;
       }
 
-      // A card written into the page becomes the site's own card. Only the
-      // short form reaches the site, because the backend refuses a card written
-      // in its parts here, so the element's children are all content. The
-      // padding is the text inset, so the copy lines up with the titles of the
-      // section cards around it.
+      // A card written into the page becomes the site's content card, the
+      // same surface every other card on a content page takes. Only the short
+      // form reaches the site, because the backend refuses a card written in
+      // its parts here, so the element's children are all content.
       if (el.name === "div" && hasClassToken(el, MARKDOWN_CARD_CLASS)) {
-        return (
-          <EmbossedCard className={MARKDOWN_CARD_CLASS} padding={embossedCardTextInset}>
-            {domToReact(el.children as never, options)}
-          </EmbossedCard>
-        );
+        return <ContentCard className={MARKDOWN_CARD_CLASS}>{domToReact(el.children as never, options)}</ContentCard>;
       }
 
       if (el.name !== "pre") return undefined;

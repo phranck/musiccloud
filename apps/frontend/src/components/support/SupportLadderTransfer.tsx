@@ -16,7 +16,7 @@ import {
 } from "@musiccloud/shared";
 import { useMemo } from "react";
 
-import { RecessedCard } from "@/components/cards/RecessedCard";
+import { ContentCard } from "@/components/cards/ContentCard";
 import { cn } from "@/lib/utils";
 
 import { CopyValueButton } from "./CopyValueButton";
@@ -24,6 +24,7 @@ import { GiroCode } from "./GiroCode";
 import { LadderCardHead } from "./LadderCardHead";
 import { LadderNotice } from "./LadderNotice";
 import { LadderRichText } from "./LadderRichText";
+import { SUPPORT_TEXT_CLASS } from "./supportType";
 
 /** What every creditor reference opens with before its tag: `RF` and two check digits, 4 characters. */
 const CREDITOR_REFERENCE_PREFIX_LENGTH = 4;
@@ -151,14 +152,14 @@ export function TransferCard({
   ];
 
   return (
-    <RecessedCard className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
+    <ContentCard className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
       <LadderCardHead title={variant.title} icon={variant.icon} />
-      <LadderRichText html={variant.text} className="text-sm text-text-secondary" />
+      <LadderRichText html={variant.text} className={SUPPORT_TEXT_CLASS} />
 
       <div className="flex flex-wrap items-start gap-[var(--mc-gap-cards,1.5rem)]">
         {payload && <GiroCode payload={payload} style={qr} label={text.qrAlt} />}
         <div className="flex min-w-[16rem] flex-1 flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
-          <dl className="grid grid-cols-[auto_1fr_auto] items-center gap-x-[var(--mc-gap-rowitem,0.75rem)] gap-y-1 text-sm">
+          <dl className="grid grid-cols-[auto_1fr_auto] items-center gap-x-[var(--mc-gap-rowitem,0.75rem)] gap-y-1 text-base">
             {lines.map((line) => (
               <div key={line.label} className="contents">
                 <dt className="text-text-muted">{line.label}</dt>
@@ -198,6 +199,6 @@ export function TransferCard({
           )}
         </div>
       </div>
-    </RecessedCard>
+    </ContentCard>
   );
 }

@@ -41,6 +41,7 @@ import { LadderField } from "./LadderField";
 import { LadderNotice } from "./LadderNotice";
 import { LADDER_INPUT_CLASS, ladderFieldLabelId } from "./ladderFieldParts";
 import { LadderNoticeTone } from "./ladderNoticeTone";
+import { SUPPORT_LABEL_CLASS, SUPPORT_SMALL_PRINT_CLASS } from "./supportType";
 
 /** Rows the sentence field shows before it scrolls: 3, which a sentence of the longest allowed length fills. */
 const CLAIM_ROWS = 3;
@@ -57,7 +58,7 @@ const TEXT_INPUT_CLASS = cn(LADDER_INPUT_CLASS, "h-10 px-3 font-semibold");
  * row of its own. The gap is `--mc-gap-rowitem`, which the form's own stack
  * uses, so the note follows that token.
  */
-const LINK_NOTE_CLASS = "m-0 -mt-[calc(var(--mc-gap-rowitem,0.75rem)/2)] px-1 text-xs";
+const LINK_NOTE_CLASS = cn("m-0 -mt-[calc(var(--mc-gap-rowitem,0.75rem)/2)] px-1", SUPPORT_SMALL_PRINT_CLASS);
 
 /**
  * The status the site answers with when the form was sent too often: `429`.
@@ -374,7 +375,7 @@ function SponsorForm({ amountEur, earnsSponsorship, correcting, text, onIssued }
             aria-checked={form.published}
             pressed={form.published}
             onClick={() => dispatch({ type: FormActionType.SetPublished, value: !form.published })}
-            className="flex items-center gap-2 text-sm font-semibold text-text-primary"
+            className={cn("flex items-center gap-2", SUPPORT_LABEL_CLASS)}
           >
             {form.published ? (
               <CheckCircleIcon weight="fill" aria-hidden="true" className="size-4 text-success" />
@@ -389,7 +390,7 @@ function SponsorForm({ amountEur, earnsSponsorship, correcting, text, onIssued }
             as="button"
             type="submit"
             disabled={form.sending || !complete}
-            className="w-full text-sm font-semibold text-text-primary"
+            className={cn("w-full", SUPPORT_LABEL_CLASS)}
           >
             {form.sending ? text.submitBusyLabel : text.submitLabel}
           </EmbossedButton>
@@ -444,11 +445,7 @@ export function SponsorStep({ issued, amountEur, earnsSponsorship, text }: Spons
             <p className="m-0 text-text-muted">{text.issuedText}</p>
           </div>
           <div className="flex justify-end">
-            <EmbossedButton
-              as="button"
-              onClick={() => setCorrecting(true)}
-              className="text-sm font-semibold text-text-primary"
-            >
+            <EmbossedButton as="button" onClick={() => setCorrecting(true)} className={SUPPORT_LABEL_CLASS}>
               {text.changeLabel}
             </EmbossedButton>
           </div>

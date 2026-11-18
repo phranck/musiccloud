@@ -14,14 +14,14 @@ export const recessedSurfaceRadius = `calc(${embossedCardOuterRadius} - ${emboss
 export const recessedControlInset = `${RECESSED_CONTROL_INSET_PX}px`;
 export const raisedControlRadius = `calc(${recessedSurfaceRadius} - ${recessedControlInset})`;
 /**
- * The inset at which text sits inside an embossed card: the content inset
- * plus half the inner radius, which `glass.css` resolves as
- * `--mc-card-chrome-x` on the card from that card's own radius. A section
- * header's title stands at the same inset, so text written straight into a
- * card lines up with the titles of the cards around it. Read on the card
- * element itself, so it is only meaningful as that card's own padding.
+ * The padding of a content card, equal on all four sides: half the content
+ * inset plus half the outer radius, which is 20px at the 28px radius. It is
+ * the inset `glass.css` resolves as `--mc-card-chrome-x` for a section card's
+ * title, written from the root tokens rather than from that property so a
+ * content card can publish it as its own content inset without a cycle.
+ * `ContentCard` reads it.
  */
-export const embossedCardTextInset = "var(--mc-card-chrome-x)";
+export const contentCardInset = `calc(${embossedCardContentInset} / 2 + ${embossedCardOuterRadius} / 2)`;
 
 const CONTROL_RADIUS_BASE = `max(4px, calc(var(--mc-recessed-radius-base, ${recessedSurfaceRadius}) - var(--mc-recessed-padding, ${recessedControlInset})))`;
 const CONTROL_RADIUS_SM = `max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-recessed-radius-base, ${recessedSurfaceRadius})) - var(--mc-recessed-padding, ${recessedControlInset})))`;
@@ -36,22 +36,6 @@ export const embossedControlRadiusStyle: CSSProperties = {
   "--neu-radius-base": CONTROL_RADIUS_BASE,
   "--neu-radius-sm": CONTROL_RADIUS_SM,
   borderRadius: "var(--neu-radius)",
-} as CSSProperties;
-
-/**
- * Inline style for the content of a `RecessedCard` that holds recessed wells of its own.
- *
- * A `RecessedCard` given no `radius` takes the card's inner radius from
- * `--mc-card-inner-radius-base` and `-sm`, which the `EmbossedCard` around it
- * publishes. A well inside another `RecessedCard` would take that same radius
- * and pinch at the corners. Set on the wrapper of such a card's content, this
- * moves every well inside it to {@link raisedControlRadius}, the level a
- * control standing inside a card takes, while the card itself keeps its
- * own. A well that states its `radius` keeps that.
- */
-export const nestedRecessedSurfaceStyle: CSSProperties = {
-  "--mc-card-inner-radius-base": raisedControlRadius,
-  "--mc-card-inner-radius-sm": raisedControlRadius,
 } as CSSProperties;
 
 export const outerEmbossedCardClassName = "w-full max-w-full sm:max-w-lg mx-auto p-0";

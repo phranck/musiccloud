@@ -2,7 +2,7 @@
  * @file One sponsor on the sponsor wall.
  *
  * Ported from lmaa.space (`apps/frontend/src/components/SponsorCard.astro`).
- * The card is the site's recessed card, as the ladder's cards beside it are,
+ * The card is the site's content card, as the ladder's cards beside it are,
  * the picture is the copy musiccloud serves from its own origin, and the
  * sentence is plain text.
  */
@@ -10,7 +10,9 @@
 import { SocialMediaIcons } from "@musiccloud/dashboard-ui/social-media";
 import { ENDPOINTS, type PublicSponsor } from "@musiccloud/shared";
 
-import { RecessedCard } from "@/components/cards/RecessedCard";
+import { ContentCard } from "@/components/cards/ContentCard";
+
+import { SUPPORT_TEXT_CLASS } from "./supportType";
 
 /** The side of the picture and of the initial standing in for it, in pixels: 48. */
 const AVATAR_SIZE_PX = 48;
@@ -46,7 +48,7 @@ export interface SponsorCardProps {
 export function SponsorCard({ sponsor, since, sinceShort, left, duplicate = false }: SponsorCardProps) {
   return (
     <li className="mc-sponsor-wall__slot" aria-hidden={duplicate || undefined} inert={duplicate || undefined}>
-      <RecessedCard className="flex h-full flex-col gap-3">
+      <ContentCard className="flex h-full flex-col gap-3">
         <div className="flex items-center gap-3">
           {sponsor.avatarId ? (
             <img
@@ -72,7 +74,7 @@ export function SponsorCard({ sponsor, since, sinceShort, left, duplicate = fals
             />
           </span>
         </div>
-        {sponsor.claim && <p className="whitespace-pre-line text-sm text-text-secondary">{sponsor.claim}</p>}
+        {sponsor.claim && <p className={`whitespace-pre-line ${SUPPORT_TEXT_CLASS}`}>{sponsor.claim}</p>}
         <p className="mc-sponsor-wall__term">
           <span>
             Sponsor since <span className="mc-sponsor-wall__date-long">{since}</span>
@@ -81,7 +83,7 @@ export function SponsorCard({ sponsor, since, sinceShort, left, duplicate = fals
           <span aria-hidden="true">·</span>
           <span>{left}</span>
         </p>
-      </RecessedCard>
+      </ContentCard>
     </li>
   );
 }

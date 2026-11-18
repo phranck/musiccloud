@@ -15,6 +15,7 @@ import { formatEuro } from "./amountInput";
 import { LadderField } from "./LadderField";
 import { LadderRichText } from "./LadderRichText";
 import { LADDER_INPUT_CLASS, ladderFieldLabelId } from "./ladderFieldParts";
+import { SUPPORT_QUALIFIER_CLASS, SUPPORT_TEXT_CLASS, SUPPORT_TEXT_SIZE_CLASS } from "./supportType";
 
 /** The currency sign the free field stands behind. */
 const EURO_SIGN = "€";
@@ -139,11 +140,11 @@ export function AmountGrid({
                   className="flex flex-col items-start gap-1 text-left"
                   style={gridCornerStyle(index, interval.options.length)}
                 >
-                  <span className="text-lg font-bold tabular-nums text-text-primary">
+                  <span className="text-xl font-bold tabular-nums text-text-primary">
                     {formatEuro(option.amountEur)}
-                    {monthly && <span className="ml-1 text-sm font-medium text-text-secondary">{perMonthLabel}</span>}
+                    {monthly && <span className={cn("ml-1", SUPPORT_QUALIFIER_CLASS)}>{perMonthLabel}</span>}
                   </span>
-                  <LadderRichText html={option.description} className="text-sm text-text-secondary" />
+                  <LadderRichText html={option.description} className={SUPPORT_TEXT_CLASS} />
                 </EmbossedButton>
               );
             })}
@@ -159,7 +160,7 @@ export function AmountGrid({
                   label inside it, so the field keeps its name. The type is set
                   on the wrapper, because the ladder's prose reset makes its
                   headings inherit. */}
-              <div className="text-lg font-semibold text-text-primary">
+              <div className="text-xl font-semibold text-text-primary">
                 <h3>
                   <label id={ladderFieldLabelId(fieldId)} htmlFor={fieldId}>
                     {interval.custom.label}
@@ -171,7 +172,7 @@ export function AmountGrid({
                   {EURO_SIGN}
                 </span>
                 {amountInput(BARE_AMOUNT_INPUT_CLASS)}
-                {monthly && <span className="text-sm font-medium text-text-secondary">{perMonthLabel}</span>}
+                {monthly && <span className={SUPPORT_QUALIFIER_CLASS}>{perMonthLabel}</span>}
               </div>
             </>
           ) : (
@@ -181,13 +182,17 @@ export function AmountGrid({
               </span>
               {amountInput(cn(LADDER_INPUT_CLASS, "h-10 pr-3 text-lg font-semibold tabular-nums"))}
               {monthly && (
-                <span className="pr-3 text-sm font-medium text-text-secondary whitespace-nowrap">{perMonthLabel}</span>
+                <span className={cn("pr-3 whitespace-nowrap", SUPPORT_QUALIFIER_CLASS)}>{perMonthLabel}</span>
               )}
             </LadderField>
           )}
-          <LadderRichText html={interval.custom.text} className="text-sm text-text-secondary" />
+          <LadderRichText html={interval.custom.text} className={SUPPORT_TEXT_CLASS} />
           {belowMinimum && minimumNotice && (
-            <LadderRichText html={minimumNotice} role="status" className="text-sm text-secondary" />
+            <LadderRichText
+              html={minimumNotice}
+              role="status"
+              className={cn(SUPPORT_TEXT_SIZE_CLASS, "text-secondary")}
+            />
           )}
         </div>
       )}

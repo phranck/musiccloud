@@ -16,8 +16,7 @@ import {
 } from "@musiccloud/shared";
 import { type CSSProperties, useEffect, useEffectEvent, useReducer, useRef, useSyncExternalStore } from "react";
 
-import { nestedRecessedSurfaceStyle } from "@/components/cards/cardGeometry";
-import { RecessedCard } from "@/components/cards/RecessedCard";
+import { ContentCard } from "@/components/cards/ContentCard";
 import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
 import { prefersReducedMotion } from "@/lib/motion/setup";
 import {
@@ -41,6 +40,7 @@ import {
   SupportLadderActionType,
   supportLadderReducer,
 } from "./supportLadderState";
+import { SUPPORT_TEXT_CLASS } from "./supportType";
 
 /** Months in a year, which a monthly amount is multiplied by for its yearly total: 12. */
 const MONTHS_PER_YEAR = 12;
@@ -219,9 +219,7 @@ export function SupportLadder({ config }: SupportLadderProps) {
     >
       {(segments.length > 1 || intervalText !== "") && (
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-          {intervalText && (
-            <LadderRichText html={intervalText} className="min-w-0 flex-1 text-sm text-text-secondary" />
-          )}
+          {intervalText && <LadderRichText html={intervalText} className={cn("min-w-0 flex-1", SUPPORT_TEXT_CLASS)} />}
           {segments.length > 1 && (
             <fieldset className="m-0 ml-auto min-w-0 border-0 p-0">
               <legend className="sr-only">{text.frequencyGroup}</legend>
@@ -242,8 +240,8 @@ export function SupportLadder({ config }: SupportLadderProps) {
           // One card for everything the sponsor tab asks, because choosing the
           // amount, saying who you are, and being told the reference is ready
           // are three steps of one errand rather than three separate offers.
-          <RecessedCard>
-            <div className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]" style={nestedRecessedSurfaceStyle}>
+          <ContentCard>
+            <div className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
               <AmountGrid
                 // A fresh tab starts without a complaint about the tab before it.
                 key={shownKey}
@@ -274,7 +272,7 @@ export function SupportLadder({ config }: SupportLadderProps) {
                 </LadderNotice>
               )}
             </div>
-          </RecessedCard>
+          </ContentCard>
         ) : (
           // Every other tab keeps its blocks apart, since its amounts are read
           // against each other. A tab with a single field has room to set the
@@ -283,7 +281,7 @@ export function SupportLadder({ config }: SupportLadderProps) {
             className={cn("grid gap-[var(--mc-gap-rowitem,0.75rem)]", interval.hint && !hasOptions && "md:grid-cols-2")}
           >
             {interval.hint && (
-              <LadderNotice inset={!hasOptions}>
+              <LadderNotice>
                 <LadderRichText html={interval.hint} />
               </LadderNotice>
             )}

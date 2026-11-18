@@ -135,8 +135,8 @@ function line(label: string): string {
   return term.nextElementSibling?.textContent ?? "";
 }
 
-/** What every recessed surface carries, a card of the ladder and a well inside it alike. */
-const RECESSED_SURFACE_SELECTOR = ".recessed-gradient-border";
+/** What every surface carries: a card of the ladder, which is embossed, and a well, which is recessed. */
+const SURFACE_SELECTOR = ".embossed-gradient-border, .recessed-gradient-border";
 
 /** The class of the element that holds a tab's blocks, one after another. */
 const LADDER_BODY_SELECTOR = ".mc-support-ladder__body";
@@ -263,7 +263,7 @@ describe("SupportLadder", () => {
     const amount = screen.getByLabelText("Your sponsorship");
 
     expect(screen.getByRole("heading", { name: "Your sponsorship" })).toBeTruthy();
-    expect(amount.closest(RECESSED_SURFACE_SELECTOR)).toBe(blockHolding(container, amount));
+    expect(amount.closest(SURFACE_SELECTOR)).toBe(blockHolding(container, amount));
   });
 
   it("keeps the free field in its own well on a tab without a form", () => {
@@ -272,7 +272,7 @@ describe("SupportLadder", () => {
     const amount = screen.getByLabelText("Another amount");
 
     expect(screen.queryByRole("heading", { name: "Another amount" })).toBeNull();
-    expect(amount.closest(RECESSED_SURFACE_SELECTOR)).not.toBe(blockHolding(container, amount));
+    expect(amount.closest(SURFACE_SELECTOR)).not.toBe(blockHolding(container, amount));
   });
 
   it("sets the notice beside the free field on a tab without suggested amounts or a form", async () => {

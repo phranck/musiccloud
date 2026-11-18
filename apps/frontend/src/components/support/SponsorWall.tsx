@@ -23,7 +23,7 @@ import {
 import { HeartIcon, SealIcon } from "@phosphor-icons/react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 
-import { RecessedCard } from "@/components/cards/RecessedCard";
+import { ContentCard } from "@/components/cards/ContentCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { fetchCurrentSponsors } from "@/lib/support/sponsors";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ import { formatEuro } from "./amountInput";
 import { LadderRichText } from "./LadderRichText";
 import { SponsorCard } from "./SponsorCard";
 import { chooseSupportInterval } from "./supportLadderEvents";
+import { SUPPORT_LABEL_CLASS, SUPPORT_TEXT_CLASS } from "./supportType";
 
 /**
  * How many cards fit across before the row starts to move: 2. Two and a half
@@ -192,10 +193,10 @@ export function SponsorWall({ config }: SponsorWallProps) {
 
   return (
     <section className="mc-sponsor-wall my-[var(--mc-gap-cards,1.5rem)] flex flex-col gap-[var(--mc-gap-cards,1.5rem)]">
-      <LadderRichText html={text.text} className="text-sm text-text-secondary" />
+      <LadderRichText html={text.text} className={SUPPORT_TEXT_CLASS} />
 
       {cards.length === 0 ? (
-        <RecessedCard className="mc-sponsor-wall__empty">
+        <ContentCard className="mc-sponsor-wall__empty">
           {/* The place the first card will take, drawn as that card: the medal
               where the picture goes, and beside it the lines a name and a
               sentence will fill. */}
@@ -212,7 +213,7 @@ export function SponsorWall({ config }: SponsorWallProps) {
           </div>
           <div className="mc-sponsor-wall__empty-body">
             <LadderRichText html={text.empty} className="mc-sponsor-wall__empty-text" />
-            <div className="text-sm font-semibold text-text-primary">
+            <div className={SUPPORT_LABEL_CLASS}>
               <EmbossedButton
                 as="button"
                 className="inline-flex items-center gap-2"
@@ -223,7 +224,7 @@ export function SponsorWall({ config }: SponsorWallProps) {
               </EmbossedButton>
             </div>
           </div>
-        </RecessedCard>
+        </ContentCard>
       ) : (
         <div
           ref={railRef}
@@ -242,7 +243,7 @@ export function SponsorWall({ config }: SponsorWallProps) {
         </div>
       )}
 
-      {payload.costsTotalCents > 0 && <LadderRichText html={costsLine} className="text-sm text-text-secondary" />}
+      {payload.costsTotalCents > 0 && <LadderRichText html={costsLine} className={SUPPORT_TEXT_CLASS} />}
     </section>
   );
 }

@@ -410,7 +410,8 @@ button,
   gap: 0.25rem;
   margin-top: auto;
   color: var(--color-text-muted);
-  font-size: 0.8125rem;
+  /* A meta line, at the 15px floor for one. */
+  font-size: 0.9375rem;
 }
 
 .mc-sponsor-wall__initial {
@@ -507,14 +508,16 @@ button,
 /* The first paragraph is the placeholder's headline. The block asks the page
    for one text rather than two, and this is what tells the two apart. */
 .mc-markdown .mc-sponsor-wall .mc-sponsor-wall__empty-text > p:first-child {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   line-height: 1.2;
   color: var(--color-text-primary);
 }
 
 .mc-sponsor-wall__empty-text {
   color: var(--color-text-secondary);
-  font-size: 0.875rem;
+  /* The page's reading size, as `SUPPORT_TEXT_CLASS` in
+     `components/support/supportType.ts` sets it for the wall's other text. */
+  font-size: 1.125rem;
 }
 
 /* Too narrow for the figure and the words to stand side by side. */

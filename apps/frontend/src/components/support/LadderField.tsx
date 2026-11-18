@@ -10,6 +10,7 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
 import { ladderFieldLabelId } from "./ladderFieldParts";
+import { SUPPORT_LABEL_CLASS, SUPPORT_SMALL_PRINT_CLASS } from "./supportType";
 
 /** Props of {@link LadderField}. */
 interface LadderFieldProps {
@@ -49,11 +50,7 @@ export function LadderField({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-[var(--mc-gap-rowitem,0.75rem)]">
-        <label
-          id={ladderFieldLabelId(controlId)}
-          htmlFor={controlId}
-          className="text-sm font-semibold text-text-primary"
-        >
+        <label id={ladderFieldLabelId(controlId)} htmlFor={controlId} className={SUPPORT_LABEL_CLASS}>
           {label}
           {required && (
             <SealWarningIcon
@@ -63,7 +60,9 @@ export function LadderField({
             />
           )}
         </label>
-        {counter !== undefined && <span className="text-xs tabular-nums text-text-secondary">{counter}</span>}
+        {counter !== undefined && (
+          <span className={cn(SUPPORT_SMALL_PRINT_CLASS, "tabular-nums text-text-secondary")}>{counter}</span>
+        )}
       </div>
       <RecessedCard className={cn(recessedControlInsetClassName, wellClassName)}>{children}</RecessedCard>
     </div>
