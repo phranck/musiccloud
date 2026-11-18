@@ -26,6 +26,8 @@ export const AdminArea = {
   Users: "users",
   /** The developer portal's settings. */
   DeveloperSettings: "developerSettings",
+  /** Connecting, renewing and ending the bank connection, which reaches the bank account. */
+  BankConnection: "bankConnection",
 } as const;
 
 export type AdminArea = (typeof AdminArea)[keyof typeof AdminArea];
@@ -38,6 +40,7 @@ export const MINIMUM_ROLE_FOR_AREA: Record<AdminArea, AdminRole> = {
   [AdminArea.Administration]: AdminRole.Admin,
   [AdminArea.Users]: AdminRole.Owner,
   [AdminArea.DeveloperSettings]: AdminRole.Owner,
+  [AdminArea.BankConnection]: AdminRole.Owner,
 };
 
 /**

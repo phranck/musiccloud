@@ -1,3 +1,4 @@
+import { BANK_CONNECTION_DASHBOARD_PATH } from "@musiccloud/shared";
 import { render } from "@testing-library/react";
 import { isValidElement } from "react";
 import { MemoryRouter, matchRoutes } from "react-router";
@@ -21,6 +22,10 @@ vi.mock("@/features/templates/hooks/useEmailTemplates", () => ({
 vi.mock("@/features/overview/hooks/useAdminStats", () => ({
   useAdminStats: () => ({ data: undefined }),
 }));
+
+const bankConnectionMocks = vi.hoisted(() => ({ useBankConnection: vi.fn(() => ({ data: undefined })) }));
+
+vi.mock("@/features/sponsoring/useBankConnection", () => bankConnectionMocks);
 
 vi.mock("@/features/content/state/PagesEditorContext", () => ({
   usePagesEditor: () => ({
@@ -71,5 +76,26 @@ describe("Sidebar", () => {
     );
 
     expect(container.querySelector('a[href="/users"]')).not.toBeNull();
+  });
+
+  it("shows the bank connection to the owner, and asks for its status only then", () => {
+    const { container, unmount } = render(
+      <MemoryRouter>
+        <Sidebar role={AdminRole.Owner} onLogout={() => undefined} bare />
+      </MemoryRouter>,
+    );
+
+    expect(container.querySelector(`a[href="${BANK_CONNECTION_DASHBOARD_PATH}"]`)).not.toBeNull();
+    expect(bankConnectionMocks.useBankConnection).toHaveBeenLastCalledWith(true);
+    unmount();
+
+    const admin = render(
+      <MemoryRouter>
+        <Sidebar role={AdminRole.Admin} onLogout={() => undefined} bare />
+      </MemoryRouter>,
+    );
+
+    expect(admin.container.querySelector(`a[href="${BANK_CONNECTION_DASHBOARD_PATH}"]`)).toBeNull();
+    expect(bankConnectionMocks.useBankConnection).toHaveBeenLastCalledWith(false);
   });
 });

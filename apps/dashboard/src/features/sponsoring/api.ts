@@ -1,10 +1,13 @@
 /**
  * @file Requests for the sponsoring setting, the donations ledger, the annual
- * sponsors, the sponsorship requests waiting for their transfer, and the
- * support prompts with their limits.
+ * sponsors, the sponsorship requests waiting for their transfer, the support
+ * prompts with their limits, and the bank connection.
  */
 
 import {
+  type BankAuthorizationStart,
+  type BankConnectionCallback,
+  type BankConnectionStatus,
   type Donation,
   type DonationInput,
   type DonationTotals,
@@ -264,4 +267,46 @@ export function updateSupportPrompt(id: string, input: SupportPromptInput): Prom
  */
 export function deleteSupportPrompt(id: string): Promise<{ message: string }> {
   return api.delete<{ message: string }>(ENDPOINTS.admin.supportPrompts.detail(id));
+}
+
+/** The query key of what the site knows about its link to the bank account. */
+export const BANK_CONNECTION_QUERY_KEY = ["admin", "sponsoring", "bank-connection"] as const;
+
+/**
+ * Reads what the site knows about its link to the bank account, answered from
+ * the backend's own database and therefore also while the bank is unreachable.
+ *
+ * @returns The status.
+ */
+export function fetchBankConnection(): Promise<BankConnectionStatus> {
+  return api.get<BankConnectionStatus>(ENDPOINTS.admin.sponsoring.bankConnection);
+}
+
+/**
+ * Starts an authorization at the bank. The backend admits the owner alone.
+ *
+ * @returns The bank's own address, which the caller sends the browser to.
+ */
+export function startBankAuthorization(): Promise<BankAuthorizationStart> {
+  return api.post<BankAuthorizationStart>(ENDPOINTS.admin.sponsoring.bankConnectionAuthorize);
+}
+
+/**
+ * Hands the bank's return to the backend, which spends it and puts the
+ * connection in force. The backend admits the owner alone.
+ *
+ * @param callback - The code and the state from the return address.
+ * @returns The status afterwards.
+ */
+export function completeBankAuthorization(callback: BankConnectionCallback): Promise<BankConnectionStatus> {
+  return api.post<BankConnectionStatus>(ENDPOINTS.admin.sponsoring.bankConnectionSession, callback);
+}
+
+/**
+ * Lets the account go and ends the consent behind it. The backend admits the owner alone.
+ *
+ * @returns The status afterwards, which reports nothing connected.
+ */
+export function disconnectBank(): Promise<BankConnectionStatus> {
+  return api.delete<BankConnectionStatus>(ENDPOINTS.admin.sponsoring.bankConnection);
 }

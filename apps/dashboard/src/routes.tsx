@@ -6,6 +6,7 @@ import { RedirectIfAuthed } from "@/features/auth/RedirectIfAuthed";
 import { RequireArea } from "@/features/auth/RequireArea";
 import { RequireAuth } from "@/features/auth/RequireAuth";
 import { SetupGate } from "@/features/auth/SetupGate";
+import { BANK_CONNECTION_CALLBACK_ROUTE, BANK_CONNECTION_ROUTE } from "@/features/sponsoring/bankConnectionPaths";
 import { SUPPORT_PROMPT_EDITOR_ROUTE, SUPPORT_PROMPTS_ROUTE } from "@/features/sponsoring/supportPromptPaths";
 import { RootLayout } from "@/RootLayout";
 import {
@@ -15,6 +16,8 @@ import {
   ArtistEntitiesPage,
   ArtistEntityDetailPage,
   ArtistsPage,
+  BankConnectionCallbackPage,
+  BankConnectionPage,
   ClientDetailPage,
   ContentEditorPage,
   DashboardPage,
@@ -76,6 +79,11 @@ export const routes = createRoutesFromElements(
 
         <Route element={<RequireArea area={AdminArea.DeveloperSettings} />}>
           <Route path="developer/settings" element={lazyFallback(<DeveloperSettingsPage />)} />
+        </Route>
+
+        <Route element={<RequireArea area={AdminArea.BankConnection} />}>
+          <Route path={BANK_CONNECTION_ROUTE} element={lazyFallback(<BankConnectionPage />)} />
+          <Route path={BANK_CONNECTION_CALLBACK_ROUTE} element={lazyFallback(<BankConnectionCallbackPage />)} />
         </Route>
 
         <Route element={<RequireArea area={AdminArea.Administration} />}>

@@ -212,6 +212,20 @@ export const SupportPromptEditorPage = lazy(() =>
   })),
 );
 
+/** The bank account whose payments musiccloud counts, loaded when first opened. */
+export const BankConnectionPage = lazy(() =>
+  import("@/features/sponsoring/BankConnectionPage").then((m) => ({
+    default: m.BankConnectionPage,
+  })),
+);
+
+/** Where the bank returns the account holder, loaded when first opened. */
+export const BankConnectionCallbackPage = lazy(() =>
+  import("@/features/sponsoring/BankConnectionCallbackPage").then((m) => ({
+    default: m.BankConnectionCallbackPage,
+  })),
+);
+
 export const IncomePage = lazy(() =>
   import("@/features/sponsoring/IncomePage").then((m) => ({
     default: m.IncomePage,
