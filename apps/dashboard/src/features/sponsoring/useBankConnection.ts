@@ -1,7 +1,6 @@
 /**
  * @file The queries and mutations of the bank connection, ported from
  * lmaa.space (`apps/dashboard/src/features/system/bank-connection/hooks/useBankConnection.ts`).
- * Reading the account now belongs to the import and has no mutation here yet.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +10,10 @@ import {
   completeBankAuthorization,
   disconnectBank,
   fetchBankConnection,
+  LEDGER_QUERY_KEY,
+  SPONSORSHIP_REQUESTS_QUERY_KEY,
   startBankAuthorization,
+  syncBank,
 } from "@/features/sponsoring/api";
 
 /**
@@ -69,6 +71,30 @@ export function useDisconnectBank() {
     mutationFn: disconnectBank,
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: BANK_CONNECTION_QUERY_KEY });
+    },
+  });
+}
+
+/**
+ * Reads the account now rather than waiting for the next background read.
+ *
+ * @returns The mutation. It takes the day to start at, or `{}` to read the days
+ *   the read takes by itself. Its result says what the read found, or why it
+ *   did nothing, which is an ordinary answer rather than a failure.
+ *
+ * @remarks
+ * Invalidates the connection, the ledger and the sponsor requests on success,
+ * because a read that took payments in has changed what every figure adds up
+ * to, and one that turned a request into a sponsor has removed the request.
+ */
+export function useSyncBank() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: syncBank,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: BANK_CONNECTION_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: LEDGER_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: SPONSORSHIP_REQUESTS_QUERY_KEY });
     },
   });
 }
