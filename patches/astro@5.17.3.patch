@@ -1,0 +1,16 @@
+diff --git a/dist/runtime/server/render/server-islands.js b/dist/runtime/server/render/server-islands.js
+index c6ca80d76d1df5d2ca537b4dbde5985b8bce9ea5..daff1a7063bf5df91744e30cdb00a13fdd2f3329 100644
+--- a/dist/runtime/server/render/server-islands.js
++++ b/dist/runtime/server/render/server-islands.js
+@@ -138,11 +138,6 @@ class ServerIslandComponent {
+     const useGETRequest = isWithinURLLimit(serverIslandUrl, potentialSearchParams);
+     if (useGETRequest) {
+       serverIslandUrl += "?" + potentialSearchParams.toString();
+-      this.result._metadata.extraHead.push(
+-        markHTMLString(
+-          `<link rel="preload" as="fetch" href="${serverIslandUrl}" crossorigin="anonymous">`
+-        )
+-      );
+     }
+     const adapterHeaders = this.result.internalFetchHeaders || {};
+     const headersJson = safeJsonStringify(adapterHeaders);
