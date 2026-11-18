@@ -597,7 +597,7 @@ button,
   width: var(--mc-sponsor-seat-size);
   height: var(--mc-sponsor-seat-size);
   color: var(--color-text-primary);
-  font-size: 2.25rem;
+  font-size: 3rem;
   font-weight: 700;
   line-height: 1;
 }
@@ -610,10 +610,15 @@ button,
   color: var(--color-accent);
 }
 
-/* The numeral sits where it looks centered: a one is narrower than its advance. */
+/* The numeral sits where it looks centered rather than where its box is. In
+   Barlow Bold a one carries its weight in the stem, right of the flag, so the
+   glyph's center of mass lies 0.033em right of the middle of its advance and
+   is moved back by that much. At a line height of 1 its ink sits 0.05em below
+   the middle of the line and is lifted by that much. Both are in em, so they
+   hold at any size. */
 .mc-sponsor-wall__numeral {
   position: relative;
-  transform: translate(1px, -3px);
+  transform: translate(-0.033em, -0.05em);
 }
 
 /* The lines a name and a sentence will fill, in the proportions a card carries. */
