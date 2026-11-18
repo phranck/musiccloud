@@ -87,10 +87,11 @@ export const IMAGE_SHORTCODE = {
   placement: ShortcodePlacement.Block,
   label: "Picture",
   description:
-    "Shows a picture, optionally with a caption underneath and a size of its own. The target is the address it is served from, either a path on this site or a full https address. Without a size it takes the width of the column and keeps its own proportions.",
+    "Shows a picture, optionally with a caption underneath, a size of its own and a link. The target is the address it is served from, either a path on this site or a full https address. Without a size it takes the width of the column and keeps its own proportions.",
   examples: [
     "[[image:/assets/console.png]]",
     '[[image:/assets/console.png alt="The console" caption="Your key, once"]]',
+    '[[image:/img/logo.svg alt="musiccloud" link="/"]]',
   ],
   allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
@@ -121,6 +122,12 @@ export const IMAGE_SHORTCODE = {
       max: MAX_MEDIA_EDGE,
       defaultLabel: "whatever keeps the picture's own proportions",
       label: "Height in pixels",
+    },
+    {
+      name: "link",
+      type: ShortcodeParamType.String,
+      defaultLabel: "no link",
+      label: "Where the picture leads when clicked, a path on this site or a full https address",
     },
   ],
 } as const satisfies ShortcodeDefinition;

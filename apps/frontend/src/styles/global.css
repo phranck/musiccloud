@@ -314,6 +314,14 @@ button,
   height: auto;
 }
 
+/* A picture that links somewhere is as large as the picture and no larger, so
+   the link takes no line height below it and its focus ring follows the
+   picture's edge. */
+.mc-markdown .mc-figure__link {
+  display: inline-flex;
+  max-width: 100%;
+}
+
 /* Bold text inside any card of a content page, a written card, a route, the
    transfer or a sponsor, is semibold, a step above the prose class-maps'
    medium, so it stands out against the card text around it. */
