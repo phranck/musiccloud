@@ -3,6 +3,7 @@ import type { MouseEvent } from "react";
 
 import { DayNightSwitcher } from "@/components/navigation/DayNightSwitcher";
 import { HeaderNavMenu } from "@/components/navigation/HeaderNavMenu";
+import { SupportHeaderLink } from "@/components/navigation/SupportHeaderLink";
 import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/useOverlay";
 import { useIsClient } from "@/hooks/useIsClient";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
@@ -43,7 +44,9 @@ function handleNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem): vo
 /**
  * Header bars pinned to the top corners. LEFT: the admin-managed nav links,
  * collapsed into a glass hamburger menu on every viewport (see
- * {@link HeaderNavMenu}). RIGHT: the Day/Night switcher.
+ * {@link HeaderNavMenu}), followed by the link to the support page (see
+ * {@link SupportHeaderLink}), which stands there even without nav links.
+ * RIGHT: the Day/Night switcher.
  *
  * The DayNightSwitcher drives the `dayNightMode` store, which feeds the sky
  * driver's dayness and — via the reverse `--g-dayness` publish channel — the
@@ -63,11 +66,10 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
 
   return (
     <>
-      {navItems.length > 0 && (
-        <div className={cn(barBase, "left-3 items-center gap-2 sm:left-4 sm:gap-3", reveal)}>
-          <HeaderNavMenu navItems={navItems} onNavClick={handleNavClick} />
-        </div>
-      )}
+      <div className={cn(barBase, "left-3 items-center gap-2 sm:left-4 sm:gap-3", reveal)}>
+        {navItems.length > 0 && <HeaderNavMenu navItems={navItems} onNavClick={handleNavClick} />}
+        <SupportHeaderLink />
+      </div>
       <div className={cn(barBase, "right-3 items-start gap-2 sm:right-4 sm:gap-3", reveal)}>
         <DayNightSwitcher />
       </div>

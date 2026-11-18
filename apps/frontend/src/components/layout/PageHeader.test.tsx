@@ -21,7 +21,9 @@ describe("PageHeader", () => {
 
     expect(screen.queryByText("Commercial")).not.toBeInTheDocument();
     expect(screen.queryByText("Creative Commons")).not.toBeInTheDocument();
-    expect(container.querySelector(".left-3")).not.toBeInTheDocument();
+    // Without nav links the left bar holds the support link alone.
+    expect(container.querySelector(".left-3 [aria-label='Menu']")).not.toBeInTheDocument();
+    expect(container.querySelector(".left-3 a[href='/support-me']")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Night" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "English" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Deutsch" })).not.toBeInTheDocument();

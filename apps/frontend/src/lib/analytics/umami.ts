@@ -123,6 +123,12 @@ export const FooterSignal = {
   LayeredLogo: "Footer: Layered Logo",
 } as const;
 
+/** The way to the support page. */
+export const SupportSignal = {
+  /** The header link to `/support-me` was clicked. */
+  HeaderButton: "Support: Header Button",
+} as const;
+
 /** Generic navigation. Per-link splitting was decided against to keep the
  *  Umami events list bounded when admins add new external nav entries. */
 export const NavSignal = {
