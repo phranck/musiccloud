@@ -24,8 +24,7 @@ const CONTENT_CARD_STYLE = { "--mc-card-content-inset": contentCardPadding } as 
 
 /**
  * A card standing on a page and holding content: an `EmbossedCard` with
- * `contentCardPadding` on all four sides, the card radius in lmaa.space's
- * proportion of padding to radius.
+ * `contentCardPadding`, 16px, on all four sides.
  *
  * Every card of a content page takes this one surface and this one padding,
  * whether it holds a written section, a transfer, a route or a sponsor, so no
