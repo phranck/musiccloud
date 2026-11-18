@@ -23,6 +23,20 @@ export const raisedControlRadius = `calc(${recessedSurfaceRadius} - ${recessedCo
  */
 export const cardTextInset = `calc(${embossedCardOuterRadius} / 2)`;
 
+/** lmaa.space's card padding, the numerator of {@link contentCardPadding}'s proportion: 12px. */
+const LMAA_CARD_PADDING_PX = 12;
+/** lmaa.space's card radius, the denominator of {@link contentCardPadding}'s proportion: 22.5px. */
+const LMAA_CARD_RADIUS_PX = 22.5;
+
+/**
+ * The padding of a content card: the card's outer radius in lmaa.space's
+ * proportion of padding to radius, 12 to 22.5, so 14.9px at the 28px radius.
+ * It grows and shrinks with the `cardRadius` token, because a wider curve needs
+ * the content held further off it. `ContentCard` publishes it as the card's
+ * content inset too, so a well inside stays concentric with the card.
+ */
+export const contentCardPadding = `calc(${embossedCardOuterRadius} * ${LMAA_CARD_PADDING_PX} / ${LMAA_CARD_RADIUS_PX})`;
+
 const CONTROL_RADIUS_BASE = `max(4px, calc(var(--mc-recessed-radius-base, ${recessedSurfaceRadius}) - var(--mc-recessed-padding, ${recessedControlInset})))`;
 const CONTROL_RADIUS_SM = `max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-recessed-radius-base, ${recessedSurfaceRadius})) - var(--mc-recessed-padding, ${recessedControlInset})))`;
 

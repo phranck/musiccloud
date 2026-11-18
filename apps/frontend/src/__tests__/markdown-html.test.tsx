@@ -1,7 +1,7 @@
 import { SPONSOR_WALL_ATTRIBUTE, SUPPORT_LADDER_ATTRIBUTE } from "@musiccloud/shared";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { cardTextInset, embossedCardContentInset } from "@/components/cards/cardGeometry";
+import { cardTextInset, contentCardPadding } from "@/components/cards/cardGeometry";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 
 describe("MarkdownHtml", () => {
@@ -37,8 +37,8 @@ describe("MarkdownHtml", () => {
     // The card's padding is also the content inset its wells derive their radius from.
     const style = (card as HTMLElement).style;
     expect(style.padding).toBe("var(--emb-padding)");
-    expect(style.getPropertyValue("--emb-padding")).toBe(embossedCardContentInset);
-    expect(style.getPropertyValue("--mc-card-content-inset")).toBe(embossedCardContentInset);
+    expect(style.getPropertyValue("--emb-padding")).toBe(contentCardPadding);
+    expect(style.getPropertyValue("--mc-card-content-inset")).toBe(contentCardPadding);
   });
 
   it("publishes half the card radius for the headings that introduce a card", () => {
