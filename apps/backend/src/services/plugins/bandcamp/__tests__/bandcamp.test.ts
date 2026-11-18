@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { bandcampAdapter } from "../adapter";
+import { bandcampTransport, curlRunner } from "../transport";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -46,7 +47,7 @@ describe("Bandcamp: getTrack", () => {
       inAlbum: { name: "Cool Album" },
     };
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    vi.spyOn(bandcampTransport, "request").mockResolvedValueOnce(
       new Response(`<html><script type="application/ld+json">${JSON.stringify(jsonLd)}</script></html>`, {
         status: 200,
       }),
@@ -76,7 +77,7 @@ describe("Bandcamp: getTrack", () => {
     };
     const encodedEmbed = JSON.stringify(embedData).replace(/"/g, "&quot;");
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    vi.spyOn(bandcampTransport, "request").mockResolvedValueOnce(
       new Response(
         `<html><script type="application/ld+json">${JSON.stringify(jsonLd)}</script><div data-embed="${encodedEmbed}"></div></html>`,
         { status: 200 },
@@ -90,7 +91,7 @@ describe("Bandcamp: getTrack", () => {
   });
 
   it("should fallback to OG tags", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    vi.spyOn(bandcampTransport, "request").mockResolvedValueOnce(
       new Response(
         `<html><meta property="og:title" content="Cool Song, by Some Artist"><meta property="og:image" content="https://f4.bcbits.com/img/test.jpg"></html>`,
         { status: 200 },
@@ -103,7 +104,7 @@ describe("Bandcamp: getTrack", () => {
   });
 
   it("should throw on 404", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+    vi.spyOn(bandcampTransport, "request").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
     await expect(bandcampAdapter.getTrack("https://someartist.bandcamp.com/track/invalid")).rejects.toThrow(
       "Track not found",
     );
@@ -116,7 +117,9 @@ describe("Bandcamp: getTrack", () => {
 
 describe("Bandcamp: searchTrack", () => {
   it("should return not found for empty results", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ results: [] }), { status: 200 }));
+    vi.spyOn(bandcampTransport, "request").mockResolvedValueOnce(
+      new Response(JSON.stringify({ results: [] }), { status: 200 }),
+    );
 
     const result = await bandcampAdapter.searchTrack({ title: "Nonexistent", artist: "Nobody" });
     expect(result.found).toBe(false);
@@ -133,8 +136,8 @@ describe("Bandcamp: searchTrack", () => {
       inAlbum: { name: "Hungry Or A Liar (Cyberpunk Rework)" },
     };
 
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const url = input instanceof Request ? input.url : String(input);
+    vi.spyOn(bandcampTransport, "request").mockImplementation(async (input) => {
+      const url = input;
       if (url.startsWith("https://bandcamp.com/api/fuzzysearch/2/app_autocomplete")) {
         return new Response(
           JSON.stringify({
@@ -194,8 +197,8 @@ describe("Bandcamp: searchTrack", () => {
     };
     const encodedTralbum = JSON.stringify(tralbumData).replace(/"/g, "&quot;");
 
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const url = input instanceof Request ? input.url : String(input);
+    vi.spyOn(bandcampTransport, "request").mockImplementation(async (input) => {
+      const url = input;
       if (url.startsWith("https://bandcamp.com/api/fuzzysearch/2/app_autocomplete")) {
         return new Response(
           JSON.stringify({
@@ -239,13 +242,13 @@ describe("Bandcamp: searchTrack", () => {
    * Bandcamp for that track for a month.
    */
   it("throws when the search fails", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
+    vi.spyOn(bandcampTransport, "request").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
     await expect(bandcampAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/500/);
   });
 
   it("throws when every candidate page of a search fails", async () => {
-    vi.spyOn(globalThis, "fetch")
+    vi.spyOn(bandcampTransport, "request")
       .mockResolvedValueOnce(
         Response.json({
           results: [
@@ -260,9 +263,58 @@ describe("Bandcamp: searchTrack", () => {
   });
 
   it("throws when the album search fails", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 429 }));
+    vi.spyOn(bandcampTransport, "request").mockResolvedValueOnce(new Response("Error", { status: 429 }));
 
     await expect(bandcampAdapter.searchAlbum?.({ title: "Test", artist: "Test" })).rejects.toThrow(/429/);
+  });
+});
+
+// =============================================================================
+// Client challenge
+// =============================================================================
+
+/** The page Bandcamp's CDN sends instead of content, trimmed to what identifies it. */
+const CLIENT_CHALLENGE_PAGE =
+  '<!DOCTYPE html><html lang="en"><head><link href="/_fs-ch-1T1wmsGaOgGaSxcX/assets/styles.css" rel="stylesheet" /><title>Client Challenge</title></head><body></body></html>';
+
+/** What `curl` writes to stderr for a 200 HTML answer without a redirect. */
+const CURL_OK_HTML_STDERR = "200\n\ntext/html; charset=UTF-8";
+
+describe("Bandcamp: client challenge", () => {
+  /**
+   * Bandcamp's CDN answers with a challenge page and status 200. Reading it as
+   * a page without JSON-LD reported every Bandcamp link as "not found"
+   * (`MC-API-8204`), and a "not found" makes the resolver skip Bandcamp for
+   * that item, so the challenge has to surface as Bandcamp being unavailable.
+   */
+  it("reports an album behind the challenge as Bandcamp being unavailable, not as not found", async () => {
+    vi.spyOn(curlRunner, "run").mockResolvedValue({ stdout: CLIENT_CHALLENGE_PAGE, stderr: CURL_OK_HTML_STDERR });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const failure = await bandcampAdapter
+      .getAlbum?.("https://ironboneheadproductions.bandcamp.com/album/temple-nightside-cenotaph-severance")
+      .catch((error: unknown) => error);
+
+    expect(failure).toMatchObject({ code: "MC-API-8201" });
+    expect(String((failure as Error).message)).not.toMatch(/not found/i);
+  });
+
+  it("reports a track behind the challenge as Bandcamp being unavailable", async () => {
+    vi.spyOn(curlRunner, "run").mockResolvedValue({ stdout: CLIENT_CHALLENGE_PAGE, stderr: CURL_OK_HTML_STDERR });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(
+      bandcampAdapter.getTrack("https://ironboneheadproductions.bandcamp.com/track/seething-dissolve"),
+    ).rejects.toMatchObject({ code: "MC-API-8201" });
+  });
+
+  it("fails a search that meets the challenge instead of answering with no match", async () => {
+    vi.spyOn(curlRunner, "run").mockResolvedValue({ stdout: CLIENT_CHALLENGE_PAGE, stderr: CURL_OK_HTML_STDERR });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(
+      bandcampAdapter.searchTrack({ title: "Seething Dissolve", artist: "Temple Nightside" }),
+    ).rejects.toMatchObject({ code: "MC-API-8201" });
   });
 });
 

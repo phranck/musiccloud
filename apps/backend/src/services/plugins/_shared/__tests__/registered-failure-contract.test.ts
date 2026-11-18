@@ -5,6 +5,13 @@ const fetchMock = vi.fn();
 vi.mock("../../../../lib/infra/fetch.js", () => ({
   fetchWithTimeout: (url: string, init?: RequestInit, timeout?: number) => fetchMock(url, init, timeout),
 }));
+// Bandcamp requests through `curl` rather than `fetchWithTimeout`, because its
+// CDN challenges Node's HTTP stack. Its transport answers from the same mock,
+// so the contract holds for Bandcamp as for every other adapter.
+vi.mock("../../bandcamp/transport.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../bandcamp/transport.js")>()),
+  bandcampTransport: { request: (url: string, timeout: number) => fetchMock(url, undefined, timeout) },
+}));
 vi.mock("../../../../lib/infra/token-manager.js", () => ({
   TokenManager: class {
     isConfigured() {
@@ -46,6 +53,20 @@ function controlsFor(adapter: ServiceAdapter): SearchControl[] {
   return controls;
 }
 
+/** An adapter that also reports whether its credentials are set, which some adapters add beside {@link ServiceAdapter}. */
+type ConfigurableAdapter = ServiceAdapter & { isConfigured?: () => boolean };
+
+/**
+ * Makes an adapter that checks its credentials report them as set, so the
+ * contract reaches its outbound request. Adapters without the check are left as they are.
+ *
+ * @param adapter - A registered adapter.
+ */
+function markConfigured(adapter: ConfigurableAdapter): void {
+  if (!adapter.isConfigured) return;
+  vi.spyOn(adapter as Required<Pick<ConfigurableAdapter, "isConfigured">>, "isConfigured").mockReturnValue(true);
+}
+
 beforeEach(() => {
   fetchMock.mockReset();
   for (const { manifest } of listPlugins()) {
@@ -78,7 +99,7 @@ for (const { adapter } of listPlugins()) {
 
     for (const control of controlsFor(adapter)) {
       it(`${control.name} rejects HTTP 503 instead of returning a catalog miss`, async () => {
-        if (adapter.isConfigured) vi.spyOn(adapter, "isConfigured").mockReturnValue(true);
+        markConfigured(adapter);
         fetchMock.mockImplementation(async () => Response.json({ error: "test-only-unavailable" }, { status: 503 }));
         const [result] = await Promise.allSettled([control.run()]);
         expect(fetchMock).toHaveBeenCalled();
@@ -86,7 +107,7 @@ for (const { adapter } of listPlugins()) {
       });
 
       it(`${control.name} rejects an unrecognized HTTP-200 document instead of returning a catalog miss`, async () => {
-        if (adapter.isConfigured) vi.spyOn(adapter, "isConfigured").mockReturnValue(true);
+        markConfigured(adapter);
         fetchMock.mockImplementation(async () => Response.json({ unexpected: "not a provider search document" }));
         const [result] = await Promise.allSettled([control.run()]);
         expect(fetchMock).toHaveBeenCalled();
