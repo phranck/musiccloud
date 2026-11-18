@@ -149,8 +149,6 @@ export const SUPPORT_LADDER_LABELS = {
     label: "Spoken name of the reference line before a reference is issued",
   },
   amountOpen: { value: "your choice", label: "What the amount line says while no amount is chosen" },
-  copy: { value: "Copy", label: "Spoken name of a copy button" },
-  copied: { value: "Copied", label: "What a copy button says once it has copied" },
 } as const satisfies Record<string, { value: string; label: string }>;
 
 /** The name of one overridable label. */

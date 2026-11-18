@@ -5,12 +5,14 @@
 import { CheckCircleIcon, type Icon, InfoIcon } from "@phosphor-icons/react";
 import type { CSSProperties, ReactNode } from "react";
 
-import { embossedCardContentInset } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
 import { LadderNoticeTone, type LadderNoticeToneValue } from "./ladderNoticeTone";
 import { SUPPORT_TEXT_SIZE_CLASS } from "./supportType";
+
+/** A notice's padding on all four sides: lmaa.space's 13.5px, from the ladder's spacing scale in `global.css`. */
+const NOTICE_PADDING = "var(--mc-support-step-3)";
 
 /**
  * How each tone draws itself.
@@ -79,10 +81,9 @@ interface LadderNoticeProps {
  *
  * A recessed well with a mark before the text, whose mark and colors come from
  * its tone. It takes the radius the card around it derives for its wells, and
- * the card's content inset (`embossedCardContentInset`, 12px) as its padding,
- * so its text does not touch its curve. Standing on the page beside the
- * amounts, with no card around it, it takes the well radius of the radius
- * cascade.
+ * lmaa.space's notice padding, 13.5px (`--mc-support-step-3`), so its text does
+ * not touch its curve. Standing on the page beside the amounts, with no card
+ * around it, it takes the well radius of the radius cascade.
  *
  * @param props - See {@link LadderNoticeProps}.
  * @returns The notice.
@@ -92,7 +93,7 @@ export function LadderNotice({ children, className, tone = LadderNoticeTone.Info
 
   return (
     <RecessedCard
-      padding={embossedCardContentInset}
+      padding={NOTICE_PADDING}
       className={cn("flex gap-2", SUPPORT_TEXT_SIZE_CLASS, textClassName, className)}
       style={style}
     >

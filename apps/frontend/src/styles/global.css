@@ -78,6 +78,10 @@
   /* Spacing - inset aligned to card corner radius */
   --spacing-card-inset: 12px;
 
+  /* The measure of a full content page's text: 810px, the width lmaa.space
+     sets its pages to. The fullscreen column in `[shortId].astro` reads it. */
+  --container-page: 810px;
+
   /* Top spacing from the viewport edge to share/landing content, per breakpoint.
      Combined with env(safe-area-inset-top) by the `pt-content-safe` utility so the
      installed standalone PWA clears the notch / Dynamic Island. */
@@ -175,6 +179,13 @@ button,
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The text inside a content page's cards, by day and at night: a light grey
+   (`#e0e0e0`) that stays clear on the light day glass without the glare of pure
+   white. */
+:root {
+  --mc-text-card: #e0e0e0;
+}
+
 /* The focus language every surface that marks itself draws in: an accent edge
    flush on the element's own contour, a soft accent halo inside it, and one fade
    for both. The hero field takes the edge, and a playing track row
@@ -257,6 +268,59 @@ button,
   margin-block-end: 0;
 }
 
+/* Text standing straight on the sky, outside any card, carries a shadow one
+   pixel down, without blur or spread, in the site's shadow color at half
+   strength, so it keeps its edge on the bright day sky. `.mc-sky-text` gives
+   it to such text outside the markdown, such as the page title and the
+   support ladder's lines between its cards; inside a page's markdown it is
+   every top-level block of a body that no card holds. */
+:root {
+  --mc-sky-text-shadow: 0 1px 0 rgba(var(--mc-shadow-rgb, 0, 0, 0), 0.5);
+}
+
+.mc-sky-text,
+.mc-markdown:not(:is(.recessed-gradient-border, .embossed-gradient-border) .mc-markdown)
+  > :is(h1, h2, h3, h4, h5, h6, p, ul, ol, blockquote) {
+  text-shadow: var(--mc-sky-text-shadow);
+}
+
+/* Text inside a card takes the card text color, `--mc-text-card`. Two classes
+   and an element outweigh the prose class-maps' one class and one element. */
+.mc-markdown .mc-card :is(p, li) {
+  color: var(--mc-text-card);
+}
+
+/* A heading that opens a second section inside a card keeps 22.5px above it,
+   which with the paragraph's own 22.5px below it makes 45px, the room a block
+   of the page keeps below itself. The page's 48.6px above a section heading
+   would split one card into two. */
+.mc-markdown .mc-card > .mc-card-content > :is(h2, h3):not(:first-child) {
+  margin-top: 22.5px;
+}
+
+/* A picture in a page's content, written with the image shortcode, stands
+   centered in the column with its caption under it, and never wider than the
+   column. One that opens a page in place of its title, such as the logo on the
+   support page, keeps the 24.3px a page title keeps below it. */
+.mc-markdown .mc-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24.3px;
+}
+
+.mc-markdown .mc-figure__image {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Bold text inside any card of a content page, a written card, a route, the
+   transfer or a sponsor, is semibold, a step above the prose class-maps'
+   medium, so it stands out against the card text around it. */
+.mc-markdown .embossed-gradient-border :is(strong, b) {
+  font-weight: var(--font-weight-semibold);
+}
+
 /* A heading that introduces a card, a row of cards, the sponsor wall or the
    support ladder begins where the cards' curve gives way to their straight
    edge, half the card radius in. `MarkdownHtml` publishes that inset as
@@ -284,6 +348,12 @@ button,
   margin-top: 0.5em;
 }
 
+/* A list in a ladder text, such as PayPal's two ways to pay, keeps the prose
+   class-maps' indent and spacing but takes the color of the text around it. */
+.mc-markdown :is(.mc-support-ladder, .mc-sponsor-wall) :is(ul, ol, li) {
+  color: inherit;
+}
+
 /* The wall's row is a list, which the prose class-maps indent and bullet. */
 .mc-markdown .mc-sponsor-wall :is(ul, li) {
   margin: 0;
@@ -296,6 +366,26 @@ button,
 .mc-markdown :is(.mc-support-ladder, .mc-sponsor-wall) a:is(.mc-glass-button, [target="_blank"]) {
   color: inherit;
   text-decoration: none;
+}
+
+/* The spacing of the support ladder and the sponsor wall, taken from
+   lmaa.space. lmaa sets its spacing in Tailwind steps on an 18px root, so each
+   step is a quarter of 18px, and the names keep lmaa's step numbers: step 1 is
+   4.5px, step 1.5 is 6.75px, step 3 is 13.5px, step 4 is 18px, step 6 is 27px,
+   step 9 is 40.5px and step 10 is 45px. The column beside the GiroCode keeps
+   lmaa's `min-w-[16rem]`, 288px, and the free amount's field lmaa's `w-24`,
+   108px. */
+:is(.mc-support-ladder, .mc-sponsor-wall) {
+  --mc-support-step-0-5: 2.25px;
+  --mc-support-step-1: 4.5px;
+  --mc-support-step-1-5: 6.75px;
+  --mc-support-step-3: 13.5px;
+  --mc-support-step-4: 18px;
+  --mc-support-step-6: 27px;
+  --mc-support-step-9: 40.5px;
+  --mc-support-step-10: 45px;
+  --mc-support-column-min: 288px;
+  --mc-support-field-width: 108px;
 }
 
 /* The body of the ladder fades while it changes tab. Only its opacity moves,
@@ -507,7 +597,7 @@ button,
   width: var(--mc-sponsor-seat-size);
   height: var(--mc-sponsor-seat-size);
   color: var(--color-text-primary);
-  font-size: 2.25rem;
+  font-size: 3rem;
   font-weight: 700;
   line-height: 1;
 }
@@ -520,10 +610,15 @@ button,
   color: var(--color-accent);
 }
 
-/* The numeral sits where it looks centered: a one is narrower than its advance. */
+/* The numeral sits where it looks centered rather than where its box is. In
+   Barlow Bold a one carries its weight in the stem, right of the flag, so the
+   glyph's center of mass lies 0.033em right of the middle of its advance and
+   is moved back by that much. At a line height of 1 its ink sits 0.05em below
+   the middle of the line and is lifted by that much. Both are in em, so they
+   hold at any size. */
 .mc-sponsor-wall__numeral {
   position: relative;
-  transform: translate(1px, -3px);
+  transform: translate(-0.033em, -0.05em);
 }
 
 /* The lines a name and a sentence will fill, in the proportions a card carries. */
@@ -573,7 +668,15 @@ button,
   font-size: 1.125rem;
 }
 
-/* Too narrow for the figure and the words to stand side by side. */
+/* The invitation's button stands at the card's end on the right, as
+   lmaa.space's `.lmaa-invite-action` does. */
+.mc-sponsor-wall__action {
+  align-self: flex-end;
+}
+
+/* Too narrow for the figure and the words to stand side by side, and too
+   narrow for a corner to mean anything, so the button takes the width instead
+   of sitting in one. */
 @media (max-width: 40rem) {
   .mc-sponsor-wall__empty {
     flex-direction: column;
@@ -582,5 +685,14 @@ button,
 
   .mc-sponsor-wall__empty-body {
     align-items: center;
+  }
+
+  .mc-sponsor-wall__action {
+    align-self: stretch;
+  }
+
+  .mc-sponsor-wall__action > * {
+    width: 100%;
+    justify-content: center;
   }
 }

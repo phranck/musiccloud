@@ -61,6 +61,20 @@ const TEXT_INPUT_CLASS = cn(LADDER_INPUT_CLASS, "h-10 px-3 font-semibold");
 const LINK_NOTE_CLASS = cn("m-0 -mt-[calc(var(--mc-gap-rowitem,0.75rem)/2)] px-1", SUPPORT_SMALL_PRINT_CLASS);
 
 /**
+ * The size of the mark in the switch for being named, on and off alike, so the
+ * caption does not move when it flips: 24px (`size-6`), large enough to read
+ * as the switch's state beside its 16px caption.
+ *
+ * The mark is set optically rather than by its box. Phosphor draws the circle
+ * 2.25px inside its 24px box, while the caption's last letter ends within a
+ * pixel of its own, so the box is pulled 1.5px to the left, which leaves the
+ * visible circle and the visible caption as far from either edge of the button.
+ * It also sits 1px lower, where the middle of the circle meets the middle of
+ * the caption's capitals rather than the middle of its line.
+ */
+const SWITCH_ICON_SIZE_CLASS = "size-6 shrink-0 -ml-[1.5px] translate-y-px";
+
+/**
  * The status the site answers with when the form was sent too often: `429`.
  * It is answered with `failureRateLimited`, and every other refusal with
  * `failureRejected`.
@@ -378,9 +392,17 @@ function SponsorForm({ amountEur, earnsSponsorship, correcting, text, onIssued }
             className={cn("flex items-center gap-2", SUPPORT_LABEL_CLASS)}
           >
             {form.published ? (
-              <CheckCircleIcon weight="fill" aria-hidden="true" className="size-4 text-success" />
+              <CheckCircleIcon
+                weight="fill"
+                aria-hidden="true"
+                className={cn(SWITCH_ICON_SIZE_CLASS, "text-success")}
+              />
             ) : (
-              <CircleIcon weight="regular" aria-hidden="true" className="size-4 text-text-secondary" />
+              <CircleIcon
+                weight="regular"
+                aria-hidden="true"
+                className={cn(SWITCH_ICON_SIZE_CLASS, "text-text-secondary")}
+              />
             )}
             {text.publishedLabel}
           </EmbossedButton>

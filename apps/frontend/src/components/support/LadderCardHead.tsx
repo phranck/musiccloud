@@ -7,7 +7,7 @@
 
 import type { SupportBrandIconValue } from "@musiccloud/shared";
 
-import { BRAND_LOCKUP_WIDTH_PX, brandLockupUrl } from "./brandLockups";
+import { brandLockupUrl, brandLockupWidth } from "./brandLockups";
 import { SUPPORT_CARD_TITLE_CLASS } from "./supportType";
 
 /** Props of {@link LadderCardHead}. */
@@ -29,7 +29,7 @@ interface LadderCardHeadProps {
  */
 export function LadderCardHead({ title, icon }: LadderCardHeadProps) {
   return (
-    <div className="flex items-start justify-between gap-[var(--mc-gap-rowitem,0.75rem)]">
+    <div className="flex items-start justify-between gap-[var(--mc-support-step-4)]">
       {/* The type is set on the wrapper, because the ladder's prose reset makes
           its headings inherit; see `.mc-support-ladder` in `global.css`. */}
       <div className={SUPPORT_CARD_TITLE_CLASS}>
@@ -41,7 +41,7 @@ export function LadderCardHead({ title, icon }: LadderCardHeadProps) {
           alt=""
           aria-hidden="true"
           className="shrink-0"
-          style={{ width: BRAND_LOCKUP_WIDTH_PX, height: "auto" }}
+          style={{ width: brandLockupWidth(icon), height: "auto" }}
         />
       )}
     </div>

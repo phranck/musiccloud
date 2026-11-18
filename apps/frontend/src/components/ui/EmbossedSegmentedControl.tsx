@@ -49,6 +49,13 @@ interface EmbossedSegmentedControlProps<T extends string> {
    */
   indicatorClassName?: string;
   /**
+   * Classes merged over a text cell's own size and type, which default to
+   * `py-2 px-3 text-[13px]`. A control that stands beside a page's text rather
+   * than in a toolbar passes its own, such as the support ladder's tabs.
+   * Icon-only cells are unaffected.
+   */
+  textCellClassName?: string;
+  /**
    * Render a tighter control: smaller icon-only cells and a 2px track inset
    * instead of 4px. For mini in-header toggles (e.g. the artist list/grid
    * switch) where the default 34px cells are too tall. Text cells are unaffected.
@@ -84,6 +91,7 @@ export function EmbossedSegmentedControl<T extends string>({
   className,
   trackClassName = "mc-glass-seg-track",
   indicatorClassName = "mc-glass-seg-indicator",
+  textCellClassName,
   compact = false,
   pill = false,
 }: EmbossedSegmentedControlProps<T>) {
@@ -185,7 +193,7 @@ export function EmbossedSegmentedControl<T extends string>({
                 // same regardless of the glyph (an 18px Phosphor icon and a 16px
                 // flag emoji both yield identical 34px segments).
                 hasVisibleText
-                  ? "flex-auto py-2 px-3 text-[13px] font-semibold text-center"
+                  ? cn("flex-auto py-2 px-3 text-[13px] font-semibold text-center", textCellClassName)
                   : compact
                     ? "size-[26px]"
                     : "size-[34px]",

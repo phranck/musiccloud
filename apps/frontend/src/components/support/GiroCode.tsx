@@ -5,6 +5,8 @@
 import type { SupportLadderQrStyle } from "@musiccloud/shared";
 import { useEffect, useState } from "react";
 
+import { SMALL_CORNER_RADIUS } from "@/components/cards/groupedCorners";
+
 /**
  * How the GiroCode looks where the page names nothing.
  *
@@ -121,12 +123,15 @@ export function GiroCode({ payload, style, label }: GiroCodeProps) {
 
   return (
     <div
-      className="shrink-0 box-content"
+      className="shrink-0 box-content overflow-hidden"
       style={{
         width: size,
         height: size,
         padding: margin,
         background: style?.background ?? GiroCodeDefault.Background,
+        // Slightly rounded, so the white square sits on the card like the
+        // site's other surfaces rather than as a cut-out.
+        borderRadius: SMALL_CORNER_RADIUS,
       }}
     >
       {drawing?.payload === payload && (

@@ -17,6 +17,7 @@ import { LadderRichText } from "./LadderRichText";
 import { LADDER_INPUT_CLASS, ladderFieldLabelId } from "./ladderFieldParts";
 import {
   SUPPORT_CARD_TITLE_CLASS,
+  SUPPORT_FIGURE_CLASS,
   SUPPORT_QUALIFIER_CLASS,
   SUPPORT_TEXT_CLASS,
   SUPPORT_TEXT_SIZE_CLASS,
@@ -89,9 +90,14 @@ const BARE_AMOUNT_INPUT_CLASS =
 /**
  * Classes of the free field's input in its own card: a small well wide enough
  * for a five-figure amount and no wider, because the field should look like
- * what belongs in it.
+ * what belongs in it. The well, padding included, measures lmaa.space's field,
+ * 108px by 40.5px (`--mc-support-field-width`, `--mc-support-step-9`), so the
+ * input is that less the well's padding on either side.
  */
-const CARD_AMOUNT_INPUT_CLASS = cn(LADDER_INPUT_CLASS, "h-9 w-24 flex-none px-3 text-lg font-semibold tabular-nums");
+const CARD_AMOUNT_INPUT_CLASS = cn(
+  LADDER_INPUT_CLASS,
+  "h-[calc(var(--mc-support-step-9)_-_2*var(--mc-recessed-control-inset))] w-[calc(var(--mc-support-field-width)_-_2*var(--mc-recessed-control-inset))] flex-none px-3 text-lg font-semibold tabular-nums",
+);
 
 /**
  * The suggested amounts of one tab and its free field, as lmaa.space lays them
@@ -179,7 +185,14 @@ export function AmountGrid({
   );
 
   return (
-    <div className={cn("grid gap-[var(--mc-gap-cards,1.5rem)]", hasOptions && "sm:grid-cols-2 lg:grid-cols-4")}>
+    // The cards stand 13.5px apart side by side, as on lmaa.space, and 18px
+    // apart from row to row, a step more.
+    <div
+      className={cn(
+        "grid gap-x-[var(--mc-support-step-3)] gap-y-[var(--mc-support-step-4)]",
+        hasOptions && "sm:grid-cols-2 lg:grid-cols-4",
+      )}
+    >
       {interval.options.map((option) => {
         const active = !customActive && option.amountEur === amountEur;
         return (
@@ -192,8 +205,14 @@ export function AmountGrid({
             className={AMOUNT_BUTTON_CLASS}
             style={{ borderRadius: embossedCardOuterRadius }}
           >
-            <ContentCard className={cn(AMOUNT_CARD_CLASS, "h-full flex flex-col gap-1", active && CHOSEN_CLASS)}>
-              <span className="pr-7 text-xl font-bold tabular-nums text-text-primary">
+            <ContentCard
+              className={cn(
+                AMOUNT_CARD_CLASS,
+                "h-full flex flex-col gap-[var(--mc-support-step-1-5)]",
+                active && CHOSEN_CLASS,
+              )}
+            >
+              <span className={cn("pr-7", SUPPORT_FIGURE_CLASS)}>
                 {formatEuro(option.amountEur)}
                 {monthly && <span className={cn("ml-1", SUPPORT_QUALIFIER_CLASS)}>{perMonthLabel}</span>}
               </span>
@@ -233,7 +252,7 @@ export function AmountGrid({
           <ContentCard
             className={cn(
               AMOUNT_FIELD_CLASS,
-              "flex flex-col gap-2",
+              "flex flex-col gap-[var(--mc-support-step-1-5)]",
               hasOptions && "col-span-full sm:col-span-2 lg:col-span-2 lg:col-start-2",
               customActive && CHOSEN_CLASS,
             )}
