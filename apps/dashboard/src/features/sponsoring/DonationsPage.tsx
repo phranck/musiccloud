@@ -6,7 +6,7 @@ import {
   DataTableScroll,
 } from "@musiccloud/dashboard-ui";
 import { type Donation, formatEuroCents } from "@musiccloud/shared";
-import { HandCoinsIcon, PencilSimpleIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
+import { HandCoinsIcon, PlusCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
@@ -15,11 +15,11 @@ import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import { DONATION_LIST_QUERY_KEY, deleteDonation, fetchDonations, LEDGER_QUERY_KEY } from "@/features/sponsoring/api";
 import { BankConnectionCard } from "@/features/sponsoring/BankConnectionCard";
 import { DonationEditCard } from "@/features/sponsoring/DonationEditCard";
+import { editRemoveColumn } from "@/features/sponsoring/editRemoveColumn";
 import { type EditTarget, EditTargetKind } from "@/features/sponsoring/editTarget";
 import { RemoveConfirmDialog } from "@/features/sponsoring/RemoveConfirmDialog";
 
@@ -82,24 +82,7 @@ function useDonationColumns(
         sortKey: (donation) => (donation.published ? 1 : 0),
         cell: (donation) => (donation.published ? sm.publishedYes : sm.publishedNo),
       },
-      {
-        id: "actions",
-        className: "w-28",
-        cell: (donation) => (
-          <div className="flex justify-end gap-1">
-            <TableActionButton
-              onClick={() => onEdit(donation)}
-              icon={<PencilSimpleIcon weight="duotone" className="size-3" />}
-              label={messages.common.edit}
-            />
-            <TableActionButton
-              onClick={() => onRemove(donation)}
-              icon={<TrashIcon weight="duotone" className="size-3" />}
-              label={messages.common.remove}
-            />
-          </div>
-        ),
-      },
+      editRemoveColumn(onEdit, onRemove),
     ],
     [onEdit, onRemove],
   );
