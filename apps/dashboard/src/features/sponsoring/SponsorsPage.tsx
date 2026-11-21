@@ -6,7 +6,7 @@ import {
   DataTableScroll,
 } from "@musiccloud/dashboard-ui";
 import { formatEuroCents, type Sponsor, sponsorDaysLeft } from "@musiccloud/shared";
-import { MedalIcon, PencilSimpleIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
+import { MedalIcon, PlusCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
@@ -15,10 +15,10 @@ import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import { deleteSponsor, fetchSponsors, LEDGER_QUERY_KEY, SPONSORS_QUERY_KEY } from "@/features/sponsoring/api";
 import { localDay } from "@/features/sponsoring/donationForm";
+import { editRemoveColumn } from "@/features/sponsoring/editRemoveColumn";
 import { type EditTarget, EditTargetKind } from "@/features/sponsoring/editTarget";
 import { RemoveConfirmDialog } from "@/features/sponsoring/RemoveConfirmDialog";
 import { SponsorEditCard } from "@/features/sponsoring/SponsorEditCard";
@@ -89,24 +89,7 @@ function useSponsorColumns(
         sortKey: (sponsor) => (sponsor.published ? 1 : 0),
         cell: (sponsor) => (sponsor.published ? sm.publishedYes : sm.publishedNo),
       },
-      {
-        id: "actions",
-        className: "w-28",
-        cell: (sponsor) => (
-          <div className="flex justify-end gap-1">
-            <TableActionButton
-              onClick={() => onEdit(sponsor)}
-              icon={<PencilSimpleIcon weight="duotone" className="size-3" />}
-              label={messages.common.edit}
-            />
-            <TableActionButton
-              onClick={() => onRemove(sponsor)}
-              icon={<TrashIcon weight="duotone" className="size-3" />}
-              label={messages.common.remove}
-            />
-          </div>
-        ),
-      },
+      editRemoveColumn(onEdit, onRemove),
     ],
     [today, onEdit, onRemove],
   );
