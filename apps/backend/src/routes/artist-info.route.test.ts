@@ -384,6 +384,61 @@ describe("GET /api/v1/artist-info entity identity", () => {
   });
 });
 
+describe("GET /api/v1/artist-info profiles fetched before the plus-sign fix", () => {
+  /** When the requests in this block are made: after the fix reached production. */
+  const REQUEST_TIME_MS = Date.parse("2026-11-23T00:00:00Z");
+  /** A profile fetch before the fix, well inside the profile TTL. */
+  const FETCHED_BEFORE_FIX_MS = Date.parse("2026-11-01T00:00:00Z");
+  /** A profile fetch after the fix reached production. */
+  const FETCHED_AFTER_FIX_MS = Date.parse("2026-11-22T22:00:00Z");
+  /** An artist whose name Last.fm misread before the fix. */
+  const PLUS_SIGN_ARTIST = "Florence + The Machine";
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(REQUEST_TIME_MS);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Stores a complete profile for `artistName`, fetched at `profileUpdatedAt`. */
+  function cacheProfile(artistName: string, profileUpdatedAt: number) {
+    mocks.findArtistInfoEntity.mockResolvedValue({ artistEntityId: "artist-entity-1", artistName });
+    mocks.findArtistCache.mockResolvedValue({ ...freshCache(artistName), profile: PROFILE, profileUpdatedAt });
+  }
+
+  it("serves a plus-sign profile fetched before the fix and refreshes it in the background", async () => {
+    cacheProfile(PLUS_SIGN_ARTIST, FETCHED_BEFORE_FIX_MS);
+    const app = await buildApp();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/artist-info?artistEntityId=artist-entity-1" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ profile: PROFILE });
+    await vi.waitFor(() => expect(mocks.fetchArtistProfileSnapshot).toHaveBeenCalledWith(PLUS_SIGN_ARTIST));
+    await vi.waitFor(() =>
+      expect(mocks.saveArtistCache).toHaveBeenCalledWith(
+        expect.objectContaining({ profile: PROFILE, profileUpdatedAt: REQUEST_TIME_MS }),
+      ),
+    );
+  });
+
+  it.each([
+    ["a name without a plus sign fetched before the fix", "Canonical Artist", FETCHED_BEFORE_FIX_MS],
+    ["a plus-sign name fetched after the fix", PLUS_SIGN_ARTIST, FETCHED_AFTER_FIX_MS],
+  ])("keeps the stored profile of %s", async (_case, artistName, profileUpdatedAt) => {
+    cacheProfile(artistName, profileUpdatedAt);
+    const app = await buildApp();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/artist-info?artistEntityId=artist-entity-1" });
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.fetchArtistProfileSnapshot).not.toHaveBeenCalled();
+  });
+});
+
 describe("GET /api/v1/artist-info similar artists", () => {
   it("answers without waiting for an uncached similar artist's top tracks and fetches them in the background", async () => {
     const pendingTracks = deferred<ReturnType<typeof complete<never[]>>>();
