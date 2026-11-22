@@ -23,6 +23,18 @@ const LASTFM_TIMEOUT_MS = 5000;
 /** The error number Last.fm answers with when the artist, track or tag does not exist. */
 const LASTFM_NOT_FOUND_ERROR = 6;
 
+/** A plus sign as `URLSearchParams` encodes it inside a parameter value. */
+const ENCODED_PLUS = "%2B";
+
+/**
+ * A plus sign encoded twice. Last.fm decodes a parameter value once more after
+ * the standard decoding and reads a plain `+` as a space, so `%2B` alone turns
+ * `Florence + The Machine` into `Florence   The Machine`, a different Last.fm
+ * entry. `%252B` arrives as `+`. A space stays `+` in the query, which both
+ * decodings read as a space.
+ */
+const DOUBLE_ENCODED_PLUS = "%252B";
+
 /** Part of the address of the grey star Last.fm returns where it has no picture. */
 const LASTFM_PLACEHOLDER_IMAGE_HASH = "2a96cbd8b46e442fc41c2b86b821562f";
 
@@ -84,7 +96,8 @@ async function readLastFmJson<Body>(response: Response, method: string): Promise
  * first. A caller that reaches this without one has a configuration fault.
  *
  * @param method - The API method, such as `artist.getInfo`.
- * @param params - The method's own parameters. The key and the format are added here.
+ * @param params - The method's own parameters, unencoded. The key and the
+ *   format are added here, and a `+` in a value is sent as {@link DOUBLE_ENCODED_PLUS}.
  * @returns The parsed body, or `null` when Last.fm does not know what was asked for.
  * @throws {Error} when no API key is configured.
  * @throws {UpstreamUnavailableError} when Last.fm refused or did not answer properly.
@@ -92,8 +105,10 @@ async function readLastFmJson<Body>(response: Response, method: string): Promise
 export async function lastFmGet<Body>(method: string, params: Record<string, string>): Promise<Body | null> {
   const apiKey = lastFmApiKey();
   if (!apiKey) throw new Error("LASTFM_API_KEY not configured");
-  const query = new URLSearchParams({ method, api_key: apiKey, format: "json", ...params });
-  const response = await fetchWithTimeout(`${LASTFM_API_BASE}/?${query.toString()}`, {}, LASTFM_TIMEOUT_MS);
+  const query = new URLSearchParams({ method, api_key: apiKey, format: "json", ...params })
+    .toString()
+    .replaceAll(ENCODED_PLUS, DOUBLE_ENCODED_PLUS);
+  const response = await fetchWithTimeout(`${LASTFM_API_BASE}/?${query}`, {}, LASTFM_TIMEOUT_MS);
   return readLastFmJson<Body>(response, method);
 }
 

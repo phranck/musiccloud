@@ -1,7 +1,13 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { describe, expect, it } from "vitest";
-import { isGenreTag, pickLastFmImage } from "../lastfm-response.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fetchWithTimeout } from "../../../../lib/infra/fetch.js";
+import { isGenreTag, lastFmGet, pickLastFmImage } from "../lastfm-response.js";
+
+vi.mock("../../../../lib/infra/fetch.js", () => ({ fetchWithTimeout: vi.fn() }));
+
+/** The key the request tests run with; its value never leaves the mocked fetch. */
+const TEST_API_KEY = "test-key";
 
 /** The backend source root, from this file's directory. */
 const BACKEND_SOURCE = join(import.meta.dirname, "../../../..");
@@ -24,6 +30,38 @@ describe("the Last.fm client", () => {
       .map((path) => relative(BACKEND_SOURCE, path));
 
     expect(naming).toEqual(["services/plugins/lastfm/lastfm-response.ts"]);
+  });
+});
+
+describe("lastFmGet", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.mocked(fetchWithTimeout).mockReset();
+  });
+
+  /** Sends one request through the client and returns the query string it reached the network with. */
+  async function requestedQuery(params: Record<string, string>): Promise<URLSearchParams> {
+    vi.stubEnv("LASTFM_API_KEY", TEST_API_KEY);
+    vi.mocked(fetchWithTimeout).mockResolvedValue(new Response(JSON.stringify({ artist: {} })));
+    await lastFmGet("artist.getInfo", params);
+    const url = new URL(vi.mocked(fetchWithTimeout).mock.calls[0][0] as string);
+    return new URLSearchParams(url.search);
+  }
+
+  it("sends a plus sign so that Last.fm's second decoding still reads a plus", async () => {
+    const query = await requestedQuery({ artist: "Florence + The Machine" });
+
+    // Last.fm decodes the value once more after the standard decoding, so the
+    // value has to arrive still percent-encoded once.
+    expect(query.get("artist")).toBe("Florence %2B The Machine");
+  });
+
+  it("leaves names without a plus sign as they are", async () => {
+    const query = await requestedQuery({ artist: "Simon & Garfunkel / AC/DC" });
+
+    expect(query.get("artist")).toBe("Simon & Garfunkel / AC/DC");
+    expect(query.get("method")).toBe("artist.getInfo");
+    expect(query.get("api_key")).toBe(TEST_API_KEY);
   });
 });
 
