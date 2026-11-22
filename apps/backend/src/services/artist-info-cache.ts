@@ -39,6 +39,40 @@ export const ARTIST_INFO_SECTION_TTL_MS: Record<ArtistInfoSection, number> = {
  */
 export const INCOMPLETE_SECTION_RETRY_MS = 15 * 60 * 1000;
 
+/**
+ * When the Last.fm plus-sign fix reached production. Before it, Last.fm read a
+ * `+` in an artist name as a space, so a profile fetched for a name such as
+ * `Florence + The Machine` holds the entry of a different artist. See
+ * {@link isArtistProfileStale} for how the cache treats those profiles.
+ *
+ * @deprecated Remove together with the plus-sign clause of
+ * {@link isArtistProfileStale} after 2027-05-24. By then every profile fetched
+ * before this moment is older than the profile TTL and refreshes anyway.
+ */
+export const LASTFM_PLUS_SIGN_FIX_DEPLOYED_AT_MS = Date.parse("2026-11-22T19:58:03Z");
+
+/** The character Last.fm misread in artist names before {@link LASTFM_PLUS_SIGN_FIX_DEPLOYED_AT_MS}. */
+const PLUS_SIGN = "+";
+
+/**
+ * Whether a stored profile is due for a background refresh.
+ *
+ * A profile is stale once it is older than the profile TTL in
+ * {@link ARTIST_INFO_SECTION_TTL_MS}. A profile for a name with a plus sign
+ * that was fetched before {@link LASTFM_PLUS_SIGN_FIX_DEPLOYED_AT_MS} is stale
+ * at once, because it describes a different Last.fm artist. Its refresh stores
+ * the request time, so it counts as fresh afterwards and refreshes only once.
+ *
+ * @param artistName - The name the profile is fetched for upstream.
+ * @param profileUpdatedAt - When the stored profile was fetched, in epoch milliseconds.
+ * @param now - The request time, in epoch milliseconds.
+ * @returns `true` when the profile is served as stored and refreshed in the background.
+ */
+export function isArtistProfileStale(artistName: string, profileUpdatedAt: number, now: number): boolean {
+  if (now - profileUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.Profile]) return true;
+  return artistName.includes(PLUS_SIGN) && profileUpdatedAt < LASTFM_PLUS_SIGN_FIX_DEPLOYED_AT_MS;
+}
+
 type ArtistInfoCacheRepository = Pick<TrackRepository, "saveArtistCache">;
 
 interface RefreshInput {

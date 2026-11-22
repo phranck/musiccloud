@@ -22,7 +22,9 @@
  * Having one TTL per section means a daily event refresh does not burn
  * the Spotify / Last.fm rate budget that the weekly profile refresh sits
  * on. When any section is stale, only that section is refetched; the
- * fresh sections are reused from cache.
+ * fresh sections are reused from cache. A profile for a name with a plus sign
+ * that was fetched before the Last.fm plus-sign fix also counts as stale (see
+ * `isArtistProfileStale` in `services/artist-info-cache.ts`).
  *
  * ## Cache key normalization
  *
@@ -83,6 +85,7 @@ import {
   ARTIST_INFO_SECTION_TTL_MS,
   ArtistInfoSection,
   artistInfoRefreshCoordinator,
+  isArtistProfileStale,
 } from "../services/artist-info-cache.js";
 
 /**
@@ -223,8 +226,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       const hasEvents = Boolean(cached && cached.eventsUpdatedAt > 0);
       const staleTracks =
         hasTracks && now - cached!.tracksUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.TopTracks];
-      const staleProfile =
-        hasProfile && now - cached!.profileUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.Profile];
+      const staleProfile = hasProfile && isArtistProfileStale(lookupName, cached!.profileUpdatedAt, now);
       const staleEvents =
         hasEvents && now - cached!.eventsUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.Events];
       const profileInput = { ...refreshInput, hasStoredValue: hasProfile };
