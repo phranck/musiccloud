@@ -64,6 +64,18 @@ describe("fetchSpotifyArtistPartial", () => {
     expect(partial?.genres).toHaveLength(3);
   });
 
+  it("contributes no genres for an artist object without them", async () => {
+    // The shape Spotify's artist search returns since it stopped sending genres.
+    const { genres: _genres, ...artistWithoutGenres } = ARTIST;
+    fetchWithTimeoutMock.mockResolvedValueOnce(jsonResponse({ artists: { items: [artistWithoutGenres] } }));
+    const partial = await fetchSpotifyArtistPartial("Slowdive");
+    expect(partial).toEqual({
+      __source: "spotify",
+      imageUrl: "https://i.scdn.co/image/big.jpg",
+      genres: [],
+    });
+  });
+
   it("returns null when search yields no artist", async () => {
     fetchWithTimeoutMock.mockResolvedValueOnce(jsonResponse({ artists: { items: [] } }));
     expect(await fetchSpotifyArtistPartial("Nobody")).toBeNull();

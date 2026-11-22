@@ -1,9 +1,9 @@
 /**
- * Spotify composition source. Post-Feb-2026 the Web API only returns
- * image + genres on the artist object; popularity, followers, and the
- * top-tracks endpoint were removed. This source therefore contributes
- * only those two fields and lets the merge strategy fill the rest from
- * Deezer + Last.fm.
+ * Spotify composition source. The Web API's artist search returns images
+ * and no longer sends genres, popularity or followers, and the top-tracks
+ * endpoint is gone. This source therefore contributes the picture and, where
+ * Spotify still sends them, the genres. An empty genre list counts as missing
+ * in the merge, so Last.fm supplies the genres and Deezer and Last.fm the rest.
  *
  * Returns null when the Spotify token is not configured or the artist
  * search yields no result, and throws when Spotify did not answer, so the
@@ -32,9 +32,16 @@ interface SpotifyImage {
   height: number | null;
 }
 
+/** An artist object from Spotify's artist search, with the fields this source reads. */
 interface SpotifyArtist {
+  /** Spotify's artist ID. */
   id: string;
-  genres: string[];
+  /**
+   * The artist's genres. Spotify's artist search no longer sends this field,
+   * so it is read as optional and an absent list contributes no genres.
+   */
+  genres?: string[];
+  /** The artist's pictures, in the sizes Spotify offers. */
   images: SpotifyImage[];
 }
 
@@ -67,6 +74,6 @@ export async function fetchSpotifyArtistPartial(name: string): Promise<ArtistPar
   return {
     __source: "spotify",
     imageUrl: pickSpotifyImage(artist.images),
-    genres: artist.genres.slice(0, MAX_GENRES),
+    genres: artist.genres?.slice(0, MAX_GENRES) ?? [],
   };
 }
