@@ -9,6 +9,7 @@
  * - `/music/Artist/Album` names an album.
  * - `/music/Artist` names an artist.
  */
+import { tryDecodeURIComponent } from "@musiccloud/shared";
 import type { SearchQuery } from "../../types.js";
 
 /** The hosts Last.fm serves its pages from. */
@@ -46,12 +47,7 @@ export interface LastfmUrlSearch {
  *   with a `URIError`.
  */
 function decodeLastfmSegment(segment: string): string | null {
-  try {
-    return decodeURIComponent(segment.replace(LASTFM_ENCODED_SPACE_RE, " "));
-  } catch (error) {
-    if (error instanceof URIError) return null;
-    throw error;
-  }
+  return tryDecodeURIComponent(segment.replace(LASTFM_ENCODED_SPACE_RE, " "));
 }
 
 /**

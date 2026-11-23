@@ -32,6 +32,10 @@ describe("normalizeEditorialPath", () => {
     expect(() => normalizeEditorialPath(path)).toThrow("invalid path characters");
   });
 
+  it.each(["/docs/100%", "/docs/%E0%A4%A"])("rejects the broken percent encoding in %s", (path) => {
+    expect(() => normalizeEditorialPath(path)).toThrow("invalid percent encoding");
+  });
+
   it("answers null instead of throwing for the forms it refuses", () => {
     expect(tryNormalizeEditorialPath("/docs/../api")).toBeNull();
     expect(tryNormalizeEditorialPath("docs/api/")).toBe("/docs/api");
