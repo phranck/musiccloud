@@ -37,14 +37,44 @@ export function isValidGenreKey(key: string): boolean {
 }
 
 /**
- * Turns the `:genreKey` path segment into the key artworks are stored under:
- * percent-decoded, lowercased, inner whitespace collapsed and trimmed.
+ * Removes one level of percent-encoding from a route parameter that Fastify
+ * has already decoded once.
  *
- * @param raw - The raw path segment.
- * @returns The normalized key.
+ * The frontend proxy forwards reserved characters still encoded: Astro
+ * decodes its path with `decodeURI`, which leaves `%26` (`&`) and `%2B` (`+`)
+ * in place, and the proxy encodes the parameter again with
+ * `encodeURIComponent` before calling the backend. So `r%26b` reaches the
+ * route as `r%26b` and only this second decode turns it into `r&b`. A
+ * parameter whose `%` is a literal character, such as `100%`, is not a valid
+ * encoding and is returned unchanged, so {@link GENRE_KEY_PATTERN} refuses it
+ * and the route answers 400 rather than failing on a `URIError`.
+ *
+ * @param segment - The route parameter as Fastify decoded it.
+ * @returns The decoded parameter, or `segment` itself when it is not a valid
+ *   percent-encoding.
+ */
+function decodeForwardedSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch (error) {
+    if (error instanceof URIError) return segment;
+    throw error;
+  }
+}
+
+/**
+ * Turns the `:genreKey` route parameter into the key artworks are stored
+ * under: percent-decoded once more through {@link decodeForwardedSegment},
+ * lowercased, inner whitespace collapsed and trimmed.
+ *
+ * Never throws, so a malformed parameter reaches the route's
+ * {@link isValidGenreKey} check and its 400 answer.
+ *
+ * @param raw - The `:genreKey` route parameter as Fastify decoded it.
+ * @returns The normalized key, which may still be invalid.
  */
 export function normalizeGenreKey(raw: string): string {
-  return decodeURIComponent(raw).toLowerCase().replace(/\s+/g, " ").trim();
+  return decodeForwardedSegment(raw).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 /**

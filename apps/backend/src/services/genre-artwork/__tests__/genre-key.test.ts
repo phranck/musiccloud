@@ -14,6 +14,11 @@ describe("genre artwork keys and addresses", () => {
     expect(normalizeGenreKey("Drum%20%20%26%20Bass ")).toBe("drum & bass");
   });
 
+  it("keeps a literal percent sign instead of throwing, so the key is refused", () => {
+    expect(normalizeGenreKey("100%")).toBe("100%");
+    expect(isValidGenreKey(normalizeGenreKey("100%"))).toBe(false);
+  });
+
   it("accepts the keys the generator can name and refuses the rest", () => {
     expect(isValidGenreKey("drum & bass")).toBe(true);
     expect(isValidGenreKey("post-punk/new wave")).toBe(false);
