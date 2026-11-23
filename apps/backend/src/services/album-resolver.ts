@@ -81,6 +81,7 @@ import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
+import { parseReleaseYear } from "../lib/release-date.js";
 import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
 import { pickRecordingArtworkUrl, RECORDING_ARTWORK_LOOKUP_SERVICES } from "./artwork.js";
 import { confidenceForMethod } from "./confidence.js";
@@ -615,7 +616,7 @@ async function resolveAlbumViaSearch(
   const query: AlbumSearchQuery = {
     title: sourceAlbum.title,
     artist: sourceAlbum.artists[0] ?? "",
-    year: sourceAlbum.releaseDate?.slice(0, 4),
+    year: parseReleaseYear(sourceAlbum.releaseDate)?.toString(),
     totalTracks: sourceAlbum.totalTracks,
   };
 

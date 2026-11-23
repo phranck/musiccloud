@@ -103,6 +103,39 @@ describe("selectOriginalVinylVersion", () => {
     const result = selectOriginalVinylVersion(mixed);
     expect(result?.id).toBe(11);
   });
+
+  it("ranks a yearless first candidate after every dated one and picks the earliest dated one", () => {
+    const yearlessFirst: DiscogsMasterVersion[] = [
+      { id: 20, released: "", format: "LP, Album" },
+      { id: 21, released: "1961", format: "LP, Album" },
+      { id: 22, released: "1959-03-00", format: "LP, Album" },
+    ];
+    expect(selectOriginalVinylVersion(yearlessFirst)?.id).toBe(22);
+  });
+
+  it("ranks an unparsable year after every known year", () => {
+    const unparsableFirst: DiscogsMasterVersion[] = [
+      { id: 30, released: "unknown", format: "LP, Album" },
+      { id: 31, released: "1972", format: "LP, Album" },
+    ];
+    expect(selectOriginalVinylVersion(unparsableFirst)?.id).toBe(31);
+  });
+
+  it("keeps a dated candidate when a yearless one follows it", () => {
+    const yearlessLast: DiscogsMasterVersion[] = [
+      { id: 40, released: "1965", format: "LP, Album" },
+      { id: 41, released: "", format: "LP, Album" },
+    ];
+    expect(selectOriginalVinylVersion(yearlessLast)?.id).toBe(40);
+  });
+
+  it("returns the first candidate when no candidate has a year", () => {
+    const noYears: DiscogsMasterVersion[] = [
+      { id: 50, released: "", format: "LP, Album" },
+      { id: 51, released: "", format: "LP, Album" },
+    ];
+    expect(selectOriginalVinylVersion(noYears)?.id).toBe(50);
+  });
 });
 
 // =============================================================================

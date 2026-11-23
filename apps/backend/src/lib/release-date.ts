@@ -30,3 +30,42 @@ export function normalizeReleaseDate(value: string | null | undefined): string |
   const parsed = new Date(trimmed);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
 }
+
+/**
+ * Number of digits in the year that opens a release date.
+ *
+ * Every form a source reports and {@link parseReleaseYear} accepts starts with
+ * the year: `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, the `YYYY-00-00` Discogs uses for
+ * an unknown month and day, and an ISO timestamp. The value is `4`, so the
+ * years `0000` through `9999` are readable.
+ */
+const RELEASE_YEAR_LENGTH = 4;
+
+/**
+ * Matches the {@link RELEASE_YEAR_LENGTH} leading digits of a trimmed release
+ * date. A value that opens with anything else, such as an empty string,
+ * `"unknown"` or an RFC-2822 timestamp, does not match.
+ */
+const LEADING_RELEASE_YEAR_PATTERN = new RegExp(`^\\d{${RELEASE_YEAR_LENGTH}}`);
+
+/**
+ * Reads the release year from the start of a date string.
+ *
+ * This is the one place that knows a release date opens with its year. Album
+ * matching compares years with it, the Discogs version picker ranks pressings
+ * by it, the album search query and the share page's Open Graph description
+ * show it. A value whose year cannot be read is reported as unknown rather than
+ * as a number, so a caller that ranks or compares years decides explicitly how
+ * an unknown year behaves.
+ *
+ * @param value - The date as a source or a stored row reports it, for example
+ *   `"1959"`, `"1959-03-00"` or `"2009-10-07T23:12:34Z"`. Leading and trailing
+ *   whitespace is ignored.
+ * @returns The year as a number, or `null` when the value is missing, empty, or
+ *   does not open with {@link RELEASE_YEAR_LENGTH} digits.
+ */
+export function parseReleaseYear(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const match = LEADING_RELEASE_YEAR_PATTERN.exec(value.trim());
+  return match ? Number(match[0]) : null;
+}
