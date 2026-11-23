@@ -68,9 +68,9 @@ describe("collectTrackExternalIds", () => {
 
   it("collapses duplicate (idType, idValue, sourceService) tuples", () => {
     const records = collectTrackExternalIds({ ...baseTrack, isrc: "DUP" }, [
-      { service: "spotify", isrc: "DUP" }, // same as source — must not duplicate
+      { service: "spotify", isrc: "DUP" }, // same as source, so it must not duplicate
       { service: "deezer", isrc: "DUP" },
-      { service: "deezer", isrc: "DUP" }, // exact dup — must not duplicate
+      { service: "deezer", isrc: "DUP" }, // exact dup, so it must not duplicate
     ]);
 
     expect(records).toHaveLength(2);
@@ -110,5 +110,16 @@ describe("collectArtistExternalIds", () => {
     // MBID output through `artistExternalIds` without further code changes
     // in the resolver. Until then, artist resolves emit no records.
     expect(collectArtistExternalIds(baseArtist)).toEqual([]);
+  });
+
+  it("keeps two different ids whose fields would read the same when joined with a space", () => {
+    const records = collectArtistExternalIds({ ...baseArtist, sourceService: "c", mbid: "a b" }, [
+      { service: "b c", mbid: "a" },
+    ]);
+
+    expect(records).toEqual([
+      { idType: "mbid", idValue: "a b", sourceService: "c" },
+      { idType: "mbid", idValue: "a", sourceService: "b c" },
+    ]);
   });
 });
