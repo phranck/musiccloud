@@ -45,7 +45,6 @@
  */
 import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable.js";
-import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { CANDIDATE_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE, MAX_CANDIDATES } from "../../constants.js";
 import type {
@@ -71,6 +70,7 @@ import {
   trackSearchTexts,
 } from "../_shared/track-search-query.js";
 import { pickDeezerArtistImage } from "./artist-image.js";
+import { rankDeezerArtistSearch } from "./artist-search.js";
 import { deezerFetch, deezerGet } from "./deezer-response.js";
 
 const DEEZER_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/;
@@ -127,17 +127,6 @@ interface DeezerAlbumResponse {
 interface DeezerAlbumSearchResponse {
   data: DeezerAlbumResponse[];
   total: number;
-}
-
-interface DeezerArtistSearchResponse {
-  data?: Array<{
-    id: number;
-    name: string;
-    picture_xl?: string;
-    picture_big?: string;
-    picture_medium?: string;
-    link?: string;
-  }>;
 }
 
 function mapAlbum(raw: DeezerAlbumResponse): NormalizedAlbum {
@@ -520,39 +509,29 @@ export const deezerAdapter = {
     };
   },
 
+  /**
+   * Finds an artist by name through the shared Deezer artist ranking.
+   *
+   * @param query - The artist name to search for.
+   * @returns The hit whose name matches at `MATCH_MIN_CONFIDENCE` or above, or
+   *   a miss carrying the best confidence that was reached.
+   * @throws {UpstreamUnavailableError} when Deezer did not answer.
+   */
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
-    const data = await deezerGet<DeezerArtistSearchResponse>(
-      `/search/artist?q=${encodeURIComponent(query.name)}&limit=5`,
-      "artist search",
-    );
-    const items = data === null ? [] : requireProviderCollection(data.data, Service.Deezer, "artist search");
+    const best = await rankDeezerArtistSearch(query.name);
 
-    if (items.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
+    if (best === null || best.confidence < MATCH_MIN_CONFIDENCE) {
+      return { found: false, confidence: best?.confidence ?? 0, matchMethod: "search" };
     }
 
-    let bestArtist: NormalizedArtist | null = null;
-    let bestConfidence = 0;
-
-    for (const item of items) {
-      const confidence = calculateArtistNameConfidence(query.name, item.name);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestArtist = {
-          sourceService: "deezer",
-          sourceId: String(item.id),
-          name: item.name,
-          imageUrl: pickDeezerArtistImage(item) ?? undefined,
-          webUrl: item.link ?? `https://www.deezer.com/artist/${item.id}`,
-        };
-      }
-    }
-
-    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    const { hit, confidence } = best;
+    const artist: NormalizedArtist = {
+      sourceService: "deezer",
+      sourceId: String(hit.id),
+      name: hit.name,
+      imageUrl: pickDeezerArtistImage(hit) ?? undefined,
+      webUrl: hit.link ?? `https://www.deezer.com/artist/${hit.id}`,
+    };
+    return { found: true, artist, confidence, matchMethod: "search" };
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
