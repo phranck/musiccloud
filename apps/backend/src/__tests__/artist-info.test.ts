@@ -41,6 +41,7 @@ const SPOTIFY_HIT = {
     items: [
       {
         id: "4tZwfgrHOc3mvqYlEYSvVi",
+        name: "Daft Punk",
         genres: ["synth-pop", "new wave"],
         images: [{ url: "https://i.scdn.co/image/abc.jpg", width: 640, height: 640 }],
       },

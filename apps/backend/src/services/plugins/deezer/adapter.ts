@@ -524,7 +524,7 @@ export const deezerAdapter = {
       return { found: false, confidence: best?.confidence ?? 0, matchMethod: "search" };
     }
 
-    const { hit, confidence } = best;
+    const { item: hit, confidence } = best;
     const artist: NormalizedArtist = {
       sourceService: "deezer",
       sourceId: String(hit.id),
