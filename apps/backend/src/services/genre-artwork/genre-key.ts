@@ -41,12 +41,12 @@ export function isValidGenreKey(key: string): boolean {
  * under: percent-decoded once more, lowercased, inner whitespace collapsed and
  * trimmed.
  *
- * Fastify has already decoded the parameter once, and the second decode is
- * still needed because the frontend proxy forwards reserved characters
- * encoded: Astro decodes its path with `decodeURI`, which leaves `%26` (`&`)
- * and `%2B` (`+`) in place, and the proxy encodes the parameter again with
- * `encodeURIComponent` before calling the backend. So `r%26b` reaches the
- * route as `r%26b` and only this decode turns it into `r&b`.
+ * Fastify has already decoded the parameter once. The frontend proxy reads
+ * its own tile address back into the plain key and forwards that encoded
+ * once, so for its requests the second decode finds nothing to decode, since
+ * a valid key holds no `%`. A caller that encoded the key twice, such as
+ * `r%2526b`, is still read as `r&b`. A `+` stays a literal plus sign, so a
+ * public caller's `a%2Bb` is the key `a+b`.
  *
  * Never throws. A parameter whose `%` is a literal character, such as `100%`,
  * is not a valid encoding and is kept as it is, so the route's

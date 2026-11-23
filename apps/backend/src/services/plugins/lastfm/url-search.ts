@@ -9,7 +9,7 @@
  * - `/music/Artist/Album` names an album.
  * - `/music/Artist` names an artist.
  */
-import { tryDecodeURIComponent } from "@musiccloud/shared";
+import { decodeFormPathSegment } from "@musiccloud/shared";
 import type { SearchQuery } from "../../types.js";
 
 /** The hosts Last.fm serves its pages from. */
@@ -20,9 +20,6 @@ const LASTFM_MUSIC_PATH_RE = /^\/music\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?/;
 
 /** The path segment Last.fm puts between an artist and one of their tracks. */
 const LASTFM_TRACK_SEGMENT = "_";
-
-/** Every `+` in a Last.fm path segment, which Last.fm writes for a space. */
-const LASTFM_ENCODED_SPACE_RE = /\+/g;
 
 /**
  * The search a Last.fm link stands for.
@@ -35,19 +32,6 @@ const LASTFM_ENCODED_SPACE_RE = /\+/g;
 export interface LastfmUrlSearch {
   text: string;
   structured?: SearchQuery;
-}
-
-/**
- * Decodes one Last.fm path segment, where a space is written as `+` and a
- * literal plus sign as `%2B`.
- *
- * @param segment - The raw path segment.
- * @returns The segment as plain text, or `null` when it holds a broken
- *   percent escape such as `%E0%A4%A`, which `decodeURIComponent` rejects
- *   with a `URIError`.
- */
-function decodeLastfmSegment(segment: string): string | null {
-  return tryDecodeURIComponent(segment.replace(LASTFM_ENCODED_SPACE_RE, " "));
 }
 
 /**
@@ -69,9 +53,9 @@ export function parseLastfmUrl(url: string): LastfmUrlSearch | null {
   const match = parsed.pathname.match(LASTFM_MUSIC_PATH_RE);
   if (!match) return null;
 
-  const artist = decodeLastfmSegment(match[1]);
-  const second = match[2] ? decodeLastfmSegment(match[2]) : undefined;
-  const third = match[3] ? decodeLastfmSegment(match[3]) : undefined;
+  const artist = decodeFormPathSegment(match[1]);
+  const second = match[2] ? decodeFormPathSegment(match[2]) : undefined;
+  const third = match[3] ? decodeFormPathSegment(match[3]) : undefined;
   // A segment that does not decode is a link this parser cannot read, so the
   // whole link is not a Last.fm search rather than a search for part of it.
   if (artist === null || second === null || third === null) return null;
