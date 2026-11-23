@@ -32,6 +32,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const ARTIST = {
   id: "4tZwfgrHOc3mvqYlEYSvVi",
+  name: "Slowdive",
   genres: ["alt-rock", "indie", "shoegaze", "post-rock"],
   images: [
     { url: "https://i.scdn.co/image/big.jpg", width: 640, height: 640 },
@@ -74,6 +75,24 @@ describe("fetchSpotifyArtistPartial", () => {
       imageUrl: "https://i.scdn.co/image/big.jpg",
       genres: [],
     });
+  });
+
+  it("reads several hits and takes the one whose name matches", async () => {
+    const fontaines = { ...ARTIST, id: "3SXwqSqAoBz9WCI9PDQzY6", name: "Fontaines D.C." };
+    const fon = { ...ARTIST, id: "fon", name: "Fön" };
+    fetchWithTimeoutMock.mockResolvedValueOnce(jsonResponse({ artists: { items: [fontaines, fon] } }));
+    const partial = await fetchSpotifyArtistPartial("Fön");
+    expect(fetchWithTimeoutMock.mock.calls[0][0]).toContain("limit=5");
+    expect(partial?.imageUrl).toBe("https://i.scdn.co/image/big.jpg");
+  });
+
+  it("returns null when no hit carries the searched name", async () => {
+    // Spotify's answer for `Fön`, which lists no Fön at all.
+    const others = ["Fontaines D.C.", "The Fontane Sisters", "Fonseca", "Fons Veurink", "Lola Young"].map(
+      (name, index) => ({ ...ARTIST, id: `other-${index}`, name }),
+    );
+    fetchWithTimeoutMock.mockResolvedValueOnce(jsonResponse({ artists: { items: others } }));
+    expect(await fetchSpotifyArtistPartial("Fön")).toBeNull();
   });
 
   it("returns null when search yields no artist", async () => {

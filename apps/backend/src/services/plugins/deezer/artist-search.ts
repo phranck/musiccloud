@@ -5,7 +5,7 @@
  */
 
 import { Service } from "@musiccloud/shared";
-import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
+import { type RankedArtistNameMatch, rankByArtistName } from "../../../lib/resolve/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import { deezerGet } from "./deezer-response.js";
@@ -36,17 +36,7 @@ export interface DeezerArtistSearchHit {
   link?: string;
 }
 
-/**
- * The best hit of one search together with how sure the name match is.
- *
- * @property hit - The Deezer artist whose name is closest to the searched one.
- * @property confidence - `calculateArtistNameConfidence` of the two names, from 0 to 0.95.
- */
-export interface RankedDeezerArtistHit {
-  hit: DeezerArtistSearchHit;
-  confidence: number;
-}
-
+/** Deezer's `search/artist` answer, of which only the hit list is read. */
 interface DeezerArtistSearchResponse {
   data?: DeezerArtistSearchHit[];
 }
@@ -61,19 +51,15 @@ interface DeezerArtistSearchResponse {
  *   without its artist collection, so a caller can tell an outage apart from an
  *   unknown artist.
  */
-export async function rankDeezerArtistSearch(name: string): Promise<RankedDeezerArtistHit | null> {
+export async function rankDeezerArtistSearch(
+  name: string,
+): Promise<RankedArtistNameMatch<DeezerArtistSearchHit> | null> {
   const data = await deezerGet<DeezerArtistSearchResponse>(
     `/search/artist?q=${encodeURIComponent(name)}&limit=${DEEZER_ARTIST_SEARCH_LIMIT}`,
     "artist search",
   );
   const hits = data === null ? [] : requireProviderCollection(data.data, Service.Deezer, "artist search");
-
-  let best: RankedDeezerArtistHit | null = null;
-  for (const hit of hits) {
-    const confidence = calculateArtistNameConfidence(name, hit.name);
-    if (best === null || confidence > best.confidence) best = { hit, confidence };
-  }
-  return best;
+  return rankByArtistName(name, hits, (hit) => hit.name);
 }
 
 /**
@@ -90,5 +76,5 @@ export async function rankDeezerArtistSearch(name: string): Promise<RankedDeezer
  */
 export async function searchDeezerArtist(name: string): Promise<DeezerArtistSearchHit | null> {
   const best = await rankDeezerArtistSearch(name);
-  return best !== null && best.confidence >= MATCH_MIN_CONFIDENCE ? best.hit : null;
+  return best !== null && best.confidence >= MATCH_MIN_CONFIDENCE ? best.item : null;
 }
