@@ -40,37 +40,49 @@ export const ARTIST_INFO_SECTION_TTL_MS: Record<ArtistInfoSection, number> = {
 export const INCOMPLETE_SECTION_RETRY_MS = 15 * 60 * 1000;
 
 /**
- * When the Last.fm plus-sign fix reached production. Before it, Last.fm read a
- * `+` in an artist name as a space, so a profile fetched for a name such as
- * `Florence + The Machine` holds the entry of a different artist. See
- * {@link isArtistProfileStale} for how the cache treats those profiles.
+ * When the artist name match of the Deezer and Spotify sources reached
+ * production. Before it, both took the first artist search hit whatever its
+ * name, and Last.fm read a `+` in an artist name as a space, so a profile or a
+ * top-track list fetched earlier can describe a different artist: `Fön` showed
+ * Fontaines D.C.'s picture and FON's songs. See
+ * {@link isArtistInfoSectionStale} for how the cache treats those sections.
  *
- * @deprecated Remove together with the plus-sign clause of
- * {@link isArtistProfileStale} after 2027-05-24. By then every profile fetched
- * before this moment is older than the profile TTL and refreshes anyway.
+ * @deprecated Remove together with {@link SECTIONS_FETCHED_BEFORE_NAME_MATCH}
+ * and its clause in {@link isArtistInfoSectionStale} after 2027-05-26. By then
+ * every profile fetched before this moment is older than the profile TTL and
+ * refreshes anyway.
  */
-export const LASTFM_PLUS_SIGN_FIX_DEPLOYED_AT_MS = Date.parse("2026-11-22T19:58:03Z");
-
-/** The character Last.fm misread in artist names before {@link LASTFM_PLUS_SIGN_FIX_DEPLOYED_AT_MS}. */
-const PLUS_SIGN = "+";
+export const ARTIST_NAME_MATCH_DEPLOYED_AT_MS = Date.parse("2026-11-23T21:33:34Z");
 
 /**
- * Whether a stored profile is due for a background refresh.
+ * The sections whose sources picked artists by search rank before
+ * {@link ARTIST_NAME_MATCH_DEPLOYED_AT_MS}. Events come from Bandsintown and
+ * Ticketmaster by artist name and are not repaired.
  *
- * A profile is stale once it is older than the profile TTL in
- * {@link ARTIST_INFO_SECTION_TTL_MS}. A profile for a name with a plus sign
- * that was fetched before {@link LASTFM_PLUS_SIGN_FIX_DEPLOYED_AT_MS} is stale
- * at once, because it describes a different Last.fm artist. Its refresh stores
- * the request time, so it counts as fresh afterwards and refreshes only once.
- *
- * @param artistName - The name the profile is fetched for upstream.
- * @param profileUpdatedAt - When the stored profile was fetched, in epoch milliseconds.
- * @param now - The request time, in epoch milliseconds.
- * @returns `true` when the profile is served as stored and refreshed in the background.
+ * @deprecated Remove together with {@link ARTIST_NAME_MATCH_DEPLOYED_AT_MS}.
  */
-export function isArtistProfileStale(artistName: string, profileUpdatedAt: number, now: number): boolean {
-  if (now - profileUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.Profile]) return true;
-  return artistName.includes(PLUS_SIGN) && profileUpdatedAt < LASTFM_PLUS_SIGN_FIX_DEPLOYED_AT_MS;
+const SECTIONS_FETCHED_BEFORE_NAME_MATCH: ReadonlySet<ArtistInfoSection> = new Set([
+  ArtistInfoSection.Profile,
+  ArtistInfoSection.TopTracks,
+]);
+
+/**
+ * Whether a stored section is due for a background refresh.
+ *
+ * A section is stale once it is older than its TTL in
+ * {@link ARTIST_INFO_SECTION_TTL_MS}. A profile or a top-track list fetched
+ * before {@link ARTIST_NAME_MATCH_DEPLOYED_AT_MS} is stale at once, because it
+ * may describe a different artist. Its refresh stores the request time, so it
+ * counts as fresh afterwards and refreshes only once.
+ *
+ * @param section - The section the timestamp belongs to.
+ * @param updatedAt - When the stored section was fetched, in epoch milliseconds.
+ * @param now - The request time, in epoch milliseconds.
+ * @returns `true` when the section is served as stored and refreshed in the background.
+ */
+export function isArtistInfoSectionStale(section: ArtistInfoSection, updatedAt: number, now: number): boolean {
+  if (now - updatedAt > ARTIST_INFO_SECTION_TTL_MS[section]) return true;
+  return SECTIONS_FETCHED_BEFORE_NAME_MATCH.has(section) && updatedAt < ARTIST_NAME_MATCH_DEPLOYED_AT_MS;
 }
 
 type ArtistInfoCacheRepository = Pick<TrackRepository, "saveArtistCache">;

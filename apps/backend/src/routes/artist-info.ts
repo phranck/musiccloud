@@ -22,9 +22,9 @@
  * Having one TTL per section means a daily event refresh does not burn
  * the Spotify / Last.fm rate budget that the weekly profile refresh sits
  * on. When any section is stale, only that section is refetched; the
- * fresh sections are reused from cache. A profile for a name with a plus sign
- * that was fetched before the Last.fm plus-sign fix also counts as stale (see
- * `isArtistProfileStale` in `services/artist-info-cache.ts`).
+ * fresh sections are reused from cache. A profile or a top-track list fetched
+ * before the artist name match of the Deezer and Spotify sources also counts
+ * as stale (see `isArtistInfoSectionStale` in `services/artist-info-cache.ts`).
  *
  * ## Cache key normalization
  *
@@ -82,10 +82,9 @@ import { stripYouTubeTopicSuffix } from "../lib/youtube-topic.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { sanitizeArtistProfile } from "../services/artist-bio-sanitizer.js";
 import {
-  ARTIST_INFO_SECTION_TTL_MS,
   ArtistInfoSection,
   artistInfoRefreshCoordinator,
-  isArtistProfileStale,
+  isArtistInfoSectionStale,
 } from "../services/artist-info-cache.js";
 
 /**
@@ -225,10 +224,10 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       const hasProfile = Boolean(cached && cached.profileUpdatedAt > 0);
       const hasEvents = Boolean(cached && cached.eventsUpdatedAt > 0);
       const staleTracks =
-        hasTracks && now - cached!.tracksUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.TopTracks];
-      const staleProfile = hasProfile && isArtistProfileStale(lookupName, cached!.profileUpdatedAt, now);
-      const staleEvents =
-        hasEvents && now - cached!.eventsUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.Events];
+        hasTracks && isArtistInfoSectionStale(ArtistInfoSection.TopTracks, cached!.tracksUpdatedAt, now);
+      const staleProfile =
+        hasProfile && isArtistInfoSectionStale(ArtistInfoSection.Profile, cached!.profileUpdatedAt, now);
+      const staleEvents = hasEvents && isArtistInfoSectionStale(ArtistInfoSection.Events, cached!.eventsUpdatedAt, now);
       const profileInput = { ...refreshInput, hasStoredValue: hasProfile };
       const tracksInput = { ...refreshInput, hasStoredValue: hasTracks };
       const eventsInput = { ...refreshInput, hasStoredValue: hasEvents };
@@ -303,7 +302,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
             const hasSimilarTracks = Boolean(similarCached && similarCached.tracksUpdatedAt > 0);
             const staleSimilarTracks =
               hasSimilarTracks &&
-              now - similarCached!.tracksUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.TopTracks];
+              isArtistInfoSectionStale(ArtistInfoSection.TopTracks, similarCached!.tracksUpdatedAt, now);
             const similarRefreshInput = {
               repo,
               identity: similarCacheIdentity,
