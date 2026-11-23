@@ -74,14 +74,14 @@ interface ScRoute {
 /**
  * Installs a URL-routed `fetch` mock for the SoundCloud adapter.
  *
- * The adapter issues up to three distinct requests per call — the homepage
- * (client_id extraction), the `api-v2` endpoint, and the track page (the HTML
- * scrape fallback) — and whether the homepage request fires depends on the
- * module-global client_id cache being warm. An order-based
+ * The adapter issues up to three distinct requests per call. They go to the
+ * homepage (client_id extraction), the `api-v2` endpoint, and the track page
+ * (the HTML scrape fallback). Whether the homepage request fires depends on
+ * the module-global client_id cache being warm. An order-based
  * `mockResolvedValueOnce` chain therefore desyncs whenever the cache state
- * shifts between tests: a drifting sequence eventually reads an exhausted mock
- * as `undefined`, which the adapter dereferences (`response.ok`) and throws —
- * the flaky CI failure this replaces. Routing by URL makes each response depend
+ * shifts between tests, because a drifting sequence eventually reads an
+ * exhausted mock as `undefined`, which the adapter dereferences
+ * (`response.ok`) and throws on. Routing by URL makes each response depend
  * only on which target is hit, never on call order or cache state. An unrouted
  * URL rejects so a genuinely drifting test fails loudly instead of silently.
  *
@@ -259,16 +259,65 @@ describe("SoundCloud: getTrack (HTML fallback)", () => {
       page: { body: MOCK_EMPTY_HTML },
     });
 
-    await expect(soundcloudAdapter.getTrack("broken/page")).rejects.toThrow("Could not extract track title");
+    // SoundCloud answers 404 for a track it does not have, so a page without
+    // track data is a failure rather than a miss.
+    await expect(soundcloudAdapter.getTrack("broken/page")).rejects.toMatchObject({
+      name: "UpstreamUnavailableError",
+      source: "soundcloud",
+    });
   });
 
-  it("should throw when page fetch fails", async () => {
+  it("reports a page SoundCloud answers 404 for with SoundCloud's not-found code", async () => {
     mockScFetch({
       api: { body: "Error", status: 500 },
       page: { body: "Not Found", status: 404 },
     });
 
-    await expect(soundcloudAdapter.getTrack("nonexistent/track")).rejects.toThrow("page fetch failed: 404");
+    await expect(soundcloudAdapter.getTrack("nonexistent/track")).rejects.toMatchObject({
+      name: "ResolveError",
+      code: "MC-API-8504",
+    });
+  });
+
+  it("reports another page error status with SoundCloud's failure code", async () => {
+    mockScFetch({
+      api: { body: "Error", status: 500 },
+      page: { body: "Busy", status: 503 },
+    });
+
+    await expect(soundcloudAdapter.getTrack("busy/track")).rejects.toMatchObject({
+      name: "ResolveError",
+      code: "MC-API-8501",
+    });
+  });
+});
+
+// =============================================================================
+// getArtist
+// =============================================================================
+
+describe("SoundCloud: getArtist", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    _resetClientIdCache();
+  });
+
+  it("throws when the resolved profile carries no name", async () => {
+    mockScFetch({ api: { body: JSON.stringify({ id: 1 }) } });
+
+    await expect(soundcloudAdapter.getArtist("nameless")).rejects.toMatchObject({
+      name: "UpstreamUnavailableError",
+      source: "soundcloud",
+    });
+  });
+
+  it("throws when the resolved profile is not JSON", async () => {
+    mockScFetch({ api: { body: "<html>maintenance</html>" } });
+
+    await expect(soundcloudAdapter.getArtist("maintenance")).rejects.toMatchObject({
+      name: "UpstreamUnavailableError",
+      source: "soundcloud",
+    });
   });
 });
 

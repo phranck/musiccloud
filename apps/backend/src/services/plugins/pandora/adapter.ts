@@ -221,10 +221,17 @@ async function pandoraSearch(
   try {
     body = (await response.json()) as PandoraSearchResponse | null;
   } catch (error) {
-    throw new UpstreamUnavailableError("pandora", `search for "${query}" answered with a body that is not JSON`, error);
+    throw new UpstreamUnavailableError(
+      Service.Pandora,
+      `search for "${query}" answered with a body that is not JSON`,
+      error,
+    );
   }
   if (!body || !Array.isArray(body.results) || !body.annotations || typeof body.annotations !== "object") {
-    throw new UpstreamUnavailableError("pandora", `search for "${query}" answered without results and annotations`);
+    throw new UpstreamUnavailableError(
+      Service.Pandora,
+      `search for "${query}" answered without results and annotations`,
+    );
   }
   return { results: body.results, annotations: body.annotations };
 }
@@ -397,7 +404,7 @@ async function fetchAlbumByPath(albumPath: string): Promise<NormalizedAlbum | nu
 
   // Pandora answers 404 for an album it does not have, so a page that loaded
   // without an album in it is not an answer about this album.
-  throw new UpstreamUnavailableError("pandora", `album page ${albumPath} carried no album data`);
+  throw new UpstreamUnavailableError(Service.Pandora, `album page ${albumPath} carried no album data`);
 }
 
 // --- Adapter ---
@@ -421,7 +428,7 @@ export const pandoraAdapter = {
     const response = await pandoraFetch(pageUrl);
 
     if (!response.ok) {
-      throw new Error(`Pandora page fetch failed: ${response.status}`);
+      throw serviceHttpError(Service.Pandora, response.status, ResourceKind.Track, trackPath);
     }
 
     const html = await response.text();
@@ -435,7 +442,9 @@ export const pandoraAdapter = {
       return mapJsonLdTrack(jsonLd, trackPath);
     }
 
-    throw new Error("Pandora: Could not extract track title from page");
+    // Pandora answers 404 for a track it does not have, so a page that loads
+    // without track data is a failure rather than a miss.
+    throw new UpstreamUnavailableError(Service.Pandora, `track page ${trackPath} carried no track data`);
   },
 
   async findByIsrc(_isrc: string): Promise<NormalizedTrack | null> {

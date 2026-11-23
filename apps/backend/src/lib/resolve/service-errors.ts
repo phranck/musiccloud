@@ -106,3 +106,38 @@ export function serviceNotFoundError(
     { service: serviceId, kind, id },
   );
 }
+
+/**
+ * The status token `serviceErrorDigits` turns into a service's configuration
+ * code. It yields `MC-CFG-6001` for YouTube (prefix `6`) and `MC-CFG-7001` for
+ * Napster (prefix `7`), the same digits the generic upstream failure uses
+ * under the `MC-API` category.
+ */
+const MISSING_CONFIGURATION_STATUS_TOKEN = "001";
+
+/**
+ * Builds the error an adapter throws when the environment variable it needs
+ * to reach its service is not set.
+ *
+ * A missing key is an operator mistake rather than an upstream failure, so
+ * the code sits in the `MC-CFG` category, which the error registry answers
+ * with HTTP 500 and the resolver rethrows unchanged instead of reporting the
+ * service as down.
+ *
+ * @param serviceId - The service whose adapter cannot run. Its entry in
+ *   `ADAPTER_ERROR_CODE_PREFIX` decides the code's digits.
+ * @param variableName - The name of the unset environment variable, such as
+ *   `YOUTUBE_API_KEY`. It appears in the message for the operator and never
+ *   carries the variable's value.
+ * @returns A `ResolveError` with the code `MC-CFG-<prefix>001` (padded the way
+ *   `serviceErrorDigits` pads two-digit prefixes), the message
+ *   `"<variableName> must be set"`, and the service and variable as context.
+ */
+export function serviceConfigurationMissingError(serviceId: ServiceId, variableName: string): ResolveError {
+  const prefix = ADAPTER_ERROR_CODE_PREFIX[serviceId];
+  return new ResolveError(
+    `MC-CFG-${serviceErrorDigits(prefix, MISSING_CONFIGURATION_STATUS_TOKEN)}`,
+    `${variableName} must be set`,
+    { service: serviceId, variable: variableName },
+  );
+}

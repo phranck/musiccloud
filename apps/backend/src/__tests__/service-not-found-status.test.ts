@@ -6,7 +6,11 @@
  */
 import { ADAPTER_ERROR_CODE_PREFIX, getErrorEntry, getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
-import { serviceHttpError, serviceNotFoundError } from "../lib/resolve/service-errors.js";
+import {
+  serviceConfigurationMissingError,
+  serviceHttpError,
+  serviceNotFoundError,
+} from "../lib/resolve/service-errors.js";
 
 const SERVICES = Object.values(Service);
 
@@ -46,6 +50,19 @@ describe("per-service error names and codes", () => {
     const codes = SERVICES.flatMap((service) =>
       STATUSES.map((status) => serviceHttpError(service, status, ResourceKind.Track, "id").code),
     );
+
+    expect(new Set(codes).size).toBe(codes.length);
+  });
+});
+
+describe("per-service missing configuration", () => {
+  /** Support already decodes this code for YouTube, so the helper must keep producing it. */
+  it("keeps YouTube's missing-key code", () => {
+    expect(serviceConfigurationMissingError(Service.YouTube, "YOUTUBE_API_KEY").code).toBe("MC-CFG-6001");
+  });
+
+  it("gives every service a configuration code of its own", () => {
+    const codes = SERVICES.map((service) => serviceConfigurationMissingError(service, "KEY").code);
 
     expect(new Set(codes).size).toBe(codes.length);
   });
