@@ -133,6 +133,7 @@ import {
   isPluginAvailable,
 } from "./index.js";
 import { isTrackSearchFallbackMatch, recordingSearchQuery } from "./plugins/_shared/track-search-query.js";
+import { parseLastfmUrl } from "./plugins/lastfm/url-search.js";
 import { keepRecordingArtwork } from "./recording-artwork.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
@@ -727,10 +728,10 @@ export async function resolveQuery(input: string, expandedUrl?: string): Promise
   const trimmed = input.trim();
 
   if (isUrl(trimmed)) {
-    // Last.fm URLs from genre-search are not a streaming service — extract
-    // artist + title and resolve as a text search.
-    const lastfmQuery = parseLastfmUrl(trimmed);
-    if (lastfmQuery) return resolveTextSearch(lastfmQuery);
+    // Last.fm is no streaming service. A Popular Tracks row or a genre-search
+    // result links there, so the link resolves as the search it stands for.
+    const lastfmSearch = parseLastfmUrl(trimmed);
+    if (lastfmSearch) return resolveTextSearch(lastfmSearch.text, lastfmSearch.structured);
 
     // Validate URL for unsupported content types
     const validation = validateMusicUrl(trimmed);
@@ -978,16 +979,24 @@ function selectDiverseSearchCandidates(candidates: RankedSearchCandidate[], cap:
   return selected;
 }
 
-export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
+/**
+ * Resolves a search to one recording, taking the first active service that
+ * reports a match.
+ *
+ * @param query - The search as text, used as free text when `structured` is absent.
+ * @param structured - The title and artist to search for. Each service then
+ *   only reports a recording by that artist, so a search for an artist's song
+ *   never resolves to another artist's song.
+ * @returns The resolved recording with its links on every service.
+ * @throws `ResolveError` when no service reports a match.
+ */
+export async function resolveTextSearch(query: string, structured?: SearchQuery): Promise<ResolutionResult> {
   // Service search: try all active adapters
   const searchAdapters = await getActiveAdapters();
   let failedSearches = 0;
   for (const adapter of searchAdapters) {
     try {
-      const result = await adapter.searchTrack({
-        title: query,
-        artist: query,
-      });
+      const result = await adapter.searchTrack(structured ?? { title: query, artist: query });
 
       if (result.found && result.track) {
         // Cache lookup by ISRC before full cross-service resolve
@@ -1652,41 +1661,4 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
 
   links.unshift(...observations);
   return completeFreshResolution(bestSourceTrack, links, lateLinks);
-}
-
-// ─── Last.fm URL → text query ──────────────────────────────────────────────
-//
-// Last.fm URLs from genre-search have three shapes:
-//   /music/Artist/_/Track   → "Artist - Track"
-//   /music/Artist/Album     → "Artist - Album"
-//   /music/Artist           → "Artist"
-//
-// Path segments are URL-encoded (`%20`, `+`). We decode them and return
-// a plain-text query string that resolveTextSearch can handle.
-
-const LASTFM_HOST_RE = /^(?:www\.)?last\.fm$/i;
-
-function parseLastfmUrl(url: string): string | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return null;
-  }
-  if (!LASTFM_HOST_RE.test(parsed.hostname)) return null;
-
-  // /music/Artist/_/Track  or  /music/Artist/Album  or  /music/Artist
-  const match = parsed.pathname.match(/^\/music\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?/);
-  if (!match) return null;
-
-  const artist = decodeURIComponent(match[1].replace(/\+/g, " "));
-  const second = match[2] ? decodeURIComponent(match[2].replace(/\+/g, " ")) : null;
-  const third = match[3] ? decodeURIComponent(match[3].replace(/\+/g, " ")) : null;
-
-  // /music/Artist/_/Track → text search "Artist - Track"
-  if (second === "_" && third) return `${artist} - ${third}`;
-  // /music/Artist/Album → text search "Artist - Album"
-  if (second && second !== "_") return `${artist} - ${second}`;
-  // /music/Artist → text search "Artist"
-  return artist;
 }

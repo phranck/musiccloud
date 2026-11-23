@@ -58,6 +58,11 @@ const DEEZER_SEARCH_HIT = {
   ],
 };
 
+/** Deezer's search answer for `KK`, the artist whose Last.fm biography is a disambiguation page. */
+const DEEZER_KK_SEARCH_HIT = {
+  data: [{ ...DEEZER_SEARCH_HIT.data[0], name: "KK" }],
+};
+
 const DEEZER_FANS = { id: 27, nb_fan: 9123456 };
 
 const DEEZER_TOP_TRACKS = {
@@ -250,7 +255,7 @@ describe("fetchArtistProfile", () => {
   it("filters Last.fm disambiguation biographies from artist profiles", async () => {
     route({
       spotify: "404",
-      deezerSearch: DEEZER_SEARCH_HIT,
+      deezerSearch: DEEZER_KK_SEARCH_HIT,
       deezerFans: DEEZER_FANS,
       lastfmInfo: AMBIGUOUS_LASTFM_INFO,
       lastfmTags: LASTFM_TAGS,
@@ -258,7 +263,7 @@ describe("fetchArtistProfile", () => {
 
     const profile = await fetchArtistProfile("KK");
     expect(profile).not.toBeNull();
-    expect(profile?.imageUrl).toBe(DEEZER_SEARCH_HIT.data[0].picture_xl);
+    expect(profile?.imageUrl).toBe(DEEZER_KK_SEARCH_HIT.data[0].picture_xl);
     expect(profile?.followers).toBe(DEEZER_FANS.nb_fan);
     expect(profile?.bioSummary).toBeNull();
     expect(profile?.scrobbles).toBeNull();
