@@ -28,4 +28,10 @@ describe("parseLastfmUrl", () => {
     expect(parseLastfmUrl("https://www.last.fm/user/someone")).toBeNull();
     expect(parseLastfmUrl("not a url")).toBeNull();
   });
+
+  it("ignores a music link whose path holds a broken percent escape", () => {
+    expect(parseLastfmUrl("https://www.last.fm/music/F%E0%A4%A")).toBeNull();
+    expect(parseLastfmUrl("https://www.last.fm/music/F%C3%B6n/Wir+Haben%E0%A4%A")).toBeNull();
+    expect(parseLastfmUrl("https://www.last.fm/music/F%C3%B6n/_/Fort%E0%A4%A")).toBeNull();
+  });
 });
