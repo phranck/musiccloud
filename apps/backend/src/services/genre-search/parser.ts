@@ -59,7 +59,26 @@ export class GenreQueryParseError extends Error {
   }
 }
 
-const VALID_KEYS = ["genre", "tracks", "albums", "artists", "count", "vibe"] as const;
+/**
+ * The field that names the genres to search, `genre: jazz`. Required in every
+ * query, and the field whose key opens a genre query (see
+ * {@link GENRE_QUERY_PREFIX_PATTERN}).
+ */
+const GENRE_FIELD_KEY = "genre";
+
+/**
+ * The prefix that marks a resolve query as a genre query, `genre:` at the start
+ * of the input.
+ *
+ * It follows the parser's own key rules, so it allows whitespace before the
+ * key and before the colon and ignores case: `genre:`, `genre :` and
+ * `  Genre  :` all match. `isGenreSearchQuery` and `isGenreBrowseQuery` in
+ * `index.ts` both build on this pattern, so a query the browse recognizes is
+ * also one the search recognizes.
+ */
+export const GENRE_QUERY_PREFIX_PATTERN = new RegExp(`^\\s*${GENRE_FIELD_KEY}\\s*:`, "i");
+
+const VALID_KEYS = [GENRE_FIELD_KEY, "tracks", "albums", "artists", "count", "vibe"] as const;
 type ValidKey = (typeof VALID_KEYS)[number];
 
 // ── Auto-comma normalisation ────────────────────────────────────────────────
@@ -158,7 +177,7 @@ export function parseGenreQuery(input: string): ParsedGenreQuery {
     }
 
     switch (key) {
-      case "genre": {
+      case GENRE_FIELD_KEY: {
         const names = rawValue
           .split("|")
           .map((g) => g.trim())
