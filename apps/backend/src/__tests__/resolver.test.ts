@@ -293,6 +293,14 @@ describe("resolveQuery: URL resolution", () => {
       expect((err as ResolveError).code).toBe("INVALID_URL");
     }
   });
+
+  it("searches a Last.fm track link by title and artist, never as free text", async () => {
+    const deezerAdapter = createMockAdapter({ id: "deezer", displayName: "Deezer" });
+    vi.mocked(getActiveAdapters).mockResolvedValue([deezerAdapter]);
+
+    await expect(resolveQuery("https://www.last.fm/music/F%C3%B6n/_/Fort+Collins")).rejects.toThrow(ResolveError);
+    expect(deezerAdapter.searchTrack).toHaveBeenCalledWith({ title: "Fort Collins", artist: "Fön" });
+  });
 });
 
 // =============================================================================
