@@ -18,6 +18,7 @@
 import { getRepository, type TrackRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { isExpiredDeezerPreviewUrl, previewObservation } from "../lib/preview-url.js";
+import { saveExternalIdsLogged } from "./external-ids.js";
 import { deezerAdapter } from "./plugins/deezer/adapter.js";
 import { toStoredLinks } from "./resolved-links.js";
 import type { ResolutionResult } from "./resolver.js";
@@ -62,13 +63,7 @@ export async function persistResolution(result: ResolutionResult): Promise<Persi
   // Aggregate every ISRC observed during the resolve into the
   // `track_external_ids` table. Non-fatal: a write failure here must
   // not break the caller.
-  if (result.externalIds.length > 0) {
-    try {
-      await repo.addTrackExternalIds(trackId, result.externalIds);
-    } catch (err) {
-      log.debug("Resolve", "External-id persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
+  await saveExternalIdsLogged(repo, "track", trackId, result.externalIds, "External-id persist failed:");
 
   // Persist per-(track, service) preview URLs into `track_previews`.
   // The canonical `tracks` row no longer carries a preview column; reads
@@ -140,13 +135,7 @@ async function persistCachedResolution(
   trackId: string,
   shortId: string,
 ): Promise<PersistResolutionResult> {
-  if (result.externalIds.length > 0) {
-    try {
-      await repo.addTrackExternalIds(trackId, result.externalIds);
-    } catch (err) {
-      log.debug("Resolve", "External-id persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
+  await saveExternalIdsLogged(repo, "track", trackId, result.externalIds, "External-id persist failed:");
 
   void repo
     .updateTrackTimestamp(trackId)

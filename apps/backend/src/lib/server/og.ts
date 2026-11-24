@@ -1,6 +1,7 @@
 import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import { getPublicOrigin } from "../public-origin.js";
 import { parseReleaseYear } from "../release-date.js";
+import { shortUrlFor } from "./short-url.js";
 
 interface OGMetaInput {
   title: string;
@@ -84,7 +85,7 @@ export function generateAlbumOGMeta(input: AlbumOGMetaInput): OGMeta {
     // share-page response schema validates it as `format: uri` (a relative path
     // fails serialization).
     ogImageUrl: albumArtUrl || `${origin}/og/default.jpg`,
-    ogUrl: `${origin}/${shortId}`,
+    ogUrl: shortUrlFor(origin, shortId),
     twitterCard: "summary_large_image",
   };
 }
@@ -130,7 +131,7 @@ export function generateOGMeta(input: OGMetaInput): OGMeta {
     ogTitle,
     ogDescription,
     ogImageUrl,
-    ogUrl: `${origin}/${shortId}`,
+    ogUrl: shortUrlFor(origin, shortId),
     twitterCard: "summary_large_image",
   };
 }

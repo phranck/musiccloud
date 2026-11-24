@@ -10,9 +10,13 @@
  * values, drop the synthetic `cached` source" filter and the de-duplication
  * key, so the aggregation table never grows poisoned rows.
  *
- * The functions are pure and deterministic. They neither read from nor
- * write to the database; persistence is the caller's job.
+ * The collectors are pure and deterministic and never touch the database.
+ * `saveExternalIdsLogged` is the one write: it stores collected records for a
+ * track, an album or an artist, and logs a failure instead of throwing,
+ * because a resolve is complete without its external ids.
  */
+import type { TrackRepository } from "../db/repository.js";
+import { log } from "../lib/infra/logger.js";
 import type { ExternalIdRecord, NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "./types.js";
 
 /**
@@ -171,4 +175,55 @@ export function collectArtistExternalIds(
   }
 
   return collector.records;
+}
+
+/**
+ * The kind of entity whose external ids {@link saveExternalIdsLogged} stores.
+ * `track` writes through `addTrackExternalIds`, `album` through
+ * `addAlbumExternalIds` and `artist` through `addArtistExternalIds`.
+ */
+export type ExternalIdEntityKind = "track" | "album" | "artist";
+
+/** The repository writes {@link saveExternalIdsLogged} chooses between. */
+type ExternalIdWriter = Pick<TrackRepository, "addTrackExternalIds" | "addAlbumExternalIds" | "addArtistExternalIds">;
+
+/** Log component under which a failed external-id write is reported. */
+const EXTERNAL_ID_LOG_COMPONENT = "Resolve";
+
+/**
+ * Stores external-id observations for one entity without letting a failure
+ * reach the caller. Nothing is written when `ids` is empty. A failed write is
+ * logged at debug level under {@link EXTERNAL_ID_LOG_COMPONENT} with
+ * `logMessage` and the error's message, and the promise still resolves.
+ *
+ * @param repo - The repository to write through.
+ * @param kind - Which repository method receives the records, see {@link ExternalIdEntityKind}.
+ * @param entityId - The stored id of the track, album or artist.
+ * @param ids - The records to store, as a collector returned them.
+ * @param logMessage - The text logged before the error's message on failure.
+ * @returns A promise that resolves once the write is done or has failed.
+ */
+export async function saveExternalIdsLogged(
+  repo: ExternalIdWriter,
+  kind: ExternalIdEntityKind,
+  entityId: string,
+  ids: ExternalIdRecord[],
+  logMessage: string,
+): Promise<void> {
+  if (ids.length === 0) return;
+  try {
+    switch (kind) {
+      case "track":
+        await repo.addTrackExternalIds(entityId, ids);
+        break;
+      case "album":
+        await repo.addAlbumExternalIds(entityId, ids);
+        break;
+      case "artist":
+        await repo.addArtistExternalIds(entityId, ids);
+        break;
+    }
+  } catch (err) {
+    log.debug(EXTERNAL_ID_LOG_COMPONENT, logMessage, err instanceof Error ? err.message : String(err));
+  }
 }

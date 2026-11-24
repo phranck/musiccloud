@@ -30,8 +30,10 @@ import { stripTrackingParams } from "../lib/platform/url.js";
 import { previewObservation } from "../lib/preview-url.js";
 import { normalizeReleaseDate } from "../lib/release-date.js";
 import { toApiLinks } from "../lib/server/api-links.js";
+import { shortUrlFor } from "../lib/server/short-url.js";
 import { type AlbumResolutionResult, resolveAlbumUrl } from "./album-resolver.js";
 import { type ArtistResolutionResult, resolveArtistUrl } from "./artist-resolver.js";
+import { saveExternalIdsLogged } from "./external-ids.js";
 import { persistResolution } from "./persist-resolution.js";
 import { classifyMusicUrl } from "./plugins/registry.js";
 import { toStoredLinks } from "./resolved-links.js";
@@ -60,7 +62,7 @@ export async function persistTrackAndRespond(
   if (result.lateLinks) void persistLateTrackLinks(trackId, result.lateLinks);
   const repo = await getRepository();
   const vinylLayout = await resolveTrackVinylLayout(repo, result.sourceTrack);
-  const shortUrl = `${origin}/${shortId}`;
+  const shortUrl = shortUrlFor(origin, shortId);
 
   return {
     type: "track",
@@ -139,13 +141,7 @@ export async function persistAlbumAndRespond(
     }
   }
 
-  if (result.externalIds.length > 0) {
-    try {
-      await repo.addAlbumExternalIds(albumId, result.externalIds);
-    } catch (err) {
-      log.debug("Resolve", "Album external-id persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
+  await saveExternalIdsLogged(repo, "album", albumId, result.externalIds, "Album external-id persist failed:");
 
   const vinylLayout = await resolveAlbumVinylLayout(repo, {
     artists: result.sourceAlbum.artists,
@@ -153,7 +149,7 @@ export async function persistAlbumAndRespond(
     albumId,
   });
 
-  const shortUrl = `${origin}/${shortId}`;
+  const shortUrl = shortUrlFor(origin, shortId);
 
   return {
     type: "album",
@@ -197,15 +193,9 @@ export async function persistArtistAndRespond(
     links: toStoredLinks(result.links, { stripTracking: true }),
   });
 
-  if (result.externalIds.length > 0) {
-    try {
-      await repo.addArtistExternalIds(artistId, result.externalIds);
-    } catch (err) {
-      log.debug("Resolve", "Artist external-id persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
+  await saveExternalIdsLogged(repo, "artist", artistId, result.externalIds, "Artist external-id persist failed:");
 
-  const shortUrl = `${origin}/${shortId}`;
+  const shortUrl = shortUrlFor(origin, shortId);
 
   return {
     type: "artist",
