@@ -1,5 +1,5 @@
 /**
- * POST `/api/v1/cc/resolve` — Creative-Commons resolve endpoint.
+ * POST `/api/v1/cc/resolve` is the Creative-Commons resolve endpoint.
  *
  * Registered inside the same `authenticatePublic` scope as the commercial
  * resolve route. Flows:
@@ -29,13 +29,9 @@ import { siteResolveRateLimiter } from "../lib/infra/rate-limiter.js";
 import { shortUrlOrigin } from "../lib/server/allowed-origin.js";
 import { shortUrlFor } from "../lib/server/short-url.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
+import { ccAlbumToPersistData, ccArtistToPersistData, ccTrackToPersistData } from "../services/cc/cc-persist-data.js";
 import { ccCandidateIdForJamendoLink, resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
-import {
-  buildCcAlbumPayload,
-  buildCcArtistPayload,
-  ccTrackToPersistData,
-  toApiCcTrack,
-} from "../services/cc/cc-share-response.js";
+import { buildCcAlbumPayload, buildCcArtistPayload, toApiCcTrack } from "../services/cc/cc-share-response.js";
 import type { CcAlbum, CcArtist, CcTrack } from "../services/cc/jamendo/types.js";
 import { GenreQueryParseError, isGenreBrowseQuery, isGenreSearchQuery } from "../services/genre-search/index.js";
 import { resolveAlbumVinylLayout, resolveTrackVinylLayout } from "../services/track-vinyl-layout.js";
@@ -140,9 +136,9 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
 
       // CC genre discovery. Detected by the `genre:` prefix, handled
       // entirely from Jamendo (browse = `/radios`, search = `/tracks?tags=`).
-      // The CC path routes ALL queries, genre included — never the
-      // commercial genre endpoint. Non-committal: nothing is persisted here,
-      // the follow-up resolve fires when the user clicks a result.
+      // The CC path routes ALL queries, genre included, and never uses the
+      // commercial genre endpoint. Nothing is persisted here, because the
+      // follow-up resolve fires when the user clicks a result.
       if (query && isGenreBrowseQuery(query)) {
         return reply.send(await runCcGenreBrowse());
       }
@@ -199,7 +195,7 @@ async function persistCcTrackAndRespond(track: CcTrack, origin: string): Promise
     albumName: track.albumName,
   });
 
-  // Core card only — the artist column loads client-side via /api/cc/artist-info.
+  // Core card only. The artist column loads client-side via /api/cc/artist-info.
   return {
     type: "cc-track",
     id: ccTrackId,
@@ -223,19 +219,7 @@ async function persistCcAlbumAndRespond(
   origin: string,
 ): Promise<CcAlbumResolveSuccessResponse> {
   const repo = await getCcRepository();
-  const { ccAlbumId, shortId } = await repo.persistCcAlbum({
-    jamendoId: album.jamendoId,
-    name: album.name,
-    jamendoArtistId: album.jamendoArtistId,
-    artistName: album.artistName,
-    artworkUrl: album.artworkUrl,
-    releaseDate: album.releaseDate,
-    zipUrl: album.zipUrl,
-    shareUrl: album.shareUrl,
-    // 1-based release-order position from the array index (Jamendo returns the
-    // tracklist in release order) so the share page reads it back in order.
-    tracks: tracks.map((track, i) => ({ ...ccTrackToPersistData(track), albumPosition: i + 1 })),
-  });
+  const { ccAlbumId, shortId } = await repo.persistCcAlbum(ccAlbumToPersistData(album, tracks));
 
   const { album: apiAlbum, artistInfo } = await buildCcAlbumPayload(album, tracks);
   const vinylLayout = await resolveAlbumVinylLayout(await getRepository(), {
@@ -266,16 +250,7 @@ async function persistCcArtistAndRespond(
   origin: string,
 ): Promise<CcArtistResolveSuccessResponse> {
   const repo = await getCcRepository();
-  const { ccArtistId, shortId } = await repo.persistCcArtist({
-    jamendoId: artist.jamendoId,
-    name: artist.name,
-    imageUrl: artist.imageUrl,
-    website: artist.website,
-    shareUrl: artist.shareUrl,
-    // 0-based popularity rank from the array index (Jamendo returns the tracks in
-    // popularity order) so the share page reads the column back in rank order.
-    topTracks: topTracks.map((track, i) => ({ ...ccTrackToPersistData(track), artistTopPosition: i })),
-  });
+  const { ccArtistId, shortId } = await repo.persistCcArtist(ccArtistToPersistData(artist, topTracks));
 
   const { artist: apiArtist, artistInfo } = await buildCcArtistPayload(artist, topTracks);
   return { type: "cc-artist", id: ccArtistId, shortUrl: shortUrlFor(origin, shortId), artist: apiArtist, artistInfo };
