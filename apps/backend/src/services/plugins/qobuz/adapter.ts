@@ -20,6 +20,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types";
+import { UNKNOWN_ARTIST } from "../_shared/artists.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import {
   logCandidateScore,
@@ -312,7 +313,7 @@ interface QobuzArtist {
 
 function mapAlbum(data: QobuzAlbum): NormalizedAlbum {
   const albumId = data.id ?? "";
-  const artists = data.artist?.name ? [data.artist.name] : ["Unknown Artist"];
+  const artists = data.artist?.name ? [data.artist.name] : [UNKNOWN_ARTIST];
 
   let releaseDate: string | undefined;
   if (data.released_at) {
@@ -345,7 +346,7 @@ function mapAlbum(data: QobuzAlbum): NormalizedAlbum {
 
 function mapTrack(data: QobuzTrack): NormalizedTrack {
   const trackId = String(data.id ?? "");
-  const artists = data.performer?.name ? [data.performer.name] : ["Unknown Artist"];
+  const artists = data.performer?.name ? [data.performer.name] : [UNKNOWN_ARTIST];
 
   let releaseDate: string | undefined;
   if (data.album?.released_at) {
@@ -365,6 +366,28 @@ function mapTrack(data: QobuzTrack): NormalizedTrack {
     isExplicit: data.parental_warning === true ? true : undefined,
     artworkUrl: data.album?.image?.large ?? data.album?.image?.thumbnail,
     webUrl: `https://open.qobuz.com/track/${trackId}`,
+  };
+}
+
+// --- Artist data mapping ---
+
+/**
+ * Maps a Qobuz artist to the shared artist shape, for both lookup and search.
+ *
+ * @param raw - An artist from `/artist/get` or an artist search list.
+ * @param name - The artist name, which the caller has checked is present.
+ * @param fallbackId - The id used when Qobuz sends none: the requested id for a
+ *   lookup, an empty string for a search hit.
+ * @returns The artist with its largest available image and its Qobuz page.
+ */
+function mapArtist(raw: QobuzArtist, name: string, fallbackId: string): NormalizedArtist {
+  const id = String(raw.id ?? fallbackId);
+  return {
+    sourceService: "qobuz",
+    sourceId: id,
+    name,
+    imageUrl: raw.image?.large ?? raw.image?.medium ?? raw.image?.small,
+    webUrl: `https://open.qobuz.com/artist/${id}`,
   };
 }
 
@@ -540,14 +563,7 @@ export const qobuzAdapter = {
       throw serviceNotFoundError(Service.Qobuz, ResourceKind.Artist, artistId);
     }
 
-    const id = String(data.id ?? artistId);
-    return {
-      sourceService: "qobuz",
-      sourceId: id,
-      name: data.name,
-      imageUrl: data.image?.large ?? data.image?.medium ?? data.image?.small,
-      webUrl: `https://open.qobuz.com/artist/${id}`,
-    };
+    return mapArtist(data, data.name, artistId);
   },
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
@@ -570,15 +586,7 @@ export const qobuzAdapter = {
       ({ name }, _index, score) => logCandidateScore("Qobuz", `Artist "${name}"`, score),
     );
 
-    const id = String(best?.item.id ?? "");
-    const artist: NormalizedArtist | null = best && {
-      sourceService: "qobuz",
-      sourceId: id,
-      name: best.name,
-      imageUrl: best.item.image?.large ?? best.item.image?.medium ?? best.item.image?.small,
-      webUrl: `https://open.qobuz.com/artist/${id}`,
-    };
-    const result = searchMatchResult("artist", artist, confidence);
+    const result = searchMatchResult("artist", best && mapArtist(best.item, best.name, ""), confidence);
     if (!result.found) {
       log.debug("Qobuz", `Best artist confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }

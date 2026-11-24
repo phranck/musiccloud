@@ -74,8 +74,10 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { UNKNOWN_ARTIST } from "../_shared/artists.js";
 import { scoreAlbumCandidate } from "../_shared/confidence.js";
 import { type IsoDurationFormat, MS_PER_SECOND, parseIsoDurationMs } from "../_shared/duration.js";
+import { pickLargestImage } from "../_shared/images.js";
 import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
 import { scoreCatalogueTrackCandidate, trackSearchTexts } from "../_shared/track-search-query.js";
 
@@ -222,10 +224,10 @@ function mapAlbum(resource: TidalAlbumResource, included?: TidalAlbumResponse["i
     sourceId: resource.id,
     upc: attrs.barcodeId ?? undefined,
     title: attrs.title,
-    artists: artists.length > 0 ? artists : ["Unknown Artist"],
+    artists: artists.length > 0 ? artists : [UNKNOWN_ARTIST],
     releaseDate: attrs.releaseDate ?? undefined,
     totalTracks: attrs.numberOfItems ?? undefined,
-    artworkUrl: pickRelatedArtwork(resource, included, "coverArt") ?? pickLargestImage(attrs.imageLinks),
+    artworkUrl: pickRelatedArtwork(resource, included, "coverArt") ?? pickLargestTidalImage(attrs.imageLinks),
     webUrl: `https://tidal.com/browse/album/${resource.id}`,
     tracks: tracks && tracks.length > 0 ? tracks : undefined,
   };
@@ -461,7 +463,7 @@ function parseDuration(duration: number | string | undefined): number | undefine
 
 function extractArtistNames(resource: TidalTrackResource, included?: TidalTrackResponse["included"]): string[] {
   const artistIds = resource.relationships?.artists?.data?.map((a) => a.id) ?? [];
-  if (!included || artistIds.length === 0) return ["Unknown Artist"];
+  if (!included || artistIds.length === 0) return [UNKNOWN_ARTIST];
 
   const names: string[] = [];
   for (const id of artistIds) {
@@ -471,7 +473,7 @@ function extractArtistNames(resource: TidalTrackResource, included?: TidalTrackR
     }
   }
 
-  return names.length > 0 ? names : ["Unknown Artist"];
+  return names.length > 0 ? names : [UNKNOWN_ARTIST];
 }
 
 function extractAlbumName(resource: TidalTrackResource, included?: TidalTrackResponse["included"]): string | undefined {
@@ -482,12 +484,42 @@ function extractAlbumName(resource: TidalTrackResource, included?: TidalTrackRes
   return album?.attributes?.title;
 }
 
-function pickLargestImage(
-  imageLinks?: Array<{ href: string; meta?: { width: number; height: number } }>,
-): string | undefined {
-  if (!imageLinks || imageLinks.length === 0) return undefined;
-  const sorted = [...imageLinks].sort((left, right) => (right.meta?.width ?? 0) - (left.meta?.width ?? 0));
-  return sorted[0].href;
+/**
+ * Picks the widest of Tidal's image variants through the shared {@link pickLargestImage}.
+ *
+ * @param imageLinks - Legacy `imageLinks` or an artwork's `files`, or `undefined` when absent.
+ * @returns The `href` of the widest variant, or `undefined` without a variant.
+ */
+function pickLargestTidalImage(imageLinks?: readonly TidalImageLink[]): string | undefined {
+  return pickLargestImage(
+    imageLinks,
+    (link) => link.meta?.width,
+    (link) => link.href,
+  );
+}
+
+/**
+ * Maps a Tidal artist to the shared artist shape, for both lookup and search.
+ *
+ * @param resource - The artist resource from `/artists/{id}` or from a search's included resources.
+ * @param name - The artist name the caller read from that resource.
+ * @param included - Resources of the same response, which hold the `profileArt` artwork.
+ * @returns The artist with its profile artwork, or its widest legacy image when it has none.
+ * @throws UpstreamUnavailableError for invalid artwork linkage, see {@link pickRelatedArtwork}.
+ */
+function mapArtist(
+  resource: { id: string; attributes: { imageLinks?: TidalImageLink[] }; relationships?: TidalArtworkRelationships },
+  name: string,
+  included: TidalRelatedResource[] | undefined,
+): NormalizedArtist {
+  return {
+    sourceService: "tidal",
+    sourceId: resource.id,
+    name,
+    imageUrl:
+      pickRelatedArtwork(resource, included, "profileArt") ?? pickLargestTidalImage(resource.attributes.imageLinks),
+    webUrl: `https://tidal.com/browse/artist/${resource.id}`,
+  };
 }
 
 /**
@@ -519,7 +551,7 @@ function pickRelatedArtwork(
     if (!Array.isArray(files) || files.some((file) => !file || typeof file.href !== "string" || !file.href.trim())) {
       throw new UpstreamUnavailableError("tidal", "referenced artwork omitted its file collection");
     }
-    const href = pickLargestImage(files);
+    const href = pickLargestTidalImage(files);
     if (href) return href;
   }
   return undefined;
@@ -539,7 +571,7 @@ function mapTrack(resource: TidalTrackResource, included?: TidalTrackResponse["i
     durationMs: parseDuration(attrs.duration ?? undefined),
     isExplicit: attrs.explicit ?? undefined,
     artworkUrl:
-      (album ? pickRelatedArtwork(album, included, "coverArt") : undefined) ?? pickLargestImage(attrs.imageLinks),
+      (album ? pickRelatedArtwork(album, included, "coverArt") : undefined) ?? pickLargestTidalImage(attrs.imageLinks),
     webUrl: `https://tidal.com/browse/track/${resource.id}`,
   };
 }
@@ -697,16 +729,7 @@ export const tidalAdapter = {
     }
 
     const data = await response.json();
-    const resource = data.data;
-    const attrs = resource.attributes;
-
-    return {
-      sourceService: "tidal",
-      sourceId: resource.id,
-      name: attrs.name,
-      imageUrl: pickRelatedArtwork(resource, data.included, "profileArt") ?? pickLargestImage(attrs.imageLinks),
-      webUrl: `https://tidal.com/browse/artist/${resource.id}`,
-    };
+    return mapArtist(data.data, data.data.attributes.name, data.included);
   },
 
   /**
@@ -727,15 +750,7 @@ export const tidalAdapter = {
     const ranked = rankByArtistName(query.name, named, (hit) => hit.name);
     if (!ranked) return searchMatchResult("artist", null, 0);
 
-    const { id, name, resource } = ranked.item;
-    const artist: NormalizedArtist = {
-      sourceService: "tidal",
-      sourceId: id,
-      name,
-      imageUrl:
-        pickRelatedArtwork(resource, data.included, "profileArt") ?? pickLargestImage(resource.attributes.imageLinks),
-      webUrl: `https://tidal.com/browse/artist/${id}`,
-    };
-    return searchMatchResult("artist", artist, ranked.confidence);
+    const { name, resource } = ranked.item;
+    return searchMatchResult("artist", mapArtist(resource, name, data.included), ranked.confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
