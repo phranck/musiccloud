@@ -84,6 +84,36 @@ describe("Dropdown without a search", () => {
   });
 });
 
+describe("Dropdown with no option highlighted", () => {
+  /**
+   * Opens a dropdown whose value matches no option, so the open list starts
+   * with nothing highlighted, presses the given arrow key and then Enter.
+   *
+   * @param arrowKey - The `userEvent.keyboard` name of the arrow key to press.
+   * @returns The change handler, which received whatever Enter chose.
+   */
+  async function chooseWithArrowFromNothing(arrowKey: "ArrowUp" | "ArrowDown") {
+    const onChange = vi.fn();
+    render(<Dropdown label={LABEL} value="" placeholder="Choose a page" options={OPTIONS} onChange={onChange} />);
+    await userEvent.click(screen.getByRole("button", { name: LABEL }));
+
+    await userEvent.keyboard(`{${arrowKey}}{Enter}`);
+    return onChange;
+  }
+
+  it("highlights the last option on ArrowUp", async () => {
+    const onChange = await chooseWithArrowFromNothing("ArrowUp");
+
+    expect(onChange).toHaveBeenCalledWith(OPTIONS[OPTIONS.length - 1].value);
+  });
+
+  it("highlights the first option on ArrowDown", async () => {
+    const onChange = await chooseWithArrowFromNothing("ArrowDown");
+
+    expect(onChange).toHaveBeenCalledWith(OPTIONS[0].value);
+  });
+});
+
 describe("Dropdown that takes its width from its options", () => {
   it("names only the chosen option to assistive technology", () => {
     render(<Dropdown label={LABEL} value="/about" options={OPTIONS} onChange={vi.fn()} minWidthFromOptions />);
