@@ -20,6 +20,7 @@ import type {
   ServiceAdapter,
 } from "../../types";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
@@ -411,38 +412,22 @@ export const qobuzAdapter = {
 
     log.debug("Qobuz", `Search returned ${items.length} tracks for: ${q}`);
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (!item.title) continue;
-
-      const track = mapTrack(item);
-      const confidence = scoreSearchCandidate(query, track, i);
-
+    // An untitled hit is skipped but keeps the provider position of every later hit.
+    const titled = items.flatMap((item, index) => (item.title ? [{ track: mapTrack(item), index }] : []));
+    const { best, confidence } = pickBestCandidate(titled, ({ track, index }) => {
+      const score = scoreSearchCandidate(query, track, index);
       log.debug(
         "Qobuz",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        `  [${index}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${score.toFixed(3)}`,
       );
+      return score;
+    });
 
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
+    const result = searchMatchResult("track", best?.track, confidence);
+    if (!result.found) {
+      log.debug("Qobuz", `Best confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("Qobuz", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return result;
   },
   // --- Album support ---
 
@@ -508,27 +493,13 @@ export const qobuzAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    let bestAlbum: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const item of items) {
-      if (!item.title) continue;
-      const album = mapAlbum(item);
-      const confidence = scoreAlbumCandidate(query, album);
-
-      log.debug("Qobuz", `  Album "${album.title}" by ${album.artists.join(", ")} -> ${confidence.toFixed(3)}`);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestAlbum = album;
-      }
-    }
-
-    if (!bestAlbum || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
+    const albums = items.filter((item) => item.title).map(mapAlbum);
+    const { best, confidence } = pickBestCandidate(albums, (album) => {
+      const score = scoreAlbumCandidate(query, album);
+      log.debug("Qobuz", `  Album "${album.title}" by ${album.artists.join(", ")} -> ${score.toFixed(3)}`);
+      return score;
+    });
+    return searchMatchResult("album", best, confidence);
   },
 
   // --- Artist support ---
@@ -577,35 +548,26 @@ export const qobuzAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    let bestArtist: NormalizedArtist | null = null;
-    let bestConfidence = 0;
+    const named = items.flatMap((item) => (item.name ? [{ item, name: item.name }] : []));
+    const { best, confidence } = pickBestCandidate(named, ({ name }) => {
+      const score = calculateArtistNameConfidence(query.name, name);
+      log.debug("Qobuz", `  Artist "${name}" -> confidence=${score.toFixed(3)}`);
+      return score;
+    });
 
-    for (const item of items) {
-      if (!item.name) continue;
-
-      const confidence = calculateArtistNameConfidence(query.name, item.name);
-
-      const id = String(item.id ?? "");
-      log.debug("Qobuz", `  Artist "${item.name}" -> confidence=${confidence.toFixed(3)}`);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestArtist = {
-          sourceService: "qobuz",
-          sourceId: id,
-          name: item.name,
-          imageUrl: item.image?.large ?? item.image?.medium ?? item.image?.small,
-          webUrl: `https://open.qobuz.com/artist/${id}`,
-        };
-      }
+    const id = String(best?.item.id ?? "");
+    const artist: NormalizedArtist | null = best && {
+      sourceService: "qobuz",
+      sourceId: id,
+      name: best.name,
+      imageUrl: best.item.image?.large ?? best.item.image?.medium ?? best.item.image?.small,
+      webUrl: `https://open.qobuz.com/artist/${id}`,
+    };
+    const result = searchMatchResult("artist", artist, confidence);
+    if (!result.found) {
+      log.debug("Qobuz", `Best artist confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("Qobuz", `Best artist confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    return result;
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
 

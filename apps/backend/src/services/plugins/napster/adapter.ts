@@ -65,6 +65,7 @@ import type {
 import { splitArtistNames } from "../_shared/artists.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import { pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
 
 const API_BASE = "https://api.napster.com/v2.2";
 
@@ -282,35 +283,20 @@ export const napsterAdapter = {
 
     log.debug("Napster", `Search returned ${items.length} tracks for: ${q}`);
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-
-    for (let i = 0; i < items.length; i++) {
-      const track = mapTrack(items[i]);
-      const confidence = scoreSearchCandidate(query, track, i);
-
+    const { best, confidence } = pickBestCandidate(items.map(mapTrack), (track, index) => {
+      const score = scoreSearchCandidate(query, track, index);
       log.debug(
         "Napster",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} → confidence=${confidence.toFixed(3)}`,
+        `  [${index}] "${track.title}" by ${track.artists.join(", ")} → confidence=${score.toFixed(3)}`,
       );
+      return score;
+    });
 
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
+    const result = searchMatchResult("track", best, confidence);
+    if (!result.found) {
+      log.debug("Napster", `Best confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("Napster", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return result;
   },
   // --- Artist support ---
 
@@ -375,35 +361,24 @@ export const napsterAdapter = {
 
     log.debug("Napster", `Artist search returned ${items.length} results for: ${query.name}`);
 
-    let bestArtist: NormalizedArtist | null = null;
-    let bestConfidence = 0;
+    const { best, confidence } = pickBestCandidate(items, (item) => {
+      const score = calculateArtistNameConfidence(query.name, item.name);
+      log.debug("Napster", `  Artist "${item.name}" → confidence=${score.toFixed(3)}`);
+      return score;
+    });
 
-    for (const item of items) {
-      const confidence = calculateArtistNameConfidence(query.name, item.name);
-
-      log.debug("Napster", `  Artist "${item.name}" → confidence=${confidence.toFixed(3)}`);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestArtist = {
-          sourceService: "napster",
-          sourceId: item.id,
-          name: item.name,
-          imageUrl: artistImageUrl(item.id),
-          genres: undefined,
-          webUrl: `https://play.napster.com/artist/${item.id}`,
-        };
-      }
+    const artist: NormalizedArtist | null = best && {
+      sourceService: "napster",
+      sourceId: best.id,
+      name: best.name,
+      imageUrl: artistImageUrl(best.id),
+      genres: undefined,
+      webUrl: `https://play.napster.com/artist/${best.id}`,
+    };
+    const result = searchMatchResult("artist", artist, confidence);
+    if (!result.found) {
+      log.debug("Napster", `Best artist confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug(
-        "Napster",
-        `Best artist confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`,
-      );
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    return result;
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
