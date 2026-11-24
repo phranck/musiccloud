@@ -1,5 +1,6 @@
 export * from "./admin-artist-entity.js";
 export * from "./admin-events.js";
+export * from "./admin-user.js";
 export * from "./api.js";
 export * from "./api-access-audit.js";
 export * from "./artist-identity.js";
