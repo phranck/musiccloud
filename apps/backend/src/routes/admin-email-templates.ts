@@ -10,7 +10,8 @@ import type { FastifyInstance } from "fastify";
 import { strToU8, zipSync } from "fflate";
 
 import type { EmailTemplateBrandingOverrides } from "../db/admin-repository.js";
-import { getAdminRepository } from "../db/index.js";
+import { getAdminCaller } from "../lib/admin-caller.js";
+import { readAdminTokenSubject } from "../lib/admin-session.js";
 import { isHexColor } from "../lib/color.js";
 import { renderEmailPreview } from "../services/email-renderer.js";
 import { sendTemplatedEmail } from "../services/email-sender.js";
@@ -293,11 +294,11 @@ export default async function adminEmailTemplateRoutes(app: FastifyInstance) {
     const id = parseId(request.params.id);
     if (!id) return reply.status(400).send({ error: "Invalid ID" });
 
-    const payload = request.user as { sub?: string } | undefined;
-    if (!payload?.sub) return reply.status(401).send({ error: "UNAUTHORIZED" });
+    // A token without a subject is refused before the lookup, so a deleted
+    // user's token gets the 400 below rather than this 401.
+    if (!readAdminTokenSubject(request.user)) return reply.status(401).send({ error: "UNAUTHORIZED" });
 
-    const repo = await getAdminRepository();
-    const caller = await repo.findAdminById(payload.sub);
+    const caller = await getAdminCaller(request);
     if (!caller?.email) {
       return reply.status(400).send({ error: "Caller has no email address on file" });
     }
