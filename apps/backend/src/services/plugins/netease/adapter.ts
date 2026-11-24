@@ -67,7 +67,17 @@ import type {
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { safeNumericProviderCode } from "../_shared/provider-response.js";
+import {
+  logCandidateScore,
+  pickBestCandidate,
+  pickBestTrack,
+  searchMatchResult,
+  trackScoreLogger,
+} from "../_shared/rank.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
+
+/** Writes the per-track score debug line of a NetEase search. */
+const logNetEaseTrackScore = trackScoreLogger("NetEase");
 
 // NetEase Cloud Music URLs: music.163.com/song?id={songId} or music.163.com/#/song?id={songId}
 const NETEASE_TRACK_REGEX = /^https?:\/\/music\.163\.com\/(?:#\/)?song\?id=(\d+)/;
@@ -385,38 +395,18 @@ export const neteaseAdapter: ServiceAdapter = {
 
     log.debug("NetEase", `Search returned ${songs.length} results for: ${q}`);
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
+    const hits = songs.flatMap((song, index) => (song.id && song.name ? [{ track: mapSong(song), index }] : []));
+    const { best, confidence } = pickBestTrack(
+      hits,
+      (track, index) => scoreSearchCandidate(query, track, index),
+      logNetEaseTrackScore,
+    );
 
-    for (let i = 0; i < songs.length; i++) {
-      const song = songs[i];
-      if (!song.id || !song.name) continue;
-
-      const track = mapSong(song);
-      const confidence = scoreSearchCandidate(query, track, i);
-
-      log.debug(
-        "NetEase",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-      );
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
+    const match = searchMatchResult("track", best, confidence);
+    if (!match.found) {
+      log.debug("NetEase", `Best confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("NetEase", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return match;
   },
 
   albumCapabilities: {
@@ -446,24 +436,13 @@ export const neteaseAdapter: ServiceAdapter = {
 
     log.debug("NetEase", `Album search returned ${results.length} results for: ${q}`);
 
-    let bestMatch: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const raw of results) {
-      if (!raw.id || !raw.name) continue;
-      const album = mapNetEaseAlbum(raw);
-      const confidence = scoreAlbumCandidate(query, album);
-      log.debug("NetEase", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = album;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    const albums = results.filter((raw) => raw.id && raw.name);
+    const { best, confidence } = pickBestCandidate(
+      albums,
+      (raw) => scoreAlbumCandidate(query, mapNetEaseAlbum(raw)),
+      (raw, _index, albumConfidence) => logCandidateScore("NetEase", `"${raw.name}"`, albumConfidence),
+    );
+    return searchMatchResult("album", best && mapNetEaseAlbum(best), confidence);
   },
 
   // --- Artist support ---
@@ -492,26 +471,12 @@ export const neteaseAdapter: ServiceAdapter = {
 
     log.debug("NetEase", `Artist search returned ${results.length} results for: ${query.name}`);
 
-    let bestArtist: NormalizedArtist | null = null;
-    let bestConfidence = 0;
-
-    for (const raw of results) {
-      if (!raw.id || !raw.name) continue;
-
-      const confidence = calculateArtistNameConfidence(query.name, raw.name);
-
-      log.debug("NetEase", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestArtist = mapNetEaseArtist(raw);
-      }
-    }
-
-    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    const artists = results.filter((raw) => raw.id && raw.name);
+    const { best, confidence } = pickBestCandidate(
+      artists,
+      (raw) => calculateArtistNameConfidence(query.name, raw.name),
+      (raw, _index, artistConfidence) => logCandidateScore("NetEase", `"${raw.name}"`, artistConfidence),
+    );
+    return searchMatchResult("artist", best && mapNetEaseArtist(best), confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
