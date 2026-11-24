@@ -14,6 +14,8 @@
  * Re-exported from sibling modules, so importers keep using this one:
  *   - `applyContentPublicationCutover`, in
  *     `postgres-content-publication-cutover.ts`.
+ *   - `listSegmentsForOwner` and `replaceSegmentsForOwner`, in
+ *     `postgres-content-segments.ts`.
  *
  * Excludes:
  *   - Navigation items (see `postgres-content-nav.ts`).
@@ -42,11 +44,11 @@ import type {
   ContentPageRow,
   ContentPageSummaryRow,
   ContentPublicationRow,
-  PageSegmentInputRow,
-  PageSegmentRow,
 } from "../admin-repository.js";
+import { replaceSegmentsInBulkSave } from "./postgres-content-segments.js";
 
 export { applyContentPublicationCutover } from "./postgres-content-publication-cutover.js";
+export { listSegmentsForOwner, replaceSegmentsForOwner } from "./postgres-content-segments.js";
 
 // ============================================================================
 // SHARED COLUMN LISTS
@@ -699,18 +701,8 @@ export async function bulkUpdatePages(pool: Pool, payload: BulkUpdatePagesPayloa
       await client.query(`UPDATE content_pages SET position = $2 WHERE slug = $1`, [payload.topLevelOrder[i], i]);
     }
 
-    // 3) segments per owner — DELETE + INSERT
-    for (const entry of payload.segments) {
-      await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [entry.ownerSlug]);
-      for (const s of entry.segments) {
-        await client.query(
-          `INSERT INTO page_segments (owner_slug, target_slug, position, label, label_updated_at)
-           VALUES ($1, $2, $3, $4, NOW())
-           RETURNING id`,
-          [entry.ownerSlug, s.targetSlug, s.position, s.label],
-        );
-      }
-    }
+    // 3) segments per owner, each replaced by a DELETE and an INSERT
+    await replaceSegmentsInBulkSave(client, payload.segments);
 
     await client.query("COMMIT");
   } catch (e) {
@@ -721,77 +713,4 @@ export async function bulkUpdatePages(pool: Pool, payload: BulkUpdatePagesPayloa
   }
 
   return [];
-}
-
-// ============================================================================
-// PAGE SEGMENTS
-// ============================================================================
-
-/**
- * Lists every segment row for one owner page, ordered by `position`.
- */
-export async function listSegmentsForOwner(pool: Pool, ownerSlug: string): Promise<PageSegmentRow[]> {
-  const result = await pool.query<{
-    id: number;
-    owner_slug: string;
-    target_slug: string;
-    position: number;
-    label: string;
-    label_updated_at: Date;
-  }>(
-    `SELECT id, owner_slug, target_slug, position, label, label_updated_at
-     FROM page_segments
-     WHERE owner_slug = $1
-     ORDER BY position ASC`,
-    [ownerSlug],
-  );
-  return result.rows.map((r) => ({
-    id: r.id,
-    ownerSlug: r.owner_slug,
-    targetSlug: r.target_slug,
-    position: r.position,
-    label: r.label,
-    labelUpdatedAt: r.label_updated_at,
-  }));
-}
-
-/**
- * Atomically replaces every segment row for one owner page (delete-all
- * + insert in tx). Returns the freshly persisted rows sorted by
- * `position`.
- */
-export async function replaceSegmentsForOwner(
-  pool: Pool,
-  ownerSlug: string,
-  segments: PageSegmentInputRow[],
-): Promise<PageSegmentRow[]> {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [ownerSlug]);
-    const rows: PageSegmentRow[] = [];
-    for (const s of segments) {
-      const r = await client.query<{ id: number; label_updated_at: Date }>(
-        `INSERT INTO page_segments (owner_slug, target_slug, position, label)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, label_updated_at`,
-        [ownerSlug, s.targetSlug, s.position, s.label],
-      );
-      rows.push({
-        id: r.rows[0].id,
-        ownerSlug,
-        targetSlug: s.targetSlug,
-        position: s.position,
-        label: s.label,
-        labelUpdatedAt: r.rows[0].label_updated_at,
-      });
-    }
-    await client.query("COMMIT");
-    return rows.sort((a, b) => a.position - b.position);
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
 }
