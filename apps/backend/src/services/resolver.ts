@@ -138,7 +138,7 @@ import { completeFreshResolution } from "./track-resolver/completion.js";
 import { resolveAcrossServices, resolvedTrackLink } from "./track-resolver/fan-out.js";
 import { resolveUrlViaScrape } from "./track-resolver/page-scrape.js";
 import type { ResolutionResult, TextSearchResult } from "./track-resolver/types.js";
-import type { NormalizedTrack, SearchCandidate, SearchQuery } from "./types.js";
+import type { NormalizedTrack, SearchCandidate, SearchQuery, ServiceAdapter } from "./types.js";
 
 export { persistLateTrackLinks } from "./track-resolver/persist-links.js";
 export type { ResolutionResult, ResolvedLink, TextSearchResult } from "./track-resolver/types.js";
@@ -332,6 +332,32 @@ async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> 
 }
 
 /**
+ * Resolves a recording that a text search matched on one service: from the
+ * cache when its ISRC is already stored, otherwise across every other service.
+ *
+ * @param adapter - The service whose search matched.
+ * @param track - The matched recording.
+ * @param confidence - The score the search assigned to the match.
+ * @returns The resolved recording, its source link marked as a `search` match.
+ */
+async function resolveFromSearchMatch(
+  adapter: ServiceAdapter,
+  track: NormalizedTrack,
+  confidence: number,
+): Promise<ResolutionResult> {
+  // Cache lookup by ISRC before full cross-service resolve
+  if (track.isrc) {
+    const cached = await tryCache({ isrc: track.isrc });
+    if (cached) return fillMissingServices(cached, [resolvedTrackLink(adapter, track, confidence, "search")]);
+  }
+
+  const { links, lateLinks } = await resolveAcrossServices(track, adapter);
+  links.unshift(sourceLink(adapter, track, { confidence, matchMethod: "search" }));
+
+  return completeFreshResolution(track, links, lateLinks);
+}
+
+/**
  * Resolves a search to one recording, taking the first active service that
  * reports a match.
  *
@@ -350,19 +376,7 @@ export async function resolveTextSearch(query: string, structured?: SearchQuery)
     try {
       const result = await adapter.searchTrack(structured ?? { title: query, artist: query });
 
-      if (result.found && result.track) {
-        // Cache lookup by ISRC before full cross-service resolve
-        if (result.track.isrc) {
-          const cached = await tryCache({ isrc: result.track.isrc });
-          if (cached)
-            return fillMissingServices(cached, [resolvedTrackLink(adapter, result.track, result.confidence, "search")]);
-        }
-
-        const { links, lateLinks } = await resolveAcrossServices(result.track, adapter);
-        links.unshift(sourceLink(adapter, result.track, { confidence: result.confidence, matchMethod: "search" }));
-
-        return completeFreshResolution(result.track, links, lateLinks);
-      }
+      if (result.found && result.track) return resolveFromSearchMatch(adapter, result.track, result.confidence);
     } catch (error) {
       failedSearches++;
       log.debug("Resolver", `[${adapter.id}] text search failed:`, error instanceof Error ? error.message : error);
@@ -417,26 +431,9 @@ export async function resolveTextSearchWithDisambiguation(
 
         // Auto-select when confidence is high enough
         if (topCandidate.confidence >= AUTO_SELECT_THRESHOLD) {
-          // Cache lookup by ISRC before full resolve
-          if (topCandidate.track.isrc) {
-            const cached = await tryCache({ isrc: topCandidate.track.isrc });
-            if (cached)
-              return {
-                kind: "resolved",
-                result: await fillMissingServices(cached, [
-                  resolvedTrackLink(adapter, topCandidate.track, topCandidate.confidence, "search"),
-                ]),
-              };
-          }
-
-          const { links, lateLinks } = await resolveAcrossServices(topCandidate.track, adapter);
-          links.unshift(
-            sourceLink(adapter, topCandidate.track, { confidence: topCandidate.confidence, matchMethod: "search" }),
-          );
-
           return {
             kind: "resolved",
-            result: await completeFreshResolution(topCandidate.track, links, lateLinks),
+            result: await resolveFromSearchMatch(adapter, topCandidate.track, topCandidate.confidence),
           };
         }
 
@@ -460,25 +457,7 @@ export async function resolveTextSearchWithDisambiguation(
       const result = await adapter.searchTrack(structured ?? { title: query, artist: query });
 
       if (result.found && result.track) {
-        // Cache lookup by ISRC before full resolve
-        if (result.track.isrc) {
-          const cached = await tryCache({ isrc: result.track.isrc });
-          if (cached)
-            return {
-              kind: "resolved",
-              result: await fillMissingServices(cached, [
-                resolvedTrackLink(adapter, result.track, result.confidence, "search"),
-              ]),
-            };
-        }
-
-        const { links, lateLinks } = await resolveAcrossServices(result.track, adapter);
-        links.unshift(sourceLink(adapter, result.track, { confidence: result.confidence, matchMethod: "search" }));
-
-        return {
-          kind: "resolved",
-          result: await completeFreshResolution(result.track, links, lateLinks),
-        };
+        return { kind: "resolved", result: await resolveFromSearchMatch(adapter, result.track, result.confidence) };
       }
     } catch (error) {
       failedSearches++;
