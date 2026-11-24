@@ -51,7 +51,9 @@ describe("findInactiveServiceFor", () => {
   });
 
   it("names a switched-on service that lacks its credentials", async () => {
-    await expect(findInactiveServiceFor("https://www.kkbox.com/tw/tc/artist/OpYn0tBqZ4zG2Sk3wZ")).resolves.toBe("kkbox");
+    await expect(findInactiveServiceFor("https://www.kkbox.com/tw/tc/artist/OpYn0tBqZ4zG2Sk3wZ")).resolves.toBe(
+      "kkbox",
+    );
   });
 
   it("names a service the admin switched off", async () => {

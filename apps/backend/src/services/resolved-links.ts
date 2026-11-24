@@ -125,8 +125,7 @@ export function isStoredPreviewFresh(
   now: number = Date.now(),
 ): boolean {
   return previews.some(
-    (preview) =>
-      isValidServiceId(preview.service) && (preview.expiresAt === null || preview.expiresAt.getTime() > now),
+    (preview) => isValidServiceId(preview.service) && (preview.expiresAt === null || preview.expiresAt.getTime() > now),
   );
 }
 
