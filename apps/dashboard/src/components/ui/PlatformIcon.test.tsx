@@ -33,7 +33,6 @@ describe("PlatformIcon", () => {
 
   it.each([
     [Service.AppleMusic, "Apple Music", "apple-music-glyph.svg"],
-    [Service.Napster, "Napster", "napster-glyph.svg"],
     [Service.Pandora, "Pandora", "pandora.svg"],
     [Service.Tidal, "Tidal", "tidal.svg"],
   ] as const)("uses the shared transparent glyph for text-color %s", (platform, label, filename) => {

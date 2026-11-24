@@ -151,11 +151,11 @@ describe("score debug lines", () => {
 
   it("prints the arrow the adapter names", () => {
     const debug = vi.spyOn(log, "debug").mockImplementation(() => {});
-    trackScoreLogger("Napster", "→")(track, 0, 1);
-    logCandidateScore("Napster", 'Artist "Artist"', 0.5, "→");
+    trackScoreLogger("Pandora", "→")(track, 0, 1);
+    logCandidateScore("Pandora", 'Artist "Artist"', 0.5, "→");
     expect(debug.mock.calls).toEqual([
-      ["Napster", '  [0] "Song" by Artist → confidence=1.000'],
-      ["Napster", '  Artist "Artist" → confidence=0.500'],
+      ["Pandora", '  [0] "Song" by Artist → confidence=1.000'],
+      ["Pandora", '  Artist "Artist" → confidence=0.500'],
     ]);
   });
 });

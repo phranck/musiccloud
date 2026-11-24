@@ -35,7 +35,6 @@ Current runbooks:
 - `kkbox.md`
 - `melon.md`
 - `musicbrainz.md`
-- `napster.md`
 - `netease.md`
 - `pandora.md`
 - `qobuz.md`

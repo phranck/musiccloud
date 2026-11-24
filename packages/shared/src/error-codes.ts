@@ -736,22 +736,6 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
 export const MC_ERROR_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS|BILL|BANK)-\d{3,4}$/;
 
 /**
- * Builds the four digits of a per-service code from the service's prefix and
- * the upstream status.
- *
- * A one-digit prefix, Apple Music `1` to Napster `7`, takes the status's three
- * digits, so Spotify's 404 is `3404`. A two-digit prefix, such as YouTube
- * Music `65` or KKBOX `80` to Jamendo `97`, takes a two-digit hint, `04` for 404, `29` for 429 and `01` for
- * anything else, so Audius's 404 is `8404` and every code stays four digits
- * wide. {@link isServiceNotFoundCode} reads a code back through this same
- * function, so building and reading cannot disagree.
- *
- * @param prefix - The service's one- or two-digit prefix.
- * @param statusToken - The upstream status as three digits, or `001` for a
- *   status the scheme does not name.
- * @returns The four digits after `MC-API-` or `MC-AUTH-`.
- */
-/**
  * The prefix of every per-service `MC-API` and `MC-AUTH` code, by service.
  *
  * A one-digit prefix owns a thousand codes, so Apple Music's are `1xxx`. A
@@ -759,6 +743,10 @@ export const MC_ERROR_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS|B
  * A code a user quotes therefore names the service that failed without any log
  * lookup. The record is keyed by every {@link ServiceId}, so a new service does
  * not compile until it has a prefix, and support decodes a code from here.
+ *
+ * The prefix `7` belongs to no service. It named a service that has since been
+ * removed, so it is never handed to a new one, and a `7xxx` code quoted from an
+ * older log cannot be read as another service's failure.
  */
 export const ADAPTER_ERROR_CODE_PREFIX: Record<ServiceId, string> = {
   "apple-music": "1",
@@ -768,7 +756,6 @@ export const ADAPTER_ERROR_CODE_PREFIX: Record<ServiceId, string> = {
   deezer: "5",
   youtube: "6",
   "youtube-music": "65",
-  napster: "7",
   kkbox: "80",
   beatport: "81",
   bandcamp: "82",
@@ -786,6 +773,22 @@ export const ADAPTER_ERROR_CODE_PREFIX: Record<ServiceId, string> = {
   jamendo: "97",
 };
 
+/**
+ * Builds the four digits of a per-service code from the service's prefix and
+ * the upstream status.
+ *
+ * A one-digit prefix, Apple Music `1` to YouTube `6`, takes the status's three
+ * digits, so Spotify's 404 is `3404`. A two-digit prefix, such as YouTube
+ * Music `65` or KKBOX `80` to Jamendo `97`, takes a two-digit hint, `04` for 404, `29` for 429 and `01` for
+ * anything else, so Audius's 404 is `8404` and every code stays four digits
+ * wide. {@link isServiceNotFoundCode} reads a code back through this same
+ * function, so building and reading cannot disagree.
+ *
+ * @param prefix - The service's one- or two-digit prefix.
+ * @param statusToken - The upstream status as three digits, or `001` for a
+ *   status the scheme does not name.
+ * @returns The four digits after `MC-API-` or `MC-AUTH-`.
+ */
 export function serviceErrorDigits(prefix: string, statusToken: string): string {
   if (prefix.length === 1) {
     return `${prefix}${statusToken.padStart(3, "0").slice(-3)}`;

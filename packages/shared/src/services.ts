@@ -36,7 +36,6 @@ export const Service = {
   Tidal: "tidal",
   Deezer: "deezer",
   Audius: "audius",
-  Napster: "napster",
   Pandora: "pandora",
   Qobuz: "qobuz",
   Boomplay: "boomplay",

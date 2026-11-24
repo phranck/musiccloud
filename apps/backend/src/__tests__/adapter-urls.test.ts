@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { appleMusicAdapter } from "../services/plugins/apple-music/adapter";
 import { audiusAdapter } from "../services/plugins/audius/adapter";
-import { napsterAdapter } from "../services/plugins/napster/adapter";
 import { pandoraAdapter } from "../services/plugins/pandora/adapter";
 import { soundcloudAdapter } from "../services/plugins/soundcloud/adapter";
 import { spotifyAdapter } from "../services/plugins/spotify/adapter";
@@ -144,24 +143,6 @@ describe("Audius: detectUrl (adapter-urls)", () => {
 
   it("should return null for non-Audius URL", () => {
     expect(audiusAdapter.detectUrl("https://open.spotify.com/track/abc123")).toBeNull();
-  });
-});
-
-// =============================================================================
-// Napster adapter: detectUrl
-// =============================================================================
-
-describe("Napster: detectUrl (adapter-urls)", () => {
-  it("should extract track ID from play.napster.com URL", () => {
-    expect(napsterAdapter.detectUrl("https://play.napster.com/track/tra.262370664")).toBe("tra.262370664");
-  });
-
-  it("should extract track ID from web.napster.com URL", () => {
-    expect(napsterAdapter.detectUrl("https://web.napster.com/track/tra.262370664")).toBe("tra.262370664");
-  });
-
-  it("should return null for non-Napster URL", () => {
-    expect(napsterAdapter.detectUrl("https://open.spotify.com/track/abc123")).toBeNull();
   });
 });
 
