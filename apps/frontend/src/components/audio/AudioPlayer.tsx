@@ -1,9 +1,41 @@
-import { ENDPOINTS } from "@musiccloud/shared";
 import gsap from "gsap";
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 import { AudioStatus, type AudioStatus as AudioStatusType } from "@/components/audio/AudioStatus";
-import { resolveSeekTarget, SEEK_END_GUARD_SECONDS, SEEK_STEP_SECONDS } from "@/components/audio/audioSeek";
+import {
+  type AudioGraphNodes,
+  disconnectAudioGraph,
+  getAudioContextConstructor,
+  type StereoSpectrumAnalysers,
+  type StereoSpectrumData,
+} from "@/components/audio/audioGraph";
+import { registerAudioForKeyboard } from "@/components/audio/audioKeyboardRegistry";
+import { resolveSeekTarget, SEEK_END_GUARD_SECONDS } from "@/components/audio/audioSeek";
+import {
+  AudioContextState,
+  MediaSessionAction,
+  MediaSessionPlaybackState,
+  PlayerActionType,
+  PlayerPhase,
+  type PlayerState,
+  playerReducer,
+  resolveAudioDuration,
+  resolveAudioProgressRatio,
+} from "@/components/audio/playerStateMachine";
+import { fetchPreviewUrl } from "@/components/audio/previewSource";
 import { quantizeProgressRatio } from "@/components/audio/progressQuantize";
+import {
+  advancePeakHold,
+  decayPeakHoldChannel,
+  decayStereoLevel,
+  fadeBandValue,
+  resolveSpectrumBandsInto,
+  resolveStereoLevel,
+  resolveTimeDomainRms,
+  SPECTRUM_CHANNEL_BAND_COUNT,
+  SPECTRUM_RECOVERY_CHECK_MS,
+  SPECTRUM_UPDATE_MS,
+  type StereoPeakHoldState,
+} from "@/components/audio/spectrumAnalysis";
 import {
   clearSpectrumFrame,
   getSpectrumFrame,
@@ -55,171 +87,13 @@ export interface AudioPlayerProps {
   onSeekHint?: (direction: VfdScrollOutDirection) => void;
 }
 
-/**
- * AudioPlayer - Audio preview playback component
- *
- * Orchestrates the compound Player component for audio preview functionality.
- * Handles audio element lifecycle and state management.
- *
- * State machine phases:
- *   loading  — Waiting for a lazy fetch to deliver a preview URL.
- *   idle     — Ready to play. Duration defaults to 30s, updated once metadata loads.
- *   playing  — Playback active.
- *   paused   — Playback paused.
- *   error    — Audio URL unplayable. Component renders unavailable state.
- *   unavailable — Backend confirmed no preview can be produced for this track.
- */
-const PlayerPhase = {
-  Loading: "loading",
-  Idle: "idle",
-  Playing: "playing",
-  Paused: "paused",
-  Error: "error",
-  Unavailable: "unavailable",
-} as const;
-
-const PlayerActionType = {
-  UrlReady: "URL_READY",
-  UrlUnavailable: "URL_UNAVAILABLE",
-  MetadataLoaded: "METADATA_LOADED",
-  Play: "PLAY",
-  Pause: "PAUSE",
-  TimeUpdate: "TIME_UPDATE",
-  Ended: "ENDED",
-  Error: "ERROR",
-  SourceChanged: "SOURCE_CHANGED",
-} as const;
-
-const AudioContextState = {
-  Closed: "closed",
-  Running: "running",
-  Suspended: "suspended",
-} as const;
-
-const MediaSessionAction = {
-  Play: "play",
-  Pause: "pause",
-} as const;
-
-const MediaSessionPlaybackState = {
-  Playing: "playing",
-  Paused: "paused",
-  None: "none",
-} as const;
-
-type PlayerState =
-  | { phase: typeof PlayerPhase.Loading }
-  | { phase: typeof PlayerPhase.Idle; duration: number }
-  | { phase: typeof PlayerPhase.Playing; currentTime: number; duration: number }
-  | { phase: typeof PlayerPhase.Paused; currentTime: number; duration: number }
-  | { phase: typeof PlayerPhase.Error }
-  | { phase: typeof PlayerPhase.Unavailable };
-
-type PlayerAction =
-  | { type: typeof PlayerActionType.UrlReady }
-  | { type: typeof PlayerActionType.UrlUnavailable }
-  | { type: typeof PlayerActionType.MetadataLoaded; duration: number }
-  | { type: typeof PlayerActionType.Play }
-  | { type: typeof PlayerActionType.Pause }
-  | { type: typeof PlayerActionType.TimeUpdate; currentTime: number; duration: number }
-  | { type: typeof PlayerActionType.Ended }
-  | { type: typeof PlayerActionType.Error }
-  | { type: typeof PlayerActionType.SourceChanged };
-
-function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
-  switch (action.type) {
-    case PlayerActionType.UrlReady:
-      if (state.phase === PlayerPhase.Loading) return { phase: PlayerPhase.Idle, duration: 30 };
-      return state;
-    case PlayerActionType.UrlUnavailable:
-      if (state.phase === PlayerPhase.Loading) return { phase: PlayerPhase.Unavailable };
-      return state;
-    case PlayerActionType.MetadataLoaded:
-      if (state.phase === PlayerPhase.Idle) return { ...state, duration: action.duration };
-      if (state.phase === PlayerPhase.Playing || state.phase === PlayerPhase.Paused)
-        return { ...state, duration: action.duration };
-      return state;
-    case PlayerActionType.Play:
-      if (state.phase === PlayerPhase.Idle)
-        return { phase: PlayerPhase.Playing, currentTime: 0, duration: state.duration };
-      if (state.phase === PlayerPhase.Paused) return { ...state, phase: PlayerPhase.Playing };
-      return state;
-    case PlayerActionType.Pause:
-      if (state.phase === PlayerPhase.Playing) return { ...state, phase: PlayerPhase.Paused };
-      return state;
-    case PlayerActionType.TimeUpdate:
-      if (state.phase === PlayerPhase.Playing || state.phase === PlayerPhase.Paused)
-        return { ...state, currentTime: action.currentTime, duration: action.duration };
-      return state;
-    case PlayerActionType.Ended:
-      if (state.phase === PlayerPhase.Playing) return { phase: PlayerPhase.Idle, duration: state.duration };
-      return state;
-    case PlayerActionType.Error:
-      return { phase: PlayerPhase.Error };
-    case PlayerActionType.SourceChanged:
-      // A new source (same-album track switch) resets to a fresh idle track;
-      // metadata for the new src arrives via loadedmetadata.
-      return { phase: PlayerPhase.Idle, duration: 30 };
-    default:
-      return state;
-  }
-}
-
-/** Fallback track length when the element reports no usable duration (preview clips are ~30s). */
-const DEFAULT_DURATION_SECONDS = 30;
-
-/**
- * Usable track length in seconds, falling back to {@link DEFAULT_DURATION_SECONDS}
- * when the element reports no finite, positive duration (metadata not loaded yet,
- * or a stream with no known length). Centralises the duration-or-default rule
- * shared by the progress, seek and metadata paths.
- *
- * @param audio - The audio element to read `duration` from.
- * @returns A positive, finite duration in seconds.
- */
-function resolveAudioDuration(audio: HTMLAudioElement): number {
-  return Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
-}
-
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function resolveAudioProgressRatio(audio: HTMLAudioElement): number {
-  const duration = resolveAudioDuration(audio);
-  const ratio = audio.currentTime / duration;
-  return Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
-}
-
-const SPECTRUM_CHANNEL_BAND_COUNT = 13;
-const SPECTRUM_UPDATE_MS = 50;
-const SPECTRUM_FADE_FACTOR = 0.68;
-const SPECTRUM_FADE_MIN_LEVEL = 0.03;
-const SPECTRUM_LOW_BAND_COUNT = 4;
-const SPECTRUM_RECOVERY_CHECK_MS = 700;
 const PLAYER_PROGRESS_REWIND_MS = 420;
-// Per-channel stereo VU normalisation. RMS values for typical music sit in
-// the 0.15..0.45 range; multiplying by 2.4 maps an "average" passage to
-// roughly 0.6..1.0 deflection. Clamped to 1 so brief peaks don't blow out.
-const STEREO_LEVEL_INPUT_GAIN = 2.4;
-// Low-pass smoothing for the stereo VU level. Higher = more responsive to
-// peaks, lower = calmer needle. 0.4 hits the classic VU-meter feel: visible
-// transient response without the rapid flicker of raw frame-by-frame RMS.
-const STEREO_LEVEL_SMOOTHING = 0.4;
-// Decay factor applied to the stored level when playback pauses or the
-// analyser cannot deliver samples, so the bars ease back to zero instead
-// of snapping off.
-const STEREO_LEVEL_DECAY = 0.5;
-// Time the per-channel peak indicator stays pinned at its last maximum
-// before it starts decaying back toward zero. Classic VU/peak-meter feel:
-// about a second of stand-still so the eye can latch onto transients.
-const STEREO_PEAK_HOLD_MS = 900;
-// Linear decay applied to the held peak (0..1 scale) per spectrum tick
-// once the hold window has elapsed. At a 50ms tick that yields ~0.5/sec,
-// so a full-scale hold falls back to zero in roughly two seconds.
-const STEREO_PEAK_HOLD_DECAY_PER_TICK = 0.025;
 // Sample-accurate gain ramp applied on the very first play of a fresh
 // audio source so the audio fades in from silence to unity. The ramp
 // hides the startup transient that MP3 decoders and freshly engaged
@@ -246,289 +120,6 @@ const TEARDOWN_FADE_MS = 30;
 // pause + context close fires, so the scheduled gain ramp has fully
 // settled at the audio graph before the destination is destroyed.
 const TEARDOWN_FADE_GUARD_MS = 10;
-
-type BrowserAudioContextConstructor = typeof AudioContext;
-
-interface StereoSpectrumData {
-  left: Uint8Array<ArrayBuffer>;
-  right: Uint8Array<ArrayBuffer>;
-  /** Time-domain sample buffers, used to derive the per-channel RMS level. */
-  leftTime: Uint8Array<ArrayBuffer>;
-  rightTime: Uint8Array<ArrayBuffer>;
-}
-
-interface StereoSpectrumAnalysers {
-  left: AnalyserNode;
-  right: AnalyserNode;
-}
-
-/**
- * The Web Audio nodes built for one audio element. Every field is null when the
- * graph was never built or only partly built.
- */
-interface AudioGraphNodes {
-  source: MediaElementAudioSourceNode | null;
-  splitter: ChannelSplitterNode | null;
-  analysers: StereoSpectrumAnalysers | null;
-  gain: GainNode | null;
-}
-
-/**
- * Disconnects every node of one element's graph. Safe on a partly built graph.
- *
- * @param nodes - The graph to take out of the audio routing.
- */
-function disconnectAudioGraph(nodes: AudioGraphNodes): void {
-  nodes.source?.disconnect();
-  nodes.splitter?.disconnect();
-  nodes.analysers?.left.disconnect();
-  nodes.analysers?.right.disconnect();
-  nodes.gain?.disconnect();
-}
-
-/**
- * Per-channel peak hold level (0..1) and the timestamp at which it was last
- * refreshed. The hold value latches at the most recent maximum of the
- * smoothed VU level, stays put for `STEREO_PEAK_HOLD_MS`, then decays back to
- * zero. Drives the standalone "stuck" peak pixel column in the stereo-VU
- * display mode.
- */
-interface StereoPeakHoldState {
-  level: number;
-  setAt: number;
-}
-
-/**
- * Tab-wide registry of mounted `AudioPlayer` instances. Used by the
- * single shared window-keydown listener to route the spacebar and arrow keys
- * to a player when no input element holds focus. Set iteration is
- * insertion-order, which on the share page corresponds to "hero card first,
- * then top tracks" — so the fallback target is the most prominent preview on
- * the page.
- */
-interface AudioKeyboardHandle {
-  /** Forwards to the player's `togglePlay`. Stable across renders. */
-  togglePlay: () => void;
-  /** True while the player is in `Playing` or `Paused` phase, false otherwise. */
-  isActive: () => boolean;
-  /** Relative seek by signed seconds (arrow keys). No-op unless active. */
-  seekBy: (deltaSeconds: number) => void;
-  /** Jump to the track start (cmd+Left). No-op unless active. */
-  seekToStart: () => void;
-  /** Jump to `SEEK_END_GUARD_SECONDS` before the end (cmd+Right). No-op unless active. */
-  seekToNearEnd: () => void;
-}
-
-const audioRegistry = new Set<AudioKeyboardHandle>();
-let audioListenerRefCount = 0;
-
-/**
- * Returns true if the spacebar should fall through to the default browser
- * behaviour (form input, button activation, link follow, contentEditable
- * typing) rather than triggering preview playback. Keeps the global handler
- * from hijacking focus-driven keyboard a11y.
- */
-function shouldIgnoreSpacebarTarget(event: KeyboardEvent): boolean {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) return false;
-  if (target instanceof HTMLInputElement) return true;
-  if (target instanceof HTMLTextAreaElement) return true;
-  if (target instanceof HTMLSelectElement) return true;
-  if (target instanceof HTMLButtonElement) return true;
-  if (target instanceof HTMLAnchorElement) return true;
-  if (target.isContentEditable) return true;
-  return false;
-}
-
-/**
- * Returns true if arrow-key seeking should fall through to default behaviour.
- *
- * Unlike the spacebar — which activates a focused button or link, so those must
- * be excluded — arrow keys have no native action on buttons or links. Only
- * genuine text-entry targets are spared, where arrows move the caret, slider
- * thumb, or option selection. This is deliberately narrower than
- * {@link shouldIgnoreSpacebarTarget}: a focused play/pause/toggle button (the
- * common state right after a click) must NOT swallow the seek.
- */
-function shouldIgnoreArrowTarget(event: KeyboardEvent): boolean {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) return false;
-  if (target instanceof HTMLInputElement) return true;
-  if (target instanceof HTMLTextAreaElement) return true;
-  if (target instanceof HTMLSelectElement) return true;
-  if (target.isContentEditable) return true;
-  return false;
-}
-
-function resolveSpacebarTarget(): AudioKeyboardHandle | null {
-  for (const player of audioRegistry) {
-    if (player.isActive()) return player;
-  }
-  return audioRegistry.values().next().value ?? null;
-}
-
-function handleAudioSpacebar(event: KeyboardEvent): void {
-  if (event.code !== "Space") return;
-  if (event.repeat) return;
-  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-  if (shouldIgnoreSpacebarTarget(event)) return;
-  const target = resolveSpacebarTarget();
-  if (!target) return;
-  event.preventDefault();
-  target.togglePlay();
-}
-
-function handleAudioArrows(event: KeyboardEvent): void {
-  if (event.repeat) return;
-  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-  if (event.altKey || event.ctrlKey || event.shiftKey) return;
-  if (shouldIgnoreArrowTarget(event)) return;
-  const target = resolveSpacebarTarget();
-  if (!target || !target.isActive()) return;
-  event.preventDefault();
-  const isLeft = event.key === "ArrowLeft";
-  if (event.metaKey) {
-    if (isLeft) target.seekToStart();
-    else target.seekToNearEnd();
-    return;
-  }
-  target.seekBy(isLeft ? -SEEK_STEP_SECONDS : SEEK_STEP_SECONDS);
-}
-
-/**
- * Adds a player handle to the tab-wide registry and (de)activates the shared
- * window-keydown listeners (spacebar + arrows) via refcount. Returns the
- * cleanup function to be used directly inside a React effect cleanup.
- */
-function registerAudioForKeyboard(handle: AudioKeyboardHandle): () => void {
-  audioRegistry.add(handle);
-  if (audioListenerRefCount === 0) {
-    window.addEventListener("keydown", handleAudioSpacebar);
-    window.addEventListener("keydown", handleAudioArrows);
-  }
-  audioListenerRefCount += 1;
-  return () => {
-    audioRegistry.delete(handle);
-    audioListenerRefCount -= 1;
-    if (audioListenerRefCount === 0) {
-      window.removeEventListener("keydown", handleAudioSpacebar);
-      window.removeEventListener("keydown", handleAudioArrows);
-    }
-  };
-}
-
-async function fetchPreviewUrl(refreshShortId: string, signal: AbortSignal): Promise<string | null> {
-  const res = await fetch(ENDPOINTS.frontend.sharePreview(refreshShortId), { signal });
-  if (!res.ok) return null;
-  const body = (await res.json()) as { previewUrl: string | null };
-  return body.previewUrl;
-}
-
-function getAudioContextConstructor(): BrowserAudioContextConstructor | undefined {
-  return (
-    window.AudioContext ??
-    (window as Window & { webkitAudioContext?: BrowserAudioContextConstructor }).webkitAudioContext
-  );
-}
-
-function resolveSpectrumBandRange(band: number, bandCount: number, usableBins: number): [number, number] {
-  const logMax = Math.log(usableBins + 1);
-  const start = 2 + Math.floor(Math.exp((band / bandCount) * logMax) - 1);
-  const end = 2 + Math.floor(Math.exp(((band + 1) / bandCount) * logMax) - 1);
-  return [start, Math.max(start + 1, end)];
-}
-
-/**
- * RMS over a time-domain byte buffer (each byte centred at 128 for silence).
- * The result is normalised so a fully silent buffer returns 0 and a
- * full-scale sine wave returns ~0.707.
- */
-function resolveTimeDomainRms(timeDomainData: Uint8Array<ArrayBuffer>): number {
-  const sampleCount = timeDomainData.length;
-  if (sampleCount === 0) return 0;
-  let sumSquares = 0;
-  for (let index = 0; index < sampleCount; index += 1) {
-    const sample = (timeDomainData[index] ?? 128) - 128;
-    sumSquares += sample * sample;
-  }
-  return Math.sqrt(sumSquares / sampleCount) / 128;
-}
-
-function resolveStereoLevel(rms: number, previousLevel: number): number {
-  const normalized = Math.max(0, Math.min(1, rms * STEREO_LEVEL_INPUT_GAIN));
-  return previousLevel * (1 - STEREO_LEVEL_SMOOTHING) + normalized * STEREO_LEVEL_SMOOTHING;
-}
-
-function decayStereoLevel(previousLevel: number): number {
-  const next = previousLevel * STEREO_LEVEL_DECAY;
-  return next < 0.005 ? 0 : next;
-}
-
-/**
- * Advances one channel's peak hold state for the current spectrum tick.
- * The latch snaps to the new level whenever the live signal pushes higher
- * than the held value; otherwise the level stays put until the hold window
- * has elapsed, then decays linearly toward zero.
- */
-function advancePeakHold(state: StereoPeakHoldState, currentLevel: number, now: number): StereoPeakHoldState {
-  if (currentLevel >= state.level) {
-    return { level: currentLevel, setAt: now };
-  }
-  if (now - state.setAt < STEREO_PEAK_HOLD_MS) {
-    return state;
-  }
-  const decayed = Math.max(currentLevel, state.level - STEREO_PEAK_HOLD_DECAY_PER_TICK);
-  return { level: decayed, setAt: state.setAt };
-}
-
-function decayPeakHoldChannel(state: StereoPeakHoldState): StereoPeakHoldState {
-  const next = state.level * STEREO_LEVEL_DECAY;
-  return { level: next < 0.005 ? 0 : next, setAt: state.setAt };
-}
-
-/**
- * Resolves the per-band levels from raw FFT bytes and writes them in place
- * into `dest` — zero allocation per tick (policy 7; the former
- * `resolveSpectrumBands` allocated two fresh arrays every 50 ms). Two passes:
- * fill the raw band levels, then normalise by the frame peak so quiet
- * passages still deflect. The math is identical to the previous version.
- *
- * @param frequencyData - Raw byte FFT magnitudes for one channel.
- * @param bandCount - Number of bands to fill (must not exceed `dest.length`).
- * @param dest - Pre-allocated band buffer, written in place.
- */
-function resolveSpectrumBandsInto(frequencyData: Uint8Array<ArrayBuffer>, bandCount: number, dest: Float32Array): void {
-  const usableBins = Math.max(1, frequencyData.length - 2);
-  let framePeak = 0;
-  for (let band = 0; band < bandCount; band += 1) {
-    const [start, end] = resolveSpectrumBandRange(band, bandCount, usableBins);
-    let total = 0;
-    let count = 0;
-    for (let index = start; index < end; index += 1) {
-      total += frequencyData[Math.min(frequencyData.length - 1, index)] ?? 0;
-      count += 1;
-    }
-
-    const position = bandCount <= 1 ? 1 : band / (bandCount - 1);
-    const lowBandRatio = Math.max(0, 1 - band / Math.max(1, SPECTRUM_LOW_BAND_COUNT));
-    const lowFrequencyDamping = 0.4 + position * 0.82;
-    const dynamicCurve = 1.12 + lowBandRatio * 0.38;
-    const normalized = Math.max(0, total / Math.max(1, count) / 255 - 0.04) / 0.96;
-    const value = normalized ** dynamicCurve * lowFrequencyDamping;
-    dest[band] = value;
-    if (value > framePeak) framePeak = value;
-  }
-
-  const frameGain = framePeak > 0 ? Math.min(1.45, 0.82 / Math.max(framePeak, 0.42)) : 1;
-  for (let band = 0; band < bandCount; band += 1) {
-    dest[band] = Math.min(1, (dest[band] ?? 0) * frameGain);
-  }
-}
-
-/** One band's fade-out step (mirrors the former `fadeSpectrumBands` map). */
-function fadeBandValue(band: number): number {
-  return band <= SPECTRUM_FADE_MIN_LEVEL ? 0 : band * SPECTRUM_FADE_FACTOR;
-}
 
 /**
  * Headless audio-preview engine: owns the `<audio>` element lifecycle, the
@@ -1517,6 +1108,15 @@ export function useAudioController({
   };
 }
 
+/**
+ * AudioPlayer - Audio preview playback component
+ *
+ * Orchestrates the compound Player component for audio preview functionality.
+ * Handles audio element lifecycle and state management through
+ * {@link useAudioController}, whose phases `playerStateMachine` defines.
+ *
+ * @param props - {@link AudioPlayerProps}.
+ */
 export function AudioPlayer(props: AudioPlayerProps) {
   const player = useAudioController(props);
 
