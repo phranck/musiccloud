@@ -48,7 +48,7 @@ LaTeX sources alongside its diagram sources.
 
 ## Supported streaming services
 
-Apple Music, Audiomack, Audius, Bandcamp, Beatport, Boomplay, Bugs, Deezer, JioSaavn, KKBOX, Melon, Napster, Netease, Pandora, QQ Music, Qobuz, SoundCloud, Spotify, Tidal, YouTube.
+Apple Music, Audiomack, Audius, Bandcamp, Beatport, Boomplay, Bugs, Deezer, JioSaavn, KKBOX, Melon, Netease, Pandora, QQ Music, Qobuz, SoundCloud, Spotify, Tidal, YouTube.
 
 ## License
 
