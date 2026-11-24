@@ -28,7 +28,6 @@
 import {
   AdminEventType,
   type ArtistProfileManualRefreshSummary,
-  type ArtistProfileProvider,
   classifyArtistProfileCacheStatus,
 } from "@musiccloud/shared";
 import type { Pool } from "pg";
@@ -50,6 +49,7 @@ import {
   artistNamePreferenceOrder,
   type CountRow,
   dateToMs,
+  isArtistProfileProvider,
   replaceTrackArtistCredits,
   type ServiceLinkRow,
   safeParseArray,
@@ -530,10 +530,6 @@ export async function listArtists(
   });
 
   return { items, total, page, limit };
-}
-
-function isArtistProfileProvider(value: string): value is ArtistProfileProvider {
-  return value === "spotify" || value === "deezer" || value === "lastfm";
 }
 
 /**

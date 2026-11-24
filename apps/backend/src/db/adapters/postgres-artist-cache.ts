@@ -8,11 +8,10 @@
  * using that module.
  */
 
-import type { ArtistProfileProvider } from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { CACHE_TTL_MS } from "../../lib/config.js";
 import type { ArtistCacheData, ArtistCacheIdentity, ArtistCacheRow } from "../repository.js";
-import { dateToMs, safeParseJson } from "./postgres-shared.js";
+import { dateToMs, isArtistProfileProvider, safeParseJson } from "./postgres-shared.js";
 
 /** Raw `artist_cache` row as the cache SELECT returns it, before its JSON columns are parsed. */
 interface ArtistCacheRowDb {
@@ -175,17 +174,6 @@ export async function saveArtistCache(pool: Pool, data: ArtistCacheData): Promis
       hasEvents,
     ],
   );
-}
-
-/**
- * Narrows a stored provider name to the providers an artist profile can come
- * from, so unknown values in `profile_providers` are dropped on read.
- *
- * @param value - One entry of the stored `profile_providers` array.
- * @returns `true` for `spotify`, `deezer` and `lastfm`, `false` otherwise.
- */
-function isArtistProfileProvider(value: string): value is ArtistProfileProvider {
-  return value === "spotify" || value === "deezer" || value === "lastfm";
 }
 
 /**

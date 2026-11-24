@@ -16,6 +16,7 @@
  * their consumer module.
  */
 
+import type { ArtistProfileProvider } from "@musiccloud/shared";
 import type { PoolClient } from "pg";
 import { generateTrackId } from "../../lib/short-id.js";
 import type { ArtistCredit, ExternalIdRecord } from "../repository.js";
@@ -347,6 +348,24 @@ export interface CountRow {
 export interface ServiceLinkRow {
   service: string;
   url: string;
+}
+
+// ============================================================================
+// ARTIST PROFILE PROVIDERS
+// ============================================================================
+
+/**
+ * Narrows a stored provider name to the providers an artist profile can come
+ * from, so unknown values in `profile_providers` are dropped on read.
+ *
+ * The artist info cache read and the admin artist list both filter the stored
+ * `profile_providers` array through this guard.
+ *
+ * @param value - One entry of the stored `profile_providers` array.
+ * @returns `true` for `spotify`, `deezer` and `lastfm`, `false` otherwise.
+ */
+export function isArtistProfileProvider(value: string): value is ArtistProfileProvider {
+  return value === "spotify" || value === "deezer" || value === "lastfm";
 }
 
 // ============================================================================
