@@ -24,7 +24,7 @@ scripts/crawler-heartbeat.ts       # cron entry point (bundled via tsup)
 routes/admin-crawler.ts            # 5 admin endpoints
 db/repository.ts                   # 10 crawler methods on TrackRepository
 db/adapters/postgres.ts            # SQL implementations
-db/schemas/postgres.ts             # crawl_state + crawl_runs tables (migration 0023)
+db/schemas/domains/crawl.ts        # crawl_state + crawl_runs tables (migration 0023)
 packages/shared/src/crawler.ts     # CrawlerSourceInfo / CrawlerRunInfo wire types
 zerops.yml                         # backend run.crontab: per-minute heartbeat
 ```
