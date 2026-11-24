@@ -2,11 +2,14 @@ import { randomUUID } from "node:crypto";
 import {
   type ApiErrorResponse,
   createApiErrorBody,
+  type ErrorCodeEntry,
   getErrorEntry,
   LEGACY_TO_MC,
   MC_ERROR_CODE_PATTERN,
   type McErrorCode,
 } from "@musiccloud/shared";
+import type { FastifyReply } from "fastify";
+import type { ResolveError } from "../resolve/errors.js";
 
 export interface ClassifiedApiError {
   code: McErrorCode;
@@ -81,6 +84,24 @@ export function createApiErrorResponse(
     context: options.context,
     overrideMessage: options.overrideMessage,
   });
+}
+
+/**
+ * Answers a request with the error a resolver threw.
+ *
+ * The status is the registry's `httpStatus` for the error's code, and the body
+ * carries the error's own message when it has one, otherwise the registry's
+ * message filled from the error's `context`.
+ *
+ * @param reply - The reply to answer on.
+ * @param error - The resolver's error, with an `MC-…` or a legacy code.
+ * @returns The sent reply.
+ */
+export function sendResolveError(reply: FastifyReply, error: ResolveError): FastifyReply {
+  const httpStatus: ErrorCodeEntry["httpStatus"] = getErrorEntry(error.code).httpStatus;
+  return reply
+    .status(httpStatus)
+    .send(createApiErrorResponse(error.code, { context: error.context, overrideMessage: error.message || undefined }));
 }
 
 export function sanitizeErrorForLog(

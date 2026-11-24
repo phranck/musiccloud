@@ -37,17 +37,17 @@
  * pathological inputs cannot reach the FTS5 text search. The selected
  * candidate is a shorter serialized identifier, hence the tighter limit.
  */
-import type { ResolveDisambiguationResponse, ResolveErrorResponse, ResolveRequest } from "@musiccloud/shared";
-import { ENDPOINTS, getErrorEntry } from "@musiccloud/shared";
+import type { ResolveDisambiguationResponse, ResolveRequest } from "@musiccloud/shared";
+import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { STRUCTURED_SEARCH_OPENAPI_SECTION, STRUCTURED_SEARCH_POST_OPENAPI_NOTE } from "../docs/resolve-openapi.js";
-import { requireEnvList } from "../lib/env.js";
-import { createApiErrorResponse } from "../lib/infra/api-errors.js";
+import { createApiErrorResponse, sendResolveError } from "../lib/infra/api-errors.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { siteResolveRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isUrl } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
+import { shortUrlOrigin } from "../lib/server/allowed-origin.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import {
   GenreQueryParseError,
@@ -59,19 +59,7 @@ import {
 } from "../services/genre-search/index.js";
 import { persistTrackAndRespond, resolveUrlAndRespond } from "../services/resolve-response.js";
 import { resolveSelectedCandidate, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
-import {
-  isStructuredSearchQuery,
-  type ParsedStructuredQuery,
-  parseStructuredSearchQuery,
-  StructuredSearchQueryParseError,
-} from "../services/structured-search/index.js";
-
-/**
- * Whitelist sourced from env `ALLOWED_ORIGINS` (comma-separated). The full
- * rationale for this validation lives in `routes/resolve-public-get.ts`.
- * Both routes import this single source of truth.
- */
-const ALLOWED_ORIGINS = requireEnvList("ALLOWED_ORIGINS");
+import { isStructuredSearchQuery, parseStructuredQueryOrReply } from "../services/structured-search/index.js";
 
 export default async function resolveRoutes(app: FastifyInstance) {
   app.post(
@@ -204,7 +192,7 @@ export const RESOLVE_SUCCESS_RESPONSE_SCHEMA = {
  *
  * @param reply - The reply to answer on.
  * @param body - The body as the route's schema admitted it.
- * @param headerOrigin - The request's `Origin` header, which picks the short link's origin from `ALLOWED_ORIGINS`.
+ * @param headerOrigin - The request's `Origin` header, which picks the short link's origin through `shortUrlOrigin`.
  * @returns The sent reply.
  * @throws Whatever the resolvers throw other than a {@link ResolveError},
  *   which the global error handler turns into a classified response.
@@ -220,11 +208,15 @@ export async function respondToResolveRequest(
   const selectedCandidate = body.selectedCandidate?.trim();
 
   if (!query && !selectedCandidate) {
-    return reply.status(400).send(jsonError("INVALID_URL", "The 'query' or 'selectedCandidate' field is required."));
+    return reply.status(400).send(
+      createApiErrorResponse("INVALID_URL", {
+        overrideMessage: "The 'query' or 'selectedCandidate' field is required.",
+      }),
+    );
   }
 
   try {
-    const origin = getOrigin(headerOrigin);
+    const origin = shortUrlOrigin(headerOrigin);
 
     // Flow 0: genre-based discovery search. Detected by the `genre:`
     // prefix on the trimmed query. Returns its own discriminated
@@ -237,7 +229,7 @@ export async function respondToResolveRequest(
         return reply.send(browseResponse);
       } catch (err) {
         if (err instanceof NoGenreSearchAdapterError) {
-          return reply.status(503).send(jsonError("SERVICE_DOWN", err.message));
+          return reply.status(503).send(createApiErrorResponse("SERVICE_DOWN", { overrideMessage: err.message }));
         }
         throw err;
       }
@@ -249,16 +241,16 @@ export async function respondToResolveRequest(
         return reply.send(genreResponse);
       } catch (err) {
         if (err instanceof GenreQueryParseError) {
-          return reply.status(400).send(jsonError("INVALID_URL", err.message));
+          return reply.status(400).send(createApiErrorResponse("INVALID_URL", { overrideMessage: err.message }));
         }
         if (err instanceof NoGenreSearchAdapterError) {
-          return reply.status(503).send(jsonError("SERVICE_DOWN", err.message));
+          return reply.status(503).send(createApiErrorResponse("SERVICE_DOWN", { overrideMessage: err.message }));
         }
         log.error("GenreSearch", err instanceof Error ? err.message : "Unknown error");
         if (process.env.NODE_ENV !== "production" && err instanceof Error) {
           log.error("GenreSearch", "Stack:", err.stack);
         }
-        return reply.status(503).send(jsonError("SERVICE_DOWN"));
+        return reply.status(503).send(createApiErrorResponse("SERVICE_DOWN"));
       }
     }
 
@@ -268,15 +260,8 @@ export async function respondToResolveRequest(
     // supported (Spotify, Deezer, MusicBrainz). Disambiguation is returned
     // as the standard discriminated-union response.
     if (query && isStructuredSearchQuery(query)) {
-      let parsed: ParsedStructuredQuery;
-      try {
-        parsed = parseStructuredSearchQuery(query);
-      } catch (err) {
-        if (err instanceof StructuredSearchQueryParseError) {
-          return reply.status(400).send(jsonError("INVALID_URL", err.message));
-        }
-        throw err;
-      }
+      const parsed = parseStructuredQueryOrReply(query, reply);
+      if (!parsed) return reply;
       const textResult = await resolveTextSearchWithDisambiguation(query, parsed.search, parsed.candidateLimit);
       if (textResult.kind === "resolved" && textResult.result) {
         return reply.send(await persistTrackAndRespond(textResult.result, origin));
@@ -312,48 +297,11 @@ export async function respondToResolveRequest(
     return reply.send(toDisambiguationResponse(textResult.candidates));
   } catch (error) {
     if (error instanceof ResolveError) {
-      // httpStatus is `number` in the error registry; the schema declares
-      // every code the registry can actually emit (400/401/404/408/429/500/503),
-      // so the cast is safe at runtime.
-      const httpStatus = getErrorEntry(error.code).httpStatus as 400 | 401 | 404 | 408 | 429 | 500 | 503;
-      return reply.status(httpStatus).send(jsonError(error.code, error.message || undefined, error.context));
+      return sendResolveError(reply, error);
     }
 
     throw error;
   }
-}
-
-/**
- * Picks a safe origin for the short URL embedded in the response. Same
- * shape and motivation as the helper in `routes/resolve-public-get.ts`.
- *
- * @param headerOrigin - raw `Origin` header value from the incoming request
- * @returns a whitelisted origin string
- */
-function getOrigin(headerOrigin?: string): string {
-  if (headerOrigin && ALLOWED_ORIGINS.includes(headerOrigin)) {
-    return headerOrigin;
-  }
-  return ALLOWED_ORIGINS[0];
-}
-
-/**
- * Builds the wire-format error payload. `code` may be either an MC code
- * or a legacy code: `getErrorEntry` resolves both and the response always
- * carries the canonical MC code along with a user-facing message that
- * includes the code as a grep-friendly suffix.
- *
- * @param code            - error code (MC or legacy) from the shared table
- * @param overrideMessage - optional caller-specific message replacing the template output
- * @param context         - values interpolated into the message template when no override is given
- * @returns `ResolveErrorResponse` ready to send as the JSON body
- */
-function jsonError(
-  code: string,
-  overrideMessage?: string,
-  context?: Record<string, string | number>,
-): ResolveErrorResponse {
-  return createApiErrorResponse(code, { context, overrideMessage });
 }
 
 /**
