@@ -17,6 +17,7 @@ import { splitArtistNames } from "../_shared/artists.js";
 import { fetchProviderPage, type ProviderPageOptions } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { JSON_LD_ALBUM_TYPE, JSON_LD_RECORDING_TYPE, JSON_LD_SCRIPT_PATTERN, readJsonLd } from "../_shared/json-ld.js";
+import { readProviderJson } from "../_shared/provider-response.js";
 import {
   logCandidateScore,
   pickBestCandidate,
@@ -221,16 +222,7 @@ async function pandoraSearch(
   const response = await pandoraApiFetch("/api/v3/sod/search", { query, types: [type], count: 5 });
   if (!response.ok) throw serviceHttpError(Service.Pandora, response.status, kind, query, Operation.Search);
 
-  let body: PandoraSearchResponse | null;
-  try {
-    body = (await response.json()) as PandoraSearchResponse | null;
-  } catch (error) {
-    throw new UpstreamUnavailableError(
-      Service.Pandora,
-      `search for "${query}" answered with a body that is not JSON`,
-      error,
-    );
-  }
+  const body = await readProviderJson<PandoraSearchResponse | null>(response, Service.Pandora, `search for "${query}"`);
   if (!body || !Array.isArray(body.results) || !body.annotations || typeof body.annotations !== "object") {
     throw new UpstreamUnavailableError(
       Service.Pandora,

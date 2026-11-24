@@ -20,6 +20,7 @@ import type {
 } from "../../types";
 import { fetchProviderPage, type ProviderPageOptions, withQueryParam } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { readProviderJson } from "../_shared/provider-response.js";
 import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
 
 /**
@@ -171,22 +172,6 @@ async function scApiFetchWithClientId(endpoint: string): Promise<Response> {
 }
 
 /**
- * Parses an API response body.
- *
- * @param response - A response with an OK status.
- * @param what - What was asked for, which the error names.
- * @returns The parsed body.
- * @throws {UpstreamUnavailableError} When the body is not JSON.
- */
-async function readJson(response: Response, what: string): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch (error) {
-    throw new UpstreamUnavailableError(Service.SoundCloud, `${what} answered with a body that is not JSON`, error);
-  }
-}
-
-/**
  * Runs one of SoundCloud's searches.
  *
  * @param endpoint - What to search for.
@@ -206,7 +191,11 @@ async function scSearch<Item>(
   const response = await scApiFetch(`/search/${endpoint}?q=${encodeURIComponent(query)}&limit=5`);
   if (!response.ok) throw serviceHttpError(Service.SoundCloud, response.status, kind, query, Operation.Search);
 
-  const body = (await readJson(response, `${endpoint} search for "${query}"`)) as { collection?: unknown } | null;
+  const body = await readProviderJson<{ collection?: unknown } | null>(
+    response,
+    Service.SoundCloud,
+    `${endpoint} search for "${query}"`,
+  );
   if (!body || !Array.isArray(body.collection)) {
     throw new UpstreamUnavailableError(
       Service.SoundCloud,
@@ -368,7 +357,7 @@ async function fetchAlbumByPath(setPath: string): Promise<NormalizedAlbum | null
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.SoundCloud, response.status, ResourceKind.Album, setPath);
 
-  const data = (await readJson(response, `resolve of ${setPath}`)) as ScPlaylistData | null;
+  const data = await readProviderJson<ScPlaylistData | null>(response, Service.SoundCloud, `resolve of ${setPath}`);
   // SoundCloud says "no such set" with 404, so a resolved set without a title is not that answer.
   if (!data?.title)
     throw new UpstreamUnavailableError(Service.SoundCloud, `resolve of ${setPath} answered without a title`);
@@ -545,7 +534,11 @@ export const soundcloudAdapter = {
       throw serviceHttpError(Service.SoundCloud, response.status, ResourceKind.Artist, artistId);
     }
 
-    const data = (await readJson(response, `resolve of artist ${artistId}`)) as ScUserData | null;
+    const data = await readProviderJson<ScUserData | null>(
+      response,
+      Service.SoundCloud,
+      `resolve of artist ${artistId}`,
+    );
 
     // An artist SoundCloud does not have answers 404 above, so a profile
     // without a name is a failure rather than a miss.

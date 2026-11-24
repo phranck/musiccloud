@@ -10,8 +10,10 @@
  * refused, such as `4` for the quota.
  */
 
+import { Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable.js";
+import { readProviderJson } from "../_shared/provider-response.js";
 
 /** The public, keyless Deezer API every path is appended to. */
 const DEEZER_API_BASE = "https://api.deezer.com";
@@ -55,13 +57,7 @@ export async function readDeezerJson<Body>(response: Response, operation: string
     throw new UpstreamUnavailableError("deezer", `${operation} answered HTTP ${response.status}`);
   }
 
-  let body: Body & DeezerErrorBody;
-  try {
-    body = (await response.json()) as Body & DeezerErrorBody;
-  } catch (error) {
-    throw new UpstreamUnavailableError("deezer", `${operation} answered with a body that is not JSON`, error);
-  }
-
+  const body = await readProviderJson<Body & DeezerErrorBody>(response, Service.Deezer, operation);
   if (body.error) {
     if (body.error.code === DEEZER_NO_DATA_CODE) return null;
     throw new UpstreamUnavailableError(
