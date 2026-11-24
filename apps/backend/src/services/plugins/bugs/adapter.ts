@@ -90,6 +90,15 @@ function splitOgTitle(ogTitle: string): { title: string; artists: string[] } {
   return { title: name.trim(), artists: splitArtistNames(credit.join(BUGS_OG_TITLE_SEPARATOR).trim()) };
 }
 
+/**
+ * Fetches a Bugs! track page and reads its `og:title` and `og:image`.
+ *
+ * @param trackId - The Bugs! track id.
+ * @returns The track, or `null` when the page answers 404 or has no `og:title`.
+ * @throws {ResolveError} for any other error status.
+ * @throws {UpstreamUnavailableError} when the page is not HTML, such as a
+ *   restriction page or a JSON body, so a refusal never reads as a missing track.
+ */
 async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> {
   const url = `https://music.bugs.co.kr/track/${trackId}`;
   const response = await fetchProviderPage(url, BUGS_PAGE_REQUEST);
@@ -98,7 +107,7 @@ async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> 
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Track, trackId);
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Bugs, "track lookup");
   const og = extractOgTags(html);
 
   if (!og.title) return null;
@@ -129,13 +138,22 @@ async function searchForTrackIds(query: string): Promise<string[]> {
   return scrapeIds(html, BUGS_TRACK_LINK_PATTERN, BUGS_SEARCH_ID_LIMIT);
 }
 
+/**
+ * Fetches a Bugs! album page and reads its `og:title` and `og:image`.
+ *
+ * @param albumId - The Bugs! album id.
+ * @returns The album, or `null` when the page answers 404 or has no `og:title`.
+ * @throws {ResolveError} for any other error status.
+ * @throws {UpstreamUnavailableError} when the page is not HTML, such as a
+ *   restriction page or a JSON body, so a refusal never reads as a missing album.
+ */
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const url = `https://music.bugs.co.kr/album/${albumId}`;
   const response = await fetchProviderPage(url, BUGS_PAGE_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Album, albumId);
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Bugs, "album lookup");
   const og = extractOgTags(html);
 
   if (!og.title) return null;

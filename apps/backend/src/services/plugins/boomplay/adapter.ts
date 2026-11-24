@@ -114,14 +114,22 @@ async function fetchSearchPage(query: string, kind: ResourceKind): Promise<Respo
   return response;
 }
 
-/** Fetch a Boomplay song page and extract track metadata from JSON-LD */
+/**
+ * Fetches a Boomplay song page and reads its `MusicRecording` block.
+ *
+ * @param songId - The Boomplay song id.
+ * @returns The track, or `null` when the page answers 404 or has no named recording block.
+ * @throws {ResolveError} for any other error status.
+ * @throws {UpstreamUnavailableError} when the page is not HTML, such as a
+ *   restriction page or a JSON body, so a refusal never reads as a missing song.
+ */
 async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   const url = `https://www.boomplay.com/songs/${songId}`;
   const response = await fetchProviderPage(url, BOOMPLAY_PAGE_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Boomplay, response.status, ResourceKind.Track, songId);
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Boomplay, "track lookup");
   const jsonLd = readJsonLd<BoomplayJsonLd>(html, JSON_LD_RECORDING_TYPE);
   if (!jsonLd?.name) return null;
 
@@ -155,13 +163,22 @@ function parseAlbumJsonLd(html: string): BoomplayAlbumJsonLd | null {
   return data?.name ? data : null;
 }
 
+/**
+ * Fetches a Boomplay album page and reads its `MusicAlbum` block.
+ *
+ * @param albumId - The Boomplay album id.
+ * @returns The album, or `null` when the page answers 404 or has no named album block.
+ * @throws {ResolveError} for any other error status.
+ * @throws {UpstreamUnavailableError} when the page is not HTML, such as a
+ *   restriction page or a JSON body, so a refusal never reads as a missing album.
+ */
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const url = `https://www.boomplay.com/albums/${albumId}`;
   const response = await fetchProviderPage(url, BOOMPLAY_PAGE_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Boomplay, response.status, ResourceKind.Album, albumId);
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Boomplay, "album lookup");
   const jsonLd = parseAlbumJsonLd(html);
   if (!jsonLd) return null;
 
