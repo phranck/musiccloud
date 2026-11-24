@@ -6,7 +6,7 @@
  */
 
 import type { ArtistTopTrack } from "@musiccloud/shared";
-import { lastFmApiKey, lastFmGet } from "./lastfm-response.js";
+import { lastFmApiKey, lastFmGet } from "./client.js";
 
 interface LastFmTopTracksResponse {
   toptracks?: {

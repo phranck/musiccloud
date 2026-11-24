@@ -29,7 +29,7 @@ describe("the Last.fm client", () => {
       .filter((path) => readFileSync(path, "utf8").includes(endpoint))
       .map((path) => relative(BACKEND_SOURCE, path));
 
-    expect(naming).toEqual(["services/plugins/lastfm/lastfm-response.ts"]);
+    expect(naming).toEqual(["services/plugins/lastfm/client.ts"]);
   });
 });
 
