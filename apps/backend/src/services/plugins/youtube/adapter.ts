@@ -137,17 +137,17 @@ function parseArtistFromTitle(title: string): { artist: string; trackTitle: stri
   if (dashMatch) {
     return {
       artist: dashMatch[1].trim(),
-      trackTitle: normalizeTitle(dashMatch[2].trim(), "youtube"),
+      trackTitle: normalizeTitle(dashMatch[2].trim(), Service.YouTube),
     };
   }
-  return { artist: "", trackTitle: normalizeTitle(title, "youtube") };
+  return { artist: "", trackTitle: normalizeTitle(title, Service.YouTube) };
 }
 
 function mapVideoToTrack(video: YouTubeVideoResource): NormalizedTrack {
   const { artist, trackTitle } = parseArtistFromTitle(video.snippet.title);
 
   return {
-    sourceService: "youtube",
+    sourceService: Service.YouTube,
     sourceId: video.id,
     title: trackTitle,
     artists: artist ? [artist] : [stripYouTubeTopicSuffix(video.snippet.channelTitle)],
@@ -189,7 +189,7 @@ function mapChannelToArtist(channel: YouTubeChannelResource): NormalizedArtist {
   const webUrl = handle ? `https://www.youtube.com/${handle}` : `https://www.youtube.com/channel/${channel.id}`;
 
   return {
-    sourceService: "youtube",
+    sourceService: Service.YouTube,
     sourceId: channel.id,
     name: stripYouTubeTopicSuffix(channel.snippet.title),
     imageUrl: getBestThumbnail(channel.snippet.thumbnails),
@@ -204,8 +204,8 @@ function mapChannelToArtist(channel: YouTubeChannelResource): NormalizedArtist {
  * with the resolver's YouTube Music derivation.
  */
 export const youtubeAdapter: ServiceAdapter = {
-  id: "youtube",
-  displayName: getPlatformLabel("youtube"),
+  id: Service.YouTube,
+  displayName: getPlatformLabel(Service.YouTube),
   capabilities,
   albumCapabilities,
   artistCapabilities,
