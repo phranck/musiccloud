@@ -5,11 +5,14 @@
  * Every check reads the limits, patterns and IBAN checksum from
  * `@musiccloud/shared`, the same values the backend's request schema is built
  * from, so a form this file accepts is a body the route accepts. Amounts are
- * typed in euros and stored in cents, and the conversion lives here.
+ * typed in euros and stored in cents. `euroInputToCents` here reads a typed
+ * amount, and `formatCents` from `@musiccloud/shared` writes one back.
  */
 
 import {
   BIC_PATTERN,
+  CENTS_PER_UNIT,
+  formatCents,
   IBAN_PATTERN,
   ibanChecksumHolds,
   normalizeAccountCode,
@@ -51,12 +54,6 @@ export interface SponsoringForm {
   purposePaypal: string;
 }
 
-/** Cents in a euro. */
-const CENTS_PER_EURO = 100;
-
-/** Decimals a euro amount is shown with when it has cents. */
-const CENT_DIGITS = 2;
-
 /** A euro amount as typed: whole euros, optionally with one or two decimals after a point or a comma. */
 const EURO_INPUT_PATTERN = /^\d+([.,]\d{1,2})?$/;
 
@@ -77,16 +74,6 @@ export function newCostRowId(): string {
 }
 
 /**
- * Writes cents as the euro amount a person would type.
- *
- * @param cents - The amount in cents.
- * @returns Whole euros without decimals (`"200"`), anything else with two (`"12.50"`).
- */
-export function centsToEuroInput(cents: number): string {
-  return cents % CENTS_PER_EURO === 0 ? String(cents / CENTS_PER_EURO) : (cents / CENTS_PER_EURO).toFixed(CENT_DIGITS);
-}
-
-/**
  * Reads a typed euro amount as cents.
  *
  * @param value - The amount as typed, with a point or a comma before the cents.
@@ -95,7 +82,7 @@ export function centsToEuroInput(cents: number): string {
 export function euroInputToCents(value: string): number | null {
   const trimmed = value.trim();
   if (!EURO_INPUT_PATTERN.test(trimmed)) return null;
-  return Math.round(Number(trimmed.replace(",", ".")) * CENTS_PER_EURO);
+  return Math.round(Number(trimmed.replace(",", ".")) * CENTS_PER_UNIT);
 }
 
 /**
@@ -109,9 +96,9 @@ export function toSponsoringForm(config: SponsoringConfig): SponsoringForm {
     costs: config.costs.map((item) => ({
       id: newCostRowId(),
       label: item.label,
-      amount: centsToEuroInput(item.amountCents),
+      amount: formatCents(item.amountCents),
     })),
-    sponsorMinimum: centsToEuroInput(config.sponsorMinimumCents),
+    sponsorMinimum: formatCents(config.sponsorMinimumCents),
     payeeName: config.payeeName,
     payeeIban: config.payeeIban,
     payeeBic: config.payeeBic,

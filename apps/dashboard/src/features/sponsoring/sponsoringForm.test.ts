@@ -1,7 +1,6 @@
 import { SPONSORING_DEFAULTS, type SponsoringConfig } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import {
-  centsToEuroInput,
   euroInputToCents,
   type SponsoringForm,
   sponsoringFormProblems,
@@ -40,11 +39,6 @@ describe("euro amounts", () => {
 
   it.each(["", "abc", "-5", "1.234", "1e3", "12."])("refuses %j", (typed) => {
     expect(euroInputToCents(typed)).toBeNull();
-  });
-
-  it("writes whole euros without decimals and anything else with two", () => {
-    expect(centsToEuroInput(20_000)).toBe("200");
-    expect(centsToEuroInput(1_250)).toBe("12.50");
   });
 });
 

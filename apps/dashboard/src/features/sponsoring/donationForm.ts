@@ -4,8 +4,9 @@
  *
  * Every check reads the limits and the day check from `@musiccloud/shared`,
  * the same values the backend's request schema is built from, so a form this
- * file accepts is a body the route accepts. The amount is typed in euros and
- * stored in cents through the conversion `sponsoringForm` owns.
+ * file accepts is a body the route accepts. The amount is typed in euros, read
+ * into cents by `euroInputToCents` in `sponsoringForm` and written back by
+ * `formatCents` from `@musiccloud/shared`.
  */
 
 import {
@@ -14,9 +15,10 @@ import {
   type DonationInput,
   DonationProvider,
   type DonationProviderValue,
+  formatCents,
   isCalendarDay,
 } from "@musiccloud/shared";
-import { centsToEuroInput, euroInputToCents } from "@/features/sponsoring/sponsoringForm";
+import { euroInputToCents } from "@/features/sponsoring/sponsoringForm";
 
 /**
  * The donation as the form edits it.
@@ -86,7 +88,7 @@ export function toDonationForm(donation: Donation): DonationForm {
   return {
     name: donation.name,
     published: donation.published,
-    amount: centsToEuroInput(donation.amountCents),
+    amount: formatCents(donation.amountCents),
     receivedOn: donation.receivedOn,
     provider: donation.provider,
     note: donation.note,

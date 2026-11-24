@@ -7,17 +7,18 @@
  * same two fields). The checks read the limit and the day check from
  * `@musiccloud/shared`, the values `PENDING_SPONSORSHIP_TAKEOVER_SCHEMA` is
  * built from, so a form this file accepts is a body the route accepts. The
- * amount is typed in euros and sent in cents through the conversion
- * `sponsoringForm` owns.
+ * amount is typed in euros, read into cents by `euroInputToCents` in
+ * `sponsoringForm` and written back by `formatCents` from `@musiccloud/shared`.
  */
 
 import {
+  formatCents,
   isCalendarDay,
   PENDING_SPONSORSHIP_LIMITS,
   type PendingSponsorship,
   type PendingSponsorshipTakeover,
 } from "@musiccloud/shared";
-import { centsToEuroInput, euroInputToCents } from "@/features/sponsoring/sponsoringForm";
+import { euroInputToCents } from "@/features/sponsoring/sponsoringForm";
 
 /**
  * The takeover as the form edits it.
@@ -50,7 +51,7 @@ export function toSponsorshipTakeoverForm(
   sponsorMinimumCents: number,
 ): SponsorshipTakeoverForm {
   const presetCents = request.amountCents > 0 ? request.amountCents : sponsorMinimumCents;
-  return { amount: centsToEuroInput(presetCents), paidOn: today };
+  return { amount: formatCents(presetCents), paidOn: today };
 }
 
 /**
