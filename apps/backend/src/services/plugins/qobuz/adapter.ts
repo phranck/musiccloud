@@ -600,8 +600,8 @@ export const qobuzAdapter = {
       }
     }
 
-    if (!bestArtist || bestConfidence < 0.6) {
-      log.debug("Qobuz", `Best artist confidence ${bestConfidence.toFixed(3)} below threshold 0.6`);
+    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
+      log.debug("Qobuz", `Best artist confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }
 

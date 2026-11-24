@@ -51,6 +51,7 @@ import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -67,8 +68,6 @@ import type {
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { safeNumericProviderCode } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
-
-const MATCH_MIN_CONFIDENCE = 0.6;
 
 // NetEase Cloud Music URLs: music.163.com/song?id={songId} or music.163.com/#/song?id={songId}
 const NETEASE_TRACK_REGEX = /^https?:\/\/music\.163\.com\/(?:#\/)?song\?id=(\d+)/;

@@ -52,6 +52,7 @@ import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { ALBUM_PREVIEW_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -67,8 +68,6 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
-
-const MATCH_MIN_CONFIDENCE = 0.6;
 
 // JioSaavn URLs: jiosaavn.com/song/{slug}/{id}
 const JIOSAAVN_TRACK_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/song\/[^/]+\/([A-Za-z0-9_-]+)/;
@@ -517,7 +516,7 @@ export const jiosaavnAdapter: ServiceAdapter = {
         const artists = primary.length > 0 ? primary : r.music ? [r.music] : ["Unknown Artist"];
         const confidence = scoreAlbumCandidate(query, { title: r.title, artists, releaseDate: r.year });
         log.debug("JioSaavn", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
-        if (confidence > bestConfidence && confidence > 0.4) {
+        if (confidence > bestConfidence && confidence > ALBUM_PREVIEW_MIN_CONFIDENCE) {
           const full = await getAlbumById(r.id);
           if (!full) continue;
           // Only the returned full metadata and its own score may become a destination.

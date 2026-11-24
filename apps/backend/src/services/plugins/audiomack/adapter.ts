@@ -34,6 +34,7 @@ import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -47,8 +48,6 @@ import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_share
 import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
-
-const MATCH_MIN_CONFIDENCE = 0.6;
 
 // Audiomack URLs: audiomack.com/{artist}/song/{track-slug}
 const AUDIOMACK_TRACK_REGEX = /^https?:\/\/(?:www\.)?audiomack\.com\/([^/]+)\/song\/([^/?]+)/;
