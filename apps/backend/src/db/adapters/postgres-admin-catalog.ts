@@ -64,9 +64,9 @@ import {
 // ============================================================================
 
 /**
- * Raw shape of a track listing row (admin listings only; public
- * resolution uses a wider, link-bearing shape — see
- * `postgres-tracks.ts`).
+ * Raw shape of a track listing row, used by the admin listings only. Public
+ * resolution uses a wider, link-bearing shape, which `postgres-tracks.ts`
+ * defines.
  */
 interface TrackListRow {
   id: string;
@@ -333,8 +333,9 @@ export async function listTracks(
 /**
  * Paginated listing of albums for the admin AlbumsPage.
  *
- * @remarks Mirrors {@link listTracks} — page-1 COUNT, correlated
- *   `link_count` subquery, deterministic order columns.
+ * @remarks Mirrors {@link listTracks}. It counts only on page 1, counts
+ *   links with a correlated `link_count` subquery, and orders by
+ *   deterministic columns.
  *
  * @param pool - Postgres connection pool.
  * @param params - Pagination + search params; same shape as
@@ -763,7 +764,7 @@ export async function deleteArtists(pool: Pool, ids: string[]): Promise<void> {
 // `tryArtistCache`). Track and album resolver cache hits are permanently fresh
 // after the static/dynamic cache split (preview freshness lives in
 // `track_previews` / `album_previews`), so there is no per-row track/album
-// invalidation — rewinding their `updated_at` would have no effect.
+// invalidation, because rewinding their `updated_at` would have no effect.
 
 /**
  * Forces the next resolve for an artist to re-fetch from upstream by

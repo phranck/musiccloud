@@ -3,7 +3,7 @@
  * across the PostgreSQL adapter implementation.
  *
  * This module is consumed by every `postgres-*.ts` sibling module. It
- * deliberately contains no domain logic of its own — only:
+ * deliberately contains no domain logic of its own. It holds only these:
  *
  *   - JSON / array / date parsing helpers used in every result builder.
  *   - SQL `SELECT` and `JOIN` fragments used by more than one domain
@@ -155,7 +155,7 @@ export function dateToMs(date: Date | null | undefined): number {
 /**
  * Converts an epoch second value to a Date.
  *
- * Note: input is interpreted as **seconds**, not milliseconds — this
+ * Note: input is interpreted as **seconds**, not milliseconds. This
  * mirrors the original SQLite contract where timestamps were stored as
  * `INTEGER` seconds. Do not feed `Date.now()` style millisecond values
  * to this function.
@@ -439,7 +439,7 @@ export async function insertExternalIds(
     for (const r of records) {
       // ON CONFLICT (cols) targets the unique index from migration 0019.
       // ON CONFLICT ON CONSTRAINT requires a UNIQUE CONSTRAINT, which
-      // a UNIQUE INDEX is not — Postgres rejects the latter at runtime.
+      // a UNIQUE INDEX is not, so Postgres rejects the latter at runtime.
       await client.query(
         `INSERT INTO ${table} (id, ${fkColumn}, id_type, id_value, source_service, observed_at)
          VALUES ($1, $2, $3, $4, $5, $6)
