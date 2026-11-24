@@ -41,7 +41,6 @@
  * duration data but at least yields a valid track row.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -55,6 +54,12 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import {
+  ENGLISH_ACCEPT_LANGUAGE,
+  fetchProviderPage,
+  PAGE_ACCEPT,
+  type ProviderPageOptions,
+} from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { parseClockDurationMs } from "../_shared/duration.js";
 import { extractOgTags } from "../_shared/og.js";
@@ -67,7 +72,6 @@ import {
   trackScoreLogger,
   usableTracks,
 } from "../_shared/rank.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /** How many search hits a Beatport track or release search scores: the first `5`. */
 const BEATPORT_SEARCH_LIMIT = 5;
@@ -114,19 +118,15 @@ interface BeatportTrack {
   exclusive?: boolean;
 }
 
-async function beatportFetch(url: string, timeoutMs = 10000): Promise<Response> {
-  return fetchWithTimeout(
-    url,
-    {
-      headers: {
-        "User-Agent": SCRAPER_USER_AGENT,
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    },
-    timeoutMs,
-  );
-}
+/** How long one Beatport page may take, 10 s. */
+const BEATPORT_REQUEST_TIMEOUT_MS = 10000;
+
+/** How every Beatport page is requested: as an English browser page, within {@link BEATPORT_REQUEST_TIMEOUT_MS}. */
+const BEATPORT_PAGE_REQUEST: ProviderPageOptions = {
+  accept: PAGE_ACCEPT,
+  acceptLanguage: ENGLISH_ACCEPT_LANGUAGE,
+  timeoutMs: BEATPORT_REQUEST_TIMEOUT_MS,
+};
 
 function parseNextData(html: string): Record<string, unknown> | null {
   const match = /__NEXT_DATA__[^>]*>\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
@@ -158,7 +158,7 @@ async function fetchSearchData(
   query: string,
   operation: Operation,
 ): Promise<Record<string, unknown>> {
-  const response = await beatportFetch(url);
+  const response = await fetchProviderPage(url, BEATPORT_PAGE_REQUEST);
   if (!response.ok) throw serviceHttpError(Service.Beatport, response.status, kind, query, operation);
   const nextData = parseNextData(await response.text());
   if (!nextData) {
@@ -264,7 +264,7 @@ function mapTrack(track: BeatportTrack): NormalizedTrack {
 async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> {
   // Fetch track page and extract from __NEXT_DATA__
   const url = `https://www.beatport.com/track/x/${trackId}`;
-  const response = await beatportFetch(url);
+  const response = await fetchProviderPage(url, BEATPORT_PAGE_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Beatport, response.status, ResourceKind.Track, trackId);
 
@@ -344,7 +344,7 @@ function mapRelease(release: BeatportRelease): NormalizedAlbum {
 
 async function fetchReleaseById(releaseId: string): Promise<NormalizedAlbum | null> {
   const url = `https://www.beatport.com/release/x/${releaseId}`;
-  const response = await beatportFetch(url);
+  const response = await fetchProviderPage(url, BEATPORT_PAGE_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Beatport, response.status, ResourceKind.Album, releaseId);
 

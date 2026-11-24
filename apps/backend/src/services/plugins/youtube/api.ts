@@ -1,6 +1,7 @@
 import { Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { serviceConfigurationMissingError } from "../../../lib/resolve/service-errors";
+import { withQueryParam } from "../_shared/browser-fetch.js";
 
 /** The root every YouTube Data API v3 endpoint path is appended to. */
 const API_BASE = "https://www.googleapis.com/youtube/v3";
@@ -24,6 +25,5 @@ export async function youtubeFetch(endpoint: string): Promise<Response> {
     throw serviceConfigurationMissingError(Service.YouTube, YOUTUBE_API_KEY_VARIABLE);
   }
 
-  const separator = endpoint.includes("?") ? "&" : "?";
-  return fetchWithTimeout(`${API_BASE}${endpoint}${separator}key=${apiKey}`, {}, YOUTUBE_REQUEST_TIMEOUT_MS);
+  return fetchWithTimeout(withQueryParam(`${API_BASE}${endpoint}`, "key", apiKey), {}, YOUTUBE_REQUEST_TIMEOUT_MS);
 }

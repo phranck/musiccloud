@@ -32,7 +32,6 @@
  * distinguish "no duration data" from "zero-length track".
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
@@ -44,13 +43,18 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import {
+  ENGLISH_ACCEPT_LANGUAGE,
+  fetchProviderPage,
+  PAGE_ACCEPT,
+  type ProviderPageOptions,
+} from "../_shared/browser-fetch.js";
 import { bestSettledAlbum, bestSettledTrack } from "../_shared/candidates.js";
 import { searchText } from "../_shared/confidence.js";
 import { parseIsoDurationMs } from "../_shared/duration.js";
 import { JSON_LD_ALBUM_TYPE, JSON_LD_RECORDING_TYPE, readJsonLd } from "../_shared/json-ld.js";
 import { readProviderHtml } from "../_shared/provider-response.js";
 import { scrapeIds } from "../_shared/scrape-ids.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const BOOMPLAY_SONG_REGEX = /^https?:\/\/(?:www\.)?boomplay\.com\/songs\/(\d+)/;
 // Boomplay album URLs: boomplay.com/albums/{id}
@@ -87,19 +91,8 @@ interface BoomplayJsonLd {
   inAlbum?: { name?: string };
 }
 
-async function boomplayFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  return fetchWithTimeout(
-    url,
-    {
-      headers: {
-        "User-Agent": SCRAPER_USER_AGENT,
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    },
-    timeoutMs,
-  );
-}
+/** How every Boomplay page is requested: as an English browser page, within the default timeout. */
+const BOOMPLAY_PAGE_REQUEST: ProviderPageOptions = { accept: PAGE_ACCEPT, acceptLanguage: ENGLISH_ACCEPT_LANGUAGE };
 
 /**
  * Fetches a Boomplay search page.
@@ -112,7 +105,10 @@ async function boomplayFetch(url: string, timeoutMs = 8000): Promise<Response> {
  *   ids, so an error status is a failure rather than an answer.
  */
 async function fetchSearchPage(query: string, kind: ResourceKind): Promise<Response> {
-  const response = await boomplayFetch(`https://www.boomplay.com/search/default/${encodeURIComponent(query)}`);
+  const response = await fetchProviderPage(
+    `https://www.boomplay.com/search/default/${encodeURIComponent(query)}`,
+    BOOMPLAY_PAGE_REQUEST,
+  );
   if (!response.ok) throw serviceHttpError(Service.Boomplay, response.status, kind, query, Operation.Search);
   return response;
 }
@@ -120,7 +116,7 @@ async function fetchSearchPage(query: string, kind: ResourceKind): Promise<Respo
 /** Fetch a Boomplay song page and extract track metadata from JSON-LD */
 async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   const url = `https://www.boomplay.com/songs/${songId}`;
-  const response = await boomplayFetch(url);
+  const response = await fetchProviderPage(url, BOOMPLAY_PAGE_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Boomplay, response.status, ResourceKind.Track, songId);
 
@@ -160,7 +156,7 @@ function parseAlbumJsonLd(html: string): BoomplayAlbumJsonLd | null {
 
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const url = `https://www.boomplay.com/albums/${albumId}`;
-  const response = await boomplayFetch(url);
+  const response = await fetchProviderPage(url, BOOMPLAY_PAGE_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Boomplay, response.status, ResourceKind.Album, albumId);
 

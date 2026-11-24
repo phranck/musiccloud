@@ -1,5 +1,4 @@
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -18,9 +17,9 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types";
+import { fetchProviderPage, type ProviderPageOptions, withQueryParam } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
  * @file SoundCloud adapter: internal API with self-extracted client_id.
@@ -110,7 +109,7 @@ async function getClientId(): Promise<string | null> {
 
 async function fetchClientId(): Promise<string | null> {
   try {
-    const response = await scFetch("https://soundcloud.com", 5000);
+    const response = await fetchProviderPage("https://soundcloud.com", SOUNDCLOUD_REQUEST);
     if (!response.ok) return cachedClientId;
 
     const html = await response.text();
@@ -136,9 +135,11 @@ async function fetchClientId(): Promise<string | null> {
 
 // --- Fetch helpers ---
 
-async function scFetch(url: string, timeoutMs = 5000): Promise<Response> {
-  return fetchWithTimeout(url, { headers: { "User-Agent": SCRAPER_USER_AGENT } }, timeoutMs);
-}
+/** How long any SoundCloud request may take, 5 s. */
+const SOUNDCLOUD_REQUEST_TIMEOUT_MS = 5000;
+
+/** How every SoundCloud request goes out: with the user agent alone, within {@link SOUNDCLOUD_REQUEST_TIMEOUT_MS}. */
+const SOUNDCLOUD_REQUEST: ProviderPageOptions = { timeoutMs: SOUNDCLOUD_REQUEST_TIMEOUT_MS };
 
 async function scApiFetch(endpoint: string): Promise<Response> {
   const response = await scApiFetchWithClientId(endpoint);
@@ -162,8 +163,7 @@ async function scApiFetchWithClientId(endpoint: string): Promise<Response> {
   const clientId = await getClientId();
   if (!clientId) throw new UpstreamUnavailableError(Service.SoundCloud, "no client_id available from the homepage");
 
-  const sep = endpoint.includes("?") ? "&" : "?";
-  return scFetch(`${SC_API_BASE}${endpoint}${sep}client_id=${clientId}`);
+  return fetchProviderPage(withQueryParam(`${SC_API_BASE}${endpoint}`, "client_id", clientId), SOUNDCLOUD_REQUEST);
 }
 
 /**
@@ -431,7 +431,7 @@ export const soundcloudAdapter = {
     }
 
     // Fallback: scrape the page
-    const response = await scFetch(pageUrl);
+    const response = await fetchProviderPage(pageUrl, SOUNDCLOUD_REQUEST);
     if (!response.ok) {
       throw serviceHttpError(Service.SoundCloud, response.status, ResourceKind.Track, trackPath);
     }

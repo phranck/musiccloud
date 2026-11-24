@@ -29,13 +29,12 @@
  *
  * ## Accept-Language
  *
- * The fetch helper sends `en-US,en;q=0.9,ko;q=0.8`. Without this,
+ * `MELON_PAGE_REQUEST` sends `en-US,en;q=0.9,ko;q=0.8`. Without this,
  * Melon returns Korean-only pages that still parse (OG fallback
  * handles Unicode fine) but produce downstream noise when logs mix
  * scripts. The preference hint does not change the schema content.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
@@ -48,6 +47,12 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { splitArtistNames } from "../_shared/artists.js";
+import {
+  ENGLISH_KOREAN_ACCEPT_LANGUAGE,
+  fetchProviderPage,
+  PAGE_ACCEPT,
+  type ProviderPageOptions,
+} from "../_shared/browser-fetch.js";
 import { bestSettledAlbum, bestSettledTrack } from "../_shared/candidates.js";
 import { searchText } from "../_shared/confidence.js";
 import { parseIsoDurationMs } from "../_shared/duration.js";
@@ -55,7 +60,6 @@ import { JSON_LD_ALBUM_TYPE, JSON_LD_RECORDING_TYPE, readJsonLd } from "../_shar
 import { extractOgTags } from "../_shared/og.js";
 import { readProviderHtml } from "../_shared/provider-response.js";
 import { scrapeIds } from "../_shared/scrape-ids.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 // Melon URLs: melon.com/song/detail.htm?songId={id}
 const MELON_TRACK_REGEX = /^https?:\/\/(?:www\.)?melon\.com\/song\/detail\.htm\?songId=(\d+)/;
@@ -124,23 +128,12 @@ function melonArtistNames(data: MelonJsonLd["byArtist"], html: string): string[]
   return artists.length > 0 ? artists : melonOpenGraph(html).artists;
 }
 
-async function melonFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  return fetchWithTimeout(
-    url,
-    {
-      headers: {
-        "User-Agent": SCRAPER_USER_AGENT,
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9,ko;q=0.8",
-      },
-    },
-    timeoutMs,
-  );
-}
+/** How every Melon page is requested: as a browser page in English or Korean, within the default timeout. */
+const MELON_PAGE_REQUEST: ProviderPageOptions = { accept: PAGE_ACCEPT, acceptLanguage: ENGLISH_KOREAN_ACCEPT_LANGUAGE };
 
 async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   const url = `https://www.melon.com/song/detail.htm?songId=${songId}`;
-  const response = await melonFetch(url);
+  const response = await fetchProviderPage(url, MELON_PAGE_REQUEST);
   // Melon answers a song it does not have with 200 and a page without
   // metadata. A 404 means the same; any other error status is a failure.
   if (response.status === 404) return null;
@@ -183,7 +176,7 @@ async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
 
 async function searchForSongIds(query: string): Promise<string[]> {
   const searchUrl = `https://www.melon.com/search/song/index.htm?q=${encodeURIComponent(query)}`;
-  const response = await melonFetch(searchUrl);
+  const response = await fetchProviderPage(searchUrl, MELON_PAGE_REQUEST);
   // A search without results answers 200 with no song ids.
   if (!response.ok) {
     throw serviceHttpError(Service.Melon, response.status, ResourceKind.Track, query, Operation.Search);
@@ -208,7 +201,7 @@ function parseMelonAlbumJsonLd(html: string): MelonAlbumJsonLd | null {
 
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const url = `https://www.melon.com/album/detail.htm?albumId=${albumId}`;
-  const response = await melonFetch(url);
+  const response = await fetchProviderPage(url, MELON_PAGE_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Melon, response.status, ResourceKind.Album, albumId);
 
@@ -249,7 +242,7 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
 
 async function searchMelonAlbumIds(query: string): Promise<string[]> {
   const searchUrl = `https://www.melon.com/search/album/index.htm?q=${encodeURIComponent(query)}`;
-  const response = await melonFetch(searchUrl);
+  const response = await fetchProviderPage(searchUrl, MELON_PAGE_REQUEST);
   if (!response.ok) {
     throw serviceHttpError(Service.Melon, response.status, ResourceKind.Album, query, Operation.Search);
   }
