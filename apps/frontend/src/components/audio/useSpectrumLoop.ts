@@ -29,6 +29,7 @@ import {
   writeSpectrumLevels,
   writeSpectrumPeakHold,
 } from "@/components/audio/spectrumStore";
+import type { AudioGraph } from "@/components/audio/useAudioGraph";
 
 /** The spectrum loop's refs and its stable control callbacks. */
 export interface SpectrumLoop {
@@ -179,20 +180,17 @@ export function useSpectrumLoop(): SpectrumLoop {
   };
 }
 
-/** What the spectrum watchdog reads. */
-export interface SpectrumWatchdogOptions {
+/**
+ * What the spectrum watchdog reads. The loop fields are documented on
+ * {@link SpectrumLoop}, and `audioContextRef` on `AudioGraph`.
+ */
+export interface SpectrumWatchdogOptions
+  extends Pick<SpectrumLoop, "analysersRef" | "spectrumTickRef" | "startSpectrumLoop">,
+    Pick<AudioGraph, "audioContextRef"> {
   /** The player's current phase. The watchdog runs only while it is `playing`. */
   phase: PlayerState["phase"];
   /** The current audio element. */
   audioRef: RefObject<HTMLAudioElement | null>;
-  /** The analysers of the current graph, from {@link useSpectrumLoop}. */
-  analysersRef: RefObject<StereoSpectrumAnalysers | null>;
-  /** The shared audio context, from `useAudioGraph`. */
-  audioContextRef: RefObject<AudioContext | null>;
-  /** The running loop's ticker callback, from {@link useSpectrumLoop}. */
-  spectrumTickRef: RefObject<(() => void) | null>;
-  /** Starts the spectrum loop, from {@link useSpectrumLoop}. */
-  startSpectrumLoop: () => void;
 }
 
 /**

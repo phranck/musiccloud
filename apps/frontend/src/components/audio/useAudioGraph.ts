@@ -5,29 +5,20 @@
  * unmount.
  */
 import { type RefObject, useCallback, useRef } from "react";
-import {
-  type AudioGraphNodes,
-  disconnectAudioGraph,
-  getAudioContextConstructor,
-  type StereoSpectrumAnalysers,
-  type StereoSpectrumData,
-} from "@/components/audio/audioGraph";
+import { type AudioGraphNodes, disconnectAudioGraph, getAudioContextConstructor } from "@/components/audio/audioGraph";
 import { AudioContextState } from "@/components/audio/playerStateMachine";
 import { clearSpectrumFrame } from "@/components/audio/spectrumStore";
+import type { SpectrumLoop } from "@/components/audio/useSpectrumLoop";
 
-/** What the graph shares with the spectrum loop. Every field comes from `useSpectrumLoop`. */
-export interface AudioGraphOptions {
-  /** The analysers the graph builds and the loop reads. */
-  analysersRef: RefObject<StereoSpectrumAnalysers | null>;
-  /** The byte buffers the graph allocates and the loop reads into. */
-  spectrumDataRef: RefObject<StereoSpectrumData | null>;
-  /** Starts the spectrum loop. */
-  startSpectrumLoop: () => void;
-  /** Stops the spectrum loop. */
-  stopSpectrumLoop: (options?: { clearBands?: boolean }) => void;
-  /** Clears both channels' peak hold state. */
-  resetPeakHold: () => void;
-}
+/**
+ * What the graph shares with the spectrum loop: the analyser and buffer refs
+ * the graph fills and the loop reads, and the loop controls the graph's
+ * state-change handler calls. Every field is documented on `SpectrumLoop`.
+ */
+export type AudioGraphOptions = Pick<
+  SpectrumLoop,
+  "analysersRef" | "spectrumDataRef" | "startSpectrumLoop" | "stopSpectrumLoop" | "resetPeakHold"
+>;
 
 /** The graph's refs and its stable callbacks. */
 export interface AudioGraph {
