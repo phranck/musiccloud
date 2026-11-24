@@ -24,6 +24,58 @@ const DEEZER_TIMEOUT_MS = 5000;
 /** The error code Deezer answers with when the requested object does not exist. */
 const DEEZER_NO_DATA_CODE = 800;
 
+/**
+ * One recording as Deezer's API describes it, in a lookup, a track search or an
+ * artist's top tracks. Every Deezer module reads its recordings through this type.
+ *
+ * @property id - Deezer's recording id.
+ * @property title - The recording title.
+ * @property artist - The main artist credit.
+ * @property album - The release the recording appears on, with its covers from
+ *   the largest, `cover_xl` at roughly 1000x1000, through `cover_big` at roughly
+ *   500x500, to `cover_medium`. A lookup can omit it.
+ * @property duration - The length in seconds.
+ * @property isrc - The recording's ISRC.
+ * @property explicit_lyrics - Whether Deezer marks the lyrics explicit.
+ * @property preview - The URL of a preview clip.
+ * @property link - The recording's page on deezer.com.
+ * @property contributors - Every credited artist, sent with an artist's top tracks.
+ */
+export interface DeezerTrack {
+  id: number;
+  title: string;
+  artist: { name: string };
+  album?: {
+    title?: string;
+    cover_xl?: string;
+    cover_big?: string;
+    cover_medium?: string;
+    release_date?: string;
+  };
+  duration: number;
+  isrc?: string;
+  explicit_lyrics?: boolean;
+  preview?: string;
+  link?: string;
+  contributors?: { name: string }[];
+}
+
+/**
+ * A {@link DeezerTrack} from a list Deezer returns, a track search or an artist's
+ * top tracks, which always names its album and its page on deezer.com.
+ */
+export type DeezerListedTrack = DeezerTrack & Required<Pick<DeezerTrack, "album" | "link">>;
+
+/**
+ * The API path of one Deezer artist, below which its top tracks are listed too.
+ *
+ * @param artistId - The Deezer artist id, as a number or as received in a URL.
+ * @returns `/artist/{id}` with the id URL-encoded.
+ */
+export function deezerArtistPath(artistId: number | string): string {
+  return `/artist/${encodeURIComponent(String(artistId))}`;
+}
+
 interface DeezerErrorBody {
   error?: { type?: string; message?: string; code?: number };
 }

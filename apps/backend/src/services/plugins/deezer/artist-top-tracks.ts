@@ -5,19 +5,11 @@
  */
 
 import type { ArtistTopTrack } from "@musiccloud/shared";
-import { deezerGet } from "./deezer-response.js";
+import { type DeezerListedTrack, deezerArtistPath, deezerGet } from "./deezer-response.js";
 
-interface DeezerTopTrack {
-  title: string;
-  duration: number;
-  link: string;
-  album: { title: string; cover_medium: string };
-  artist: { name: string };
-  contributors?: { name: string }[];
-}
-
+/** Deezer's `/artist/{id}/top` answer, of which only the track list is read. */
 interface DeezerTopTracksResponse {
-  data?: DeezerTopTrack[];
+  data?: DeezerListedTrack[];
 }
 
 /**
@@ -30,7 +22,7 @@ interface DeezerTopTracksResponse {
  */
 export async function fetchDeezerArtistTopTracks(artistId: number | string, limit = 3): Promise<ArtistTopTrack[]> {
   const data = await deezerGet<DeezerTopTracksResponse>(
-    `/artist/${encodeURIComponent(String(artistId))}/top?limit=${limit}`,
+    `${deezerArtistPath(artistId)}/top?limit=${limit}`,
     "artist top tracks",
   );
   return (data?.data ?? []).map(

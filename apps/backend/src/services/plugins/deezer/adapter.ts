@@ -73,7 +73,7 @@ import {
 } from "../_shared/track-search-query.js";
 import { pickDeezerArtistImage } from "./artist-image.js";
 import { type DeezerArtistSearchHit, rankDeezerArtistSearch } from "./artist-search.js";
-import { deezerFetch, deezerGet, readDeezerJson } from "./deezer-response.js";
+import { type DeezerTrack, deezerArtistPath, deezerFetch, deezerGet, readDeezerJson } from "./deezer-response.js";
 
 const DEEZER_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/;
 const DEEZER_ALBUM_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?album\/(\d+)/;
@@ -85,26 +85,9 @@ const DEEZER_ARTIST_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\
  */
 const DEEZER_SEARCH_LIMIT = 5;
 
-// Minimal type for the Deezer API track response fields we use
-interface DeezerTrackResponse {
-  id: number;
-  title: string;
-  artist: { name: string };
-  album?: {
-    title?: string;
-    cover_xl?: string;
-    cover_big?: string;
-    release_date?: string;
-  };
-  duration: number; // in seconds
-  isrc?: string;
-  explicit_lyrics?: boolean;
-  preview?: string;
-  link?: string;
-}
-
+/** Deezer's `/search/track` answer: the hits and how many matched in all. */
 interface DeezerSearchResponse {
-  data: DeezerTrackResponse[];
+  data: DeezerTrack[];
   total: number;
 }
 
@@ -237,7 +220,7 @@ function buildDeezerQ(query: SearchQuery): string {
     .join(" ");
 }
 
-function mapTrack(raw: DeezerTrackResponse): NormalizedTrack {
+function mapTrack(raw: DeezerTrack): NormalizedTrack {
   return {
     sourceService: "deezer",
     sourceId: String(raw.id),
@@ -260,10 +243,10 @@ function mapTrack(raw: DeezerTrackResponse): NormalizedTrack {
  * @param value - Untrusted track object from direct lookup or search.
  * @throws UpstreamUnavailableError for malformed metadata instead of a clean miss.
  */
-function assertDeezerRecording(value: unknown): asserts value is DeezerTrackResponse {
+function assertDeezerRecording(value: unknown): asserts value is DeezerTrack {
   if (!value || typeof value !== "object")
     throw new UpstreamUnavailableError("deezer", "track response omitted recording data");
-  const record = value as Partial<DeezerTrackResponse>;
+  const record = value as Partial<DeezerTrack>;
   const required =
     typeof record.id === "number" &&
     Number.isSafeInteger(record.id) &&
@@ -302,7 +285,7 @@ function assertDeezerRecording(value: unknown): asserts value is DeezerTrackResp
  * @returns Plausible recordings from the first successful alternative.
  * @throws {UpstreamUnavailableError} when the provider fails or its shape drifts.
  */
-async function searchTrackItems(query: SearchQuery, limit: number): Promise<DeezerTrackResponse[]> {
+async function searchTrackItems(query: SearchQuery, limit: number): Promise<DeezerTrack[]> {
   const alternatives = [...new Set([buildDeezerQ(query), ...trackSearchTexts(query)])];
   for (const text of alternatives) {
     const data = await deezerGet<DeezerSearchResponse>(
@@ -362,7 +345,7 @@ export const deezerAdapter = {
    * @throws Upstream failures, which must not become negative catalogue entries.
    */
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
-    const data = await deezerGet<DeezerTrackResponse>(`/track/isrc:${encodeURIComponent(isrc)}`, "ISRC lookup");
+    const data = await deezerGet<DeezerTrack>(`/track/isrc:${encodeURIComponent(isrc)}`, "ISRC lookup");
     if (!data) return null;
     assertDeezerRecording(data);
     return mapTrack(data);
@@ -504,7 +487,7 @@ export const deezerAdapter = {
    */
   async getArtist(artistId: string): Promise<NormalizedArtist> {
     const data = await lookupDeezerObject<DeezerArtistSearchHit>(
-      `/artist/${encodeURIComponent(artistId)}`,
+      deezerArtistPath(artistId),
       ResourceKind.Artist,
       artistId,
     );

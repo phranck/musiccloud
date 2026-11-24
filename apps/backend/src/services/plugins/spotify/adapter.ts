@@ -54,6 +54,7 @@ import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
+import type { ResolveError } from "../../../lib/resolve/errors";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
 import { CANDIDATE_MIN_CONFIDENCE, MAX_CANDIDATES, SPOTIFY_SEARCH_LIMIT_MAX } from "../../constants.js";
 import type {
@@ -266,6 +267,42 @@ function buildSpotifyTrackSearchQueries(query: SearchQuery): string[] {
   return uniqueArtistNames(variants).slice(0, SPOTIFY_TRACK_SEARCH_VARIANT_LIMIT);
 }
 
+/** Error code a partial track search logs when it still finds a positive match: `MC-API-0004`. */
+const SPOTIFY_PARTIAL_SEARCH_ERROR_CODE = "MC-API-0004";
+
+/**
+ * Builds the service error for a failed track search request.
+ *
+ * @param status - HTTP status of the failed Spotify search request.
+ * @param title - Searched title, which the error reports as the resource id.
+ * @returns The `ResolveError` that `serviceHttpError` maps for a Spotify track search.
+ */
+function spotifyTrackSearchError(status: number, title: string): ResolveError {
+  return serviceHttpError(Service.Spotify, status, ResourceKind.Track, title, Operation.Search);
+}
+
+/**
+ * Logs a track search that found a positive match although some requests failed.
+ *
+ * @param operation - Search phase that lost requests, such as `track_search_alternatives`.
+ * @param outcome - What the search returned despite the loss, such as `positive_partial_queries`.
+ * @param error - The service error of the last failed request, logged as the cause.
+ * @param status - HTTP status of the last failed request; the record has no `status` field when it is `undefined`, which is the default.
+ */
+function logPartialTrackSearch(operation: string, outcome: string, error: ResolveError, status?: number): void {
+  log.deviation(
+    {
+      component: "Spotify",
+      adapterId: Service.Spotify,
+      errorCode: SPOTIFY_PARTIAL_SEARCH_ERROR_CODE,
+      operation,
+      outcome,
+      ...(status === undefined ? {} : { status }),
+    },
+    error,
+  );
+}
+
 export const spotifyAdapter = {
   id: "spotify",
   displayName: getPlatformLabel("spotify"),
@@ -354,26 +391,11 @@ export const spotifyAdapter = {
     );
     const result = searchMatchResult("track", best, confidence);
 
-    if (!result.found) {
-      // A failed alternative may contain the recording; it cannot become a cached miss.
-      if (lastFailedStatus) {
-        throw serviceHttpError(Service.Spotify, lastFailedStatus, ResourceKind.Track, query.title, Operation.Search);
-      }
-      return result;
-    }
-
     if (lastFailedStatus) {
-      log.deviation(
-        {
-          component: "Spotify",
-          adapterId: Service.Spotify,
-          errorCode: "MC-API-0004",
-          operation: "track_search_alternatives",
-          outcome: "positive_partial_queries",
-          status: lastFailedStatus,
-        },
-        serviceHttpError(Service.Spotify, lastFailedStatus, ResourceKind.Track, query.title, Operation.Search),
-      );
+      const error = spotifyTrackSearchError(lastFailedStatus, query.title);
+      // A failed alternative may contain the recording; it cannot become a cached miss.
+      if (!result.found) throw error;
+      logPartialTrackSearch("track_search_alternatives", "positive_partial_queries", error, lastFailedStatus);
     }
     return result;
   },
@@ -404,7 +426,7 @@ export const spotifyAdapter = {
       if (!response.ok) {
         lastFailedStatus = response.status;
         if (items.length > 0) break;
-        throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Track, query.title, Operation.Search);
+        throw spotifyTrackSearchError(response.status, query.title);
       }
 
       const data = await response.json();
@@ -438,24 +460,9 @@ export const spotifyAdapter = {
     const bestMatch = searchMatchResult("track", best.track, best.confidence);
 
     if (lastFailedStatus) {
-      const error = serviceHttpError(
-        Service.Spotify,
-        lastFailedStatus,
-        ResourceKind.Track,
-        query.title,
-        Operation.Search,
-      );
+      const error = spotifyTrackSearchError(lastFailedStatus, query.title);
       if (!bestMatch.found) throw error;
-      log.deviation(
-        {
-          component: "Spotify",
-          adapterId: Service.Spotify,
-          errorCode: "MC-API-0004",
-          operation: "track_candidate_pagination",
-          outcome: "positive_partial_candidates",
-        },
-        error,
-      );
+      logPartialTrackSearch("track_candidate_pagination", "positive_partial_candidates", error);
     }
     return {
       bestMatch,

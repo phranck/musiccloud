@@ -311,14 +311,27 @@ interface QobuzArtist {
   image?: { small?: string; medium?: string; large?: string };
 }
 
+/** Milliseconds per second, because Qobuz sends `released_at` in Unix seconds. */
+const MS_PER_SECOND = 1000;
+
+/** Length of the `YYYY-MM-DD` prefix of an ISO timestamp: `10`. */
+const ISO_DATE_LENGTH = 10;
+
+/**
+ * Converts a Qobuz release timestamp to the shared release date.
+ *
+ * @param releasedAt - Unix timestamp in seconds, or `undefined` when Qobuz sends none.
+ * @returns The UTC date as `YYYY-MM-DD`, or `undefined` when the timestamp is missing or `0`.
+ */
+function qobuzReleaseDate(releasedAt: number | undefined): string | undefined {
+  if (!releasedAt) return undefined;
+  return new Date(releasedAt * MS_PER_SECOND).toISOString().slice(0, ISO_DATE_LENGTH);
+}
+
 function mapAlbum(data: QobuzAlbum): NormalizedAlbum {
   const albumId = data.id ?? "";
   const artists = data.artist?.name ? [data.artist.name] : [UNKNOWN_ARTIST];
-
-  let releaseDate: string | undefined;
-  if (data.released_at) {
-    releaseDate = new Date(data.released_at * 1000).toISOString().slice(0, 10);
-  }
+  const releaseDate = qobuzReleaseDate(data.released_at);
 
   return {
     sourceService: "qobuz",
@@ -347,12 +360,7 @@ function mapAlbum(data: QobuzAlbum): NormalizedAlbum {
 function mapTrack(data: QobuzTrack): NormalizedTrack {
   const trackId = String(data.id ?? "");
   const artists = data.performer?.name ? [data.performer.name] : [UNKNOWN_ARTIST];
-
-  let releaseDate: string | undefined;
-  if (data.album?.released_at) {
-    const d = new Date(data.album.released_at * 1000);
-    releaseDate = d.toISOString().slice(0, 10); // YYYY-MM-DD
-  }
+  const releaseDate = qobuzReleaseDate(data.album?.released_at);
 
   return {
     sourceService: "qobuz",

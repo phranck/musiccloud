@@ -90,6 +90,12 @@ const SOUNDCLOUD_ARTIST_REGEX = /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([^/
 
 const SC_API_BASE = "https://api-v2.soundcloud.com";
 
+/** The public site every track, set and profile path hangs off, with its trailing slash. */
+const SOUNDCLOUD_WEB_BASE = "https://soundcloud.com/";
+
+/** The `window.__sc_hydration = [...];` assignment a SoundCloud page embeds, with the array literal captured. */
+const SC_HYDRATION_PATTERN = /window\.__sc_hydration\s*=\s*(\[[\s\S]*?\]);\s*<\/script>/m;
+
 // --- Client ID management ---
 
 /** How long a scraped client_id is reused before the homepage is read again: 24 hours. */
@@ -125,7 +131,7 @@ async function fetchClientId(): Promise<string | null> {
     if (!response.ok) return null;
 
     const html = await response.text();
-    const match = /window\.__sc_hydration\s*=\s*(\[[\s\S]*?\]);\s*<\/script>/m.exec(html);
+    const match = SC_HYDRATION_PATTERN.exec(html);
     if (!match) return null;
 
     const hydration = JSON.parse(match[1]) as Array<{ hydratable: string; data: unknown }>;
@@ -264,7 +270,7 @@ function mapApiTrack(data: ScTrackData, sourceId: string): NormalizedTrack {
     releaseDate: data.release_date ?? data.created_at ?? undefined,
     isExplicit: typeof pub?.explicit === "boolean" ? pub.explicit : undefined,
     artworkUrl: data.artwork_url?.replace("-large", "-t500x500"),
-    webUrl: data.permalink_url ?? `https://soundcloud.com/${sourceId}`,
+    webUrl: data.permalink_url ?? `${SOUNDCLOUD_WEB_BASE}${sourceId}`,
   };
 }
 
@@ -272,7 +278,7 @@ function mapApiTrack(data: ScTrackData, sourceId: string): NormalizedTrack {
 
 function extractFromHtml(html: string): ScTrackData | null {
   // Try hydration JSON
-  const hydrationMatch = /window\.__sc_hydration\s*=\s*(\[[\s\S]*?\]);\s*<\/script>/m.exec(html);
+  const hydrationMatch = SC_HYDRATION_PATTERN.exec(html);
   if (hydrationMatch) {
     try {
       const hydration = JSON.parse(hydrationMatch[1]) as Array<{ hydratable: string; data: ScTrackData }>;
@@ -339,7 +345,7 @@ function mapApiPlaylist(data: ScPlaylistData, sourcePath: string): NormalizedAlb
     artworkUrl: data.artwork_url?.replace("-large", "-t500x500"),
     releaseDate: data.release_date ?? data.created_at ?? undefined,
     totalTracks: data.track_count ?? (tracks.length > 0 ? tracks.length : undefined),
-    webUrl: data.permalink_url ?? `https://soundcloud.com/${sourcePath}`,
+    webUrl: data.permalink_url ?? `${SOUNDCLOUD_WEB_BASE}${sourcePath}`,
     tracks: tracks.length > 0 ? tracks : undefined,
   };
 }
@@ -353,7 +359,7 @@ function mapApiPlaylist(data: ScPlaylistData, sourcePath: string): NormalizedAlb
  *   status, or the body is not JSON or has no title.
  */
 async function fetchAlbumByPath(setPath: string): Promise<NormalizedAlbum | null> {
-  const pageUrl = `https://soundcloud.com/${setPath}`;
+  const pageUrl = `${SOUNDCLOUD_WEB_BASE}${setPath}`;
   const response = await scApiFetch(`/resolve?url=${encodeURIComponent(pageUrl)}`);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.SoundCloud, response.status, ResourceKind.Album, setPath);
@@ -372,7 +378,7 @@ async function searchSoundCloudAlbums(
   return playlists
     .filter((playlist) => playlist.title)
     .map((playlist) => ({
-      path: playlist.permalink_url?.replace("https://soundcloud.com/", "") ?? "",
+      path: playlist.permalink_url?.replace(SOUNDCLOUD_WEB_BASE, "") ?? "",
       title: playlist.title ?? "",
       artist: playlist.user?.username ?? playlist.user?.full_name ?? "",
       // The same date the full album is read with, so the year the score
@@ -409,7 +415,7 @@ function mapArtist(user: ScUserData, sourcePath: string): NormalizedArtist {
     sourceId: sourcePath,
     name: artistName(user),
     imageUrl: user.avatar_url?.replace("-large", "-t500x500"),
-    webUrl: user.permalink_url ?? `https://soundcloud.com/${sourcePath}`,
+    webUrl: user.permalink_url ?? `${SOUNDCLOUD_WEB_BASE}${sourcePath}`,
   };
 }
 
@@ -435,7 +441,7 @@ export const soundcloudAdapter = {
   },
 
   async getTrack(trackPath: string): Promise<NormalizedTrack> {
-    const pageUrl = `https://soundcloud.com/${trackPath}`;
+    const pageUrl = `${SOUNDCLOUD_WEB_BASE}${trackPath}`;
 
     // Try internal API first (/resolve endpoint)
     try {
@@ -486,7 +492,7 @@ export const soundcloudAdapter = {
     }
 
     const tracks = items.map((item, index) =>
-      mapApiTrack(item, item.permalink_url?.replace("https://soundcloud.com/", "") ?? `search-${index}`),
+      mapApiTrack(item, item.permalink_url?.replace(SOUNDCLOUD_WEB_BASE, "") ?? `search-${index}`),
     );
     const { best, confidence } = pickBestCandidate(tracks, (track, index) => scoreSearchCandidate(query, track, index));
     return searchMatchResult("track", best, confidence);
@@ -558,7 +564,7 @@ export const soundcloudAdapter = {
   },
 
   async getArtist(artistId: string): Promise<NormalizedArtist> {
-    const pageUrl = `https://soundcloud.com/${artistId}`;
+    const pageUrl = `${SOUNDCLOUD_WEB_BASE}${artistId}`;
 
     const response = await scApiFetch(`/resolve?url=${encodeURIComponent(pageUrl)}`);
     if (!response.ok) {
@@ -586,7 +592,7 @@ export const soundcloudAdapter = {
     if (!ranked) return searchMatchResult("artist", null, 0);
 
     const { item } = ranked;
-    const username = item.permalink_url?.replace("https://soundcloud.com/", "") ?? String(item.id);
+    const username = item.permalink_url?.replace(SOUNDCLOUD_WEB_BASE, "") ?? String(item.id);
     return searchMatchResult("artist", mapArtist(item, username), ranked.confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

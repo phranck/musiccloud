@@ -168,12 +168,22 @@ async function fetchSearchData(
   return nextData;
 }
 
+/**
+ * Walks a `__NEXT_DATA__` blob down to its React Query hydration list.
+ *
+ * @param data - Parsed `__NEXT_DATA__` of a Beatport page.
+ * @returns `props.pageProps.dehydratedState.queries` as the page sent it, unchecked, or `undefined` when a step on the way is missing.
+ */
+function hydrationQueries(data: Record<string, unknown>): unknown {
+  const props = data.props as Record<string, unknown> | undefined;
+  const pageProps = props?.pageProps as Record<string, unknown> | undefined;
+  const dehydratedState = pageProps?.dehydratedState as Record<string, unknown> | undefined;
+  return dehydratedState?.queries;
+}
+
 function extractTrackFromNextData(data: Record<string, unknown>): BeatportTrack | null {
   try {
-    const props = data.props as Record<string, unknown> | undefined;
-    const pageProps = props?.pageProps as Record<string, unknown> | undefined;
-    const dehydratedState = pageProps?.dehydratedState as Record<string, unknown> | undefined;
-    const queries = dehydratedState?.queries as Array<Record<string, unknown>> | undefined;
+    const queries = hydrationQueries(data) as Array<Record<string, unknown>> | undefined;
 
     if (!queries) return null;
 
@@ -207,11 +217,8 @@ function extractSearchCollection<T extends { id: number; name: string }>(
   data: Record<string, unknown>,
   category: "tracks" | "releases",
 ): T[] {
-  const props = data.props as Record<string, unknown> | undefined;
-  const pageProps = props?.pageProps as Record<string, unknown> | undefined;
-  const hydration = pageProps?.dehydratedState as Record<string, unknown> | undefined;
   const queries = requireProviderCollection(
-    hydration?.queries as Array<{ state?: { data?: Record<string, unknown> | unknown[] } }> | undefined,
+    hydrationQueries(data) as Array<{ state?: { data?: Record<string, unknown> | unknown[] } }> | undefined,
     Service.Beatport,
     `${category} search hydration`,
   );
@@ -301,10 +308,7 @@ async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> 
 
 function extractReleaseFromNextData(data: Record<string, unknown>): BeatportRelease | null {
   try {
-    const props = data.props as Record<string, unknown> | undefined;
-    const pageProps = props?.pageProps as Record<string, unknown> | undefined;
-    const dehydratedState = pageProps?.dehydratedState as Record<string, unknown> | undefined;
-    const queries = dehydratedState?.queries as Array<Record<string, unknown>> | undefined;
+    const queries = hydrationQueries(data) as Array<Record<string, unknown>> | undefined;
     if (!queries) return null;
 
     for (const q of queries) {

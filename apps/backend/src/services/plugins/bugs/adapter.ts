@@ -41,7 +41,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { splitArtistNames } from "../_shared/artists.js";
+import { splitArtistNames, UNKNOWN_ARTIST } from "../_shared/artists.js";
 import {
   ENGLISH_KOREAN_ACCEPT_LANGUAGE,
   fetchProviderPage,
@@ -71,6 +71,34 @@ const BUGS_ALBUM_LINK_PATTERN = /\/album\/(\d+)/g;
 /** How every Bugs! page is requested: as a browser page in English or Korean, within the default timeout. */
 const BUGS_PAGE_REQUEST: ProviderPageOptions = { accept: PAGE_ACCEPT, acceptLanguage: ENGLISH_KOREAN_ACCEPT_LANGUAGE };
 
+/** What separates the name from the artist credit in a Bugs! `og:title`: `" / "`. */
+const BUGS_OG_TITLE_SEPARATOR = " / ";
+
+/**
+ * Splits a Bugs! track or album `og:title` into its name and artists.
+ *
+ * Bugs! formats the title as `"Name / Artist"`, or as `"Name"` alone.
+ *
+ * @param ogTitle - The page's nonempty `og:title`.
+ * @returns The trimmed name before the first {@link BUGS_OG_TITLE_SEPARATOR} and the
+ *   artists of everything after it, or the whole title and {@link UNKNOWN_ARTIST}
+ *   when it has no separator.
+ */
+function splitOgTitle(ogTitle: string): { title: string; artists: string[] } {
+  if (!ogTitle.includes(BUGS_OG_TITLE_SEPARATOR)) return { title: ogTitle, artists: [UNKNOWN_ARTIST] };
+  const [name, ...credit] = ogTitle.split(BUGS_OG_TITLE_SEPARATOR);
+  return { title: name.trim(), artists: splitArtistNames(credit.join(BUGS_OG_TITLE_SEPARATOR).trim()) };
+}
+
+/**
+ * Fetches a Bugs! track page and reads its `og:title` and `og:image`.
+ *
+ * @param trackId - The Bugs! track id.
+ * @returns The track, or `null` when the page answers 404 or has no `og:title`.
+ * @throws {ResolveError} for any other error status.
+ * @throws {UpstreamUnavailableError} when the page is not HTML, such as a
+ *   restriction page or a JSON body, so a refusal never reads as a missing track.
+ */
 async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> {
   const url = `https://music.bugs.co.kr/track/${trackId}`;
   const response = await fetchProviderPage(url, BUGS_PAGE_REQUEST);
@@ -79,25 +107,12 @@ async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> 
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Track, trackId);
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Bugs, "track lookup");
   const og = extractOgTags(html);
 
   if (!og.title) return null;
 
-  // Bugs! OG title format: "Song / Artist" or "Song"
-  let title: string;
-  let artist: string;
-
-  if (og.title.includes(" / ")) {
-    const parts = og.title.split(" / ");
-    title = parts[0].trim();
-    artist = parts.slice(1).join(" / ").trim();
-  } else {
-    title = og.title;
-    artist = "Unknown Artist";
-  }
-
-  const artists = splitArtistNames(artist);
+  const { title, artists } = splitOgTitle(og.title);
 
   return {
     sourceService: "bugs",
@@ -123,29 +138,27 @@ async function searchForTrackIds(query: string): Promise<string[]> {
   return scrapeIds(html, BUGS_TRACK_LINK_PATTERN, BUGS_SEARCH_ID_LIMIT);
 }
 
+/**
+ * Fetches a Bugs! album page and reads its `og:title` and `og:image`.
+ *
+ * @param albumId - The Bugs! album id.
+ * @returns The album, or `null` when the page answers 404 or has no `og:title`.
+ * @throws {ResolveError} for any other error status.
+ * @throws {UpstreamUnavailableError} when the page is not HTML, such as a
+ *   restriction page or a JSON body, so a refusal never reads as a missing album.
+ */
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const url = `https://music.bugs.co.kr/album/${albumId}`;
   const response = await fetchProviderPage(url, BUGS_PAGE_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Album, albumId);
 
-  const html = await response.text();
+  const html = await readProviderHtml(response, Service.Bugs, "album lookup");
   const og = extractOgTags(html);
 
   if (!og.title) return null;
 
-  // Bugs! album OG title format: "AlbumName / Artist" or "AlbumName"
-  let title: string;
-  let artists: string[];
-
-  if (og.title.includes(" / ")) {
-    const parts = og.title.split(" / ");
-    title = parts[0].trim();
-    artists = splitArtistNames(parts.slice(1).join(" / ").trim());
-  } else {
-    title = og.title;
-    artists = ["Unknown Artist"];
-  }
+  const { title, artists } = splitOgTitle(og.title);
 
   return {
     sourceService: "bugs",
