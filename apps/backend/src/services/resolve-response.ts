@@ -27,7 +27,7 @@ import type { UnifiedResolveSuccessResponse } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
-import { previewObservation } from "../lib/preview-url.js";
+import { preferredPreviewCandidate, previewObservation } from "../lib/preview-url.js";
 import { normalizeReleaseDate } from "../lib/release-date.js";
 import { toApiLinks } from "../lib/server/api-links.js";
 import { shortUrlFor } from "../lib/server/short-url.js";
@@ -36,9 +36,9 @@ import { type ArtistResolutionResult, resolveArtistUrl } from "./artist-resolver
 import { saveExternalIdsLogged } from "./external-ids.js";
 import { persistResolution } from "./persist-resolution.js";
 import { classifyMusicUrl } from "./plugins/registry.js";
+import { isTrackPreviewRefreshable } from "./preview-refresh.js";
 import { toStoredLinks } from "./resolved-links.js";
 import { expandShortLink, persistLateTrackLinks, type ResolutionResult, resolveQuery } from "./resolver.js";
-import { isTrackPreviewRefreshable } from "./track-preview.js";
 import { resolveAlbumVinylLayout, resolveTrackVinylLayout } from "./track-vinyl-layout.js";
 
 /**
@@ -105,15 +105,14 @@ export async function persistAlbumAndRespond(
 ): Promise<UnifiedResolveSuccessResponse> {
   const repo = await getRepository();
 
-  let previewUrl = result.sourceAlbum.topTrackPreviewUrl;
-  let previewService: string | null = previewUrl ? (result.sourceAlbum.sourceService ?? null) : null;
-  if (!previewUrl) {
-    const deezerLink = result.links.find((l) => l.service === "deezer" && l.topTrackPreviewUrl);
-    if (deezerLink?.topTrackPreviewUrl) {
-      previewUrl = deezerLink.topTrackPreviewUrl;
-      previewService = "deezer";
-    }
-  }
+  // The same choice the track resolver and the share page's SQL make: a usable
+  // Deezer preview wins over the source service's.
+  const preview = preferredPreviewCandidate([
+    { service: result.sourceAlbum.sourceService, previewUrl: result.sourceAlbum.topTrackPreviewUrl },
+    ...result.links.map((link) => ({ service: link.service, previewUrl: link.topTrackPreviewUrl })),
+  ]);
+  const previewUrl = preview?.previewUrl;
+  const previewService = preview?.service;
 
   const cachedIdentity =
     result.albumId && result.shortId

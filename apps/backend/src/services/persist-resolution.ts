@@ -5,21 +5,22 @@
  * `services/crawler/ingest.ts` both need the same DB-side effects after a
  * `ResolutionResult` has been produced: persist the track + its cross-service
  * links, fan out external-ids and per-service preview URLs, and refresh a
- * stale Deezer preview when the resolve result didn't carry a fresh one. A
- * result served from the cache is already stored and skips the rewrite.
+ * stale Deezer preview through `refreshTrackPreview` when the resolve result
+ * didn't carry a fresh one. A result served from the cache is already stored
+ * and skips the rewrite.
  *
- * Keeping this in a single helper means the two callers stay in lock-step:
- * a fix to one preview-handling rule cannot accidentally land in only one
- * persist path. The route layer's job collapses to "call this, then build
- * the response shape"; the crawler layer's job collapses to "call this,
- * count the result".
+ * Keeping this in a single helper means the two callers stay in lock-step.
+ * The preview rules themselves live in `lib/preview-url.ts` and the refresh in
+ * `preview-refresh.ts`, which the preview endpoint calls as well. The route
+ * layer's job collapses to "call this, then build the response shape"; the
+ * crawler layer's job collapses to "call this, count the result".
  */
 
 import { getRepository, type TrackRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
-import { isExpiredDeezerPreviewUrl, previewObservation } from "../lib/preview-url.js";
+import { isExpiredPreviewUrl, previewObservation } from "../lib/preview-url.js";
 import { saveExternalIdsLogged } from "./external-ids.js";
-import { deezerAdapter } from "./plugins/deezer/adapter.js";
+import { refreshTrackPreview } from "./preview-refresh.js";
 import { toStoredLinks } from "./resolved-links.js";
 import type { ResolutionResult } from "./resolver.js";
 import type { ArtistCredit } from "./types.js";
@@ -97,16 +98,16 @@ export async function persistResolution(result: ResolutionResult): Promise<Persi
   // Refresh missing or expired Deezer preview URLs before returning so
   // clients (route or crawler) do not surface dead signed preview links.
   let refreshedPreviewUrl: string | undefined = result.sourceTrack.previewUrl ?? undefined;
-  if ((!refreshedPreviewUrl || isExpiredDeezerPreviewUrl(refreshedPreviewUrl)) && result.sourceTrack.isrc) {
-    try {
-      const deezerTrack = await deezerAdapter.findByIsrc(result.sourceTrack.isrc);
-      if (deezerTrack?.previewUrl) {
-        await repo.upsertTrackPreview(trackId, previewObservation("deezer", deezerTrack.previewUrl));
-        refreshedPreviewUrl = deezerTrack.previewUrl;
-      }
-    } catch (err) {
-      log.debug("Resolve", "Deezer preview enrichment failed:", err instanceof Error ? err.message : String(err));
-    }
+  if (!refreshedPreviewUrl || isExpiredPreviewUrl(refreshedPreviewUrl)) {
+    const fresh = await refreshTrackPreview(repo, {
+      trackId,
+      isrc: result.sourceTrack.isrc,
+      title: result.sourceTrack.title,
+      artists: result.sourceTrack.artists,
+      durationMs: result.sourceTrack.durationMs,
+      links: result.links,
+    });
+    if (fresh) refreshedPreviewUrl = fresh;
   }
 
   return { trackId, shortId, refreshedPreviewUrl, artistCredits };

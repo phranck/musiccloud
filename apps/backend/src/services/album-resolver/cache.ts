@@ -8,7 +8,7 @@
  */
 import { getRepository } from "../../db/index.js";
 import { log } from "../../lib/infra/logger.js";
-import { previewObservation } from "../../lib/preview-url.js";
+import { pickPreferredPreview, previewObservation } from "../../lib/preview-url.js";
 import type { AlbumResolutionResult, ResolvedAlbumLink } from "../album-resolver.js";
 import { RECORDING_ARTWORK_LOOKUP_SERVICES } from "../artwork.js";
 import { collectAlbumExternalIds } from "../external-ids.js";
@@ -214,11 +214,10 @@ export async function fillMissingAlbumServices(cached: AlbumResolutionResult): P
     if (label) sourceAlbum = { ...sourceAlbum, label };
   }
 
-  const previewLink =
-    newLinks.find((l) => l.service === "deezer" && l.topTrackPreviewUrl) ?? newLinks.find((l) => l.topTrackPreviewUrl);
-  if (previewLink?.topTrackPreviewUrl) {
-    sourceAlbum = { ...sourceAlbum, topTrackPreviewUrl: previewLink.topTrackPreviewUrl };
-  }
+  const topTrackPreviewUrl = pickPreferredPreview(
+    newLinks.map((link) => ({ service: link.service, previewUrl: link.topTrackPreviewUrl })),
+  );
+  if (topTrackPreviewUrl) sourceAlbum = { ...sourceAlbum, topTrackPreviewUrl };
 
   if (cached.albumId) {
     try {

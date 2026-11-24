@@ -2,10 +2,9 @@ import { isValidServiceId, type ServiceId, type VinylLayout } from "@musiccloud/
 import { getRepository } from "../../db/index.js";
 import type { ArtistCredit } from "../../db/repository.js";
 import { pickRecordingArtworkUrl } from "../../services/artwork.js";
-import { deezerAdapter } from "../../services/plugins/deezer/adapter.js";
-import { isTrackPreviewRefreshable } from "../../services/track-preview.js";
+import { isAlbumPreviewRefreshable, isTrackPreviewRefreshable } from "../../services/preview-refresh.js";
 import { rewriteAppleMusicUrlForStorefront } from "../platform/apple-music-storefront.js";
-import { isExpiredDeezerPreviewUrl } from "../preview-url.js";
+import { isExpiredPreviewUrl } from "../preview-url.js";
 import { getPublicOrigin } from "../public-origin.js";
 import { normalizeReleaseDate } from "../release-date.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
@@ -56,8 +55,8 @@ function rewriteLinksForAppleMusicStorefront<T extends { service: string; url: s
  *
  *  Apple Music is the exception to "cached service link is globally portable".
  *  Its catalogue links carry the storefront in the URL, so the cached link's
- *  storefront segment is rewritten to the viewer storefront here — the same
- *  global catalogue ID then opens directly in the viewer's region instead of a
+ *  storefront segment is rewritten to the viewer storefront here, so the same
+ *  global catalogue ID opens directly in the viewer's region instead of a
  *  foreign native-app deep link. The DB cache keeps its original storefront.
  */
 export async function loadByShortId(
@@ -70,7 +69,7 @@ export async function loadByShortId(
   if (!data) return null;
 
   data.track.releaseDate = normalizeReleaseDate(data.track.releaseDate);
-  const expired = !!data.track.previewUrl && isExpiredDeezerPreviewUrl(data.track.previewUrl);
+  const expired = !!data.track.previewUrl && isExpiredPreviewUrl(data.track.previewUrl);
   if (expired) data.track.previewUrl = null;
 
   const previewRefreshable = !data.track.previewUrl && isTrackPreviewRefreshable(data.track.isrc, data.links);
@@ -93,7 +92,7 @@ export async function loadByTrackId(
   if (!data) return null;
 
   data.track.releaseDate = normalizeReleaseDate(data.track.releaseDate);
-  const expired = !!data.track.previewUrl && isExpiredDeezerPreviewUrl(data.track.previewUrl);
+  const expired = !!data.track.previewUrl && isExpiredPreviewUrl(data.track.previewUrl);
   if (expired) data.track.previewUrl = null;
 
   const previewRefreshable = !data.track.previewUrl && isTrackPreviewRefreshable(data.track.isrc, data.links);
@@ -132,22 +131,6 @@ export interface ShareAlbumPageData {
 }
 
 /**
- * The Deezer album id behind an album's stored Deezer link. A fresh album
- * preview is fetched by this id, so an album without one cannot be refreshed.
- *
- * @param links - The album's stored service links.
- * @returns The id from the first Deezer album link, or `null` when there is none.
- */
-export function deezerAlbumIdFromLinks(links: ReadonlyArray<{ service: string; url: string }>): string | null {
-  for (const link of links) {
-    if (link.service !== "deezer") continue;
-    const deezerAlbumId = deezerAdapter.detectAlbumUrl(link.url);
-    if (deezerAlbumId) return deezerAlbumId;
-  }
-  return null;
-}
-
-/**
  * Load album share page data by short URL ID. Returns null if not found.
  *
  * Like {@link loadByShortId}, the hot path does not contact Deezer. An expired
@@ -173,9 +156,9 @@ export async function loadAlbumByShortId(
   const links = rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront);
   const availablePlatforms: ServiceId[] = links.map((l) => l.service).filter(isValidServiceId);
 
-  const expired = !!album.previewUrl && isExpiredDeezerPreviewUrl(album.previewUrl);
+  const expired = !!album.previewUrl && isExpiredPreviewUrl(album.previewUrl);
   if (expired) album.previewUrl = null;
-  const previewRefreshable = !album.previewUrl && deezerAlbumIdFromLinks(data.links) !== null;
+  const previewRefreshable = !album.previewUrl && isAlbumPreviewRefreshable(data.links);
 
   const og = generateAlbumOGMeta({
     title: album.title,
