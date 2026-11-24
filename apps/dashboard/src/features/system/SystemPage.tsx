@@ -155,42 +155,80 @@ const DangerPhase = {
 
 type DangerPhase = (typeof DangerPhase)[keyof typeof DangerPhase];
 
-function tracksLabel(n: number) {
-  return n === 1 ? "Track" : "Tracks";
+/**
+ * The count that takes the singular label. Every other count, zero included,
+ * takes the plural, as English does.
+ */
+const SINGULAR_COUNT = 1;
+
+/**
+ * How many tracks and albums the stored music data holds, as the data counts
+ * and reset endpoints report it.
+ *
+ * @property tracks - The number of stored tracks, zero or more.
+ * @property albums - The number of stored albums, zero or more.
+ */
+interface DataCounts {
+  tracks: number;
+  albums: number;
 }
 
-function albumsLabel(n: number) {
-  return n === 1 ? "Album" : "Alben";
+/**
+ * Picks the singular or the plural label for a count.
+ *
+ * @param count - The number of items being named.
+ * @param singular - The label for exactly `SINGULAR_COUNT` item, such as `Album`.
+ * @param plural - The label for every other count, such as `Albums`.
+ * @returns `singular` when `count` equals `SINGULAR_COUNT`, otherwise `plural`.
+ */
+function countLabel(count: number, singular: string, plural: string): string {
+  return count === SINGULAR_COUNT ? singular : plural;
+}
+
+/**
+ * Fills a Danger Zone template with the track and album counts and the label
+ * that fits each count. The template uses the placeholders `{tracks}`,
+ * `{tracksLabel}`, `{albums}` and `{albumsLabel}`, as
+ * `dashboardCopy.system.deleteAllDescriptionWithCounts` and
+ * `dashboardCopy.system.deleteAllSuccess` do.
+ *
+ * @param template - The copy string whose placeholders are replaced.
+ * @param counts - The track and album counts to write into it.
+ * @returns The template with every placeholder replaced.
+ */
+function formatDataCounts(template: string, counts: DataCounts): string {
+  const copy = dashboardCopy.system;
+  return template
+    .replace("{tracks}", String(counts.tracks))
+    .replace("{tracksLabel}", countLabel(counts.tracks, copy.trackLabel, copy.tracksLabel))
+    .replace("{albums}", String(counts.albums))
+    .replace("{albumsLabel}", countLabel(counts.albums, copy.albumLabel, copy.albumsLabel));
 }
 
 function DangerZone() {
   const messages = dashboardCopy;
   const m = messages.system;
   const [phase, setPhase] = useState<DangerPhase>(DangerPhase.Idle);
-  const [counts, setCounts] = useState<{ tracks: number; albums: number } | null>(null);
+  const [counts, setCounts] = useState<DataCounts | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     api
-      .get<{ tracks: number; albums: number }>(ENDPOINTS.admin.dataCounts)
+      .get<DataCounts>(ENDPOINTS.admin.dataCounts)
       .then(setCounts)
       .catch(() => {});
   }, []);
 
   function formatDescription() {
     if (!counts) return m.deleteAllDescriptionGeneric;
-    return m.deleteAllDescriptionWithCounts
-      .replace("{tracks}", String(counts.tracks))
-      .replace("{tracksLabel}", tracksLabel(counts.tracks))
-      .replace("{albums}", String(counts.albums))
-      .replace("{albumsLabel}", albumsLabel(counts.albums));
+    return formatDataCounts(m.deleteAllDescriptionWithCounts, counts);
   }
 
   async function handleInitiate() {
     setPhase(DangerPhase.Fetching);
     setError("");
     try {
-      const data = await api.get<{ tracks: number; albums: number }>(ENDPOINTS.admin.dataCounts);
+      const data = await api.get<DataCounts>(ENDPOINTS.admin.dataCounts);
       setCounts(data);
       setPhase(DangerPhase.Confirm);
     } catch (err) {
@@ -202,7 +240,7 @@ function DangerZone() {
   async function handleConfirm() {
     setPhase(DangerPhase.Resetting);
     try {
-      const result = await api.post<{ tracks: number; albums: number }>(ENDPOINTS.admin.resetAll);
+      const result = await api.post<DataCounts>(ENDPOINTS.admin.resetAll);
       setCounts(result);
       setPhase(DangerPhase.Done);
     } catch (err) {
@@ -228,13 +266,7 @@ function DangerZone() {
               <p className="text-xs text-[var(--ds-danger-text)] mt-2 font-medium">{m.deleteAllIrreversible}</p>
             )}
             {phase === DangerPhase.Done && counts && (
-              <p className="text-xs text-green-500 mt-1">
-                {m.deleteAllSuccess
-                  .replace("{tracks}", String(counts.tracks))
-                  .replace("{tracksLabel}", tracksLabel(counts.tracks))
-                  .replace("{albums}", String(counts.albums))
-                  .replace("{albumsLabel}", albumsLabel(counts.albums))}
-              </p>
+              <p className="text-xs text-green-500 mt-1">{formatDataCounts(m.deleteAllSuccess, counts)}</p>
             )}
             {phase === DangerPhase.Error && <p className="text-xs text-[var(--ds-danger-text)] mt-1">{error}</p>}
           </div>
