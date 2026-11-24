@@ -5,101 +5,22 @@
  * requests run through the real `fetchWithTimeout`, whose hops `vitest.setup.ts`
  * routes to the global `fetch` stubbed here and whose DNS answers it fixes, so
  * the guard that refuses private targets is the production one. The tests of
- * `inspectImageUrl` stay in lmaa with the code.
+ * `inspectImageUrl` stay in lmaa with the code. The tests of the modules split
+ * from the reader sit beside them: `image-dimensions.test.ts`,
+ * `external-resource.test.ts` and `nodeinfo.test.ts`.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { log } from "./infra/logger.js";
+import { buildJpeg, buildPng } from "./__tests__/image-fixtures.js";
+import { stubNetwork } from "./__tests__/network-stub.js";
 import {
-  detectPlatformFromHost,
   documentBase,
-  fetchExternalResource,
   fetchPreviewImage,
   isLogoUrl,
   isMastheadImage,
-  parseImageDimensions,
   secureImageUrl,
   withoutSizeConstraints,
 } from "./preview-image.js";
-
-/** The timeout the tests pass where a caller of `fetchExternalResource` would pass its own. */
-const TEST_TIMEOUT_MS = 5000;
-
-/**
- * Builds the leading bytes of a PNG with the given size.
- *
- * @param width - The width written into `IHDR`.
- * @param height - The height written into `IHDR`.
- * @returns The signature and the `IHDR` chunk up to the height.
- */
-function buildPng(width: number, height: number): Uint8Array {
-  const buf = new Uint8Array(24);
-  buf.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
-  const view = new DataView(buf.buffer);
-  view.setUint32(8, 13);
-  buf.set([0x49, 0x48, 0x44, 0x52], 12);
-  view.setUint32(16, width);
-  view.setUint32(20, height);
-  return buf;
-}
-
-/**
- * Builds the leading bytes of a JPEG with the given size.
- *
- * @param width - The width written into the `SOF0` segment.
- * @param height - The height written into the `SOF0` segment.
- * @returns `SOI` and a `SOF0` segment.
- */
-function buildJpeg(width: number, height: number): Uint8Array {
-  // SOI + SOF0 segment (length 17, precision 8, height, width, 3 components, 9 bytes of component data)
-  const buf = new Uint8Array(22);
-  buf.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08], 0);
-  buf[7] = (height >> 8) & 0xff;
-  buf[8] = height & 0xff;
-  buf[9] = (width >> 8) & 0xff;
-  buf[10] = width & 0xff;
-  buf[11] = 3;
-  return buf;
-}
-
-/**
- * Builds the leading bytes of a GIF with the given size.
- *
- * @param width - The logical screen width.
- * @param height - The logical screen height.
- * @returns The `GIF89a` header and logical screen size.
- */
-function buildGif(width: number, height: number): Uint8Array {
-  const buf = new Uint8Array(10);
-  buf.set([0x47, 0x49, 0x46, 0x38, 0x39, 0x61], 0);
-  buf[6] = width & 0xff;
-  buf[7] = (width >> 8) & 0xff;
-  buf[8] = height & 0xff;
-  buf[9] = (height >> 8) & 0xff;
-  return buf;
-}
-
-/**
- * Builds the leading bytes of an extended WebP with the given canvas size.
- *
- * @param width - The canvas width.
- * @param height - The canvas height.
- * @returns The `RIFF`/`WEBP` header and a `VP8X` chunk.
- */
-function buildWebPVP8X(width: number, height: number): Uint8Array {
-  const buf = new Uint8Array(30);
-  buf.set([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50], 0);
-  buf.set([0x56, 0x50, 0x38, 0x58], 12); // "VP8X"
-  const storedWidth = width - 1;
-  const storedHeight = height - 1;
-  buf[24] = storedWidth & 0xff;
-  buf[25] = (storedWidth >> 8) & 0xff;
-  buf[26] = (storedWidth >> 16) & 0xff;
-  buf[27] = storedHeight & 0xff;
-  buf[28] = (storedHeight >> 8) & 0xff;
-  buf[29] = (storedHeight >> 16) & 0xff;
-  return buf;
-}
 
 /**
  * Builds an image response.
@@ -122,54 +43,6 @@ function imageResponse(bytes: Uint8Array, contentType: string, status = 200): Re
 function htmlResponse(html: string): Response {
   return new Response(html, { headers: { "content-type": "text/html" } });
 }
-
-/**
- * Stubs the network with a handler that answers by address.
- *
- * Each hop reaches the stub with the address `fetchWithTimeout` sends, which
- * drops the slash of a bare origin, so the handler sees the normalized form.
- * The response reports the address it answered for, as undici's does.
- *
- * @param handler - Answers one requested address.
- * @returns The stub, for assertions on its calls.
- */
-function stubNetwork(handler: (url: string, init: RequestInit) => Response) {
-  const fetchMock = vi.fn(async (input: string | URL, init: RequestInit = {}) => {
-    const url = new URL(String(input)).href;
-    const response = handler(url, init);
-    Object.defineProperty(response, "url", { value: url });
-    return response;
-  });
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
-}
-
-describe("parseImageDimensions", () => {
-  it("reads PNG IHDR dimensions", () => {
-    expect(parseImageDimensions(buildPng(1200, 630))).toEqual({ width: 1200, height: 630 });
-    expect(parseImageDimensions(buildPng(64, 64))).toEqual({ width: 64, height: 64 });
-  });
-
-  it("reads JPEG SOF0 dimensions", () => {
-    expect(parseImageDimensions(buildJpeg(800, 600))).toEqual({ width: 800, height: 600 });
-  });
-
-  it("reads GIF logical screen descriptor", () => {
-    expect(parseImageDimensions(buildGif(180, 90))).toEqual({ width: 180, height: 90 });
-  });
-
-  it("reads WebP VP8X canvas dimensions", () => {
-    expect(parseImageDimensions(buildWebPVP8X(1920, 1080))).toEqual({ width: 1920, height: 1080 });
-  });
-
-  it("returns null for unknown formats", () => {
-    expect(parseImageDimensions(new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))).toBeNull();
-  });
-
-  it("returns null for truncated PNG signatures", () => {
-    expect(parseImageDimensions(new Uint8Array([0x89, 0x50, 0x4e]))).toBeNull();
-  });
-});
 
 describe("isLogoUrl", () => {
   it("recognises the logo keyword in filenames", () => {
@@ -344,171 +217,6 @@ describe("fetchPreviewImage portraits", () => {
     });
     const imageRequests = fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/somebody.png"));
     expect(imageRequests).toHaveLength(2);
-  });
-});
-
-describe("fetchExternalResource", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
-
-  it("returns the final URL for a direct external response", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response("ok", {
-        status: 200,
-        headers: { "content-type": "text/html" },
-      }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await fetchExternalResource(
-      "https://example.com",
-      { headers: { Accept: "text/html" } },
-      TEST_TIMEOUT_MS,
-    );
-
-    expect(result?.finalUrl).toBe("https://example.com");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith("https://example.com", expect.objectContaining({ redirect: "manual" }));
-  });
-
-  it("turns an asynchronous network rejection into no result", async () => {
-    vi.spyOn(log, "deviation").mockImplementation(() => undefined);
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
-
-    await expect(
-      fetchExternalResource("https://example.com/image.png", { headers: { Accept: "image/*" } }, TEST_TIMEOUT_MS),
-    ).resolves.toBeNull();
-  });
-
-  it("follows redirects to another external URL", async () => {
-    const fetchMock = stubNetwork((url) =>
-      url === "https://example.com/start"
-        ? new Response(null, { status: 302, headers: { location: "https://cdn.example.com/image.png" } })
-        : new Response("img", { status: 200, headers: { "content-type": "image/png" } }),
-    );
-
-    const result = await fetchExternalResource(
-      "https://example.com/start",
-      { headers: { Accept: "image/*" } },
-      TEST_TIMEOUT_MS,
-    );
-
-    expect(result?.finalUrl).toBe("https://cdn.example.com/image.png");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it.each([
-    "http://127.0.0.1/internal",
-    // `vitest.setup.ts` resolves this name to the loopback address.
-    "http://localhost/internal",
-  ])("blocks a redirect to the private target %s", async (location) => {
-    const deviation = vi.spyOn(log, "deviation").mockImplementation(() => undefined);
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { location } }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await fetchExternalResource(
-      "https://example.com/start",
-      { headers: { Accept: "text/html" } },
-      TEST_TIMEOUT_MS,
-    );
-
-    expect(result).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(deviation).toHaveBeenCalledWith(
-      expect.objectContaining({ component: "PreviewImage", host: "example.com" }),
-      expect.objectContaining({ message: "Blocked non-public outbound target" }),
-    );
-  });
-
-  it("never requests a private target it was handed directly", async () => {
-    vi.spyOn(log, "deviation").mockImplementation(() => undefined);
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    await expect(fetchExternalResource("http://10.0.0.1/", {}, TEST_TIMEOUT_MS)).resolves.toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-});
-
-describe("detectPlatformFromHost", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
-
-  /** The status a host answers with when it speaks no NodeInfo. */
-  const NOT_FOUND_STATUS = 404;
-
-  /**
-   * Answers the two NodeInfo requests a host is asked: the well-known document
-   * that says where the real one lives, and the real one.
-   *
-   * @param software - What the host reports running, or `null` for a host that
-   *   answers nothing.
-   */
-  function stubNodeinfo(software: string | null) {
-    stubNetwork((url) => {
-      if (software === null) return new Response("nope", { status: NOT_FOUND_STATUS });
-      if (url.endsWith("/.well-known/nodeinfo")) {
-        return Response.json({
-          links: [
-            { rel: "http://nodeinfo.diaspora.software/ns/schema/2.0", href: "https://host.example/n/2.0" },
-            { rel: "http://nodeinfo.diaspora.software/ns/schema/2.1", href: "https://host.example/n/2.1" },
-          ],
-        });
-      }
-      return Response.json({ software: { name: software, version: "0.12.7" } });
-    });
-  }
-
-  it("names the service a host reports running", async () => {
-    stubNodeinfo("pixelfed");
-    expect(await detectPlatformFromHost("https://pixey.org/somebody")).toBe("pixelfed");
-  });
-
-  it("does not care what the operator called the place", async () => {
-    // Measured across twelve instances: their names ran from "Pixey" to
-    // "FediSnap", whilst every one of them reported `pixelfed` here.
-    stubNodeinfo("Pixelfed");
-    expect(await detectPlatformFromHost("https://fedisnap.com/somebody")).toBe("pixelfed");
-  });
-
-  it("answers for anything else that speaks NodeInfo", async () => {
-    stubNodeinfo("mastodon");
-    expect(await detectPlatformFromHost("https://oldbytes.space/@somebody")).toBe("mastodon");
-  });
-
-  it("names Friendica, which its own addresses cannot say either", async () => {
-    // Measured on friend.enby-box.de on 2026-08-24: `software.name` is
-    // `friendica`, whilst `/profile/jaddy` looks like a page on any site.
-    stubNodeinfo("friendica");
-    expect(await detectPlatformFromHost("https://friend.enby-box.de/profile/jaddy")).toBe("friendica");
-  });
-
-  it("leaves a host running something unmapped alone", async () => {
-    stubNodeinfo("lemmy");
-    expect(await detectPlatformFromHost("https://example.org/c/somewhere")).toBeNull();
-  });
-
-  it("leaves an ordinary website alone", async () => {
-    stubNodeinfo(null);
-    expect(await detectPlatformFromHost("https://example.org/somebody")).toBeNull();
-  });
-
-  it("refuses what is not an address", async () => {
-    stubNodeinfo("pixelfed");
-    expect(await detectPlatformFromHost("not an address")).toBeNull();
-  });
-
-  it("never asks a host on a private address", async () => {
-    vi.spyOn(log, "deviation").mockImplementation(() => undefined);
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    expect(await detectPlatformFromHost("http://10.0.0.1/somebody")).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

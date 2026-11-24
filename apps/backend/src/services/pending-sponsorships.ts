@@ -34,7 +34,7 @@ import type { FastifyBaseLogger } from "fastify";
 import { nanoid } from "nanoid";
 import { type DatabaseQueryable, getDatabasePool, withDatabaseTransaction } from "../db/pool.js";
 import { log } from "../lib/infra/logger.js";
-import { detectPlatformFromHost } from "../lib/preview-image.js";
+import { detectPlatformFromHost } from "../lib/nodeinfo.js";
 import { insertDonation } from "./donations.js";
 import { resolveSponsorAvatar } from "./sponsor-avatar.js";
 import { copySponsorAvatar } from "./sponsor-avatar-copy.js";

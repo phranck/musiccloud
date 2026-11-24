@@ -8,14 +8,13 @@
 
 import { Jimp } from "jimp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { fetchExternalResource } from "../lib/external-resource.js";
 import { log } from "../lib/infra/logger.js";
-import { fetchExternalResource } from "../lib/preview-image.js";
 import { copySponsorAvatar } from "./sponsor-avatar-copy.js";
 import { storeSponsorAvatar } from "./sponsor-avatars.js";
 
-vi.mock("../lib/preview-image.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../lib/preview-image.js")>()),
+vi.mock("../lib/external-resource.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/external-resource.js")>()),
   fetchExternalResource: vi.fn(),
 }));
 
