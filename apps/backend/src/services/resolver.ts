@@ -135,7 +135,14 @@ import {
 import { isTrackSearchFallbackMatch, recordingSearchQuery } from "./plugins/_shared/track-search-query.js";
 import { parseLastfmUrl } from "./plugins/lastfm/url-search.js";
 import { keepRecordingArtwork } from "./recording-artwork.js";
-import { fromCachedLinks, isStoredPreviewFresh, toStoredLinks } from "./resolved-links.js";
+import {
+  collectSettledLinks,
+  fromCachedLinks,
+  isStoredPreviewFresh,
+  sourceLink,
+  toStoredLinks,
+  uniqueAdaptersByService,
+} from "./resolved-links.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   ExternalIdRecord,
@@ -381,14 +388,11 @@ async function fillMissingServices(
         ),
       )
     : [];
-  const adaptersToFetch = [
-    ...new Map(
-      [...missingAdapters, ...(deezerAdapter ? [deezerAdapter] : []), ...artworkAdapters].map((adapter) => [
-        adapter.id,
-        adapter,
-      ]),
-    ).values(),
-  ];
+  const adaptersToFetch = uniqueAdaptersByService([
+    ...missingAdapters,
+    ...(deezerAdapter ? [deezerAdapter] : []),
+    ...artworkAdapters,
+  ]);
 
   if (adaptersToFetch.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
@@ -808,15 +812,13 @@ async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> 
 
   // 5. Add the source service link. It was not found by any method: it is the
   // address the request came in on, which `source` says and `isrc` did not.
-  links.unshift({
-    service: sourceAdapter.id,
-    displayName: sourceAdapter.displayName,
-    url: sourceTrack.webUrl,
-    confidence: IDENTIFIER_MATCH_CONFIDENCE,
-    matchMethod: "source",
-    externalId: sourceTrack.sourceId,
-    previewUrl: sourceTrack.previewUrl,
-  });
+  links.unshift(
+    sourceLink(sourceAdapter, sourceTrack, {
+      confidence: IDENTIFIER_MATCH_CONFIDENCE,
+      matchMethod: "source",
+      previewUrl: sourceTrack.previewUrl,
+    }),
+  );
 
   // Source assembly is complete before preview, alias, and recording-cover selection.
   return completeFreshResolution(sourceTrack, links, lateLinks);
@@ -976,14 +978,7 @@ export async function resolveTextSearch(query: string, structured?: SearchQuery)
         }
 
         const { links, lateLinks } = await resolveAcrossServices(result.track, adapter);
-        links.unshift({
-          service: adapter.id,
-          displayName: adapter.displayName,
-          url: result.track.webUrl,
-          confidence: result.confidence,
-          matchMethod: "search",
-          externalId: result.track.sourceId,
-        });
+        links.unshift(sourceLink(adapter, result.track, { confidence: result.confidence, matchMethod: "search" }));
 
         return completeFreshResolution(result.track, links, lateLinks);
       }
@@ -1054,14 +1049,9 @@ export async function resolveTextSearchWithDisambiguation(
           }
 
           const { links, lateLinks } = await resolveAcrossServices(topCandidate.track, adapter);
-          links.unshift({
-            service: adapter.id,
-            displayName: adapter.displayName,
-            url: topCandidate.track.webUrl,
-            confidence: topCandidate.confidence,
-            matchMethod: "search",
-            externalId: topCandidate.track.sourceId,
-          });
+          links.unshift(
+            sourceLink(adapter, topCandidate.track, { confidence: topCandidate.confidence, matchMethod: "search" }),
+          );
 
           return {
             kind: "resolved",
@@ -1102,14 +1092,7 @@ export async function resolveTextSearchWithDisambiguation(
         }
 
         const { links, lateLinks } = await resolveAcrossServices(result.track, adapter);
-        links.unshift({
-          service: adapter.id,
-          displayName: adapter.displayName,
-          url: result.track.webUrl,
-          confidence: result.confidence,
-          matchMethod: "search",
-          externalId: result.track.sourceId,
-        });
+        links.unshift(sourceLink(adapter, result.track, { confidence: result.confidence, matchMethod: "search" }));
 
         return {
           kind: "resolved",
@@ -1170,18 +1153,20 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
 
   const { links, lateLinks } = await resolveAcrossServices(sourceTrack, adapter);
 
-  links.unshift({
-    service: adapter.id,
-    displayName: adapter.displayName,
-    url: sourceTrack.webUrl,
-    confidence: 1.0,
-    matchMethod: "search",
-    externalId: sourceTrack.sourceId,
-  });
+  links.unshift(sourceLink(adapter, sourceTrack, { confidence: IDENTIFIER_MATCH_CONFIDENCE, matchMethod: "search" }));
 
   return completeFreshResolution(sourceTrack, links, lateLinks);
 }
 
+/**
+ * Looks the source track up on every other active service, answering with what
+ * arrived by {@link RESOLVE_RESPONSE_DEADLINE_MS} and handing the rest on as
+ * late links.
+ *
+ * @param sourceTrack - The track the resolve started from.
+ * @param excludeAdapter - The source service, which is not asked again.
+ * @returns See {@link CrossServiceLinks}.
+ */
 async function resolveAcrossServices(
   sourceTrack: NormalizedTrack,
   excludeAdapter: ServiceAdapter,
@@ -1194,7 +1179,9 @@ async function resolveAcrossServices(
     RESOLVE_RESPONSE_DEADLINE_MS,
   );
 
-  const links = collectMatchedLinks(targetAdapters, fanOut.early);
+  // Rejections stay unlogged by the collector, because
+  // `resolveOnServiceWithTimeout` already logs every failure.
+  const links = collectSettledLinks(targetAdapters, fanOut.early, { component: "Resolver" });
   normalizeTrackLinks(links);
 
   // For services with no match, add YouTube search fallback
@@ -1227,9 +1214,10 @@ async function resolveAcrossServices(
     `Answering without ${lateAdapterIndices.map((index) => targetAdapters[index].id).join(", ")}; their links are stored when they arrive`,
   );
   const lateLinks = fanOut.all.then((results) => {
-    const late = collectMatchedLinks(
+    const late = collectSettledLinks(
       lateAdapterIndices.map((index) => targetAdapters[index]),
       lateAdapterIndices.map((index) => results[index]),
+      { component: "Resolver" },
     );
     normalizeTrackLinks(late);
     return late.filter((l) => l.confidence >= LINK_QUALITY_THRESHOLD);
@@ -1251,35 +1239,6 @@ async function resolveAcrossServices(
 interface CrossServiceLinks {
   links: ResolvedLink[];
   lateLinks?: Promise<ResolvedLink[]>;
-}
-
-/**
- * Turns per-service results into links and logs fulfilled outcomes. Failures
- * are already logged by resolveOnServiceWithTimeout for fresh and cached paths.
- * An undefined result belongs to a service still running and is skipped.
- *
- * @param adapters - The services, in the same order as `results`.
- * @param results - One settled result, or `undefined`, per service.
- * @returns The links of every service that matched.
- */
-function collectMatchedLinks(
-  adapters: readonly ServiceAdapter[],
-  results: ReadonlyArray<PromiseSettledResult<ResolvedLink | null> | undefined>,
-): ResolvedLink[] {
-  const links: ResolvedLink[] = [];
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    const adapter = adapters[i];
-    if (!result) continue;
-
-    if (result.status === "fulfilled" && result.value) {
-      log.debug("Resolver", `[${adapter.id}] matched: confidence=${result.value.confidence}`);
-      links.push(result.value);
-    } else if (result.status === "fulfilled") {
-      log.debug("Resolver", `[${adapter.id}] no match found`);
-    }
-  }
-  return links;
 }
 
 /**

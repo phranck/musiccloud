@@ -30,7 +30,7 @@
  * relevance score rather than a name comparison.
  *
  * Results below `MATCH_MIN_CONFIDENCE` are dropped at the per-service
- * level; results below `ARTIST_LINK_QUALITY_THRESHOLD` (0.6) are dropped
+ * level; results below `LINK_QUALITY_THRESHOLD` (0.6) are dropped
  * at the cross-service aggregate level. The two thresholds differ
  * because the per-service check runs against scored candidates while
  * the aggregate check decides what ends up in the user-visible link
@@ -72,10 +72,16 @@ import { ResolveError } from "../lib/resolve/errors.js";
 import { calculateArtistNameConfidence } from "../lib/resolve/normalize.js";
 import { pickArtworkUrl } from "./artwork.js";
 import { confidenceForMethod } from "./confidence.js";
-import { IDENTIFIER_MATCH_CONFIDENCE, MATCH_MIN_CONFIDENCE } from "./constants.js";
+import { IDENTIFIER_MATCH_CONFIDENCE, LINK_QUALITY_THRESHOLD, MATCH_MIN_CONFIDENCE } from "./constants.js";
 import { collectArtistExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, findInactiveServiceFor, getActiveAdapters } from "./index.js";
-import { fromCachedLinks, toStoredLinks } from "./resolved-links.js";
+import {
+  collectSettledLinks,
+  findAdapterForUrl,
+  fromCachedLinks,
+  sourceLink,
+  toStoredLinks,
+} from "./resolved-links.js";
 import type {
   ArtistMatchResult,
   ArtistSearchQuery,
@@ -121,10 +127,6 @@ export interface ArtistResolutionResult {
    */
   externalIds: ExternalIdRecord[];
 }
-
-// --- Constants ---
-
-export const ARTIST_LINK_QUALITY_THRESHOLD = 0.6;
 
 // --- Cache helpers ---
 
@@ -263,6 +265,15 @@ function withKeptImage(artist: NormalizedArtist, links: readonly ResolvedArtistL
 
 // --- Cross-service resolution ---
 
+/**
+ * Looks the source artist up on every other active service with artist support
+ * and waits for all of them.
+ *
+ * @param sourceArtist - The artist the resolve started from.
+ * @param excludeAdapter - The source service, which is not asked again.
+ * @returns The matched links plus a derived YouTube Music link, sorted by
+ *   confidence and filtered by {@link LINK_QUALITY_THRESHOLD}.
+ */
 async function resolveArtistAcrossServices(
   sourceArtist: NormalizedArtist,
   excludeAdapter: ServiceAdapter,
@@ -274,24 +285,7 @@ async function resolveArtistAcrossServices(
     targetAdapters.map((adapter) => resolveArtistOnService(adapter, sourceArtist)),
   );
 
-  const links: ResolvedArtistLink[] = [];
-
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    const adapter = targetAdapters[i];
-
-    if (result.status === "fulfilled" && result.value) {
-      log.debug("ArtistResolver", `[${adapter.id}] matched: confidence=${result.value.confidence}`);
-      links.push(result.value);
-    } else if (result.status === "fulfilled") {
-      log.debug("ArtistResolver", `[${adapter.id}] no match found`);
-    } else {
-      log.error(
-        "ArtistResolver",
-        `[${adapter.id}] resolve failed: ${result.reason instanceof Error ? result.reason.message : result.reason}`,
-      );
-    }
-  }
+  const links = collectSettledLinks(targetAdapters, results, { component: "ArtistResolver", logRejected: true });
 
   // YouTube and YouTube Music share channel IDs, so an existing
   // YouTube match produces a valid YouTube Music URL by hostname swap.
@@ -311,14 +305,20 @@ async function resolveArtistAcrossServices(
 
   links.sort((a, b) => b.confidence - a.confidence);
 
-  return links.filter((l) => l.confidence >= ARTIST_LINK_QUALITY_THRESHOLD);
+  return links.filter((l) => l.confidence >= LINK_QUALITY_THRESHOLD);
 }
 
 // --- Identify artist service ---
 
+/**
+ * Finds the active adapter that recognizes an artist URL.
+ *
+ * @param url - The artist URL, tracking parameters stripped.
+ * @returns The first active adapter whose `detectArtistUrl` returns an id, or
+ *   `undefined` when none does.
+ */
 async function identifyArtistService(url: string): Promise<ServiceAdapter | undefined> {
-  const active = await getActiveAdapters();
-  return active.find((a) => Boolean(a.detectArtistUrl) && a.detectArtistUrl?.(url) !== null);
+  return findAdapterForUrl(await getActiveAdapters(), url, "detectArtistUrl");
 }
 
 // --- Main entry points ---
@@ -407,14 +407,9 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
   }
 
   // 8. Add source service link
-  links.unshift({
-    service: sourceAdapter.id,
-    displayName: sourceAdapter.displayName,
-    url: sourceArtist.webUrl,
-    confidence: IDENTIFIER_MATCH_CONFIDENCE,
-    matchMethod: "source",
-    externalId: sourceArtist.sourceId,
-  });
+  links.unshift(
+    sourceLink(sourceAdapter, sourceArtist, { confidence: IDENTIFIER_MATCH_CONFIDENCE, matchMethod: "source" }),
+  );
 
   return {
     sourceArtist,
@@ -451,14 +446,12 @@ export async function resolveArtistTextSearch(query: string): Promise<ArtistReso
         const links = await resolveArtistAcrossServices(result.artist, adapter);
         const sourceArtist = withKeptImage(result.artist, links);
 
-        links.unshift({
-          service: adapter.id,
-          displayName: adapter.displayName,
-          url: sourceArtist.webUrl,
-          confidence: confidenceForMethod("search", result.confidence),
-          matchMethod: "search",
-          externalId: sourceArtist.sourceId,
-        });
+        links.unshift(
+          sourceLink(adapter, sourceArtist, {
+            confidence: confidenceForMethod("search", result.confidence),
+            matchMethod: "search",
+          }),
+        );
 
         return {
           sourceArtist,

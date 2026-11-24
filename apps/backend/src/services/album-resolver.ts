@@ -85,11 +85,19 @@ import { parseReleaseYear } from "../lib/release-date.js";
 import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
 import { pickRecordingArtworkUrl, RECORDING_ARTWORK_LOOKUP_SERVICES } from "./artwork.js";
 import { confidenceForMethod } from "./confidence.js";
-import { IDENTIFIER_MATCH_CONFIDENCE } from "./constants.js";
+import { IDENTIFIER_MATCH_CONFIDENCE, LINK_QUALITY_THRESHOLD } from "./constants.js";
 import { collectAlbumExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, findInactiveServiceFor, getActiveAdapters } from "./index.js";
 import { keepRecordingArtwork } from "./recording-artwork.js";
-import { fromCachedLinks, isStoredPreviewFresh, toStoredLinks } from "./resolved-links.js";
+import {
+  collectSettledLinks,
+  findAdapterForUrl,
+  fromCachedLinks,
+  isStoredPreviewFresh,
+  sourceLink,
+  toStoredLinks,
+  uniqueAdaptersByService,
+} from "./resolved-links.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   AlbumMatchResult,
@@ -149,7 +157,6 @@ export interface AlbumResolutionResult {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-export const ALBUM_LINK_QUALITY_THRESHOLD = 0.6;
 const ISRC_INFERENCE_MIN_MATCH_FRACTION = 0.33; // ≥1/3 of sampled tracks must match
 const ISRC_SAMPLE_SIZE = 5; // How many tracks to sample for ISRC inference
 
@@ -272,14 +279,11 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
         ),
       )
     : [];
-  const adaptersToFetch = [
-    ...new Map(
-      [...missingAdapters, ...(deezerAdapter ? [deezerAdapter] : []), ...artworkAdapters].map((adapter) => [
-        adapter.id,
-        adapter,
-      ]),
-    ).values(),
-  ];
+  const adaptersToFetch = uniqueAdaptersByService([
+    ...missingAdapters,
+    ...(deezerAdapter ? [deezerAdapter] : []),
+    ...artworkAdapters,
+  ]);
 
   if (adaptersToFetch.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
@@ -638,6 +642,15 @@ function pickLabelFromLinks(links: ResolvedAlbumLink[]): string | undefined {
 
 // ─── Cross-service resolution ─────────────────────────────────────────────────
 
+/**
+ * Looks the source album up on every other active service with album support
+ * and waits for all of them.
+ *
+ * @param sourceAlbum - The album the resolve started from.
+ * @param excludeAdapter - The source service, which is not asked again.
+ * @returns The matched links plus a derived YouTube Music link, sorted by
+ *   confidence and filtered by {@link LINK_QUALITY_THRESHOLD}.
+ */
 async function resolveAlbumAcrossServices(
   sourceAlbum: NormalizedAlbum,
   excludeAdapter: ServiceAdapter,
@@ -649,24 +662,7 @@ async function resolveAlbumAcrossServices(
     targetAdapters.map((adapter) => resolveAlbumOnService(adapter, sourceAlbum)),
   );
 
-  const links: ResolvedAlbumLink[] = [];
-
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    const adapter = targetAdapters[i];
-
-    if (result.status === "fulfilled" && result.value) {
-      log.debug("AlbumResolver", `[${adapter.id}] matched: confidence=${result.value.confidence}`);
-      links.push(result.value);
-    } else if (result.status === "fulfilled") {
-      log.debug("AlbumResolver", `[${adapter.id}] no match found`);
-    } else {
-      log.error(
-        "AlbumResolver",
-        `[${adapter.id}] resolve failed: ${result.reason instanceof Error ? result.reason.message : result.reason}`,
-      );
-    }
-  }
+  const links = collectSettledLinks(targetAdapters, results, { component: "AlbumResolver", logRejected: true });
 
   const derived = deriveYouTubeMusicAlbumLink(links);
   if (derived) links.push(derived);
@@ -675,14 +671,20 @@ async function resolveAlbumAcrossServices(
   links.sort((a, b) => b.confidence - a.confidence);
 
   // Filter out low-confidence matches
-  return links.filter((l) => l.confidence >= ALBUM_LINK_QUALITY_THRESHOLD);
+  return links.filter((l) => l.confidence >= LINK_QUALITY_THRESHOLD);
 }
 
 // ─── Identify album service ───────────────────────────────────────────────────
 
+/**
+ * Finds the active adapter that recognizes an album URL.
+ *
+ * @param url - The album URL, tracking parameters stripped.
+ * @returns The first active adapter whose `detectAlbumUrl` returns an id, or
+ *   `undefined` when none does.
+ */
 async function identifyAlbumService(url: string): Promise<ServiceAdapter | undefined> {
-  const active = await getActiveAdapters();
-  return active.find((a) => Boolean(a.detectAlbumUrl) && a.detectAlbumUrl?.(url) !== null);
+  return findAdapterForUrl(await getActiveAdapters(), url, "detectAlbumUrl");
 }
 
 // ─── Main entry points ────────────────────────────────────────────────────────
@@ -769,14 +771,9 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   }
 
   // 7. Add source service link
-  links.unshift({
-    service: sourceAdapter.id,
-    displayName: sourceAdapter.displayName,
-    url: sourceAlbum.webUrl,
-    confidence: IDENTIFIER_MATCH_CONFIDENCE,
-    matchMethod: "source",
-    externalId: sourceAlbum.sourceId,
-  });
+  links.unshift(
+    sourceLink(sourceAdapter, sourceAlbum, { confidence: IDENTIFIER_MATCH_CONFIDENCE, matchMethod: "source" }),
+  );
 
   return {
     sourceAlbum,
@@ -827,14 +824,12 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
           if (label) sourceAlbum = { ...sourceAlbum, label };
         }
 
-        links.unshift({
-          service: adapter.id,
-          displayName: adapter.displayName,
-          url: sourceAlbum.webUrl,
-          confidence: confidenceForMethod("search", result.confidence),
-          matchMethod: "search",
-          externalId: sourceAlbum.sourceId,
-        });
+        links.unshift(
+          sourceLink(adapter, sourceAlbum, {
+            confidence: confidenceForMethod("search", result.confidence),
+            matchMethod: "search",
+          }),
+        );
 
         return {
           sourceAlbum,
