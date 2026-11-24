@@ -6,6 +6,7 @@
 import gsap from "gsap";
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 import { AudioStatus, type AudioStatus as AudioStatusType } from "@/components/audio/AudioStatus";
+import { fadeOutForTeardown, muteForStartup, rampUpFromStartup } from "@/components/audio/audioFades";
 import {
   type AudioGraphNodes,
   disconnectAudioGraph,
@@ -27,7 +28,6 @@ import {
   resolveAudioProgressRatio,
 } from "@/components/audio/playerStateMachine";
 import { fetchPreviewUrl } from "@/components/audio/previewSource";
-import { quantizeProgressRatio } from "@/components/audio/progressQuantize";
 import {
   advancePeakHold,
   decayPeakHoldChannel,
@@ -49,6 +49,7 @@ import {
   writeSpectrumLevels,
   writeSpectrumPeakHold,
 } from "@/components/audio/spectrumStore";
+import { usePlaybackProgress } from "@/components/audio/usePlaybackProgress";
 import { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
 import { audioCopy } from "@/copy/audio";
 import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
@@ -103,35 +104,6 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-/** Duration in milliseconds of the progress bar's animated rewind to zero after a track ends. */
-const PLAYER_PROGRESS_REWIND_MS = 420;
-// Sample-accurate gain ramp applied on the very first play of a fresh
-// audio source so the audio fades in from silence to unity. The ramp
-// hides the startup transient that MP3 decoders and freshly engaged
-// MediaElementSource → destination routing produce together: even a
-// brief, low-amplitude burst at the moment the audio output device
-// re-engages is audible as a click against the prior silence. The ramp
-// is only scheduled on the first play of each fresh audio element
-// (tracked via hasStartedRef) — resuming a previously-played, paused
-// track does not need it because the audio path is already warm.
-const STARTUP_FADE_MS = 30;
-// Sample-accurate gain ramp applied on teardown when the audio is still
-// playing at unmount. Required because the share-page Top-Tracks button
-// triggers an SPA navigation while the current preview is mid-playback:
-// the old MediaCard unmounts, audio.pause() + AudioContext.close() fire
-// in immediate succession, and the OS audio session disengages
-// mid-stream. The DAC silencing at a non-zero waveform sample produces
-// an audible speaker click. User-initiated pauses do NOT exhibit this
-// because the context stays alive after audio.pause() — the click is
-// specifically about close() racing the audio path. The ramp drives the
-// gain to zero before the deferred pause + teardown run, so the close
-// sees silence at the destination.
-const TEARDOWN_FADE_MS = 30;
-// Safety margin added on top of TEARDOWN_FADE_MS before the deferred
-// pause + context close fires, so the scheduled gain ramp has fully
-// settled at the audio graph before the destination is destroyed.
-const TEARDOWN_FADE_GUARD_MS = 10;
-
 /**
  * Headless audio-preview engine: owns the `<audio>` element lifecycle, the
  * WebAudio spectrum pipeline, the play-state machine, the seek transport, the
@@ -185,9 +157,14 @@ export function useAudioController({
   // live in the spectrum store and are written in place each tick (Task 5.1).
   const peakHoldLeftRef = useRef<StereoPeakHoldState>({ level: 0, setAt: 0 });
   const peakHoldRightRef = useRef<StereoPeakHoldState>({ level: 0, setAt: 0 });
-  const progressTickRef = useRef<(() => void) | null>(null);
-  const progressRewindTickRef = useRef<(() => void) | null>(null);
-  const progressRatioRef = useRef(0);
+  const {
+    progressRatio,
+    setProgressRatioValue,
+    stopProgressLoop,
+    startProgressLoop,
+    stopProgressRewind,
+    startProgressRewind,
+  } = usePlaybackProgress();
   const hasStartedRef = useRef(false);
   // Mirrors whether playback is active, read by the source effect on a same-album
   // src swap to decide whether to continue playing the new track on the same element.
@@ -201,16 +178,6 @@ export function useAudioController({
   // `hasStartedRef` turns true only on a first play, and a track that failed to
   // load or was never played still leaves its phase behind for the next track.
   const hasMountedSourceRef = useRef(false);
-  // REGRESSION GUARD — do not defeat the quantize. This is the only React state the
-  // playback progress feeds, and it is sampled on the shared 60 Hz ticker
-  // (startProgressLoop). It MUST only ever be written through setProgressRatioValue,
-  // which snaps the ratio to a coarse grid (quantizeProgressRatio) and dedups it.
-  // Writing raw per-frame values here re-renders the ENTIRE player subtree 60×/s and
-  // starves hover/transition paints — the "everything lags/stutters while a song
-  // plays" bug. The analyzer stays smooth through it all because it bypasses React
-  // via the imperative spectrumStore. If you need finer progress, move it to an
-  // imperative store like spectrumStore — never remove the quantize.
-  const [progressRatio, setProgressRatio] = useState(0);
 
   // Tune the shared ticker once on mount (lagSmoothing); idempotent.
   useEffect(() => {
@@ -277,75 +244,8 @@ export function useAudioController({
     [resetPeakHold],
   );
 
-  const setProgressRatioValue = useCallback((ratio: number) => {
-    // Snap to the progress grid so the shared 60 Hz ticker only flips React state
-    // when the bar visibly moves (~a few Hz), not every frame. The raw 60 Hz churn
-    // re-rendered the whole player subtree and starved hover/transition paints.
-    const nextRatio = quantizeProgressRatio(ratio);
-    if (progressRatioRef.current === nextRatio) return;
-    progressRatioRef.current = nextRatio;
-    setProgressRatio(nextRatio);
-  }, []);
   const setProgressRatioFromEvent = useEffectEvent(setProgressRatioValue);
-
-  const stopProgressRewind = useCallback(() => {
-    if (progressRewindTickRef.current) gsap.ticker.remove(progressRewindTickRef.current);
-    progressRewindTickRef.current = null;
-  }, []);
-
-  const stopProgressLoop = useCallback(
-    (audio?: HTMLAudioElement | null) => {
-      if (progressTickRef.current) gsap.ticker.remove(progressTickRef.current);
-      progressTickRef.current = null;
-      if (audio) setProgressRatioValue(resolveAudioProgressRatio(audio));
-    },
-    [setProgressRatioValue],
-  );
-
-  const startProgressRewind = useCallback(() => {
-    stopProgressRewind();
-    const startRatio = progressRatioRef.current;
-    if (startRatio <= 0) {
-      setProgressRatioValue(0);
-      return;
-    }
-
-    let startedAt: number | null = null;
-    const tick = () => {
-      const now = performance.now();
-      if (startedAt === null) startedAt = now;
-      const elapsedRatio = Math.min(1, (now - startedAt) / PLAYER_PROGRESS_REWIND_MS);
-      setProgressRatioValue(startRatio * (1 - elapsedRatio));
-      if (elapsedRatio < 1) return;
-      gsap.ticker.remove(tick);
-      progressRewindTickRef.current = null;
-      setProgressRatioValue(0);
-    };
-
-    progressRewindTickRef.current = tick;
-    gsap.ticker.add(tick);
-  }, [setProgressRatioValue, stopProgressRewind]);
   const startProgressRewindFromEvent = useEffectEvent(startProgressRewind);
-
-  const startProgressLoop = useCallback(
-    (audio: HTMLAudioElement) => {
-      stopProgressLoop();
-      // Runs on the shared 60 Hz ticker. Sampling every frame is fine ONLY because
-      // setProgressRatioValue quantizes + dedups before touching React state (see the
-      // regression guard on the progressRatio state); it re-renders on a visible step,
-      // not per frame.
-      const tick = () => {
-        setProgressRatioValue(resolveAudioProgressRatio(audio));
-        if (audio.paused || audio.ended) {
-          gsap.ticker.remove(tick);
-          progressTickRef.current = null;
-        }
-      };
-      progressTickRef.current = tick;
-      gsap.ticker.add(tick);
-    },
-    [setProgressRatioValue, stopProgressLoop],
-  );
 
   const startSpectrumFadeOut = useCallback(() => {
     stopSpectrumLoop({ clearBands: false });
@@ -693,9 +593,7 @@ export function useAudioController({
       const startupGainNode = gainNodeRef.current;
       const startupAudioContext = audioContextRef.current;
       if (isFirstPlay && startupGainNode && startupAudioContext) {
-        const muteAt = startupAudioContext.currentTime;
-        startupGainNode.gain.cancelScheduledValues(muteAt);
-        startupGainNode.gain.setValueAtTime(0, muteAt);
+        muteForStartup(startupGainNode, startupAudioContext);
       }
 
       notifyPlaybackIntent();
@@ -719,10 +617,7 @@ export function useAudioController({
           const rampGainNode = gainNodeRef.current;
           const rampAudioContext = audioContextRef.current;
           if (isFirstPlay && rampGainNode && rampAudioContext) {
-            const rampStart = rampAudioContext.currentTime;
-            rampGainNode.gain.cancelScheduledValues(rampStart);
-            rampGainNode.gain.setValueAtTime(0, rampStart);
-            rampGainNode.gain.linearRampToValueAtTime(1, rampStart + STARTUP_FADE_MS / 1000);
+            rampUpFromStartup(rampGainNode, rampAudioContext);
           }
 
           void spectrumReadyPromise
@@ -893,18 +788,10 @@ export function useAudioController({
         !audio.ended;
 
       if (canFade) {
-        const fadeStartTime = audioContext.currentTime;
-        try {
-          gainNode.gain.cancelScheduledValues(fadeStartTime);
-          gainNode.gain.setValueAtTime(gainNode.gain.value, fadeStartTime);
-          gainNode.gain.linearRampToValueAtTime(0, fadeStartTime + TEARDOWN_FADE_MS / 1000);
-        } catch {
-          // The fallback below still finishes teardown if scheduling throws.
-        }
-        window.setTimeout(() => {
+        fadeOutForTeardown(gainNode, audioContext, () => {
           detachOldElement();
           finalizeGraph();
-        }, TEARDOWN_FADE_MS + TEARDOWN_FADE_GUARD_MS);
+        });
         return;
       }
 
