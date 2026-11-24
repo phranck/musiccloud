@@ -273,24 +273,65 @@ function mapJsonLdTrack(jsonLd: JsonLdMusicRecording, sourceId: string): Normali
 
 // --- HTML scraping for getTrack ---
 
-function extractFromStore(html: string): PandoraTrackData | null {
-  const storeMatch = /var\s+storeData\s*=\s*(\{[\s\S]*?\});\s*(?:var\s|<\/script>)/m.exec(html);
+/** The `var storeData = {...};` assignment a Pandora page embeds, with the object literal captured. */
+const PANDORA_STORE_DATA_PATTERN = /var\s+storeData\s*=\s*(\{[\s\S]*?\});\s*(?:var\s|<\/script>)/m;
+
+/** The `storeData` key whose first element maps catalog ids to their annotations. */
+const PANDORA_STORE_ANNOTATIONS_KEY = "v4/catalog/annotateObjects";
+
+/** Catalog id prefix of a track annotation in `storeData`: `TR:`. */
+const PANDORA_TRACK_KEY_PREFIX = "TR:";
+
+/** Catalog id prefix of an album annotation in `storeData`: `AL:`. */
+const PANDORA_ALBUM_KEY_PREFIX = "AL:";
+
+/**
+ * Reads the first annotation of one kind out of a page's embedded `storeData`.
+ *
+ * @param html - A Pandora track or album page.
+ * @param keyPrefix - Catalog id prefix of the wanted annotation, {@link PANDORA_TRACK_KEY_PREFIX} or {@link PANDORA_ALBUM_KEY_PREFIX}.
+ * @param parseFailureMessage - Debug message logged when `storeData` or `map` throws.
+ * @param map - Turns the found annotation into the result; it runs inside the same guard as the parse, so a throw becomes `null`.
+ * @returns What `map` returns, or `null` when the page has no `storeData`, it holds no annotation with that prefix, or the parse or `map` throws.
+ */
+function readStoreEntry<T, R>(
+  html: string,
+  keyPrefix: string,
+  parseFailureMessage: string,
+  map: (entry: T) => R | null,
+): R | null {
+  const storeMatch = PANDORA_STORE_DATA_PATTERN.exec(html);
   if (!storeMatch) return null;
 
   try {
     const store = JSON.parse(storeMatch[1]) as Record<string, unknown>;
-    const annotations = store["v4/catalog/annotateObjects"];
+    const annotations = store[PANDORA_STORE_ANNOTATIONS_KEY];
     if (!Array.isArray(annotations) || annotations.length === 0) return null;
 
-    const catalog = annotations[0] as Record<string, PandoraTrackData>;
-    const trackEntry = Object.entries(catalog).find(([key]) => key.startsWith("TR:"));
-    if (!trackEntry) return null;
+    const catalog = annotations[0] as Record<string, T>;
+    const entry = Object.entries(catalog).find(([key]) => key.startsWith(keyPrefix));
+    if (!entry) return null;
 
-    return trackEntry[1];
+    return map(entry[1]);
   } catch {
-    log.debug("Pandora", "Failed to parse storeData");
+    log.debug("Pandora", parseFailureMessage);
     return null;
   }
+}
+
+/**
+ * Reads a track page's `storeData` track annotation.
+ *
+ * @param html - A Pandora track page.
+ * @returns The annotation, or `null` when the page has none or `storeData` is not JSON.
+ */
+function extractFromStore(html: string): PandoraTrackData | null {
+  return readStoreEntry<PandoraTrackData, PandoraTrackData>(
+    html,
+    PANDORA_TRACK_KEY_PREFIX,
+    "Failed to parse storeData",
+    (entry) => entry,
+  );
 }
 
 /**
@@ -344,22 +385,13 @@ async function fetchAlbumByPath(albumPath: string): Promise<NormalizedAlbum | nu
   const html = await response.text();
 
   // Try storeData first
-  const storeMatch = /var\s+storeData\s*=\s*(\{[\s\S]*?\});\s*(?:var\s|<\/script>)/m.exec(html);
-  if (storeMatch) {
-    try {
-      const store = JSON.parse(storeMatch[1]) as Record<string, unknown>;
-      const annotations = store["v4/catalog/annotateObjects"];
-      if (Array.isArray(annotations) && annotations.length > 0) {
-        const catalog = annotations[0] as Record<string, PandoraAlbumData>;
-        const albumEntry = Object.entries(catalog).find(([key]) => key.startsWith("AL:"));
-        if (albumEntry?.[1]?.name) {
-          return mapAlbumData(albumEntry[1], albumPath);
-        }
-      }
-    } catch {
-      log.debug("Pandora", "Failed to parse storeData for album");
-    }
-  }
+  const storeAlbum = readStoreEntry<PandoraAlbumData | undefined, NormalizedAlbum>(
+    html,
+    PANDORA_ALBUM_KEY_PREFIX,
+    "Failed to parse storeData for album",
+    (entry) => (entry?.name ? mapAlbumData(entry, albumPath) : null),
+  );
+  if (storeAlbum) return storeAlbum;
 
   // Try JSON-LD for MusicAlbum
   const ldData = readJsonLd<{
