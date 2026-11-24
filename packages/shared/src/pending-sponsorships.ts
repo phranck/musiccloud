@@ -14,7 +14,7 @@
 
 import { buildCreditorReference, normalizeCreditorReference, randomReferenceBody } from "./creditor-reference.js";
 import { DAY_MS, DAY_PATTERN } from "./donations.js";
-import { classifyProfileLink, type SocialMediaLinks } from "./social-media.js";
+import { classifyProfileLink, type SocialMediaLinks } from "./social-media/index.js";
 
 /**
  * The four characters every musiccloud sponsorship reference opens with after
