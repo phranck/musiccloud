@@ -12,8 +12,10 @@ import type {
   NormalizedArtist,
   NormalizedTrack,
 } from "../services/types.js";
+import type { AppTelemetryRepository } from "./repository/telemetry.js";
 
 export type { ArtistCredit, ExternalIdRecord } from "../services/types.js";
+export type { AppTelemetryEventInput, AppTelemetryRepository } from "./repository/telemetry.js";
 
 /** Cached track with its cross-service links (returned by URL/ISRC lookups) */
 export interface CachedTrackResult {
@@ -456,9 +458,11 @@ export type RecordingKind = "track" | "album";
  * Public repository contract for resolver, share-page, crawler and telemetry reads/writes.
  *
  * Implementations hide the concrete database adapter behind async methods so
- * route and service layers can stay persistence-agnostic.
+ * route and service layers can stay persistence-agnostic. Each domain's part
+ * of the contract lives in its own interface under `repository/`, and this
+ * interface extends all of them.
  */
-export interface TrackRepository {
+export interface TrackRepository extends AppTelemetryRepository {
   // Track: Read operations
   /**
    * Finds track by URL.
@@ -979,23 +983,6 @@ export interface TrackRepository {
    */
   getRandomShortId(): Promise<string | null>;
 
-  // Apple client telemetry (Testflight diagnostics)
-  /**
-   * Inserts app telemetry event.
-   *
-   * @param row - The `row` value.
-   * @returns A promise that resolves when the operation completes.
-   */
-  insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void>;
-
-  /**
-   * Deletes the app telemetry events received before a moment.
-   *
-   * @param cutoffMs - Epoch milliseconds. Rows received earlier are removed.
-   * @returns How many rows were removed.
-   */
-  deleteAppTelemetryEventsBefore(cutoffMs: number): Promise<number>;
-
   // Crawler: state + runs (migration 0023). The heartbeat lives in
   // services/crawler/heartbeat.ts and orchestrates these calls; the admin
   // API uses the same surface for list/patch/run-now/release-lock.
@@ -1222,23 +1209,4 @@ export interface CcRepository {
   loadCcArtistByShortId(shortId: string): Promise<{ artist: CcArtistShareRow; topTracks: CcTrackShareRow[] } | null>;
   /** Returns a random existing CC track short id, or `null` when none exist. */
   getRandomCcShortId(): Promise<string | null>;
-}
-
-/** Payload accepted by `insertAppTelemetryEvent`. Shape matches the
- * /api/v1/telemetry/app-error request body one-to-one. */
-export interface AppTelemetryEventInput {
-  eventType: string;
-  eventTime: Date;
-  installId: string;
-  appVersion: string;
-  buildNumber: string;
-  platform: string;
-  osVersion: string;
-  deviceModel: string;
-  locale: string;
-  sourceUrl: string | null;
-  service: string | null;
-  errorKind: string;
-  httpStatus: number | null;
-  message: string;
 }
