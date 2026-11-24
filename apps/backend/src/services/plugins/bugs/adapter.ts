@@ -41,7 +41,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { splitArtistNames } from "../_shared/artists.js";
+import { splitArtistNames, UNKNOWN_ARTIST } from "../_shared/artists.js";
 import {
   ENGLISH_KOREAN_ACCEPT_LANGUAGE,
   fetchProviderPage,
@@ -71,6 +71,25 @@ const BUGS_ALBUM_LINK_PATTERN = /\/album\/(\d+)/g;
 /** How every Bugs! page is requested: as a browser page in English or Korean, within the default timeout. */
 const BUGS_PAGE_REQUEST: ProviderPageOptions = { accept: PAGE_ACCEPT, acceptLanguage: ENGLISH_KOREAN_ACCEPT_LANGUAGE };
 
+/** What separates the name from the artist credit in a Bugs! `og:title`: `" / "`. */
+const BUGS_OG_TITLE_SEPARATOR = " / ";
+
+/**
+ * Splits a Bugs! track or album `og:title` into its name and artists.
+ *
+ * Bugs! formats the title as `"Name / Artist"`, or as `"Name"` alone.
+ *
+ * @param ogTitle - The page's nonempty `og:title`.
+ * @returns The trimmed name before the first {@link BUGS_OG_TITLE_SEPARATOR} and the
+ *   artists of everything after it, or the whole title and {@link UNKNOWN_ARTIST}
+ *   when it has no separator.
+ */
+function splitOgTitle(ogTitle: string): { title: string; artists: string[] } {
+  if (!ogTitle.includes(BUGS_OG_TITLE_SEPARATOR)) return { title: ogTitle, artists: [UNKNOWN_ARTIST] };
+  const [name, ...credit] = ogTitle.split(BUGS_OG_TITLE_SEPARATOR);
+  return { title: name.trim(), artists: splitArtistNames(credit.join(BUGS_OG_TITLE_SEPARATOR).trim()) };
+}
+
 async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> {
   const url = `https://music.bugs.co.kr/track/${trackId}`;
   const response = await fetchProviderPage(url, BUGS_PAGE_REQUEST);
@@ -84,20 +103,7 @@ async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> 
 
   if (!og.title) return null;
 
-  // Bugs! OG title format: "Song / Artist" or "Song"
-  let title: string;
-  let artist: string;
-
-  if (og.title.includes(" / ")) {
-    const parts = og.title.split(" / ");
-    title = parts[0].trim();
-    artist = parts.slice(1).join(" / ").trim();
-  } else {
-    title = og.title;
-    artist = "Unknown Artist";
-  }
-
-  const artists = splitArtistNames(artist);
+  const { title, artists } = splitOgTitle(og.title);
 
   return {
     sourceService: "bugs",
@@ -134,18 +140,7 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
 
   if (!og.title) return null;
 
-  // Bugs! album OG title format: "AlbumName / Artist" or "AlbumName"
-  let title: string;
-  let artists: string[];
-
-  if (og.title.includes(" / ")) {
-    const parts = og.title.split(" / ");
-    title = parts[0].trim();
-    artists = splitArtistNames(parts.slice(1).join(" / ").trim());
-  } else {
-    title = og.title;
-    artists = ["Unknown Artist"];
-  }
+  const { title, artists } = splitOgTitle(og.title);
 
   return {
     sourceService: "bugs",
