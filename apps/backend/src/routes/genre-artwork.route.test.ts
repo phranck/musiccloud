@@ -1,3 +1,4 @@
+import { ENDPOINTS } from "@musiccloud/shared";
 import Fastify from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -65,9 +66,14 @@ async function buildApp() {
 }
 
 describe.each([
-  { family: "commercial", prefix: "/api/v1/genre-artwork", cachePrefix: "" },
-  { family: "Creative Commons", prefix: "/api/v1/cc/genre-artwork", cachePrefix: "cc:" },
-])("GET $prefix/:genreKey ($family)", ({ prefix, cachePrefix }) => {
+  { family: "commercial", prefix: "/api/v1/genre-artwork", cachePrefix: "", buildPath: ENDPOINTS.v1.genreArtwork },
+  {
+    family: "Creative Commons",
+    prefix: "/api/v1/cc/genre-artwork",
+    cachePrefix: "cc:",
+    buildPath: ENDPOINTS.v1.ccGenreArtwork,
+  },
+])("GET $prefix/:genreKey ($family)", ({ prefix, cachePrefix, buildPath }) => {
   it("refuses a key that decodes to a literal percent sign as a bad request", async () => {
     const app = await buildApp();
 
@@ -86,5 +92,29 @@ describe.each([
 
     expect(response.statusCode).toBe(OK);
     expect(getCachedArtwork).toHaveBeenCalledWith(`${cachePrefix}r&b`);
+  });
+
+  it.each([
+    "drum & bass",
+    "drum + bass",
+    "c++",
+  ])("reads %s from the address the frontend proxy calls", async (genreKey) => {
+    getCachedArtwork.mockResolvedValue({ jpeg: CACHED_JPEG, accentColor: "#000000" });
+    const app = await buildApp();
+
+    const response = await app.inject({ method: "GET", url: buildPath(genreKey) });
+
+    expect(response.statusCode).toBe(OK);
+    expect(getCachedArtwork).toHaveBeenCalledWith(`${cachePrefix}${genreKey}`);
+  });
+
+  it("keeps a public caller's encoded plus sign a literal plus sign", async () => {
+    getCachedArtwork.mockResolvedValue({ jpeg: CACHED_JPEG, accentColor: "#000000" });
+    const app = await buildApp();
+
+    const response = await app.inject({ method: "GET", url: `${prefix}/a%2Bb` });
+
+    expect(response.statusCode).toBe(OK);
+    expect(getCachedArtwork).toHaveBeenCalledWith(`${cachePrefix}a+b`);
   });
 });

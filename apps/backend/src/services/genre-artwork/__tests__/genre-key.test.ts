@@ -35,7 +35,7 @@ describe("genre artwork keys and addresses", () => {
   });
 
   it("versions commercial and CC tiles with the same value", () => {
-    expect(genreArtworkTileUrl("hip hop")).toBe(`/api/genre-artwork/hip%20hop?v=${GENRE_ARTWORK_VERSION}`);
-    expect(ccGenreArtworkTileUrl("hip hop")).toBe(`/api/cc/genre-artwork/hip%20hop?v=${GENRE_ARTWORK_VERSION}`);
+    expect(genreArtworkTileUrl("hip hop")).toBe(`/api/genre-artwork/hip+hop?v=${GENRE_ARTWORK_VERSION}`);
+    expect(ccGenreArtworkTileUrl("hip hop")).toBe(`/api/cc/genre-artwork/hip+hop?v=${GENRE_ARTWORK_VERSION}`);
   });
 });

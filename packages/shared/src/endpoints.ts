@@ -36,6 +36,7 @@
  */
 
 import type { JamendoAudioFormat } from "./audio-format.js";
+import { encodeFormPathSegment } from "./percent-decoding.js";
 
 // -----------------------------------------------------------------------------
 // Concrete paths used by call sites (frontend / dashboard / backend handlers)
@@ -192,10 +193,17 @@ export const ENDPOINTS = {
     /** GET: forwarded to `ENDPOINTS.v1.sharePreview`. Client-side audio
      *  player calls this lazily to refresh expired Deezer preview URLs. */
     sharePreview: (shortId: string) => `/api/share-preview/${encodeURIComponent(shortId)}`,
-    /** GET: forwarded to `ENDPOINTS.v1.genreArtwork`. */
-    genreArtwork: (genreKey: string) => `/api/genre-artwork/${encodeURIComponent(genreKey)}`,
-    /** GET: forwarded to `ENDPOINTS.v1.ccGenreArtwork`. CC genre tile cover (Jamendo-sourced). */
-    ccGenreArtwork: (genreKey: string) => `/api/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /**
+     * GET: forwarded to `ENDPOINTS.v1.genreArtwork`. The key is written by
+     * `encodeFormPathSegment`, a space as `+`, because Astro refuses a path
+     * that mixes `%20` with a reserved escape such as `%26`.
+     */
+    genreArtwork: (genreKey: string) => `/api/genre-artwork/${encodeFormPathSegment(genreKey)}`,
+    /**
+     * GET: forwarded to `ENDPOINTS.v1.ccGenreArtwork`. CC genre tile cover
+     * (Jamendo-sourced), its key written like {@link genreArtwork}'s.
+     */
+    ccGenreArtwork: (genreKey: string) => `/api/cc/genre-artwork/${encodeFormPathSegment(genreKey)}`,
     /** GET: forwarded to `ENDPOINTS.v1.sponsorAvatar`, so the site serves a sponsor's picture from its own origin. */
     sponsorAvatar: (avatarId: string) => `/api/sponsor-avatars/${encodeURIComponent(avatarId)}`,
     /** GET: forwarded to `ENDPOINTS.v1.sponsors`, so the sponsor wall asks nobody but the site. */

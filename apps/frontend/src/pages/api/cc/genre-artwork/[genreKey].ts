@@ -1,32 +1,13 @@
-import { visitorAddress } from "@musiccloud/shared";
-import type { APIRoute } from "astro";
 import { fetchCcGenreArtwork } from "@/api/client";
+import { createGenreArtworkProxy } from "@/lib/media/genre-artwork-proxy";
 
+/** Rendered per request, because every tile key is a different artwork. */
 export const prerender = false;
 
 /**
- * Astro proxy for backend `/api/v1/cc/genre-artwork/:genreKey`. Streams the
- * JPEG binary straight through, preserving the immutable Cache-Control header
- * so browsers and any edge caches hold on to it. Mirrors the commercial
- * `pages/api/genre-artwork/[genreKey].ts`; the only difference is the
- * Jamendo-sourced backend route it forwards to.
+ * Astro proxy for backend `/api/v1/cc/genre-artwork/:genreKey`, the
+ * Jamendo-sourced Creative Commons tile cover. Behaves exactly like the
+ * commercial `pages/api/genre-artwork/[genreKey].ts`, through the same
+ * `createGenreArtworkProxy`.
  */
-export const GET: APIRoute = async ({ request, params, clientAddress }) => {
-  const genreKey = params.genreKey ?? "";
-  if (!genreKey) return new Response(null, { status: 400 });
-
-  try {
-    const res = await fetchCcGenreArtwork(genreKey, visitorAddress({ request, clientAddress }));
-    if (!res.ok) return new Response(null, { status: res.status });
-    const body = await res.arrayBuffer();
-    return new Response(body, {
-      status: 200,
-      headers: {
-        "Content-Type": res.headers.get("Content-Type") ?? "image/jpeg",
-        "Cache-Control": res.headers.get("Cache-Control") ?? "public, max-age=31536000, immutable",
-      },
-    });
-  } catch {
-    return new Response(null, { status: 503 });
-  }
-};
+export const GET = createGenreArtworkProxy(fetchCcGenreArtwork);
