@@ -5,9 +5,9 @@
  */
 
 import { Service } from "@musiccloud/shared";
-import { type RankedArtistNameMatch, rankByArtistName } from "../../../lib/resolve/normalize";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import { type RankedArtistNameMatch, rankByArtistName } from "../_shared/rank.js";
 import { deezerGet } from "./deezer-response.js";
 
 /**

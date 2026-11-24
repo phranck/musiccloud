@@ -47,7 +47,7 @@
 import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable.js";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
-import { CANDIDATE_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE, MAX_CANDIDATES } from "../../constants.js";
+import { CANDIDATE_MIN_CONFIDENCE, MAX_CANDIDATES } from "../../constants.js";
 import type {
   AlbumCapabilities,
   AlbumMatchResult,
@@ -65,6 +65,7 @@ import type {
 } from "../../types.js";
 import { isFreeTextSearch, scoreAlbumCandidate } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import { pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
 import {
   isTrackSearchFallbackMatch,
   scoreCatalogueTrackCandidate,
@@ -77,6 +78,12 @@ import { deezerFetch, deezerGet, readDeezerJson } from "./deezer-response.js";
 const DEEZER_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/;
 const DEEZER_ALBUM_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?album\/(\d+)/;
 const DEEZER_ARTIST_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?artist\/(\d+)/;
+
+/**
+ * How many hits the one-shot track and album searches ask Deezer for: `5`.
+ * The candidate search asks for `MAX_CANDIDATES` instead.
+ */
+const DEEZER_SEARCH_LIMIT = 5;
 
 // Minimal type for the Deezer API track response fields we use
 interface DeezerTrackResponse {
@@ -348,34 +355,11 @@ export const deezerAdapter = {
    * @throws Upstream and response-contract failures instead of a clean miss.
    */
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const items = await searchTrackItems(query, 5);
-
-    if (items.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-
-    for (let i = 0; i < items.length; i++) {
-      const track = mapTrack(items[i]);
-      const confidence = scoreCatalogueTrackCandidate(query, track, i);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    const items = await searchTrackItems(query, DEEZER_SEARCH_LIMIT);
+    const { best, confidence } = pickBestCandidate(items.map(mapTrack), (track, index) =>
+      scoreCatalogueTrackCandidate(query, track, index),
+    );
+    return searchMatchResult("track", best, confidence);
   },
 
   /**
@@ -408,14 +392,10 @@ export const deezerAdapter = {
 
     scored.sort((a, b) => b.confidence - a.confidence);
 
+    // The sort is stable, so the first entry is the earliest of the highest scores.
     const best = scored[0];
-    const bestMatch: MatchResult =
-      best.confidence >= MATCH_MIN_CONFIDENCE
-        ? { found: true, track: best.track, confidence: best.confidence, matchMethod: "search" }
-        : { found: false, confidence: best.confidence, matchMethod: "search" };
-
     return {
-      bestMatch,
+      bestMatch: searchMatchResult("track", best.track, best.confidence),
       candidates: scored.filter((c) => c.confidence >= CANDIDATE_MIN_CONFIDENCE).slice(0, MAX_CANDIDATES),
     };
   },
@@ -466,28 +446,21 @@ export const deezerAdapter = {
     const alternatives = [
       ...new Set([`artist:"${query.artist}" album:"${query.title}"`, `${query.artist} ${query.title}`.trim()]),
     ];
-    let bestAlbum: NormalizedAlbum | null = null;
+    // A miss reports the highest score any alternative reached.
     let bestConfidence = 0;
 
     for (const text of alternatives) {
       const data = await deezerGet<DeezerAlbumSearchResponse>(
-        `/search/album?q=${encodeURIComponent(text)}&limit=5`,
+        `/search/album?q=${encodeURIComponent(text)}&limit=${DEEZER_SEARCH_LIMIT}`,
         "album search",
       );
       const items = data === null ? [] : requireProviderCollection(data.data, Service.Deezer, "album search");
-      for (const item of items) {
-        const album = mapAlbum(item);
-        const confidence = scoreAlbumCandidate(query, album);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestAlbum = album;
-        }
-      }
-      if (bestAlbum && bestConfidence >= MATCH_MIN_CONFIDENCE) {
-        return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
-      }
+      const { best, confidence } = pickBestCandidate(items.map(mapAlbum), (album) => scoreAlbumCandidate(query, album));
+      bestConfidence = Math.max(bestConfidence, confidence);
+      const result = searchMatchResult("album", best, confidence);
+      if (result.found) return result;
     }
-    return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    return searchMatchResult("album", null, bestConfidence);
   },
 
   // --- Artist support ---
@@ -537,10 +510,7 @@ export const deezerAdapter = {
    */
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
     const best = await rankDeezerArtistSearch(query.name);
-
-    if (best === null || best.confidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: best?.confidence ?? 0, matchMethod: "search" };
-    }
+    if (best === null) return searchMatchResult("artist", null, 0);
 
     const { item: hit, confidence } = best;
     const artist: NormalizedArtist = {
@@ -550,6 +520,6 @@ export const deezerAdapter = {
       imageUrl: pickDeezerArtistImage(hit) ?? undefined,
       webUrl: hit.link ?? `https://www.deezer.com/artist/${hit.id}`,
     };
-    return { found: true, artist, confidence, matchMethod: "search" };
+    return searchMatchResult("artist", artist, confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

@@ -54,14 +54,8 @@ import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
-import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
-import {
-  CANDIDATE_MIN_CONFIDENCE,
-  MATCH_MIN_CONFIDENCE,
-  MAX_CANDIDATES,
-  SPOTIFY_SEARCH_LIMIT_MAX,
-} from "../../constants.js";
+import { CANDIDATE_MIN_CONFIDENCE, MAX_CANDIDATES, SPOTIFY_SEARCH_LIMIT_MAX } from "../../constants.js";
 import type {
   AdapterCapabilities,
   AlbumCapabilities,
@@ -81,6 +75,7 @@ import type {
 import { artistSearchNames } from "../_shared/artists.js";
 import { isFreeTextSearch, scoreAlbumCandidate, scoreSearchCandidate } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
 import { fetchSpotifyOEmbed } from "./oembed.js";
 
 const SPOTIFY_TRACK_REGEX = /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?track\/([a-zA-Z0-9]+)/;
@@ -337,27 +332,17 @@ export const spotifyAdapter = {
       }
     }
 
-    // Score each result and pick the best match
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-    let index = 0;
+    const { best, confidence } = pickBestCandidate(Array.from(itemsById.values(), mapTrack), (track, index) =>
+      scoreSearchCandidate(query, track, index),
+    );
+    const result = searchMatchResult("track", best, confidence);
 
-    for (const item of itemsById.values()) {
-      const track = mapTrack(item);
-      const confidence = scoreSearchCandidate(query, track, index);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
-      index++;
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
+    if (!result.found) {
       // A failed alternative may contain the recording; it cannot become a cached miss.
       if (lastFailedStatus) {
         throw serviceHttpError(Service.Spotify, lastFailedStatus, ResourceKind.Track, query.title, Operation.Search);
       }
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
+      return result;
     }
 
     if (lastFailedStatus) {
@@ -373,12 +358,7 @@ export const spotifyAdapter = {
         serviceHttpError(Service.Spotify, lastFailedStatus, ResourceKind.Track, query.title, Operation.Search),
       );
     }
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return result;
   },
 
   /**
@@ -438,10 +418,7 @@ export const spotifyAdapter = {
     scored.sort((a, b) => b.confidence - a.confidence);
 
     const best = scored[0];
-    const bestMatch: MatchResult =
-      best.confidence >= MATCH_MIN_CONFIDENCE
-        ? { found: true, track: best.track, confidence: best.confidence, matchMethod: "search" }
-        : { found: false, confidence: best.confidence, matchMethod: "search" };
+    const bestMatch = searchMatchResult("track", best.track, best.confidence);
 
     if (lastFailedStatus) {
       const error = serviceHttpError(
@@ -517,28 +494,8 @@ export const spotifyAdapter = {
     const data: SpotifyAlbumSearchResponse = await response.json();
     const items = requireProviderCollection(data.albums?.items, Service.Spotify, "album search");
 
-    if (items.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    let bestAlbum: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const item of items) {
-      const album = mapAlbum(item);
-      const confidence = scoreAlbumCandidate(query, album);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestAlbum = album;
-      }
-    }
-
-    if (!bestAlbum || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
+    const { best, confidence } = pickBestCandidate(items.map(mapAlbum), (album) => scoreAlbumCandidate(query, album));
+    return searchMatchResult("album", best, confidence);
   },
 
   // --- Artist support ---
@@ -585,33 +542,15 @@ export const spotifyAdapter = {
       "artist search",
     );
 
-    if (items.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    let bestArtist: NormalizedArtist | null = null;
-    let bestConfidence = 0;
-
-    for (const item of items) {
-      const confidence = calculateArtistNameConfidence(query.name, item.name);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestArtist = {
-          sourceService: "spotify",
-          sourceId: item.id,
-          name: item.name,
-          imageUrl: item.images?.[0]?.url,
-          genres: item.genres?.slice(0, 5),
-          webUrl: item.external_urls?.spotify ?? `https://open.spotify.com/artist/${item.id}`,
-        };
-      }
-    }
-
-    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    const ranked = rankByArtistName(query.name, items, (item) => item.name);
+    const artist: NormalizedArtist | null = ranked && {
+      sourceService: "spotify",
+      sourceId: ranked.item.id,
+      name: ranked.item.name,
+      imageUrl: ranked.item.images?.[0]?.url,
+      genres: ranked.item.genres?.slice(0, 5),
+      webUrl: ranked.item.external_urls?.spotify ?? `https://open.spotify.com/artist/${ranked.item.id}`,
+    };
+    return searchMatchResult("artist", artist, ranked?.confidence ?? 0);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

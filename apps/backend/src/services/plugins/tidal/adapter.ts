@@ -59,9 +59,7 @@ import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable.js";
-import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumCapabilities,
   AlbumMatchResult,
@@ -77,9 +75,17 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate } from "../_shared/confidence.js";
+import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
 import { scoreCatalogueTrackCandidate, trackSearchTexts } from "../_shared/track-search-query.js";
 
 const API_BASE = "https://openapi.tidal.com/v2";
+
+/**
+ * How many of the hits Tidal ranks first each search scores: `5`. The track,
+ * album and artist searches all stop there, so a hit further down the
+ * relationship never becomes a match.
+ */
+const TIDAL_SEARCH_CANDIDATE_LIMIT = 5;
 
 const TIDAL_TRACK_REGEX = /(?:https?:\/\/)?(?:listen\.)?tidal\.com\/(?:browse\/)?track\/(\d+)/;
 const TIDAL_ALBUM_REGEX = /(?:https?:\/\/)?(?:listen\.)?tidal\.com\/(?:browse\/)?album\/(\d+)/;
@@ -598,23 +604,21 @@ export const tidalAdapter = {
    * @throws Provider and malformed-document failures instead of catalogue misses.
    */
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
+    // A miss reports the highest score any query alternative reached.
     let bestConfidence = 0;
     for (const text of trackSearchTexts(query)) {
       const data = await searchCatalogue(text, "tracks");
-      let bestMatch: NormalizedTrack | null = null;
-      for (let index = 0; index < Math.min(data.data.length, 5); index++) {
-        const track = mapTrack(data.data[index], data.included);
-        const confidence = scoreCatalogueTrackCandidate(query, track, index);
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-      if (bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE) {
-        return { found: true, track: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-      }
+      const tracks = data.data
+        .slice(0, TIDAL_SEARCH_CANDIDATE_LIMIT)
+        .map((resource) => mapTrack(resource, data.included));
+      const { best, confidence } = pickBestCandidate(tracks, (track, index) =>
+        scoreCatalogueTrackCandidate(query, track, index),
+      );
+      bestConfidence = Math.max(bestConfidence, confidence);
+      const result = searchMatchResult("track", best, confidence);
+      if (result.found) return result;
     }
-    return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    return searchMatchResult("track", null, bestConfidence);
   },
   // --- Album support ---
 
@@ -670,30 +674,11 @@ export const tidalAdapter = {
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const text = `${query.artist} ${query.title}`;
     const data = await searchCatalogue(text, "albums");
-    const items = data.data ?? [];
-
-    if (items.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    let bestAlbum: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const item of items.slice(0, 5)) {
-      const album = mapAlbum(item, data.included);
-      const confidence = scoreAlbumCandidate(query, album);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestAlbum = album;
-      }
-    }
-
-    if (!bestAlbum || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, album: bestAlbum, confidence: bestConfidence, matchMethod: "search" };
+    const albums = (data.data ?? [])
+      .slice(0, TIDAL_SEARCH_CANDIDATE_LIMIT)
+      .map((resource) => mapAlbum(resource, data.included));
+    const { best, confidence } = pickBestCandidate(albums, (album) => scoreAlbumCandidate(query, album));
+    return searchMatchResult("album", best, confidence);
   },
 
   // --- Artist support ---
@@ -735,44 +720,25 @@ export const tidalAdapter = {
    */
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
     const data = await searchCatalogue(query.name, "artists");
-    const items = data.data ?? [];
-
-    if (items.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    // Find best name match from included resources
     const included = data.included ?? [];
-    let bestArtist: NormalizedArtist | null = null;
-    let bestConfidence = 0;
+    // Names come from the included resource, so a hit without one is skipped.
+    const named = (data.data ?? []).slice(0, TIDAL_SEARCH_CANDIDATE_LIMIT).flatMap((item) => {
+      const resource = included.find((entry) => entry.id === item.id && entry.type === "artists");
+      const name = resource?.attributes?.name;
+      return resource && name ? [{ id: item.id, name, resource }] : [];
+    });
+    const ranked = rankByArtistName(query.name, named, (hit) => hit.name);
+    if (!ranked) return searchMatchResult("artist", null, 0);
 
-    for (const item of items.slice(0, 5)) {
-      const artistResource = included.find(
-        (i: { id: string; type: string }) => i.id === item.id && i.type === "artists",
-      );
-      if (!artistResource?.attributes?.name) continue;
-
-      const name = artistResource.attributes.name;
-      const confidence = calculateArtistNameConfidence(query.name, name);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestArtist = {
-          sourceService: "tidal",
-          sourceId: item.id,
-          name,
-          imageUrl:
-            pickRelatedArtwork(artistResource, data.included, "profileArt") ??
-            pickLargestImage(artistResource.attributes.imageLinks),
-          webUrl: `https://tidal.com/browse/artist/${item.id}`,
-        };
-      }
-    }
-
-    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    const { id, name, resource } = ranked.item;
+    const artist: NormalizedArtist = {
+      sourceService: "tidal",
+      sourceId: id,
+      name,
+      imageUrl:
+        pickRelatedArtwork(resource, data.included, "profileArt") ?? pickLargestImage(resource.attributes.imageLinks),
+      webUrl: `https://tidal.com/browse/artist/${id}`,
+    };
+    return searchMatchResult("artist", artist, ranked.confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

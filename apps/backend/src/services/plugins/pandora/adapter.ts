@@ -15,6 +15,7 @@ import type {
 } from "../../types";
 import { splitArtistNames } from "../_shared/artists.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
@@ -466,39 +467,27 @@ export const pandoraAdapter = {
 
     log.debug("Pandora", `Search returned ${trackIds.length} tracks for: ${q}`);
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-
-    for (let i = 0; i < trackIds.length; i++) {
-      const data = annotations[trackIds[i]];
-      if (!data?.name) continue;
-
-      const urlPath = data.shareableUrlPath?.replace(/^\/artist\//, "") ?? `search-${i}`;
-      const track = mapTrackData(data, urlPath);
-      const confidence = scoreSearchCandidate(query, track, i);
-
+    // A hit without a name is skipped, and the others keep their position in `trackIds`.
+    const named = trackIds.flatMap((id, index) => {
+      const data = annotations[id];
+      if (!data?.name) return [];
+      const urlPath = data.shareableUrlPath?.replace(/^\/artist\//, "") ?? `search-${index}`;
+      return [{ track: mapTrackData(data, urlPath), index }];
+    });
+    const { best, confidence } = pickBestCandidate(named, ({ track, index }) => {
+      const itemConfidence = scoreSearchCandidate(query, track, index);
       log.debug(
         "Pandora",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} → confidence=${confidence.toFixed(3)}`,
+        `  [${index}] "${track.title}" by ${track.artists.join(", ")} → confidence=${itemConfidence.toFixed(3)}`,
       );
+      return itemConfidence;
+    });
 
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
+    const match = searchMatchResult("track", best?.track, confidence);
+    if (!match.found) {
+      log.debug("Pandora", `Best confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("Pandora", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return match;
   },
 
   albumCapabilities: {
@@ -532,27 +521,20 @@ export const pandoraAdapter = {
 
     log.debug("Pandora", `Album search returned ${albumIds.length} albums for: ${q}`);
 
-    let bestMatch: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (let i = 0; i < albumIds.length; i++) {
-      const data = annotations[albumIds[i]] as PandoraAlbumData | undefined;
-      if (!data?.name) continue;
-
+    // A hit without a name is skipped, and the others keep their position in `albumIds`.
+    const named = albumIds.flatMap((id, index) => {
+      const data = annotations[id] as PandoraAlbumData | undefined;
+      const name = data?.name;
+      if (!data || !name) return [];
       const urlPath = (data.shareableUrlPath ?? "").replace(/^\/artist\//, "");
-      const album = mapAlbumData(data, urlPath || `search-${i}`);
-      const confidence = scoreAlbumCandidate(query, album);
-      log.debug("Pandora", `  "${data.name}" -> confidence=${confidence.toFixed(3)}`);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = album;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+      return [{ name, album: mapAlbumData(data, urlPath || `search-${index}`) }];
+    });
+    const { best, confidence } = pickBestCandidate(named, ({ name, album }) => {
+      const itemConfidence = scoreAlbumCandidate(query, album);
+      log.debug("Pandora", `  "${name}" -> confidence=${itemConfidence.toFixed(3)}`);
+      return itemConfidence;
+    });
+    return searchMatchResult("album", best?.album, confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
 

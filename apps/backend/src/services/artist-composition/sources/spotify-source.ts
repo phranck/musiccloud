@@ -13,8 +13,8 @@
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
 import { TokenManager } from "../../../lib/infra/token-manager.js";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable.js";
-import { rankByArtistName } from "../../../lib/resolve/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
+import { rankByArtistName } from "../../plugins/_shared/rank.js";
 import type { ArtistPartial } from "../types.js";
 
 const SPOTIFY_BASE = "https://api.spotify.com/v1";

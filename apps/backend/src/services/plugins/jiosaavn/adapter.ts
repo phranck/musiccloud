@@ -68,6 +68,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
 
 // JioSaavn URLs: jiosaavn.com/song/{slug}/{id}
 const JIOSAAVN_TRACK_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/song\/[^/]+\/([A-Za-z0-9_-]+)/;
@@ -440,38 +441,24 @@ export const jiosaavnAdapter: ServiceAdapter = {
 
     log.debug("JioSaavn", `Search returned ${songs.length} results for: ${q}`);
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-
-    for (let i = 0; i < songs.length; i++) {
-      const song = songs[i];
-      if (!song.id || !song.title) continue;
-
-      const track = mapSongToTrack(song);
-      const confidence = scoreSearchCandidate(query, track, i);
-
+    // A song without an ID or title is skipped but keeps the provider position of every later song.
+    const usable = songs.flatMap((song, index) =>
+      song.id && song.title ? [{ track: mapSongToTrack(song), index }] : [],
+    );
+    const { best, confidence } = pickBestCandidate(usable, ({ track, index }) => {
+      const score = scoreSearchCandidate(query, track, index);
       log.debug(
         "JioSaavn",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        `  [${index}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${score.toFixed(3)}`,
       );
+      return score;
+    });
 
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
+    const result = searchMatchResult("track", best?.track, confidence);
+    if (!result.found) {
+      log.debug("JioSaavn", `Best confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("JioSaavn", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return result;
   },
 
   albumCapabilities: {
@@ -527,11 +514,10 @@ export const jiosaavnAdapter: ServiceAdapter = {
           }
         }
       }
-      if (bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE) {
-        return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
-      }
+      const result = searchMatchResult("album", bestMatch, bestConfidence);
+      if (result.found) return result;
     }
-    return { found: false, confidence: bestConfidence, matchMethod: "search" };
+    return searchMatchResult("album", bestMatch, bestConfidence);
   },
   // --- Artist support ---
 
@@ -561,34 +547,23 @@ export const jiosaavnAdapter: ServiceAdapter = {
 
     log.debug("JioSaavn", `Artist search returned ${results.length} results for: ${query.name}`);
 
-    let bestArtist: NormalizedArtist | null = null;
-    let bestConfidence = 0;
+    const { best, confidence } = pickBestCandidate(results, (item) => {
+      const score = calculateArtistNameConfidence(query.name, item.name);
+      log.debug("JioSaavn", `  "${item.name}" -> confidence=${score.toFixed(3)}`);
+      return score;
+    });
 
-    for (const item of results) {
-      const confidence = calculateArtistNameConfidence(query.name, item.name);
-
-      log.debug("JioSaavn", `  "${item.name}" -> confidence=${confidence.toFixed(3)}`);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestArtist = {
-          sourceService: "jiosaavn",
-          sourceId: item.id,
-          name: item.name,
-          imageUrl: item.image?.replace(/150x150|50x50/, "500x500"),
-          webUrl: item.perma_url ?? `https://www.jiosaavn.com/artist/-/${item.id}`,
-        };
-      }
+    const artist: NormalizedArtist | null = best && {
+      sourceService: "jiosaavn",
+      sourceId: best.id,
+      name: best.name,
+      imageUrl: best.image?.replace(/150x150|50x50/, "500x500"),
+      webUrl: best.perma_url ?? `https://www.jiosaavn.com/artist/-/${best.id}`,
+    };
+    const result = searchMatchResult("artist", artist, confidence);
+    if (!result.found) {
+      log.debug("JioSaavn", `Best artist confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug(
-        "JioSaavn",
-        `Best artist confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`,
-      );
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    return result;
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

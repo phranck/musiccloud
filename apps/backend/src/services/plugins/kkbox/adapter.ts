@@ -49,9 +49,7 @@ import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
-import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -68,8 +66,16 @@ import type {
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
 
 const API_BASE = "https://api.kkbox.com/v1.1";
+
+/**
+ * How many hits one KKBOX search asks for, and how many a track search scores.
+ * Read by `searchKkbox` as the `limit` parameter and by `searchTrack` as the
+ * number of hits it ranks; raising it sends larger search pages.
+ */
+const KKBOX_SEARCH_LIMIT = 5;
 
 const KKBOX_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/song\/([A-Za-z0-9_-]+)/;
 // KKBOX album URLs: kkbox.com/{locale}/{locale}/album/{id}
@@ -285,7 +291,7 @@ async function searchKkbox<T>(
   operation: Operation,
 ): Promise<T[]> {
   const response = await kkboxFetch(
-    `/search?q=${encodeURIComponent(query)}&type=${type}&territory=${getTerritory()}&limit=5`,
+    `/search?q=${encodeURIComponent(query)}&type=${type}&territory=${getTerritory()}&limit=${KKBOX_SEARCH_LIMIT}`,
   );
   if (!response.ok) throw serviceHttpError(Service.KKBox, response.status, kind, query, operation);
 
@@ -354,36 +360,18 @@ export const kkboxAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-
     log.debug("KKBOX", `Search returned ${items.length} tracks for: ${query.artist} ${query.title}`);
 
-    for (let i = 0; i < Math.min(items.length, 5); i++) {
-      const track = mapTrack(items[i]);
-      const confidence = scoreSearchCandidate(query, track, i);
-
+    const tracks = items.slice(0, KKBOX_SEARCH_LIMIT).map(mapTrack);
+    const { best, confidence } = pickBestCandidate(tracks, (track, index) => {
+      const score = scoreSearchCandidate(query, track, index);
       log.debug(
         "KKBOX",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
+        `  [${index}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${score.toFixed(3)}`,
       );
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+      return score;
+    });
+    return searchMatchResult("track", best, confidence);
   },
 
   albumCapabilities: {
@@ -414,26 +402,19 @@ export const kkboxAdapter = {
 
     log.debug("KKBOX", `Album search returned ${results.length} results for: ${q}`);
 
-    let bestMatch: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const raw of results) {
-      const candidate = mapAlbum(raw);
-      const confidence = scoreAlbumCandidate(query, candidate);
-      log.debug("KKBOX", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = candidate;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
+    const candidates = results.map((raw) => ({ name: raw.name, album: mapAlbum(raw) }));
+    const { best, confidence } = pickBestCandidate(candidates, ({ name, album }) => {
+      const score = scoreAlbumCandidate(query, album);
+      log.debug("KKBOX", `  "${name}" -> confidence=${score.toFixed(3)}`);
+      return score;
+    });
+    const result = searchMatchResult("album", best?.album, confidence);
+    if (!result.album) return result;
 
     // The search already found the album, so a failed fetch of its track
     // listing keeps the search result instead of turning the match into a failure.
-    const fullAlbum = await getAlbumById(bestMatch.sourceId).catch((error: unknown) => {
+    const searchAlbum = result.album;
+    const fullAlbum = await getAlbumById(searchAlbum.sourceId).catch((error: unknown) => {
       log.deviation(
         {
           component: "KKBOX",
@@ -445,12 +426,7 @@ export const kkboxAdapter = {
       );
       return null;
     });
-    return {
-      found: true,
-      album: fullAlbum ?? bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return { ...result, album: fullAlbum ?? searchAlbum };
   },
   // --- Artist support ---
 
@@ -487,33 +463,16 @@ export const kkboxAdapter = {
     const territory = getTerritory();
     const items = await searchKkbox<KkboxArtistResponse>(query.name, "artist", ResourceKind.Artist, Operation.Search);
 
-    if (items.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    let bestArtist: NormalizedArtist | null = null;
-    let bestConfidence = 0;
-
-    for (const item of items) {
-      const confidence = calculateArtistNameConfidence(query.name, item.name);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestArtist = {
-          sourceService: "kkbox",
-          sourceId: item.id,
-          name: item.name,
-          imageUrl: pickLargestImage(item.images),
-          webUrl:
-            item.url || `https://www.kkbox.com/${territory.toLowerCase()}/${territory.toLowerCase()}/artist/${item.id}`,
-        };
-      }
-    }
-
-    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    const ranked = rankByArtistName(query.name, items, (item) => item.name);
+    const artist: NormalizedArtist | null = ranked && {
+      sourceService: "kkbox",
+      sourceId: ranked.item.id,
+      name: ranked.item.name,
+      imageUrl: pickLargestImage(ranked.item.images),
+      webUrl:
+        ranked.item.url ||
+        `https://www.kkbox.com/${territory.toLowerCase()}/${territory.toLowerCase()}/artist/${ranked.item.id}`,
+    };
+    return searchMatchResult("artist", artist, ranked?.confidence ?? 0);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
