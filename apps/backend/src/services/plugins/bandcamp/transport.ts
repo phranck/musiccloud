@@ -87,18 +87,24 @@ const CLIENT_CHALLENGE_ASSET_MARKER = "/_fs-ch-";
 /** The upstream name {@link UpstreamUnavailableError} carries for this module's failures. */
 const UPSTREAM_SOURCE = "bandcamp";
 
-/** The component name in this module's log records. */
-const LOG_COMPONENT = "Bandcamp";
+/**
+ * Bandcamp's name in log records: the `component` of this module's records and
+ * of the account lookup in `label-credits.ts`.
+ */
+export const BANDCAMP_LOG_COMPONENT = "Bandcamp";
 
 /** The operation name in this module's log records. */
 const LOG_OPERATION = "bandcamp_request";
 
 /**
- * The code this module's failures are logged under: Bandcamp's prefix with
- * the hint for a failure the scheme does not name, as `serviceHttpError`
- * builds it for a 503.
+ * The code Bandcamp's failures are logged under, in this module and in
+ * `label-credits.ts`: Bandcamp's prefix with the hint for a failure the scheme
+ * does not name, as `serviceHttpError` builds it for a 503.
  */
-const LOG_ERROR_CODE = "MC-API-8201";
+export const BANDCAMP_ERROR_CODE = "MC-API-8201";
+
+/** How long one Bandcamp request may take, 8 s, because an album page is about 300 KB. */
+export const BANDCAMP_REQUEST_TIMEOUT_MS = 8000;
 
 /** What `curl` printed, as {@link curlRunner} returns it. */
 export interface CurlOutput {
@@ -252,8 +258,8 @@ function unavailable(
 ): UpstreamUnavailableError {
   log.deviation(
     {
-      component: LOG_COMPONENT,
-      errorCode: LOG_ERROR_CODE,
+      component: BANDCAMP_LOG_COMPONENT,
+      errorCode: BANDCAMP_ERROR_CODE,
       operation: LOG_OPERATION,
       outcome,
       host: url.hostname,
@@ -287,8 +293,8 @@ async function request(url: string, timeoutMs: number, jsonBody?: string): Promi
   for (let redirects = 0; ; redirects += 1) {
     if (!isBandcampUrl(target)) {
       log.deviation({
-        component: LOG_COMPONENT,
-        errorCode: LOG_ERROR_CODE,
+        component: BANDCAMP_LOG_COMPONENT,
+        errorCode: BANDCAMP_ERROR_CODE,
         operation: LOG_OPERATION,
         outcome: "blocked_target",
         host: target.hostname,

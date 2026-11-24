@@ -11,7 +11,12 @@
  * in its title keeps its title, because a band names few releases like that.
  */
 import { log } from "../../../lib/infra/logger";
-import { bandcampTransport } from "./transport.js";
+import {
+  BANDCAMP_ERROR_CODE,
+  BANDCAMP_LOG_COMPONENT,
+  BANDCAMP_REQUEST_TIMEOUT_MS,
+  bandcampTransport,
+} from "./transport.js";
 
 /** The code point of the en dash, which some titles use between band and title. */
 const EN_DASH_CODE_POINT = 0x2013;
@@ -44,9 +49,6 @@ export const MIN_CREDITED_SHARE = 0.8;
 
 /** Bandcamp's app endpoint that lists an account's releases. It takes `{"band_id": <id>}` by POST. */
 const BAND_DETAILS_URL = "https://bandcamp.com/api/mobile/24/band_details";
-
-/** How long the account lookup may take, 8 s, like a page request. */
-const BAND_DETAILS_TIMEOUT_MS = 8000;
 
 /** A release's band and title, read from a `Band - Title` release title. */
 export interface CreditedTitle {
@@ -125,7 +127,7 @@ async function fetchReleaseTitles(bandId: number): Promise<string[] | null> {
   try {
     const response = await bandcampTransport.request(
       BAND_DETAILS_URL,
-      BAND_DETAILS_TIMEOUT_MS,
+      BANDCAMP_REQUEST_TIMEOUT_MS,
       JSON.stringify({ band_id: bandId }),
     );
     if (!response.ok) throw new Error(`band_details answered ${response.status}`);
@@ -135,8 +137,8 @@ async function fetchReleaseTitles(bandId: number): Promise<string[] | null> {
   } catch (error) {
     log.deviation(
       {
-        component: "Bandcamp",
-        errorCode: "MC-API-8201",
+        component: BANDCAMP_LOG_COMPONENT,
+        errorCode: BANDCAMP_ERROR_CODE,
         operation: "bandcamp_account_releases",
         outcome: "page_artist_kept",
         bandId,
