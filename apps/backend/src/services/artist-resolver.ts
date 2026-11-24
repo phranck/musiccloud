@@ -63,7 +63,7 @@
  * (`registry.ts` PLUGINS array). The first adapter with a `found`
  * match wins; later adapters are not consulted for that query.
  */
-import { getPlatformLabel, type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { getPlatformLabel, type MatchMethod } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { CACHE_TTL_MS } from "../lib/config.js";
 import { log } from "../lib/infra/logger.js";
@@ -75,6 +75,7 @@ import { confidenceForMethod } from "./confidence.js";
 import { IDENTIFIER_MATCH_CONFIDENCE, MATCH_MIN_CONFIDENCE } from "./constants.js";
 import { collectArtistExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, findInactiveServiceFor, getActiveAdapters } from "./index.js";
+import { fromCachedLinks, toStoredLinks } from "./resolved-links.js";
 import type {
   ArtistMatchResult,
   ArtistSearchQuery,
@@ -83,7 +84,6 @@ import type {
   ServiceAdapter,
   ServiceId,
 } from "./types.js";
-import { isValidServiceId } from "./types.js";
 
 // --- Public Types ---
 
@@ -128,20 +128,6 @@ export const ARTIST_LINK_QUALITY_THRESHOLD = 0.6;
 
 // --- Cache helpers ---
 
-function mapCachedArtistLinks(
-  links: Array<{ service: string; url: string; confidence: number; matchMethod: string }>,
-): ResolvedArtistLink[] {
-  return links
-    .filter((l) => isValidServiceId(l.service))
-    .map((l) => ({
-      service: l.service as ServiceId,
-      displayName: PLATFORM_CONFIG[l.service as ServiceId].label,
-      url: l.url,
-      confidence: l.confidence,
-      matchMethod: l.matchMethod as ResolvedArtistLink["matchMethod"],
-    }));
-}
-
 async function tryArtistCache(lookup: { url?: string; name?: string }): Promise<ArtistResolutionResult | null> {
   try {
     const repo = await getRepository();
@@ -155,7 +141,7 @@ async function tryArtistCache(lookup: { url?: string; name?: string }): Promise<
       return null;
     }
 
-    const links = mapCachedArtistLinks(cached.links);
+    const links: ResolvedArtistLink[] = fromCachedLinks(cached.links);
     log.debug("ArtistResolver", `Cache hit: ${links.length} links, age=${Math.round(age / 60000)}min`);
 
     return { sourceArtist: cached.artist, links, artistId: cached.artistId, externalIds: [] };
@@ -204,16 +190,7 @@ async function fillMissingArtistServices(cached: ArtistResolutionResult): Promis
   if (cached.artistId) {
     try {
       const repo = await getRepository();
-      await repo.addLinksToArtist(
-        cached.artistId,
-        newLinks.map((l) => ({
-          service: l.service,
-          url: l.url,
-          confidence: l.confidence,
-          matchMethod: l.matchMethod,
-          externalId: l.externalId,
-        })),
-      );
+      await repo.addLinksToArtist(cached.artistId, toStoredLinks(newLinks));
     } catch (error) {
       log.error(
         "ArtistResolver",

@@ -17,9 +17,9 @@
 
 import { getRepository, type TrackRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
-import { stripTrackingParams } from "../lib/platform/url.js";
-import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
+import { isExpiredDeezerPreviewUrl, previewObservation } from "../lib/preview-url.js";
 import { deezerAdapter } from "./plugins/deezer/adapter.js";
+import { toStoredLinks } from "./resolved-links.js";
 import type { ResolutionResult } from "./resolver.js";
 import type { ArtistCredit } from "./types.js";
 
@@ -56,13 +56,7 @@ export async function persistResolution(result: ResolutionResult): Promise<Persi
       ...result.sourceTrack,
       sourceUrl: result.sourceTrack.webUrl,
     },
-    links: result.links.map((l) => ({
-      service: l.service,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-      externalId: l.externalId,
-    })),
+    links: toStoredLinks(result.links, { stripTracking: true }),
   });
 
   // Aggregate every ISRC observed during the resolve into the
@@ -82,13 +76,8 @@ export async function persistResolution(result: ResolutionResult): Promise<Persi
   // adapter SELECTs.
   for (const link of result.links) {
     if (!link.previewUrl) continue;
-    const expiresAtMs = getPreviewExpiry(link.previewUrl, link.service);
     try {
-      await repo.upsertTrackPreview(trackId, {
-        service: link.service,
-        url: link.previewUrl,
-        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-      });
+      await repo.upsertTrackPreview(trackId, previewObservation(link.service, link.previewUrl));
     } catch (err) {
       log.debug("Resolve", "Preview persist failed:", err instanceof Error ? err.message : String(err));
     }
@@ -100,13 +89,11 @@ export async function persistResolution(result: ResolutionResult): Promise<Persi
     result.sourceTrack.sourceService &&
     result.sourceTrack.sourceService !== "cached"
   ) {
-    const expiresAtMs = getPreviewExpiry(result.sourceTrack.previewUrl, result.sourceTrack.sourceService);
     try {
-      await repo.upsertTrackPreview(trackId, {
-        service: result.sourceTrack.sourceService,
-        url: result.sourceTrack.previewUrl,
-        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-      });
+      await repo.upsertTrackPreview(
+        trackId,
+        previewObservation(result.sourceTrack.sourceService, result.sourceTrack.previewUrl),
+      );
     } catch (err) {
       log.debug("Resolve", "Source preview persist failed:", err instanceof Error ? err.message : String(err));
     }
@@ -119,12 +106,7 @@ export async function persistResolution(result: ResolutionResult): Promise<Persi
     try {
       const deezerTrack = await deezerAdapter.findByIsrc(result.sourceTrack.isrc);
       if (deezerTrack?.previewUrl) {
-        const expiresAtMs = getPreviewExpiry(deezerTrack.previewUrl, "deezer");
-        await repo.upsertTrackPreview(trackId, {
-          service: "deezer",
-          url: deezerTrack.previewUrl,
-          expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-        });
+        await repo.upsertTrackPreview(trackId, previewObservation("deezer", deezerTrack.previewUrl));
         refreshedPreviewUrl = deezerTrack.previewUrl;
       }
     } catch (err) {

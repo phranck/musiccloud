@@ -109,7 +109,7 @@ import { log } from "../lib/infra/logger.js";
 import { UpstreamUnavailableError } from "../lib/infra/upstream-unavailable.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
 import { youtubeVideoId } from "../lib/platform/youtube-video.js";
-import { getPreviewExpiry, pickPreferredPreview } from "../lib/preview-url.js";
+import { pickPreferredPreview, previewObservation } from "../lib/preview-url.js";
 import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
 import { pickRecordingArtworkUrl, RECORDING_ARTWORK_LOOKUP_SERVICES } from "./artwork.js";
 import { confidenceForMethod } from "./confidence.js";
@@ -135,6 +135,7 @@ import {
 import { isTrackSearchFallbackMatch, recordingSearchQuery } from "./plugins/_shared/track-search-query.js";
 import { parseLastfmUrl } from "./plugins/lastfm/url-search.js";
 import { keepRecordingArtwork } from "./recording-artwork.js";
+import { fromCachedLinks, isStoredPreviewFresh, toStoredLinks } from "./resolved-links.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   ExternalIdRecord,
@@ -146,7 +147,6 @@ import type {
   ServiceAdapter,
   ServiceId,
 } from "./types.js";
-import { isValidServiceId } from "./types.js";
 
 export interface ResolvedLink {
   service: ServiceId;
@@ -211,20 +211,6 @@ export interface TextSearchResult {
   kind: "resolved" | "disambiguation";
   result?: ResolutionResult;
   candidates?: SearchCandidate[];
-}
-
-function mapCachedLinks(
-  links: Array<{ service: string; url: string; confidence: number; matchMethod: string }>,
-): ResolvedLink[] {
-  return links
-    .filter((l) => isValidServiceId(l.service))
-    .map((l) => ({
-      service: l.service as ServiceId,
-      displayName: PLATFORM_CONFIG[l.service as ServiceId].label,
-      url: l.url,
-      confidence: l.confidence,
-      matchMethod: l.matchMethod as MatchMethod,
-    }));
 }
 
 /**
@@ -293,7 +279,7 @@ async function tryCache(lookup: {
     if (!cached && lookup.isrc) cached = await repo.findTrackByIsrc(lookup.isrc);
     if (!cached) return null;
 
-    const links = mapCachedLinks(cached.links);
+    const links: ResolvedLink[] = fromCachedLinks(cached.links);
     log.debug("Resolver", `Cache hit: ${links.length} links`);
 
     return {
@@ -532,16 +518,7 @@ async function persistTrackLinks(
   if (links.length > 0) {
     try {
       const repo = await getRepository();
-      await repo.addLinksToTrack(
-        trackId,
-        links.map((l) => ({
-          service: l.service,
-          url: l.url,
-          confidence: l.confidence,
-          matchMethod: l.matchMethod,
-          externalId: l.externalId,
-        })),
-      );
+      await repo.addLinksToTrack(trackId, toStoredLinks(links));
       // A service that just produced a link must not keep a miss beside it,
       // or the two tables would assert opposite things about the same pair.
       await repo.clearServiceLinkMisses(
@@ -583,12 +560,7 @@ async function persistTrackLinks(
     const repo = await getRepository();
     for (const link of observations) {
       if (!link.previewUrl) continue;
-      const expiresAtMs = getPreviewExpiry(link.previewUrl, link.service);
-      await repo.upsertTrackPreview(trackId, {
-        service: link.service,
-        url: link.previewUrl,
-        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-      });
+      await repo.upsertTrackPreview(trackId, previewObservation(link.service, link.previewUrl));
     }
   } catch (error) {
     log.deviation(
@@ -650,10 +622,7 @@ async function isPreviewRefreshNeeded(cached: ResolutionResult): Promise<boolean
   try {
     const repo = await getRepository();
     const previews = await repo.findTrackPreviews(cached.trackId);
-    if (previews.length === 0) return true;
-    const now = Date.now();
-    const fresh = previews.find((p) => p.expiresAt === null || p.expiresAt.getTime() > now);
-    return !fresh;
+    return !isStoredPreviewFresh(previews);
   } catch (error) {
     log.debug(
       "Resolver",
