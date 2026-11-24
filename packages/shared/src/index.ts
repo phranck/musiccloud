@@ -15,7 +15,7 @@ export * from "./content.js";
 export * from "./content-context.js";
 export * from "./crawler.js";
 export * from "./creditor-reference.js";
-export * from "./design-tokens.js";
+export * from "./design-tokens/index.js";
 export * from "./developer-access.js";
 export * from "./developer-limits.js";
 export * from "./developer-portal-invitations.js";
