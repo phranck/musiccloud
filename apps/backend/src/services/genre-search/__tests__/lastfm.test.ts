@@ -17,7 +17,8 @@ vi.mock("../../image-cache.js", () => ({
 }));
 
 import { GENRE_ARTWORK_VERSION, GENRE_KEY_PATTERN } from "../../genre-artwork/genre-key.js";
-import { getGenreBrowseGrid, lastfmSearchByGenre, resetBrowseCache } from "../lastfm.js";
+import { getGenreBrowseGrid, resetBrowseCache } from "../browse-grid.js";
+import { lastfmSearchByGenre } from "../lastfm-search.js";
 
 const TOP_TAGS = Array.from({ length: 20 }, (_, index) => ({ name: `genre${index}`, reach: String(1000 - index) }));
 const STORED_WITH_COVER = new Set(TOP_TAGS.slice(0, 10).map((tag) => tag.name));

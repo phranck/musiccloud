@@ -105,7 +105,8 @@ const VALID_VIBES = ["hot", "mixed"] as const;
 type ValidVibe = (typeof VALID_VIBES)[number];
 
 const DEFAULT_COUNT = 10;
-const MAX_PER_TYPE = 50;
+/** The most items of one type (`tracks`, `albums`, `artists`) a query may ask for. The Last.fm search sizes its pool from it. */
+export const MAX_PER_TYPE = 50;
 
 function isValidKey(value: string): value is ValidKey {
   return (VALID_KEYS as readonly string[]).includes(value);

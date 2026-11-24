@@ -16,8 +16,11 @@ vi.mock("../services/genre-artwork/index.js", async () => ({
   getCachedArtwork,
 }));
 
-vi.mock("../services/genre-search/lastfm.js", () => ({
+vi.mock("../services/genre-search/browse-grid.js", () => ({
   getCachedGenreCoverUrl: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock("../services/genre-search/lastfm-api.js", () => ({
   getGenreCoverUrl: vi.fn().mockResolvedValue(null),
 }));
 
