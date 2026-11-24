@@ -7,25 +7,20 @@
  */
 import { decodeFormPathSegment, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
-import { relayHeaders } from "@/api/proxy-response";
+import { backendUnavailableResponse, badRequestResponse, relayErrorResponse, relayHeaders } from "@/api/proxy-response";
 
 /**
  * Fetches one genre artwork from the backend.
  *
  * @param genreKey - The plain genre key, such as `drum & bass`.
  * @param clientIp - The visitor's address, forwarded to the backend.
- * @returns The backend's raw response.
+ * @returns The backend's raw response, or the error envelope of the backend
+ *   client when no answer arrived.
  */
 export type GenreArtworkFetcher = (genreKey: string, clientIp?: string) => Promise<Response>;
 
-/** The status code of a tile address whose key is empty or not a valid encoding. */
-const BAD_REQUEST = 400;
-
 /** The status code of an artwork streamed through. */
 const OK = 200;
-
-/** The status code when the backend cannot be reached. */
-const SERVICE_UNAVAILABLE = 503;
 
 /** The `Content-Type` sent when the backend answers without one. */
 const DEFAULT_CONTENT_TYPE = "image/jpeg";
@@ -49,22 +44,26 @@ const FORWARDED_HEADERS = ["Content-Type", "Cache-Control"] as const;
  * percent-encoded once, like any public caller's. A segment written by an
  * older tile address, such as `hip hop` or `r%26b`, reads back the same way.
  *
- * Answers 400 for an empty segment or one with a broken escape such as
- * `100%`, the backend's status for any other refusal, 503 when the backend
- * cannot be reached, and otherwise streams the JPEG through with the
- * backend's `Content-Type` and `Cache-Control`.
+ * Answers 400 with `MC-REQ-0001` for an empty segment or one with a broken
+ * escape such as `100%`. Any other refusal passes on the backend's status and
+ * error body, which is the backend client's envelope when the backend could
+ * not be reached. An artwork whose body breaks off is answered 503 with
+ * `MC-SYS-0002`, and otherwise the JPEG streams through with the backend's
+ * `Content-Type` and `Cache-Control`.
  *
  * @param fetchArtwork - The backend call of the tile family.
+ * @param operation - The page's name in the log line of a body that breaks
+ *   off, such as `genre_artwork_proxy`, so the two families stay apart there.
  * @returns The handler the page exports as `GET`.
  */
-export function createGenreArtworkProxy(fetchArtwork: GenreArtworkFetcher): APIRoute {
+export function createGenreArtworkProxy(fetchArtwork: GenreArtworkFetcher, operation: string): APIRoute {
   return async ({ request, params, clientAddress }) => {
     const genreKey = decodeFormPathSegment(params.genreKey ?? "");
-    if (!genreKey) return new Response(null, { status: BAD_REQUEST });
+    if (!genreKey) return badRequestResponse();
 
     try {
       const response = await fetchArtwork(genreKey, visitorAddress({ request, clientAddress }));
-      if (!response.ok) return new Response(null, { status: response.status });
+      if (!response.ok) return relayErrorResponse(response);
       const body = await response.arrayBuffer();
       return new Response(body, {
         status: OK,
@@ -73,8 +72,8 @@ export function createGenreArtworkProxy(fetchArtwork: GenreArtworkFetcher): APIR
           "Cache-Control": DEFAULT_CACHE_CONTROL,
         }),
       });
-    } catch {
-      return new Response(null, { status: SERVICE_UNAVAILABLE });
+    } catch (error) {
+      return backendUnavailableResponse(error, operation);
     }
   };
 }
