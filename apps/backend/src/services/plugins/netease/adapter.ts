@@ -64,6 +64,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { artistNamesOrUnknown } from "../_shared/artists.js";
 import { fetchProviderPage, type ProviderPageOptions } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { safeNumericProviderCode } from "../_shared/provider-response.js";
@@ -236,7 +237,7 @@ async function search<Result>(
 }
 
 function mapSong(song: NetEaseSong): NormalizedTrack {
-  const artists = song.artists?.map((a) => a.name).filter(Boolean) ?? ["Unknown Artist"];
+  const artists = artistNamesOrUnknown(song.artists?.map((artist) => artist.name));
 
   return {
     sourceService: "netease",
@@ -268,9 +269,9 @@ async function searchSongs(query: string): Promise<NetEaseSong[]> {
 }
 
 function mapNetEaseAlbum(album: NetEaseAlbum, songCount?: number): NormalizedAlbum {
-  const artists =
-    album.artists?.map((a) => a.name).filter(Boolean) ??
-    (album.artist?.name ? [album.artist.name] : ["Unknown Artist"]);
+  const artists = artistNamesOrUnknown(
+    album.artists?.map((artist) => artist.name) ?? (album.artist?.name ? [album.artist.name] : undefined),
+  );
   const releaseDate = album.publishTime ? new Date(album.publishTime).toISOString().slice(0, 10) : undefined;
 
   return {

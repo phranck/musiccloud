@@ -42,6 +42,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { artistNamesOrUnknown } from "../_shared/artists.js";
 import { fetchProviderPage } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import {
@@ -160,7 +161,7 @@ async function search(
 }
 
 function mapSong(song: QQMusicSong): NormalizedTrack {
-  const artists = song.singer?.map((s) => s.name).filter(Boolean) ?? ["Unknown Artist"];
+  const artists = artistNamesOrUnknown(song.singer?.map((singer) => singer.name));
 
   // QQ Music album art: https://y.qq.com/music/photo_new/T002R300x300M000{album_mid}.jpg
   const artworkUrl = song.album?.mid
@@ -191,7 +192,7 @@ async function getTrackByMid(mid: string): Promise<NormalizedTrack | null> {
 }
 
 function mapQQAlbum(album: QQMusicAlbum): NormalizedAlbum {
-  const artists = album.singer?.map((s) => s.name).filter(Boolean) ?? ["Unknown Artist"];
+  const artists = artistNamesOrUnknown(album.singer?.map((singer) => singer.name));
   // QQ Music album art: T002R500x500M000{album_mid}.jpg
   const artworkUrl = album.mid ? `https://y.qq.com/music/photo_new/T002R500x500M000${album.mid}.jpg` : undefined;
 

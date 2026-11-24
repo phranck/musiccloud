@@ -54,6 +54,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { artistNamesOrUnknown } from "../_shared/artists.js";
 import {
   ENGLISH_ACCEPT_LANGUAGE,
   fetchProviderPage,
@@ -236,7 +237,7 @@ function extractSearchCollection<T extends { id: number; name: string }>(
 }
 
 function mapTrack(track: BeatportTrack): NormalizedTrack {
-  const artists = track.artists?.map((a) => a.name).filter(Boolean) ?? ["Unknown Artist"];
+  const artists = artistNamesOrUnknown(track.artists?.map((artist) => artist.name));
 
   // Full track name: "Name (Mix Name)"
   const title = track.mix_name && track.mix_name !== "Original Mix" ? `${track.name} (${track.mix_name})` : track.name;
@@ -327,7 +328,7 @@ function extractReleaseFromNextData(data: Record<string, unknown>): BeatportRele
 }
 
 function mapRelease(release: BeatportRelease): NormalizedAlbum {
-  const artists = release.artists?.map((a) => a.name).filter(Boolean) ?? ["Unknown Artist"];
+  const artists = artistNamesOrUnknown(release.artists?.map((artist) => artist.name));
   return {
     sourceService: "beatport",
     sourceId: String(release.id),
