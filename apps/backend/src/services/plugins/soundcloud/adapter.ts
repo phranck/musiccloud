@@ -160,7 +160,7 @@ async function scApiFetch(endpoint: string): Promise<Response> {
  */
 async function scApiFetchWithClientId(endpoint: string): Promise<Response> {
   const clientId = await getClientId();
-  if (!clientId) throw new UpstreamUnavailableError("soundcloud", "no client_id available from the homepage");
+  if (!clientId) throw new UpstreamUnavailableError(Service.SoundCloud, "no client_id available from the homepage");
 
   const sep = endpoint.includes("?") ? "&" : "?";
   return scFetch(`${SC_API_BASE}${endpoint}${sep}client_id=${clientId}`);
@@ -178,7 +178,7 @@ async function readJson(response: Response, what: string): Promise<unknown> {
   try {
     return await response.json();
   } catch (error) {
-    throw new UpstreamUnavailableError("soundcloud", `${what} answered with a body that is not JSON`, error);
+    throw new UpstreamUnavailableError(Service.SoundCloud, `${what} answered with a body that is not JSON`, error);
   }
 }
 
@@ -204,7 +204,10 @@ async function scSearch<Item>(
 
   const body = (await readJson(response, `${endpoint} search for "${query}"`)) as { collection?: unknown } | null;
   if (!body || !Array.isArray(body.collection)) {
-    throw new UpstreamUnavailableError("soundcloud", `${endpoint} search for "${query}" answered without a collection`);
+    throw new UpstreamUnavailableError(
+      Service.SoundCloud,
+      `${endpoint} search for "${query}" answered without a collection`,
+    );
   }
   return body.collection as Item[];
 }
@@ -363,7 +366,8 @@ async function fetchAlbumByPath(setPath: string): Promise<NormalizedAlbum | null
 
   const data = (await readJson(response, `resolve of ${setPath}`)) as ScPlaylistData | null;
   // SoundCloud says "no such set" with 404, so a resolved set without a title is not that answer.
-  if (!data?.title) throw new UpstreamUnavailableError("soundcloud", `resolve of ${setPath} answered without a title`);
+  if (!data?.title)
+    throw new UpstreamUnavailableError(Service.SoundCloud, `resolve of ${setPath} answered without a title`);
   return mapApiPlaylist(data, setPath);
 }
 
@@ -429,14 +433,16 @@ export const soundcloudAdapter = {
     // Fallback: scrape the page
     const response = await scFetch(pageUrl);
     if (!response.ok) {
-      throw new Error(`SoundCloud page fetch failed: ${response.status}`);
+      throw serviceHttpError(Service.SoundCloud, response.status, ResourceKind.Track, trackPath);
     }
 
     const html = await response.text();
     const data = extractFromHtml(html);
 
+    // SoundCloud answers 404 for a track it does not have, so a page that
+    // loads without track data is a failure rather than a miss.
     if (!data?.title) {
-      throw new Error("SoundCloud: Could not extract track title from page");
+      throw new UpstreamUnavailableError(Service.SoundCloud, `track page ${trackPath} carried no track data`);
     }
 
     return mapApiTrack(data, trackPath);
@@ -557,10 +563,12 @@ export const soundcloudAdapter = {
       throw serviceHttpError(Service.SoundCloud, response.status, ResourceKind.Artist, artistId);
     }
 
-    const data = (await response.json()) as ScUserData;
+    const data = (await readJson(response, `resolve of artist ${artistId}`)) as ScUserData | null;
 
-    if (!data.username && !data.full_name) {
-      throw new Error("SoundCloud: Could not resolve artist profile");
+    // An artist SoundCloud does not have answers 404 above, so a profile
+    // without a name is a failure rather than a miss.
+    if (!data?.username && !data?.full_name) {
+      throw new UpstreamUnavailableError(Service.SoundCloud, `resolve of artist ${artistId} answered without a name`);
     }
 
     return {

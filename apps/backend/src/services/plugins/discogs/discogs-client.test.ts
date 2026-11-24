@@ -139,7 +139,11 @@ describe("searchVinylMaster", () => {
 
   it("throws when the HTTP response is not OK (429)", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ message: "Rate limit" }, 429));
-    await expect(searchVinylMaster({ artist: "Miles Davis", title: "Kind Of Blue" })).rejects.toThrow();
+    await expect(searchVinylMaster({ artist: "Miles Davis", title: "Kind Of Blue" })).rejects.toMatchObject({
+      name: "UpstreamUnavailableError",
+      source: "discogs",
+      message: expect.stringContaining("429"),
+    });
   });
 
   it("throws when fetchWithTimeout itself rejects (network error)", async () => {

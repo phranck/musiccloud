@@ -17,6 +17,7 @@
 
 import { SITE_ORIGIN } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
+import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable.js";
 import type { DiscogsMasterVersion, DiscogsRelease, DiscogsTrack } from "./discogs-parse.js";
 
 // ---------------------------------------------------------------------------
@@ -26,6 +27,9 @@ import type { DiscogsMasterVersion, DiscogsRelease, DiscogsTrack } from "./disco
 const DISCOGS_BASE_URL = "https://api.discogs.com";
 const USER_AGENT = `musiccloud/1.0 +${SITE_ORIGIN.site}`;
 const DEFAULT_MIN_INTERVAL_MS = 1100;
+
+/** The upstream name a failed Discogs request carries in its `UpstreamUnavailableError`. */
+const DISCOGS_SOURCE = "discogs";
 
 // ---------------------------------------------------------------------------
 // Rate guard -- minimal in-process serialiser
@@ -107,15 +111,16 @@ function buildHeaders(): Record<string, string> {
  *
  * @param path - URL path starting with `/`, e.g. `/database/search?...`.
  * @returns The JSON-parsed response body.
- * @throws When the HTTP response status is not OK (e.g. 429, 5xx) or when
- *   `fetchWithTimeout` itself rejects (network error, timeout).
+ * @throws An `UpstreamUnavailableError` with the source `discogs` when the
+ *   HTTP response status is not OK (e.g. 429, 5xx), and whatever
+ *   `fetchWithTimeout` rejects with on a network error or timeout.
  */
 async function discogsGet<T>(path: string): Promise<T> {
   await rateGuard();
   const url = `${DISCOGS_BASE_URL}${path}`;
   const response = await fetchWithTimeout(url, { headers: buildHeaders() });
   if (!response.ok) {
-    throw new Error(`Discogs API error: ${response.status} ${url}`);
+    throw new UpstreamUnavailableError(DISCOGS_SOURCE, `GET ${path} answered HTTP ${response.status}`);
   }
   return response.json() as Promise<T>;
 }

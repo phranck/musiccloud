@@ -21,9 +21,9 @@
  *   from the legacy app layout, without the `tra.` prefix.
  *
  * `detectUrl` accepts both but `getTrack` can only look up the `tra.`
- * form: Napster's API has no slug-to-ID endpoint, so a slug URL
- * throws a clear error rather than silently falling back to an
- * arbitrary track. The `albumCapabilities`/artist branches stick to
+ * form. Napster's API has no slug-to-ID endpoint, so a slug URL is
+ * reported as not found (`MC-API-7404`) without a request, and the
+ * resolver answers it with 404. The `albumCapabilities`/artist branches stick to
  * the `art.{digits}` convention for the same reason.
  *
  * ## No album support
@@ -46,7 +46,11 @@ import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
-import { serviceHttpError } from "../../../lib/resolve/service-errors";
+import {
+  serviceConfigurationMissingError,
+  serviceHttpError,
+  serviceNotFoundError,
+} from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   ArtistCapabilities,
@@ -128,14 +132,36 @@ interface NapsterArtistSearchResponse {
   };
 }
 
+/** The environment variable that holds the Napster API key. Without it every request fails with `MC-CFG-7001`. */
+const NAPSTER_API_KEY_VARIABLE = "NAPSTER_API_KEY";
+
+/** The prefix of every Napster track ID the API can look up, as in `tra.262370664`. */
+const NAPSTER_TRACK_ID_PREFIX = "tra.";
+
+/** Why a legacy slug link cannot be resolved, carried in the not-found message. */
+const SLUG_LOOKUP_UNSUPPORTED_DETAIL = "slug links have no API lookup";
+
+/**
+ * Reads the Napster API key from the environment.
+ *
+ * @returns The key from `NAPSTER_API_KEY`.
+ * @throws A configuration `ResolveError` (`MC-CFG-7001`) when the variable is not set.
+ */
 function getApiKey(): string {
-  const key = process.env.NAPSTER_API_KEY;
+  const key = process.env[NAPSTER_API_KEY_VARIABLE];
   if (!key) {
-    throw new Error("NAPSTER_API_KEY must be set");
+    throw serviceConfigurationMissingError(Service.Napster, NAPSTER_API_KEY_VARIABLE);
   }
   return key;
 }
 
+/**
+ * Sends one authenticated request to the Napster v2.2 API.
+ *
+ * @param endpoint - The path below `API_BASE`, with or without a query string.
+ * @returns The raw response, which the caller checks for `ok`.
+ * @throws A configuration `ResolveError` when `NAPSTER_API_KEY` is not set.
+ */
 async function napsterFetch(endpoint: string): Promise<Response> {
   const apiKey = getApiKey();
   const separator = endpoint.includes("?") ? "&" : "?";
@@ -168,10 +194,6 @@ function mapTrack(raw: NapsterTrackResponse): NormalizedTrack {
   };
 }
 
-export function _resetForTesting(): void {
-  // No token state to reset (API key is static)
-}
-
 export const napsterAdapter = {
   id: "napster",
   displayName: getPlatformLabel("napster"),
@@ -188,15 +210,23 @@ export const napsterAdapter = {
     return match[1] ?? match[2] ?? null;
   },
 
+  /**
+   * Looks up one track by its Napster ID.
+   *
+   * @param trackId - What `detectUrl` returned: a `tra.` ID, or the slug of a
+   *   legacy `app.napster.com` link.
+   * @returns The normalized track.
+   * @throws Napster's not-found `ResolveError` (`MC-API-7404`) for a slug,
+   *   which the API cannot look up, and for an empty track list; a
+   *   `serviceHttpError` for any error status; a configuration error when the
+   *   key is missing.
+   */
   async getTrack(trackId: string): Promise<NormalizedTrack> {
-    // If trackId is not in tra.xxx format, it's a slug - we can't look it up directly
-    const endpoint = trackId.startsWith("tra.") ? `/tracks/${encodeURIComponent(trackId)}` : `/tracks/top?limit=1`; // Fallback; slug-based lookup not supported by API
-
-    if (!trackId.startsWith("tra.")) {
-      throw new Error(`Napster: slug-based track lookup not supported: ${trackId}`);
+    if (!trackId.startsWith(NAPSTER_TRACK_ID_PREFIX)) {
+      throw serviceNotFoundError(Service.Napster, ResourceKind.Track, trackId, SLUG_LOOKUP_UNSUPPORTED_DETAIL);
     }
 
-    const response = await napsterFetch(endpoint);
+    const response = await napsterFetch(`/tracks/${encodeURIComponent(trackId)}`);
 
     if (!response.ok) {
       throw serviceHttpError(Service.Napster, response.status, ResourceKind.Track, trackId);
@@ -206,7 +236,7 @@ export const napsterAdapter = {
     const tracks = data.tracks;
 
     if (!tracks || tracks.length === 0) {
-      throw new Error("Napster: track not found");
+      throw serviceNotFoundError(Service.Napster, ResourceKind.Track, trackId);
     }
 
     return mapTrack(tracks[0]);
@@ -293,6 +323,15 @@ export const napsterAdapter = {
     return match ? match[1] : null;
   },
 
+  /**
+   * Looks up one artist by its Napster ID.
+   *
+   * @param artistId - What `detectArtistUrl` returned, usually an `art.` ID.
+   * @returns The normalized artist, with the image URL derived from the ID.
+   * @throws Napster's not-found `ResolveError` (`MC-API-7404`) for an empty
+   *   artist list; a `serviceHttpError` for any error status; a configuration
+   *   error when the key is missing.
+   */
   async getArtist(artistId: string): Promise<NormalizedArtist> {
     const endpoint = `/artists/${encodeURIComponent(artistId)}`;
     const response = await napsterFetch(endpoint);
@@ -305,7 +344,7 @@ export const napsterAdapter = {
     const artists = data.artists;
 
     if (!artists || artists.length === 0) {
-      throw new Error("Napster: artist not found");
+      throw serviceNotFoundError(Service.Napster, ResourceKind.Artist, artistId);
     }
 
     const artist = artists[0];

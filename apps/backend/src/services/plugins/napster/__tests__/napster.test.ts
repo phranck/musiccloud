@@ -138,8 +138,33 @@ describe("Napster: getTrack", () => {
     await expect(napsterAdapter.getTrack("tra.999")).rejects.toThrow("Napster track fetch failed: 404");
   });
 
-  it("should throw for slug-based track IDs", async () => {
-    await expect(napsterAdapter.getTrack("wonderful-world")).rejects.toThrow("slug-based track lookup not supported");
+  /** A legacy slug link has no API lookup, so Napster cannot find the track it names. */
+  it("reports a slug-based track ID as not found without asking Napster", async () => {
+    fetchWithTimeoutMock.mockClear();
+
+    await expect(napsterAdapter.getTrack("wonderful-world")).rejects.toMatchObject({
+      name: "ResolveError",
+      code: "MC-API-7404",
+    });
+    expect(fetchWithTimeoutMock).not.toHaveBeenCalled();
+  });
+
+  it("reports an empty track list as not found", async () => {
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response(JSON.stringify({ tracks: [] }), { status: 200 }));
+
+    await expect(napsterAdapter.getTrack("tra.999")).rejects.toMatchObject({
+      name: "ResolveError",
+      code: "MC-API-7404",
+    });
+  });
+
+  it("reports a missing NAPSTER_API_KEY as a configuration error", async () => {
+    delete process.env.NAPSTER_API_KEY;
+
+    await expect(napsterAdapter.getTrack("tra.262370664")).rejects.toMatchObject({
+      name: "ResolveError",
+      code: "MC-CFG-7001",
+    });
   });
 
   it("should include apikey in request URL", async () => {
@@ -304,6 +329,30 @@ describe("Napster: searchTrack", () => {
 
     expect(result.found).toBe(true);
     expect(result.track?.title).toBe("What A Wonderful World");
+  });
+});
+
+// =============================================================================
+// getArtist
+// =============================================================================
+
+describe("Napster: getArtist", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    process.env.NAPSTER_API_KEY = "test-api-key";
+  });
+
+  afterEach(() => {
+    delete process.env.NAPSTER_API_KEY;
+  });
+
+  it("reports an empty artist list as not found", async () => {
+    fetchWithTimeoutMock.mockResolvedValueOnce(new Response(JSON.stringify({ artists: [] }), { status: 200 }));
+
+    await expect(napsterAdapter.getArtist("art.999")).rejects.toMatchObject({
+      name: "ResolveError",
+      code: "MC-API-7404",
+    });
   });
 });
 

@@ -227,15 +227,30 @@ describe("Pandora: getTrack (JSON-LD fallback)", () => {
   it("should throw when page has no usable data", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(MOCK_EMPTY_HTML, { status: 200 }));
 
-    await expect(pandoraAdapter.getTrack("broken/album/track/TRabc123")).rejects.toThrow(
-      "Could not extract track title",
-    );
+    // Pandora answers 404 for a track it does not have, so a page without
+    // track data is a failure rather than a miss.
+    await expect(pandoraAdapter.getTrack("broken/album/track/TRabc123")).rejects.toMatchObject({
+      name: "UpstreamUnavailableError",
+      source: "pandora",
+    });
   });
 
-  it("should throw when page fetch fails", async () => {
+  it("reports a page fetch error status with Pandora's failure code", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Forbidden", { status: 403 }));
 
-    await expect(pandoraAdapter.getTrack("some/album/track/TRabc123")).rejects.toThrow("page fetch failed: 403");
+    await expect(pandoraAdapter.getTrack("some/album/track/TRabc123")).rejects.toMatchObject({
+      name: "ResolveError",
+      code: "MC-API-9001",
+    });
+  });
+
+  it("reports a page Pandora answers 404 for with Pandora's not-found code", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+
+    await expect(pandoraAdapter.getTrack("gone/album/track/TRabc123")).rejects.toMatchObject({
+      name: "ResolveError",
+      code: "MC-API-9004",
+    });
   });
 });
 
