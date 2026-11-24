@@ -109,9 +109,9 @@ export function serviceNotFoundError(
 
 /**
  * The status token `serviceErrorDigits` turns into a service's configuration
- * code. It yields `MC-CFG-6001` for YouTube (prefix `6`) and `MC-CFG-7001` for
- * Napster (prefix `7`), the same digits the generic upstream failure uses
- * under the `MC-API` category.
+ * code. It yields `MC-CFG-6001` for YouTube (prefix `6`) and `MC-CFG-8001` for
+ * KKBOX (prefix `80`), the same digits the generic upstream failure uses under
+ * the `MC-API` category.
  */
 const MISSING_CONFIGURATION_STATUS_TOKEN = "001";
 

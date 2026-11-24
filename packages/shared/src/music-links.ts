@@ -43,9 +43,6 @@ export const MUSIC_LINK_SOURCES: Readonly<Record<Exclude<ServiceId, typeof Servi
   [Service.Tidal]: { hosts: ["tidal.com", "listen.tidal.com"] },
   [Service.Deezer]: { hosts: ["deezer.com", "www.deezer.com"], shortLinkHosts: ["link.deezer.com"] },
   [Service.Audius]: { hosts: ["audius.co"] },
-  [Service.Napster]: {
-    hosts: ["napster.com", "www.napster.com", "play.napster.com", "web.napster.com", "app.napster.com"],
-  },
   [Service.Pandora]: { hosts: ["pandora.com", "www.pandora.com"] },
   [Service.Qobuz]: { hosts: ["open.qobuz.com", "play.qobuz.com"] },
   [Service.Boomplay]: { hosts: ["boomplay.com", "www.boomplay.com"] },

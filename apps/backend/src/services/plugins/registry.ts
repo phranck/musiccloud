@@ -78,7 +78,6 @@ import { kkboxPlugin } from "./kkbox/index.js";
 import { evaluatePluginEnv, type ServicePlugin } from "./manifest.js";
 import { melonPlugin } from "./melon/index.js";
 import { musicbrainzPlugin } from "./musicbrainz/index.js";
-import { napsterPlugin } from "./napster/index.js";
 import { neteasePlugin } from "./netease/index.js";
 import { pandoraPlugin } from "./pandora/index.js";
 import { qobuzPlugin } from "./qobuz/index.js";
@@ -111,7 +110,6 @@ const PLUGINS: readonly ServicePlugin[] = [
   spotifyPlugin,
   musicbrainzPlugin,
   audiusPlugin,
-  napsterPlugin,
   soundcloudPlugin,
   pandoraPlugin,
   qobuzPlugin,

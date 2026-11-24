@@ -42,10 +42,6 @@ export const MUSIC_LINK_SAMPLES: Record<string, Partial<Record<MusicUrlKind, str
     track: "https://audius.co/deadmau5/unlucky-work-in-progress-333797",
     album: "https://audius.co/deadmau5/album/where-is-the-love-12345",
   },
-  napster: {
-    track: "https://app.napster.com/artist/coldplay/album/parachutes/track/yellow",
-    artist: "https://app.napster.com/artist/coldplay",
-  },
   soundcloud: {
     track: "https://soundcloud.com/taylorswift/shake-it-off",
     album: "https://soundcloud.com/taylorswift/sets/1989",

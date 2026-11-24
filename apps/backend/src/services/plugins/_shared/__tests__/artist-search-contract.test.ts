@@ -66,8 +66,6 @@ const ANSWERS: Record<string, (url: string) => Response | undefined> = {
     url.includes("type=artist")
       ? json({ artists: { data: [{ id: "k1", name: ARTIST, images: [], url: "https://www.kkbox.com/artist/k1" }] } })
       : undefined,
-  napster: (url) =>
-    url.includes("type=artist") ? json({ search: { data: { artists: [{ id: "art.1", name: ARTIST }] } } }) : undefined,
   netease: (url) =>
     url.includes("/api/search/get") ? json({ result: { artists: [{ id: 1, name: ARTIST }] }, code: 200 }) : undefined,
   qobuz: (url) =>
@@ -111,7 +109,6 @@ beforeEach(() => {
   fetchWithTimeoutMock.mockReset();
   vi.stubEnv("APPLE_MUSIC_TOKEN", "static-test-token");
   vi.stubEnv("YOUTUBE_API_KEY", "test-key");
-  vi.stubEnv("NAPSTER_API_KEY", "test-key");
 });
 
 afterEach(() => {

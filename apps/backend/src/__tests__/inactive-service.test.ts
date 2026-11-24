@@ -16,19 +16,28 @@ vi.mock("../db/plugin-repository.js", () => ({
 
 const { findInactiveServiceFor, invalidateEnabledCache } = await import("../services/plugins/registry.js");
 
+/**
+ * The credentials the KKBOX plugin's manifest requires. The tests remove them
+ * so KKBOX stands for a switched-on service that lacks its credentials.
+ */
+const KKBOX_CREDENTIAL_ENV = ["KKBOX_CLIENT_ID", "KKBOX_CLIENT_SECRET"] as const;
+
 describe("findInactiveServiceFor", () => {
-  let napsterKey: string | undefined;
+  /** The values {@link KKBOX_CREDENTIAL_ENV} held before each test, restored after it. */
+  let savedCredentials = new Map<string, string | undefined>();
 
   beforeEach(() => {
     pluginStates.clear();
     invalidateEnabledCache();
-    napsterKey = process.env.NAPSTER_API_KEY;
-    delete process.env.NAPSTER_API_KEY;
+    savedCredentials = new Map(KKBOX_CREDENTIAL_ENV.map((name) => [name, process.env[name]]));
+    for (const name of KKBOX_CREDENTIAL_ENV) delete process.env[name];
   });
 
   afterEach(() => {
-    if (napsterKey === undefined) delete process.env.NAPSTER_API_KEY;
-    else process.env.NAPSTER_API_KEY = napsterKey;
+    for (const [name, value] of savedCredentials) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
   });
 
   it("names a switched-off service for its album link and its artist link", async () => {
@@ -42,7 +51,9 @@ describe("findInactiveServiceFor", () => {
   });
 
   it("names a switched-on service that lacks its credentials", async () => {
-    await expect(findInactiveServiceFor("https://app.napster.com/artist/coldplay")).resolves.toBe("napster");
+    await expect(findInactiveServiceFor("https://www.kkbox.com/tw/tc/artist/OpYn0tBqZ4zG2Sk3wZ")).resolves.toBe(
+      "kkbox",
+    );
   });
 
   it("names a service the admin switched off", async () => {

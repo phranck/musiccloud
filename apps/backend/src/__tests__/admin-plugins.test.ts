@@ -22,7 +22,7 @@ vi.mock("../db/plugin-repository.js", () => ({
 // nothing hits it in our test paths, so we leave it alone.
 
 import { buildApp } from "../server.js";
-import { invalidateEnabledCache } from "../services/plugins/registry.js";
+import { invalidateEnabledCache, listPlugins } from "../services/plugins/registry.js";
 
 let app: FastifyInstance;
 let adminToken: string;
@@ -92,16 +92,20 @@ describe("GET /api/admin/plugins", () => {
     }
   });
 
-  it("returns one entry per installed plugin (21 total)", async () => {
+  it("returns one entry per installed plugin", async () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/admin/plugins",
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(res.statusCode).toBe(200);
-    const body = res.json();
+    const body = res.json() as Array<{ id: string }>;
     expect(Array.isArray(body)).toBe(true);
-    expect(body).toHaveLength(21);
+    expect(body.map((plugin) => plugin.id).sort()).toEqual(
+      listPlugins()
+        .map((plugin) => plugin.manifest.id)
+        .sort(),
+    );
   });
 
   it("each entry exposes the documented shape", async () => {

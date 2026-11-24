@@ -71,7 +71,7 @@ export function pickBestCandidate<T>(
 
 /**
  * The arrow between a hit and its score in a score debug line. `"->"` is the
- * default every adapter uses; Napster and Pandora print `"→"`.
+ * default every adapter uses; Pandora prints `"→"`.
  */
 export type ScoreArrow = "->" | "→";
 

@@ -16,7 +16,7 @@
  * their consumer module.
  */
 
-import type { ArtistProfileProvider } from "@musiccloud/shared";
+import { type ArtistProfileProvider, VALID_SERVICE_IDS } from "@musiccloud/shared";
 import type { PoolClient } from "pg";
 import { generateTrackId } from "../../lib/short-id.js";
 import type { ArtistCredit, ExternalIdRecord } from "../repository.js";
@@ -264,18 +264,53 @@ function previewPreferenceOrder(alias: "tp" | "ap"): string {
 }
 
 /**
- * `SELECT` fragment exposing a track's preferred preview URL as
- * `preview_url`, in the order of {@link previewPreferenceOrder}. Expects the
- * outer query to expose the track row as `t`.
+ * The shape every service id has: lowercase letters, digits and hyphens. A
+ * service id is written into SQL as a literal by {@link knownPreviewService},
+ * so an id of any other shape stops the module from loading.
  */
-export const TRACK_PREVIEW_URL_SELECT = `(SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY ${previewPreferenceOrder("tp")} LIMIT 1) AS preview_url`;
+const SQL_SAFE_SERVICE_ID = /^[a-z0-9-]+$/;
+
+/**
+ * The known service ids as a quoted SQL list, such as `'spotify', 'deezer'`.
+ * Built once from `VALID_SERVICE_IDS`, so a service removed from the shared
+ * `Service` object drops out of it.
+ */
+const KNOWN_SERVICE_SQL_LIST = VALID_SERVICE_IDS.map((service) => {
+  if (!SQL_SAFE_SERVICE_ID.test(service)) {
+    throw new Error(`Service id "${service}" cannot be written into SQL as a literal`);
+  }
+  return `'${service}'`;
+}).join(", ");
+
+/**
+ * The predicate that admits only preview rows of a service this build knows.
+ *
+ * A row of a removed service stays in the database, and its URL points at a
+ * host nobody serves any more. Without this predicate an unsigned one never
+ * expires and would win {@link previewPreferenceOrder} over a newer row.
+ *
+ * @param alias - The alias the subquery gives `track_previews` or `album_previews`.
+ * @returns The predicate, without a leading `AND`.
+ */
+function knownPreviewService(alias: "tp" | "ap"): string {
+  return `${alias}.service IN (${KNOWN_SERVICE_SQL_LIST})`;
+}
+
+/**
+ * `SELECT` fragment exposing a track's preferred preview URL as
+ * `preview_url`, in the order of {@link previewPreferenceOrder} and among the
+ * rows {@link knownPreviewService} admits. Expects the outer query to expose
+ * the track row as `t`.
+ */
+export const TRACK_PREVIEW_URL_SELECT = `(SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id AND ${knownPreviewService("tp")} ORDER BY ${previewPreferenceOrder("tp")} LIMIT 1) AS preview_url`;
 
 /**
  * `SELECT` fragment exposing an album's preferred preview URL as
- * `preview_url`, in the order of {@link previewPreferenceOrder}. Expects the
- * outer query to expose the album row as `a`.
+ * `preview_url`, in the order of {@link previewPreferenceOrder} and among the
+ * rows {@link knownPreviewService} admits. Expects the outer query to expose
+ * the album row as `a`.
  */
-export const ALBUM_PREVIEW_URL_SELECT = `(SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY ${previewPreferenceOrder("ap")} LIMIT 1) AS preview_url`;
+export const ALBUM_PREVIEW_URL_SELECT = `(SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id AND ${knownPreviewService("ap")} ORDER BY ${previewPreferenceOrder("ap")} LIMIT 1) AS preview_url`;
 
 /**
  * The order in which the stored names of one artist entity are preferred as

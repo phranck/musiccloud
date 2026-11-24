@@ -99,7 +99,7 @@ async function scrapeTrackFromPage(
     // Fallback: use og:title as free-text query (strip " on/bei/sur ServiceName")
     const stripped = ogTitle
       .replace(
-        /\s+(on|bei|sur|su|en)\s+(Apple Music|Spotify|Deezer|Tidal|YouTube|SoundCloud|Qobuz|Pandora|Napster|Audius).*$/i,
+        /\s+(on|bei|sur|su|en)\s+(Apple Music|Spotify|Deezer|Tidal|YouTube|SoundCloud|Qobuz|Pandora|Audius).*$/i,
         "",
       )
       .trim();

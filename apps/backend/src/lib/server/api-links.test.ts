@@ -21,6 +21,19 @@ describe("api link builders", () => {
     expect(toCachedApiLinks([{ service: "unknown-service", url: "https://example.com" }])).toEqual([]);
   });
 
+  /** Rows a removed service left in `service_links` stay in the database and must not reach a response. */
+  it("drops stored links of a removed service and keeps the rest", () => {
+    const stored: PublicLinkSource[] = [
+      { service: "napster", url: "https://web.napster.com/track/tra.1" },
+      { service: "deezer", url: "https://www.deezer.com/track/1" },
+    ];
+
+    expect(toCachedApiLinks(stored).map((link) => link.service)).toEqual(["deezer"]);
+    expect(toApiLinks(stored.map((link) => freshLink(link.service, link.url))).map((link) => link.service)).toEqual([
+      "deezer",
+    ]);
+  });
+
   it("preserves valid fresh resolve confidence and match method", () => {
     expect(
       toApiLinks([
