@@ -56,7 +56,12 @@ import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE, MAX_CANDIDATES, SPOTIFY_SEARCH_LIMIT_MAX } from "../../constants.js";
+import {
+  CANDIDATE_MIN_CONFIDENCE,
+  MATCH_MIN_CONFIDENCE,
+  MAX_CANDIDATES,
+  SPOTIFY_SEARCH_LIMIT_MAX,
+} from "../../constants.js";
 import type {
   AdapterCapabilities,
   AlbumCapabilities,
@@ -460,7 +465,7 @@ export const spotifyAdapter = {
     }
     return {
       bestMatch,
-      candidates: scored.filter((c) => c.confidence >= 0.4),
+      candidates: scored.filter((c) => c.confidence >= CANDIDATE_MIN_CONFIDENCE),
     };
   },
   // --- Album support ---

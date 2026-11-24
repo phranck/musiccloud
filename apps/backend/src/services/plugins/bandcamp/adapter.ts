@@ -55,6 +55,7 @@
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -71,8 +72,6 @@ import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import { type BandcampAccount, creditedRelease } from "./label-credits.js";
 import { bandcampTransport } from "./transport.js";
-
-const MATCH_MIN_CONFIDENCE = 0.6;
 
 /** How long one Bandcamp request may take, 8 s, because an album page is about 300 KB. */
 const BANDCAMP_REQUEST_TIMEOUT_MS = 8000;

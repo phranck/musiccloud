@@ -4,7 +4,7 @@ import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
+import { ALBUM_PREVIEW_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -520,7 +520,7 @@ export const soundcloudAdapter = {
         releaseDate: candidate.releaseDate,
         totalTracks: candidate.trackCount,
       });
-      if (confidence > bestConfidence && confidence > 0.4) {
+      if (confidence > bestConfidence && confidence > ALBUM_PREVIEW_MIN_CONFIDENCE) {
         const full = await fetchAlbumByPath(candidate.path);
         if (!full) continue;
         // A later missing detail cannot lend its preliminary score to an older album.
@@ -606,7 +606,7 @@ export const soundcloudAdapter = {
       }
     }
 
-    if (!bestArtist || bestConfidence < 0.6) {
+    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }
 

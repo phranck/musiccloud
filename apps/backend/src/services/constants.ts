@@ -48,6 +48,18 @@ export const AUTO_SELECT_THRESHOLD = 0.9;
 export const CANDIDATE_MIN_CONFIDENCE = 0.4;
 
 /**
+ * Preview score an album search result must exceed before an adapter fetches
+ * its full album record. A search page carries only a title, an artist and a
+ * few details, so this gate saves a detail request for results that cannot
+ * become a match; the full record is then scored again against
+ * {@link MATCH_MIN_CONFIDENCE}. The comparison is strict, so a preview score
+ * of exactly `0.4` fetches nothing. Read by the SoundCloud and JioSaavn
+ * `searchAlbum` loops, which change how many detail requests they send when
+ * this value moves.
+ */
+export const ALBUM_PREVIEW_MIN_CONFIDENCE = 0.4;
+
+/**
  * Hard cap on the disambiguation candidate payload. The UI paginates
  * this list so a search can offer more breadth than one visible page
  * without turning the card into a long scroll trap.

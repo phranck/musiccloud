@@ -510,7 +510,7 @@ export const kkboxAdapter = {
       }
     }
 
-    if (!bestArtist || bestConfidence < 0.6) {
+    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
     }
 
