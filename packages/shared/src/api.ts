@@ -1,7 +1,8 @@
 /**
  * Wire-format types for the public resolve / share / artist-info APIs, the
- * error envelope every service answers with, and the plan catalogue the admin
- * API and the public `GET /api/v1/tiers` return.
+ * error envelope every service answers with, the plan catalogue the admin
+ * API and the public `GET /api/v1/tiers` return, and the usage report the
+ * developer and admin usage routes return.
  *
  * Every type in this file is a direct shape of a JSON payload that crosses
  * the backend-frontend boundary. Changing one of these is a wire-format
@@ -247,6 +248,73 @@ export interface PublicTier extends ApiTier {
   free: boolean;
   /** Whether a developer can put a project on this plan themselves today. */
   selfServiceAssignable: boolean;
+}
+
+// ─── Usage Report ─────────────────────────────────────────────────────────────
+
+/**
+ * How wide one step of a usage series is. The backend picks it from the range
+ * a caller asks for, and the usage charts in the dashboard and the portal
+ * accept exactly these values.
+ */
+export const UsageBucket = {
+  /** One step per hour, chosen for a range of up to two days. */
+  Hour: "hour",
+  /** One step per day, chosen for any wider range. */
+  Day: "day",
+} as const;
+
+/** A {@link UsageBucket} member value: `"hour"` or `"day"`. */
+export type UsageBucketValue = (typeof UsageBucket)[keyof typeof UsageBucket];
+
+/**
+ * One live quota window of a usage report: the requests counted between `from`
+ * and `to`, which is the window the limiter refuses requests over.
+ */
+export interface ApiUsageWindowCount {
+  /** ISO 8601 start of the window. */
+  from: string;
+  /** ISO 8601 end of the window, the moment the report was built. */
+  to: string;
+  /** Requests the project made inside the window. */
+  total: number;
+}
+
+/**
+ * Aggregated usage for one project, with the quota it is measured against, as
+ * the developer and the admin usage routes return it.
+ *
+ * The quota travels with the counts because a number of requests means nothing
+ * without what it is allowed to reach, and a screen asking twice would be
+ * showing two moments as though they were one.
+ */
+export interface ApiUsageReport {
+  /** The live per-minute and per-day windows, both ending when the report was built. */
+  windows: {
+    minute: ApiUsageWindowCount;
+    day: ApiUsageWindowCount;
+  };
+  /** The requested range as a series. */
+  range: {
+    /** ISO 8601 start of the range. */
+    from: string;
+    /** ISO 8601 end of the range. */
+    to: string;
+    /** The step width the series is grouped by. */
+    bucket: UsageBucketValue;
+    /** Requests inside the whole range. */
+    total: number;
+    /** Requests inside the range per client registration. */
+    byRegistration: { registrationId: string; total: number }[];
+    /** The series, one entry per step, stamped with the ISO 8601 moment the step begins. */
+    buckets: { startedAt: string; total: number }[];
+  };
+  quota: {
+    /** What the plan grants per minute, or `null` when no plan grants one. */
+    requestsPerMinute: number | null;
+    /** What the plan grants per day, or `null` when no plan grants one. */
+    requestsPerDay: number | null;
+  };
 }
 
 export type ResolveErrorResponse = ApiErrorResponse;

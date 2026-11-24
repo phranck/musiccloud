@@ -1,5 +1,6 @@
 import type {
   ApiAccessAuditTrail,
+  ApiUsageReport,
   BillingPeriodValue,
   CreemModeValue,
   PortalInvitation,
@@ -35,7 +36,6 @@ import {
   fetchProjectUsage,
   fetchTiers,
   invitePortalDeveloper,
-  type ProjectUsageResponse,
   resendPortalInvitation,
   type TierListItem,
   type TierOfferCreate,
@@ -89,7 +89,7 @@ export function useDeveloperProject(id: string) {
  * @param id - The project; the query idles until it is known.
  */
 export function useProjectUsage(id: string) {
-  return useQuery<ProjectUsageResponse>({
+  return useQuery<ApiUsageReport>({
     queryKey: ["developer", "project-usage", id],
     queryFn: () => fetchProjectUsage(id),
     enabled: !!id,

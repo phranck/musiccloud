@@ -1,6 +1,7 @@
 import type {
   ApiAccessAuditTrail,
   ApiTier,
+  ApiUsageReport,
   BillingPeriodValue,
   CreemModeValue,
   CreemProductMapping,
@@ -269,39 +270,15 @@ export function fetchDeveloperProjects(accountId: string): Promise<{ projects: D
   );
 }
 
-/** One step of a usage series, stamped with the moment the step begins. */
-export interface UsageBucketResponse {
-  startedAt: string;
-  total: number;
-}
-
 /**
- * Aggregated usage for one project, with the quota it is measured against.
+ * Reads one project's usage report through the admin route.
  *
- * The quota arrives with the counts rather than from a second read, so a
- * screen never shows a number against a limit taken at a different moment.
+ * @param id - The project.
+ * @returns The live minute and day counts, the default range as a series, and
+ *   the quota they are measured against.
  */
-export interface ProjectUsageResponse {
-  windows: {
-    minute: { from: string; to: string; total: number };
-    day: { from: string; to: string; total: number };
-  };
-  range: {
-    from: string;
-    to: string;
-    bucket: string;
-    total: number;
-    byRegistration: { registrationId: string; total: number }[];
-    buckets: UsageBucketResponse[];
-  };
-  quota: {
-    requestsPerMinute: number | null;
-    requestsPerDay: number | null;
-  };
-}
-
-export function fetchProjectUsage(id: string): Promise<ProjectUsageResponse> {
-  return api.get<ProjectUsageResponse>(ENDPOINTS.admin.developer.apiAccess.projectUsage(id));
+export function fetchProjectUsage(id: string): Promise<ApiUsageReport> {
+  return api.get<ApiUsageReport>(ENDPOINTS.admin.developer.apiAccess.projectUsage(id));
 }
 
 /**

@@ -15,7 +15,15 @@ import type {
   ApiTokenStatusValue,
   ClientRegistrationTypeValue,
   DeveloperProjectStatusValue,
+  UsageBucketValue,
 } from "@musiccloud/shared";
+
+/**
+ * The step widths of a usage series, defined beside the usage report in the
+ * shared package and re-exported so the adapters keep reading the contract
+ * from the repository.
+ */
+export { UsageBucket, type UsageBucketValue } from "@musiccloud/shared";
 
 /**
  * Aggregate root for one independently subscribed and metered Developer API
@@ -189,15 +197,6 @@ export interface ApiUsageEvent {
   statusCode: number;
   durationMs: number;
 }
-
-/** How wide one step of a usage series is. */
-export const UsageBucket = {
-  Hour: "hour",
-  Day: "day",
-} as const;
-
-/** A {@link UsageBucket} member value. */
-export type UsageBucketValue = (typeof UsageBucket)[keyof typeof UsageBucket];
 
 /** How many requests one registration made inside the summarised range. */
 export interface ApiUsageByRegistration {

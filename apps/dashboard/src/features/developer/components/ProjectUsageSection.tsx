@@ -1,4 +1,4 @@
-import { UsageChart, type UsageChartBucketValue } from "@musiccloud/dashboard-ui";
+import { UsageChart } from "@musiccloud/dashboard-ui";
 import { ChartLine as ChartLineIcon } from "@phosphor-icons/react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { dashboardCopy } from "@/copy/dashboard";
@@ -89,7 +89,7 @@ export function ProjectUsageSection({ projectId }: ProjectUsageSectionProps) {
             ) : (
               <UsageChart
                 points={data.range.buckets}
-                bucket={data.range.bucket as UsageChartBucketValue}
+                bucket={data.range.bucket}
                 label={`${data.range.total} requests between ${data.range.from} and ${data.range.to}`}
               />
             )}

@@ -142,7 +142,7 @@ const PageIcon = iconForDashboardTab(DashboardTab.Usage);
                             <UsageChart
                               client:visible
                               points={usage.range.buckets}
-                              bucket={usage.range.bucket === "day" ? "day" : "hour"}
+                              bucket={usage.range.bucket}
                               label={`${usage.range.total} requests between ${usage.range.from} and ${usage.range.to}`}
                             />
                           </div>

@@ -5,37 +5,10 @@
  * project, so they get the same shape from the same place. What differs is who
  * is allowed to ask, which is the route's business and not this file's.
  */
+import type { ApiUsageReport } from "@musiccloud/shared";
 import type { ApiAccessRepository, DeveloperProject } from "../db/api-access-repository.js";
 import { DAY_WINDOW_MS, MINUTE_WINDOW_MS } from "../lib/infra/rate-limit-policy.js";
 import type { UsageWindow } from "./api-usage-window.js";
-
-/**
- * Aggregated usage for one project, with the quota it is measured against.
- *
- * The quota travels with the counts because a number of requests means nothing
- * without what it is allowed to reach, and a screen asking twice would be
- * showing two moments as though they were one.
- */
-export interface ApiUsageReport {
-  windows: {
-    minute: { from: string; to: string; total: number };
-    day: { from: string; to: string; total: number };
-  };
-  range: {
-    from: string;
-    to: string;
-    bucket: string;
-    total: number;
-    byRegistration: { registrationId: string; total: number }[];
-    buckets: { startedAt: string; total: number }[];
-  };
-  quota: {
-    /** What the plan grants per minute, or `null` when no plan grants one. */
-    requestsPerMinute: number | null;
-    /** What the plan grants per day, or `null` when no plan grants one. */
-    requestsPerDay: number | null;
-  };
-}
 
 /**
  * Builds the usage report for one project.
