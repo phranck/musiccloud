@@ -12,10 +12,11 @@
  */
 import { type SocialMediaLinks, WEBSITE_PLATFORM } from "@musiccloud/shared";
 
+import { hostForLog } from "../lib/external-resource.js";
 import { readJsonWithLimit } from "../lib/http-body.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
-import { fetchPreviewImage, hostForLog, type PreviewIntent } from "../lib/preview-image.js";
+import { fetchPreviewImage, type PreviewIntent } from "../lib/preview-image.js";
 
 /** How long a lookup at somebody else's instance may take. */
 const LOOKUP_TIMEOUT_MS = 5000;

@@ -3,7 +3,7 @@
  * across the PostgreSQL adapter implementation.
  *
  * This module is consumed by every `postgres-*.ts` sibling module. It
- * deliberately contains no domain logic of its own — only:
+ * deliberately contains no domain logic of its own. It holds only these:
  *
  *   - JSON / array / date parsing helpers used in every result builder.
  *   - SQL `SELECT` and `JOIN` fragments used by more than one domain
@@ -16,6 +16,7 @@
  * their consumer module.
  */
 
+import type { ArtistProfileProvider } from "@musiccloud/shared";
 import type { PoolClient } from "pg";
 import { generateTrackId } from "../../lib/short-id.js";
 import type { ArtistCredit, ExternalIdRecord } from "../repository.js";
@@ -154,7 +155,7 @@ export function dateToMs(date: Date | null | undefined): number {
 /**
  * Converts an epoch second value to a Date.
  *
- * Note: input is interpreted as **seconds**, not milliseconds — this
+ * Note: input is interpreted as **seconds**, not milliseconds. This
  * mirrors the original SQLite contract where timestamps were stored as
  * `INTEGER` seconds. Do not feed `Date.now()` style millisecond values
  * to this function.
@@ -350,6 +351,24 @@ export interface ServiceLinkRow {
 }
 
 // ============================================================================
+// ARTIST PROFILE PROVIDERS
+// ============================================================================
+
+/**
+ * Narrows a stored provider name to the providers an artist profile can come
+ * from, so unknown values in `profile_providers` are dropped on read.
+ *
+ * The artist info cache read and the admin artist list both filter the stored
+ * `profile_providers` array through this guard.
+ *
+ * @param value - One entry of the stored `profile_providers` array.
+ * @returns `true` for `spotify`, `deezer` and `lastfm`, `false` otherwise.
+ */
+export function isArtistProfileProvider(value: string): value is ArtistProfileProvider {
+  return value === "spotify" || value === "deezer" || value === "lastfm";
+}
+
+// ============================================================================
 // PERSISTENCE LOCK
 // ============================================================================
 
@@ -420,7 +439,7 @@ export async function insertExternalIds(
     for (const r of records) {
       // ON CONFLICT (cols) targets the unique index from migration 0019.
       // ON CONFLICT ON CONSTRAINT requires a UNIQUE CONSTRAINT, which
-      // a UNIQUE INDEX is not — Postgres rejects the latter at runtime.
+      // a UNIQUE INDEX is not, so Postgres rejects the latter at runtime.
       await client.query(
         `INSERT INTO ${table} (id, ${fkColumn}, id_type, id_value, source_service, observed_at)
          VALUES ($1, $2, $3, $4, $5, $6)

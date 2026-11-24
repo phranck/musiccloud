@@ -3,28 +3,20 @@
  * on somebody's profile.
  *
  * Ported from lmaa.space `apps/backend/src/lib/og.ts`, where it reads shop
- * logos. Adapted: every request goes through `fetchWithTimeout`, which checks
- * each redirect hop and every connection against private and reserved
- * addresses, in place of lmaa's own redirect loop and `isPublicFetchTarget`;
- * failures are logged through `log.deviation` with the host and the reason.
- * `detectPlatformFromHost` is ported for the sponsorship intake. lmaa's shop
- * link checker (`inspectImageUrl`) is not, because nothing in musiccloud calls
- * it. Not to be confused with `lib/server/og.ts`, which writes musiccloud's own
- * OpenGraph tags.
+ * logos. Adapted: every request goes through `fetchExternalResource` in
+ * `external-resource.ts`, which uses `fetchWithTimeout` to check each redirect
+ * hop and every connection against private and reserved addresses, in place of
+ * lmaa's own redirect loop and `isPublicFetchTarget`; failures are logged
+ * through `log.deviation` with the host and the reason. The image header
+ * parsers live in `image-dimensions.ts`, and lmaa's `detectPlatformFromHost`
+ * lives in `nodeinfo.ts`. lmaa's shop link checker (`inspectImageUrl`) is not
+ * ported, because nothing in musiccloud calls it. Not to be confused with
+ * `lib/server/og.ts`, which writes musiccloud's own OpenGraph tags.
  */
-import type { SocialPlatformKey } from "@musiccloud/shared";
+import { fetchExternalResource, HEADERS, hostForLog, LOG_COMPONENT, LOG_ERROR_CODE } from "./external-resource.js";
 import { readBodyPrefix, readJsonWithLimit, readTextPrefix } from "./http-body.js";
-import { fetchWithTimeout } from "./infra/fetch.js";
+import { parseImageDimensions, parseSvgDimensions } from "./image-dimensions.js";
 import { log } from "./infra/logger.js";
-
-/** Request headers of a desktop browser, because several sites refuse anything else. */
-const HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-  "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-  "Cache-Control": "no-cache",
-};
 
 /** File types that are never a usable picture: animations and favicon containers. */
 const SKIP_EXT = /\.(gif|ico)(\?|$)/i;
@@ -66,11 +58,6 @@ const MAX_HTML_BYTES = 512 * 1024;
 const MAX_IMAGE_HEADER_BYTES = 1024 * 1024;
 /** A web app manifest is a small JSON document. */
 const MAX_MANIFEST_BYTES = 256 * 1024;
-
-/** The component name every deviation of this module is logged under. */
-const LOG_COMPONENT = "PreviewImage";
-/** The error code of a recoverable deviation, as other backend services log it. */
-const LOG_ERROR_CODE = "MC-SYS-0001";
 
 /**
  * The word standing on its own, between separators or at either end.
@@ -187,20 +174,6 @@ const SVG_ACCEPTING_KINDS: ReadonlySet<CandidateKind> = new Set([
 ]);
 
 /**
- * The host of an address, for a log line that must not carry the whole address.
- *
- * @param url - Any address.
- * @returns The host, or `"invalid"` when the address cannot be parsed.
- */
-export function hostForLog(url: string): string {
-  try {
-    return new URL(url).host;
-  } catch {
-    return "invalid";
-  }
-}
-
-/**
  * Detects whether a URL looks like a logo asset rather than a content image.
  *
  * @param url - Absolute or relative image URL.
@@ -283,45 +256,6 @@ function resolveUrl(src: string, base: string): string | null {
 }
 
 /**
- * Fetches an external resource through the guarded outbound fetch.
- *
- * `fetchWithTimeout` checks every redirect hop and every connection against
- * private and reserved addresses and throws on a refusal, so a public URL
- * cannot bounce the backend into an internal target. A refusal, a timeout and
- * a network failure all end here as `null`.
- *
- * @param url - The address to fetch.
- * @param init - Request options such as headers. Redirects are followed.
- * @param timeoutMs - One budget for the whole redirect chain and reading the body.
- * @returns The response and the address it finally came from, or `null` when
- *   the request was refused or failed.
- */
-export async function fetchExternalResource(
-  url: string,
-  init: RequestInit,
-  timeoutMs: number,
-): Promise<{ response: Response; finalUrl: string } | null> {
-  try {
-    const response = await fetchWithTimeout(url, init, timeoutMs);
-    // The transport reports the address of the hop that answered. A response
-    // built by hand has none, and then the requested address is the answer.
-    return { response, finalUrl: response.url || url };
-  } catch (error) {
-    log.deviation(
-      {
-        component: LOG_COMPONENT,
-        errorCode: LOG_ERROR_CODE,
-        operation: "preview_image_fetch",
-        outcome: "resource_skipped",
-        host: hostForLog(url),
-      },
-      error,
-    );
-    return null;
-  }
-}
-
-/**
  * Reads the leading part of a page as text.
  *
  * @param url - The page's address.
@@ -348,253 +282,6 @@ async function fetchHtml(url: string): Promise<string | null> {
     return null;
   }
   return html;
-}
-
-/**
- * The software names NodeInfo reports, against the platform key they mean.
- *
- * Only names that have been seen answering are in here. A host running
- * something else is left alone rather than guessed at.
- */
-const SOFTWARE_TO_PLATFORM: Readonly<Record<string, SocialPlatformKey>> = {
-  pixelfed: "pixelfed",
-  mastodon: "mastodon",
-  friendica: "friendica",
-};
-
-/** How long each of the two NodeInfo requests may take: 6 seconds. */
-const NODEINFO_TIMEOUT_MS = 6000;
-
-/** The largest NodeInfo document read: 64 KiB. NodeInfo documents are small; anything larger is not one. */
-const MAX_NODEINFO_BYTES = 64 * 1024;
-
-/** Where every host that speaks NodeInfo lists its documents. */
-const NODEINFO_INDEX_PATH = "/.well-known/nodeinfo";
-
-/**
- * Asks a host which software it runs, through NodeInfo.
- *
- * A service anybody can host sits on a domain of its own and its profiles are a
- * single path segment, which is what a personal website looks like too, so the
- * address cannot say what it is. Its own pages cannot be trusted to either:
- * measured across twelve Pixelfed instances on 2026-08-24, their landing pages
- * carried no `generator` at all and their `og:site_name` was whatever the
- * operator had named the place, from "Pixey" to "FediSnap".
- *
- * NodeInfo is the fediverse's own answer to this question. All twelve reported
- * `pixelfed` with a version, and it is the same query for Mastodon or anything
- * else that speaks it.
- *
- * Two requests: the well-known document lists where the real one lives, and the
- * real one carries the software name. Both go through
- * {@link fetchExternalResource}, so neither can reach a private address.
- *
- * @param address - Any address on the host in question.
- * @returns The platform key, or `null` when the host speaks no NodeInfo or runs
- *   something not mapped in {@link SOFTWARE_TO_PLATFORM}.
- */
-export async function detectPlatformFromHost(address: string): Promise<SocialPlatformKey | null> {
-  let origin: string;
-  try {
-    origin = new URL(address).origin;
-  } catch {
-    return null;
-  }
-
-  const index = await fetchNodeinfoJson<{ links?: unknown }>(`${origin}${NODEINFO_INDEX_PATH}`);
-  if (!index || !Array.isArray(index.links)) return null;
-
-  // The last link is the newest schema the host offers, which is the one to ask.
-  const hrefs = index.links
-    .map((link) => (link && typeof link === "object" ? (link as Record<string, unknown>).href : undefined))
-    .filter((href): href is string => typeof href === "string");
-  const href = hrefs.at(-1);
-  if (!href) return null;
-
-  const document = await fetchNodeinfoJson<{ software?: unknown }>(href);
-  const software = document?.software;
-  const name = software && typeof software === "object" ? (software as Record<string, unknown>).name : undefined;
-  if (typeof name !== "string") return null;
-
-  return SOFTWARE_TO_PLATFORM[name.trim().toLowerCase()] ?? null;
-}
-
-/**
- * Reads one NodeInfo document.
- *
- * @param url - The document's address.
- * @returns The parsed body, or `null` on any failure, including a body over
- *   {@link MAX_NODEINFO_BYTES}.
- */
-async function fetchNodeinfoJson<T>(url: string): Promise<T | null> {
-  const result = await fetchExternalResource(
-    url,
-    { headers: { "User-Agent": HEADERS["User-Agent"], Accept: "application/json" } },
-    NODEINFO_TIMEOUT_MS,
-  );
-  if (!result?.response.ok) return null;
-  try {
-    return await readJsonWithLimit<T>(result.response, MAX_NODEINFO_BYTES);
-  } catch (error) {
-    log.deviation(
-      {
-        component: LOG_COMPONENT,
-        errorCode: LOG_ERROR_CODE,
-        operation: "nodeinfo_lookup",
-        outcome: "document_unreadable",
-        host: hostForLog(url),
-      },
-      error,
-    );
-    return null;
-  }
-}
-
-// === Image header probe ===
-// Parses the native header bytes of common web image formats and returns the
-// real pixel dimensions. Designed to work on the first ~32 KB of a file. The
-// byte offsets and marker values below are those the format specifications
-// define, each named in the comment beside it.
-
-/**
- * Parses image dimensions from the header bytes of PNG, JPEG, GIF and WebP files.
- *
- * @param buf - Raw bytes of an image. The first few KB are sufficient for all supported formats.
- * @returns `{ width, height }` in pixels, or `null` when the format is unrecognised or malformed.
- */
-export function parseImageDimensions(buf: Uint8Array): { width: number; height: number } | null {
-  // PNG: 8-byte signature, then 4-byte chunk length, "IHDR", 4-byte width, 4-byte height (big-endian)
-  if (
-    buf.length >= 24 &&
-    buf[0] === 0x89 &&
-    buf[1] === 0x50 &&
-    buf[2] === 0x4e &&
-    buf[3] === 0x47 &&
-    buf[4] === 0x0d &&
-    buf[5] === 0x0a &&
-    buf[6] === 0x1a &&
-    buf[7] === 0x0a
-  ) {
-    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-    return { width: view.getUint32(16), height: view.getUint32(20) };
-  }
-
-  // JPEG: SOI (FFD8), then walk segments until a SOFn marker (FFC0..FFCF, except DHT/JPG/DAC)
-  if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xd8) {
-    let offset = 2;
-    while (offset + 9 < buf.length) {
-      if (buf[offset] !== 0xff) return null;
-      let marker = buf[offset + 1];
-      // Skip fill bytes
-      while (marker === 0xff && offset + 2 < buf.length) {
-        offset++;
-        marker = buf[offset + 1];
-      }
-      // Standalone markers without length payload
-      if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) {
-        offset += 2;
-        continue;
-      }
-      // SOF markers (frame headers) carry width + height. Skip DHT (C4), JPG (C8), DAC (CC).
-      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
-        if (offset + 9 >= buf.length) return null;
-        const view = new DataView(buf.buffer, buf.byteOffset + offset + 5, 4);
-        return { height: view.getUint16(0), width: view.getUint16(2) };
-      }
-      // Other segments: 2-byte length follows marker
-      if (offset + 3 >= buf.length) return null;
-      const segmentLength = (buf[offset + 2] << 8) | buf[offset + 3];
-      if (segmentLength < 2) return null;
-      offset += 2 + segmentLength;
-    }
-    return null;
-  }
-
-  // GIF87a / GIF89a: width and height as little-endian 16-bit at offsets 6, 8
-  if (
-    buf.length >= 10 &&
-    buf[0] === 0x47 &&
-    buf[1] === 0x49 &&
-    buf[2] === 0x46 &&
-    buf[3] === 0x38 &&
-    (buf[4] === 0x37 || buf[4] === 0x39) &&
-    buf[5] === 0x61
-  ) {
-    return {
-      width: buf[6] | (buf[7] << 8),
-      height: buf[8] | (buf[9] << 8),
-    };
-  }
-
-  // WebP: "RIFF" .... "WEBP" then one of "VP8 ", "VP8L", "VP8X"
-  if (
-    buf.length >= 30 &&
-    buf[0] === 0x52 &&
-    buf[1] === 0x49 &&
-    buf[2] === 0x46 &&
-    buf[3] === 0x46 &&
-    buf[8] === 0x57 &&
-    buf[9] === 0x45 &&
-    buf[10] === 0x42 &&
-    buf[11] === 0x50
-  ) {
-    const fourcc = String.fromCharCode(buf[12], buf[13], buf[14], buf[15]);
-
-    if (fourcc === "VP8 ") {
-      // Lossy: 3-byte frame tag + sync code 9d 01 2a + width(14) + height(14), little-endian
-      if (buf[23] !== 0x9d || buf[24] !== 0x01 || buf[25] !== 0x2a) return null;
-      const width = (buf[26] | (buf[27] << 8)) & 0x3fff;
-      const height = (buf[28] | (buf[29] << 8)) & 0x3fff;
-      return { width, height };
-    }
-
-    if (fourcc === "VP8L") {
-      // Lossless: signature byte 0x2f at offset 20, then 14-bit width-1, 14-bit height-1
-      if (buf[20] !== 0x2f) return null;
-      const b0 = buf[21];
-      const b1 = buf[22];
-      const b2 = buf[23];
-      const b3 = buf[24];
-      const width = (((b1 & 0x3f) << 8) | b0) + 1;
-      const height = (((b3 & 0x0f) << 10) | (b2 << 2) | (b1 >> 6)) + 1;
-      return { width, height };
-    }
-
-    if (fourcc === "VP8X") {
-      // Extended: 24-bit canvas width-1 at offset 24, height-1 at offset 27 (all little-endian)
-      const width = (buf[24] | (buf[25] << 8) | (buf[26] << 16)) + 1;
-      const height = (buf[27] | (buf[28] << 8) | (buf[29] << 16)) + 1;
-      return { width, height };
-    }
-
-    return null;
-  }
-
-  return null;
-}
-
-/**
- * Reads the size an SVG declares, from its `viewBox` or else from its
- * `width` and `height` attributes.
- *
- * @param buf - The leading bytes of the file.
- * @returns `{ width, height }` in user units, or `null` when it is no SVG or
- *   declares no positive size.
- */
-function parseSvgDimensions(buf: Uint8Array): { width: number; height: number } | null {
-  const svg = new TextDecoder().decode(buf);
-  if (!/<svg\b/i.test(svg)) return null;
-
-  const viewBox = svg.match(/\bviewBox=["']\s*[-\d.]+[ ,]+[-\d.]+[ ,]+([\d.]+)[ ,]+([\d.]+)\s*["']/i);
-  if (viewBox) {
-    const width = Number(viewBox[1]);
-    const height = Number(viewBox[2]);
-    if (width > 0 && height > 0) return { width, height };
-  }
-
-  const width = Number(svg.match(/\bwidth=["']([\d.]+)/i)?.[1]);
-  const height = Number(svg.match(/\bheight=["']([\d.]+)/i)?.[1]);
-  return width > 0 && height > 0 ? { width, height } : null;
 }
 
 /**

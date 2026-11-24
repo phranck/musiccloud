@@ -9,13 +9,15 @@
  *     and short-URL assignment.
  *   - External-id ingestion (migration `0019`) against the canonical
  *     `artist_entities.id`.
- *   - JSON cache (profile / top-tracks / events) keyed by either a legacy
- *     display name or an explicit normalized artist entity, plus cross-artist
- *     alias resolution from cached top-tracks.
- *   - Identity-event timeline (birth / death / formed / disbanded) used
- *     by the "today in music" feature.
- *   - Group-membership lookups in either direction (group ↔ members).
  *   - Share-page projection for the public artist endpoint.
+ *
+ * Re-exported from sibling modules, so importers keep using this one:
+ *   - JSON cache (profile / top-tracks / events) and the cross-artist alias
+ *     lookup over cached top tracks, in `postgres-artist-cache.ts`.
+ *   - Identity-event timeline (birth / death / formed / disbanded) used by
+ *     the "today in music" feature, group-membership lookups in either
+ *     direction, and the entity lookup by provider identifier, in
+ *     `postgres-artist-identity-reads.ts`.
  *
  * Excludes:
  *   - Admin CRUD on artists and artist-entities (see
@@ -26,17 +28,9 @@
  *     tracks + albums (see `postgres-shared.ts`).
  */
 
-import type { ArtistProfileProvider } from "@musiccloud/shared";
 import type { Pool } from "pg";
-import { CACHE_TTL_MS } from "../../lib/config.js";
 import type { NormalizedArtist, TrackSource } from "../../services/types.js";
 import type {
-  ArtistCacheData,
-  ArtistCacheIdentity,
-  ArtistCacheRow,
-  ArtistGroupMembershipRecord,
-  ArtistIdentityEventRecord,
-  ArtistIdentityEventType,
   ArtistInfoEntity,
   CachedArtistResult,
   ExternalIdRecord,
@@ -54,11 +48,24 @@ import {
   insertExternalIds,
   type ServiceLinkWrite,
   safeParseArray,
-  safeParseJson,
-  UNNAMED_ARTIST_NAME,
   upsertServiceLinks,
 } from "./postgres-shared.js";
 import { mintShortUrl } from "./short-url.js";
+
+export {
+  cleanupStaleCache,
+  findArtistCache,
+  findArtistInfoAliasByShortId,
+  saveArtistCache,
+} from "./postgres-artist-cache.js";
+export {
+  findArtistEntityIdByIdentifier,
+  listArtistGroupMembers,
+  listArtistIdentityEventsByDay,
+  listArtistMemberships,
+  rowToArtistGroupMembership,
+  rowToArtistIdentityEvent,
+} from "./postgres-artist-identity-reads.js";
 
 // ============================================================================
 // ROW TYPES
@@ -96,64 +103,9 @@ export interface ArtistWithLinkRow extends ArtistRow {
   short_id: string | null;
 }
 
-interface ArtistCacheRowDb {
-  artist_name: string;
-  top_tracks: string | null;
-  profile: string | null;
-  profile_providers: string[] | null;
-  events: string | null;
-  tracks_updated_at: Date | null;
-  profile_updated_at: Date | null;
-  events_updated_at: Date | null;
-}
-
 interface ArtistInfoEntityRow {
   artist_entity_id: string;
   artist_name: string;
-}
-
-interface ArtistIdentityEventSqlRow {
-  event_id: string;
-  artist_entity_id: string;
-  entity_type: ArtistIdentityEventRecord["entityType"];
-  verification_status: ArtistIdentityEventRecord["verificationStatus"];
-  display_name: string;
-  event_type: ArtistIdentityEventRecord["eventType"];
-  date_value: string | null;
-  date_precision: ArtistIdentityEventRecord["datePrecision"];
-  event_year: number | null;
-  event_month: number | null;
-  event_day: number | null;
-  place_name: string | null;
-  country_code: string | null;
-  source_provider: string | null;
-  source_url: string | null;
-  confidence: number | null;
-}
-
-interface ArtistGroupMembershipSqlRow {
-  membership_id: string;
-  group_artist_entity_id: string;
-  group_name: string;
-  member_artist_entity_id: string;
-  member_name: string;
-  member_name_credit: string | null;
-  roles: string[] | null;
-  begin_date: string | null;
-  begin_date_precision: ArtistGroupMembershipRecord["beginDatePrecision"];
-  begin_year: number | null;
-  begin_month: number | null;
-  begin_day: number | null;
-  end_date: string | null;
-  end_date_precision: ArtistGroupMembershipRecord["endDatePrecision"];
-  end_year: number | null;
-  end_month: number | null;
-  end_day: number | null;
-  is_current: boolean | null;
-  source_provider: string | null;
-  source_url: string | null;
-  source_fetched_at: Date | null;
-  confidence: number | null;
 }
 
 // ============================================================================
@@ -472,486 +424,6 @@ export async function addArtistExternalIds(pool: Pool, artistId: string, records
 }
 
 // ============================================================================
-// JSON CACHE
-// ============================================================================
-
-/**
- * Returns the cached profile / top-tracks / events JSON blobs for a
- * given name or normalized entity, or null when nothing is cached.
- *
- * The three blobs and their per-field timestamps are partial: a row may
- * have only `profile` populated, only `top_tracks`, etc., depending on
- * which sub-cache last fetched the artist. The `*UpdatedAt` fields are
- * `0` when their corresponding blob has not been written yet.
- *
- * @param pool - Postgres connection pool.
- * @param identity - Cache identity. Entity identities use a namespace that is
- * disjoint from legacy name-keyed records.
- * @returns Parsed cache row, or null.
- */
-export async function findArtistCache(pool: Pool, identity: ArtistCacheIdentity): Promise<ArtistCacheRow | null> {
-  const result = await pool.query(
-    `SELECT artist_name, profile, profile_providers, top_tracks, events,
-            profile_updated_at, tracks_updated_at, events_updated_at
-     FROM artist_cache WHERE id = $1`,
-    [artistCacheId(identity)],
-  );
-
-  if (result.rows.length === 0) return null;
-  const row = result.rows[0] as ArtistCacheRowDb;
-
-  return {
-    artistName: row.artist_name,
-    profile: safeParseJson(row.profile, null),
-    profileProviders: (row.profile_providers ?? []).filter(isArtistProfileProvider),
-    topTracks: safeParseJson(row.top_tracks, []),
-    events: safeParseJson(row.events, []),
-    profileUpdatedAt: row.profile_updated_at ? dateToMs(row.profile_updated_at) : 0,
-    tracksUpdatedAt: row.tracks_updated_at ? dateToMs(row.tracks_updated_at) : 0,
-    eventsUpdatedAt: row.events_updated_at ? dateToMs(row.events_updated_at) : 0,
-  };
-}
-
-/**
- * Cross-artist alias resolver used by the share-page info widget.
- *
- * Walks every track / album link reachable from the given `shortId` and
- * searches `artist_cache.top_tracks` for any cached artist whose top
- * tracks ILIKE one of those link URLs. Used to surface "this track also
- * appears in <other artist>'s discography" hints when the requested
- * artist is not the credited one.
- *
- * Excludes the requested artist itself and prefers names that contain
- * the requested name as a substring (most likely re-issues / aliases).
- *
- * @param pool - Postgres connection pool.
- * @param shortId - Track or album short-id used to seed the link set.
- * @param artistName - Currently-requested artist (lowercased, excluded
- *   from the result).
- * @returns A candidate alias name, or null when no alternate match is found.
- */
-export async function findArtistInfoAliasByShortId(
-  pool: Pool,
-  shortId: string,
-  artistName: string,
-): Promise<string | null> {
-  const requestedName = artistName.trim().toLowerCase();
-  if (!shortId || !requestedName) return null;
-
-  const result = await pool.query(
-    `WITH target_links AS (
-       SELECT sl.url
-       FROM short_urls su
-       JOIN service_links sl ON sl.track_id = su.track_id
-       WHERE su.id = $1 AND sl.url IS NOT NULL
-       UNION
-       SELECT asl.url
-       FROM album_short_urls asu
-       JOIN album_service_links asl ON asl.album_id = asu.album_id
-       WHERE asu.id = $1 AND asl.url IS NOT NULL
-     ),
-     matches AS (
-       SELECT DISTINCT ac.artist_name
-       FROM artist_cache ac
-       JOIN target_links tl ON ac.top_tracks ILIKE '%' || tl.url || '%'
-       WHERE ac.artist_name <> $2
-     )
-     SELECT artist_name
-     FROM matches
-     ORDER BY
-       CASE WHEN artist_name LIKE '%' || $2 || '%' THEN 0 ELSE 1 END,
-       length(artist_name) DESC
-     LIMIT 1`,
-    [shortId, requestedName],
-  );
-
-  const alias = result.rows[0]?.artist_name;
-  return typeof alias === "string" && alias.trim() ? alias : null;
-}
-
-/**
- * Upserts an artist-cache row, persisting only the sub-blobs the caller
- * explicitly provided.
- *
- * Distinguishes "field omitted" from "field set to null" via
- * `Object.hasOwn`: only blobs whose key is present on `data` are
- * written, so partial updates do not clobber sibling blobs that were
- * cached by a previous call.
- *
- * @param pool - Postgres connection pool.
- * @param data - Partial cache payload.
- */
-export async function saveArtistCache(pool: Pool, data: ArtistCacheData): Promise<void> {
-  const now = new Date();
-  const id = artistCacheId(data.identity);
-  const hasProfile = Object.hasOwn(data, "profile");
-  const hasTopTracks = Object.hasOwn(data, "topTracks");
-  const hasEvents = Object.hasOwn(data, "events");
-  const profileUpdatedAt = hasProfile ? new Date(data.profileUpdatedAt ?? now.getTime()) : null;
-  const tracksUpdatedAt = hasTopTracks ? new Date(data.tracksUpdatedAt ?? now.getTime()) : null;
-  const eventsUpdatedAt = hasEvents ? new Date(data.eventsUpdatedAt ?? now.getTime()) : null;
-
-  await pool.query(
-    `INSERT INTO artist_cache (
-      id, artist_name, profile, profile_providers, top_tracks, events,
-      profile_updated_at, tracks_updated_at, events_updated_at,
-      created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    ON CONFLICT (id) DO UPDATE SET
-      artist_name = EXCLUDED.artist_name,
-      profile = CASE WHEN $12 AND (artist_cache.profile_updated_at IS NULL OR artist_cache.profile_updated_at <= EXCLUDED.profile_updated_at) THEN EXCLUDED.profile ELSE artist_cache.profile END,
-      profile_providers = CASE WHEN $12 AND (artist_cache.profile_updated_at IS NULL OR artist_cache.profile_updated_at <= EXCLUDED.profile_updated_at) THEN EXCLUDED.profile_providers ELSE artist_cache.profile_providers END,
-      top_tracks = CASE WHEN $13 AND (artist_cache.tracks_updated_at IS NULL OR artist_cache.tracks_updated_at <= EXCLUDED.tracks_updated_at) THEN EXCLUDED.top_tracks ELSE artist_cache.top_tracks END,
-      events = CASE WHEN $14 AND (artist_cache.events_updated_at IS NULL OR artist_cache.events_updated_at <= EXCLUDED.events_updated_at) THEN EXCLUDED.events ELSE artist_cache.events END,
-      profile_updated_at = CASE WHEN $12 AND (artist_cache.profile_updated_at IS NULL OR artist_cache.profile_updated_at <= EXCLUDED.profile_updated_at) THEN EXCLUDED.profile_updated_at ELSE artist_cache.profile_updated_at END,
-      tracks_updated_at = CASE WHEN $13 AND (artist_cache.tracks_updated_at IS NULL OR artist_cache.tracks_updated_at <= EXCLUDED.tracks_updated_at) THEN EXCLUDED.tracks_updated_at ELSE artist_cache.tracks_updated_at END,
-      events_updated_at = CASE WHEN $14 AND (artist_cache.events_updated_at IS NULL OR artist_cache.events_updated_at <= EXCLUDED.events_updated_at) THEN EXCLUDED.events_updated_at ELSE artist_cache.events_updated_at END,
-      updated_at = EXCLUDED.updated_at`,
-    [
-      id,
-      data.artistName,
-      hasProfile && data.profile ? JSON.stringify(data.profile) : null,
-      hasProfile ? (data.profileProviders ?? []) : [],
-      hasTopTracks && data.topTracks ? JSON.stringify(data.topTracks) : null,
-      hasEvents && data.events ? JSON.stringify(data.events) : null,
-      profileUpdatedAt,
-      tracksUpdatedAt,
-      eventsUpdatedAt,
-      now,
-      now,
-      hasProfile,
-      hasTopTracks,
-      hasEvents,
-    ],
-  );
-}
-
-function isArtistProfileProvider(value: string): value is ArtistProfileProvider {
-  return value === "spotify" || value === "deezer" || value === "lastfm";
-}
-
-/**
- * Maps a typed artist-info cache identity to its primary key.
- *
- * Legacy cache rows retain their historical `artist-${name}` key. Entity rows
- * use `artistEntity:` rather than another `artist-` prefix, making both
- * namespaces structurally disjoint even when a display name resembles an id.
- */
-function artistCacheId(identity: ArtistCacheIdentity): string {
-  return identity.kind === "entity" ? `artistEntity:${identity.artistEntityId}` : `artist-${identity.artistName}`;
-}
-
-/**
- * Drops every artist-cache row older than `CACHE_TTL_MS`.
- *
- * Used by the adapter's recurring cleanup interval and from the admin
- * "clear artist cache" tool.
- *
- * @param pool - Postgres connection pool.
- * @returns Number of rows deleted.
- */
-export async function cleanupStaleCache(pool: Pool): Promise<number> {
-  const cutoff = new Date(Date.now() - CACHE_TTL_MS);
-
-  const result = await pool.query(
-    `DELETE FROM artist_cache
-     WHERE updated_at < $1
-     RETURNING id`,
-    [cutoff],
-  );
-
-  return result.rowCount ?? 0;
-}
-
-// ============================================================================
-// IDENTITY EVENTS
-// ============================================================================
-
-/**
- * Returns the day-precision identity events (birth / death / formed /
- * disbanded) for a given month + day across all artist-entities.
- *
- * Filters:
- *   - `eventTypes` defaults to `["birth", "death"]` when omitted/empty.
- *   - `entity_type` must align with event type (people / personae for
- *     birth+death, groups for formed+disbanded).
- *   - `catalogOnly` restricts the result to entities credited on at
- *     least one track / album in the catalogue, transitively via group
- *     memberships.
- *
- * The locale parameter (`$5`) is used to pick the best display name and
- * place name via two lateral joins, falling back to canonical-name then
- * any-name when no locale-tagged variant exists.
- *
- * @param pool - Postgres connection pool.
- * @param params - Filter parameters; see fields above.
- * @returns Matching identity-event records, ordered by event type then
- *   display name.
- */
-export async function listArtistIdentityEventsByDay(
-  pool: Pool,
-  params: {
-    month: number;
-    day: number;
-    locale?: string;
-    eventTypes?: ArtistIdentityEventType[];
-    catalogOnly?: boolean;
-  },
-): Promise<ArtistIdentityEventRecord[]> {
-  const eventTypes = params.eventTypes && params.eventTypes.length > 0 ? params.eventTypes : ["birth", "death"];
-  const locale = params.locale ?? null;
-  const catalogOnly = params.catalogOnly ?? false;
-
-  const result = await pool.query<ArtistIdentityEventSqlRow>(
-    `SELECT
-       ev.id AS event_id,
-       ae.id AS artist_entity_id,
-       ae.entity_type,
-       ae.verification_status,
-       COALESCE(entity_name.name, '${UNNAMED_ARTIST_NAME}') AS display_name,
-       ev.event_type,
-       ev.date_value::text AS date_value,
-       ev.date_precision,
-       ev.event_year,
-       ev.event_month,
-       ev.event_day,
-       place_name.name AS place_name,
-       p.country_code,
-       src.provider AS source_provider,
-       src.source_url,
-       ev.confidence
-     FROM artist_entity_events ev
-     JOIN artist_entities ae ON ae.id = ev.artist_entity_id
-     LEFT JOIN LATERAL (
-       SELECT n.name
-       FROM artist_entity_names n
-       WHERE n.artist_entity_id = ae.id
-       ORDER BY
-         CASE
-           WHEN n.locale = $5 AND n.name_type = 'canonical' THEN 0
-           WHEN n.locale IS NULL AND n.name_type = 'canonical' THEN 1
-           WHEN n.name_type = 'canonical' THEN 2
-           WHEN n.locale = $5 THEN 3
-           WHEN n.locale IS NULL THEN 4
-           ELSE 5
-         END,
-         n.created_at ASC
-       LIMIT 1
-     ) entity_name ON TRUE
-     LEFT JOIN places p ON p.id = ev.place_id
-     LEFT JOIN LATERAL (
-       SELECT pn.name
-       FROM place_names pn
-       WHERE pn.place_id = p.id
-       ORDER BY
-         CASE
-           WHEN pn.locale = $5 THEN 0
-           WHEN pn.locale IS NULL THEN 1
-           ELSE 2
-         END,
-         pn.created_at ASC
-       LIMIT 1
-     ) place_name ON TRUE
-     LEFT JOIN artist_sources src ON src.id = ev.source_id
-     WHERE ev.event_type = ANY($1::text[])
-       AND ev.date_precision = 'day'
-       AND ev.event_month = $2
-       AND ev.event_day = $3
-       AND (
-         (ev.event_type IN ('birth', 'death') AND ae.entity_type IN ('person', 'persona'))
-         OR (ev.event_type IN ('formed', 'disbanded') AND ae.entity_type = 'group')
-       )
-       AND (
-         $4::boolean = false
-         OR EXISTS (
-           SELECT 1 FROM track_artist_credits tac WHERE tac.artist_entity_id = ae.id
-         )
-         OR EXISTS (
-           SELECT 1 FROM album_artist_credits aac WHERE aac.artist_entity_id = ae.id
-         )
-         OR EXISTS (
-           SELECT 1
-           FROM artist_group_memberships agm
-           WHERE agm.member_artist_entity_id = ae.id
-             AND (
-               EXISTS (
-                 SELECT 1 FROM track_artist_credits gtac WHERE gtac.artist_entity_id = agm.group_artist_entity_id
-               )
-               OR EXISTS (
-                 SELECT 1 FROM album_artist_credits gaac WHERE gaac.artist_entity_id = agm.group_artist_entity_id
-               )
-             )
-         )
-       )
-     ORDER BY ev.event_type ASC, display_name ASC`,
-    [eventTypes, params.month, params.day, catalogOnly, locale],
-  );
-
-  return result.rows.map(rowToArtistIdentityEvent);
-}
-
-// ============================================================================
-// GROUP MEMBERSHIPS
-// ============================================================================
-
-/**
- * Lists every member of the given group artist-entity.
- *
- * @param pool - Postgres connection pool.
- * @param groupArtistEntityId - Artist-entity id of the group.
- * @param locale - Preferred locale for member / group display names.
- * @returns Membership records.
- */
-export async function listArtistGroupMembers(
-  pool: Pool,
-  groupArtistEntityId: string,
-  locale?: string,
-): Promise<ArtistGroupMembershipRecord[]> {
-  return listArtistGroupMemberships(pool, "group", groupArtistEntityId, locale);
-}
-
-/**
- * Lists every group that the given member artist-entity belongs to.
- *
- * @param pool - Postgres connection pool.
- * @param memberArtistEntityId - Artist-entity id of the member.
- * @param locale - Preferred locale for member / group display names.
- * @returns Membership records.
- */
-export async function listArtistMemberships(
-  pool: Pool,
-  memberArtistEntityId: string,
-  locale?: string,
-): Promise<ArtistGroupMembershipRecord[]> {
-  return listArtistGroupMemberships(pool, "member", memberArtistEntityId, locale);
-}
-
-/**
- * Resolves an artist-entity-id from a `(provider, external_id)` pair via
- * the `artist_entity_identifiers` catalogue.
- *
- * @param pool - Postgres connection pool.
- * @param provider - Provider key (e.g., `"musicbrainz"`, `"spotify"`).
- * @param externalId - Provider-side identifier.
- * @returns The artist-entity-id, or null when no record matches.
- */
-export async function findArtistEntityIdByIdentifier(
-  pool: Pool,
-  provider: string,
-  externalId: string,
-): Promise<string | null> {
-  const result = await pool.query<{ artist_entity_id: string }>(
-    `SELECT artist_entity_id
-     FROM artist_entity_identifiers
-     WHERE provider = $1 AND external_id = $2
-     LIMIT 1`,
-    [provider, externalId],
-  );
-  return result.rows[0]?.artist_entity_id ?? null;
-}
-
-/**
- * Shared backend for {@link listArtistGroupMembers} and
- * {@link listArtistMemberships}: returns membership rows filtered by
- * either the group side or the member side of the relation.
- *
- * Orders current memberships first, then by begin-year ascending, then
- * by member / group display name. Roles are aggregated into a sorted
- * string array.
- *
- * @param pool - Postgres connection pool.
- * @param direction - `"group"` to filter by the group side,
- *   `"member"` to filter by the member side.
- * @param artistEntityId - Artist-entity id on the chosen side.
- * @param locale - Preferred locale for display names.
- */
-async function listArtistGroupMemberships(
-  pool: Pool,
-  direction: "group" | "member",
-  artistEntityId: string,
-  locale?: string,
-): Promise<ArtistGroupMembershipRecord[]> {
-  const whereColumn = direction === "group" ? "agm.group_artist_entity_id" : "agm.member_artist_entity_id";
-  const result = await pool.query<ArtistGroupMembershipSqlRow>(
-    `SELECT
-       agm.id AS membership_id,
-       agm.group_artist_entity_id,
-       COALESCE(group_name.name, '[unnamed group]') AS group_name,
-       agm.member_artist_entity_id,
-       COALESCE(member_name.name, agm.member_name_credit, '[unnamed member]') AS member_name,
-       agm.member_name_credit,
-       array_remove(array_agg(role.role ORDER BY role.role), NULL) AS roles,
-       agm.begin_date::text AS begin_date,
-       agm.begin_date_precision,
-       agm.begin_year,
-       agm.begin_month,
-       agm.begin_day,
-       agm.end_date::text AS end_date,
-       agm.end_date_precision,
-       agm.end_year,
-       agm.end_month,
-       agm.end_day,
-       agm.is_current,
-       src.provider AS source_provider,
-       src.source_url,
-       src.fetched_at AS source_fetched_at,
-       agm.confidence
-     FROM artist_group_memberships agm
-     JOIN artist_entities group_entity ON group_entity.id = agm.group_artist_entity_id
-     JOIN artist_entities member_entity ON member_entity.id = agm.member_artist_entity_id
-     LEFT JOIN LATERAL (
-       SELECT n.name
-       FROM artist_entity_names n
-       WHERE n.artist_entity_id = group_entity.id
-       ORDER BY
-         CASE
-           WHEN n.locale = $2 AND n.name_type = 'canonical' THEN 0
-           WHEN n.locale IS NULL AND n.name_type = 'canonical' THEN 1
-           WHEN n.name_type = 'canonical' THEN 2
-           WHEN n.locale = $2 THEN 3
-           WHEN n.locale IS NULL THEN 4
-           ELSE 5
-         END,
-         n.created_at ASC
-       LIMIT 1
-     ) group_name ON TRUE
-     LEFT JOIN LATERAL (
-       SELECT n.name
-       FROM artist_entity_names n
-       WHERE n.artist_entity_id = member_entity.id
-       ORDER BY
-         CASE
-           WHEN n.locale = $2 AND n.name_type = 'canonical' THEN 0
-           WHEN n.locale IS NULL AND n.name_type = 'canonical' THEN 1
-           WHEN n.name_type = 'canonical' THEN 2
-           WHEN n.locale = $2 THEN 3
-           WHEN n.locale IS NULL THEN 4
-           ELSE 5
-         END,
-         n.created_at ASC
-       LIMIT 1
-     ) member_name ON TRUE
-     LEFT JOIN artist_group_membership_roles role ON role.membership_id = agm.id
-     LEFT JOIN artist_sources src ON src.id = agm.source_id
-     WHERE ${whereColumn} = $1
-     GROUP BY
-       agm.id,
-       group_name.name,
-       member_name.name,
-       src.provider,
-       src.source_url,
-       src.fetched_at
-     ORDER BY
-       COALESCE(agm.is_current, false) DESC,
-       agm.begin_year ASC NULLS LAST,
-       member_name ASC,
-       group_name ASC`,
-    [artistEntityId, locale ?? null],
-  );
-  return result.rows.map(rowToArtistGroupMembership);
-}
-
-// ============================================================================
 // RESULT BUILDERS
 // ============================================================================
 
@@ -998,70 +470,5 @@ export function buildCachedArtistResult(rows: ArtistWithLinkRow[]): CachedArtist
     artist,
     links,
     updatedAt: dateToMs(firstRow.updated_at),
-  };
-}
-
-// ============================================================================
-// ROW MAPPERS
-// ============================================================================
-
-/**
- * Maps a raw identity-event SQL row to the public
- * {@link ArtistIdentityEventRecord} shape.
- *
- * @param row - Raw row from {@link listArtistIdentityEventsByDay}.
- */
-export function rowToArtistIdentityEvent(row: ArtistIdentityEventSqlRow): ArtistIdentityEventRecord {
-  return {
-    eventId: row.event_id,
-    artistEntityId: row.artist_entity_id,
-    entityType: row.entity_type,
-    verificationStatus: row.verification_status,
-    displayName: row.display_name,
-    eventType: row.event_type,
-    dateValue: row.date_value,
-    datePrecision: row.date_precision,
-    eventYear: row.event_year,
-    eventMonth: row.event_month,
-    eventDay: row.event_day,
-    placeName: row.place_name,
-    countryCode: row.country_code,
-    sourceProvider: row.source_provider,
-    sourceUrl: row.source_url,
-    confidence: row.confidence,
-  };
-}
-
-/**
- * Maps a raw group-membership SQL row to the public
- * {@link ArtistGroupMembershipRecord} shape, with a guaranteed roles
- * array (null becomes `[]`).
- *
- * @param row - Raw row from {@link listArtistGroupMemberships}.
- */
-export function rowToArtistGroupMembership(row: ArtistGroupMembershipSqlRow): ArtistGroupMembershipRecord {
-  return {
-    membershipId: row.membership_id,
-    groupArtistEntityId: row.group_artist_entity_id,
-    groupName: row.group_name,
-    memberArtistEntityId: row.member_artist_entity_id,
-    memberName: row.member_name,
-    memberNameCredit: row.member_name_credit,
-    roles: row.roles ?? [],
-    beginDate: row.begin_date,
-    beginDatePrecision: row.begin_date_precision,
-    beginYear: row.begin_year,
-    beginMonth: row.begin_month,
-    beginDay: row.begin_day,
-    endDate: row.end_date,
-    endDatePrecision: row.end_date_precision,
-    endYear: row.end_year,
-    endMonth: row.end_month,
-    endDay: row.end_day,
-    isCurrent: row.is_current,
-    sourceProvider: row.source_provider,
-    sourceUrl: row.source_url,
-    sourceFetchedAt: row.source_fetched_at ? dateToMs(row.source_fetched_at) : null,
-    confidence: row.confidence,
   };
 }

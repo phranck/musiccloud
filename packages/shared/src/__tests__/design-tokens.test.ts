@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { CARD_RADIUS_DEFAULT, DESIGN_TOKENS_DEFAULTS, parseDesignTokens, SHADER_DEFAULTS } from "../design-tokens.js";
+import {
+  CARD_RADIUS_DEFAULT,
+  DESIGN_TOKENS_DEFAULTS,
+  parseDesignTokens,
+  SHADER_DEFAULTS,
+} from "../design-tokens/index.js";
 
 /** A minimal but valid prototype-shaped export used as a mutation base. */
 function validExport(): Record<string, unknown> {

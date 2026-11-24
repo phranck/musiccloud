@@ -9,7 +9,7 @@ import {
   normalizeSocialMediaLinks,
   normalizeSocialMediaValue,
   SOCIAL_PLATFORM_KEYS,
-} from "./social-media.js";
+} from "./index.js";
 
 describe("Discord social media support", () => {
   it("exposes Discord as a supported social platform", () => {

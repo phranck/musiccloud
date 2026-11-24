@@ -10,9 +10,10 @@
 
 import { Jimp } from "jimp";
 
+import { fetchExternalResource, hostForLog } from "../lib/external-resource.js";
 import { readBodyWithLimit } from "../lib/http-body.js";
+import { parseImageDimensions } from "../lib/image-dimensions.js";
 import { log } from "../lib/infra/logger.js";
-import { fetchExternalResource, hostForLog, parseImageDimensions } from "../lib/preview-image.js";
 import { storeSponsorAvatar } from "./sponsor-avatars.js";
 
 /** How long downloading the picture may take, redirects and body included. */

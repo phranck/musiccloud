@@ -59,7 +59,7 @@ dimmed except for the recessed rim's edge shadow (see `SlideArtwork`).
 ## Wire ALL structural settings — never hardcode
 
 Paddings, gaps, radii, insets, and per-surface glass / typography values are design
-tokens (see the `DesignTokens` model in `packages/shared/src/design-tokens.ts` and
+tokens (see the `DesignTokens` model in `packages/shared/src/design-tokens/model.ts` and
 the SSR-injected `--mc-*` / glass vars). Every surface must consume them through the
 cascade / tokens — **never ad-hoc Tailwind constants** that drift from the token
 model. When building or editing a screen, verify that **every** structural value
