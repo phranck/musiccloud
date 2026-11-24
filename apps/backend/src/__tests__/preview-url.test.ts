@@ -4,6 +4,7 @@ import {
   getPreviewExpiry,
   isExpiredDeezerPreviewUrl,
   pickPreferredPreview,
+  previewObservation,
 } from "../lib/preview-url.js";
 
 describe("preview-url", () => {
@@ -46,6 +47,19 @@ describe("preview-url", () => {
 
     expect(getPreviewExpiry(url, "deezer")).toBe(1772793731000);
     expect(getPreviewExpiry("https://example.com/preview.mp3", "spotify")).toBeNull();
+  });
+
+  it("builds a preview observation with the signed expiry, or null when none is encoded", () => {
+    expect(previewObservation("deezer", fresh)).toEqual({
+      service: "deezer",
+      url: fresh,
+      expiresAt: new Date(4102444800000),
+    });
+    expect(previewObservation("spotify", alternative)).toEqual({
+      service: "spotify",
+      url: alternative,
+      expiresAt: null,
+    });
   });
 
   it("marks expired deezer preview URLs as expired", () => {

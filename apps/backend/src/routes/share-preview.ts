@@ -15,28 +15,16 @@
 import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
-import type { PreviewObservation, SharePageAlbumResult, SharePageDbResult, TrackRepository } from "../db/repository.js";
+import type { SharePageAlbumResult, SharePageDbResult, TrackRepository } from "../db/repository.js";
 import { shareCodeSchema } from "../docs/public-response-schema.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
-import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
+import { isExpiredDeezerPreviewUrl, previewObservation } from "../lib/preview-url.js";
 import { deezerAlbumIdFromLinks } from "../lib/server/share-page.js";
 import { isTrackSearchFallbackMatch } from "../services/plugins/_shared/track-search-query.js";
 import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
 import { deezerTrackIdFromLinks } from "../services/track-preview.js";
-
-/**
- * The preview row stored for a URL just fetched from Deezer, with the expiry
- * its signature carries.
- *
- * @param url - The preview URL Deezer returned.
- * @returns The observation to upsert for the `deezer` service.
- */
-function deezerPreviewObservation(url: string): PreviewObservation {
-  const expiresAtMs = getPreviewExpiry(url, "deezer");
-  return { service: "deezer", url, expiresAt: expiresAtMs ? new Date(expiresAtMs) : null };
-}
 
 /**
  * A usable preview URL for a track share: the stored one while its Deezer
@@ -78,7 +66,7 @@ async function currentTrackPreview(repo: TrackRepository, data: SharePageDbResul
     if (isExpiredDeezerPreviewUrl(deezerTrack.previewUrl)) {
       throw new Error("Deezer returned an expired preview");
     }
-    await repo.upsertTrackPreview(data.trackId, deezerPreviewObservation(deezerTrack.previewUrl));
+    await repo.upsertTrackPreview(data.trackId, previewObservation("deezer", deezerTrack.previewUrl));
     return deezerTrack.previewUrl;
   } catch (error) {
     log.deviation(
@@ -112,7 +100,7 @@ async function currentAlbumPreview(repo: TrackRepository, data: SharePageAlbumRe
   try {
     const deezerAlbum = await deezerAdapter.getAlbum(deezerAlbumId);
     if (!deezerAlbum.topTrackPreviewUrl) return null;
-    await repo.upsertAlbumPreview(data.albumId, deezerPreviewObservation(deezerAlbum.topTrackPreviewUrl));
+    await repo.upsertAlbumPreview(data.albumId, previewObservation("deezer", deezerAlbum.topTrackPreviewUrl));
     return deezerAlbum.topTrackPreviewUrl;
   } catch (error) {
     log.deviation(

@@ -27,13 +27,14 @@ import type { UnifiedResolveSuccessResponse } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
-import { getPreviewExpiry } from "../lib/preview-url.js";
+import { previewObservation } from "../lib/preview-url.js";
 import { normalizeReleaseDate } from "../lib/release-date.js";
 import { toApiLinks } from "../lib/server/api-links.js";
 import { type AlbumResolutionResult, resolveAlbumUrl } from "./album-resolver.js";
 import { type ArtistResolutionResult, resolveArtistUrl } from "./artist-resolver.js";
 import { persistResolution } from "./persist-resolution.js";
 import { classifyMusicUrl } from "./plugins/registry.js";
+import { toStoredLinks } from "./resolved-links.js";
 import { expandShortLink, persistLateTrackLinks, type ResolutionResult, resolveQuery } from "./resolver.js";
 import { isTrackPreviewRefreshable } from "./track-preview.js";
 import { resolveAlbumVinylLayout, resolveTrackVinylLayout } from "./track-vinyl-layout.js";
@@ -124,26 +125,15 @@ export async function persistAlbumAndRespond(
         sourceUrl: result.sourceAlbum.webUrl,
         previewUrl,
       },
-      links: result.links.map((l) => ({
-        service: l.service,
-        url: stripTrackingParams(l.url),
-        confidence: l.confidence,
-        matchMethod: l.matchMethod,
-        externalId: l.externalId,
-      })),
+      links: toStoredLinks(result.links, { stripTracking: true }),
     }));
 
   // Persist the resolved album preview into `album_previews`. The
   // canonical `albums` row no longer carries a preview column; reads
   // pull the best preview from `album_previews` via subquery.
   if (!cachedIdentity && previewUrl && previewService) {
-    const expiresAtMs = getPreviewExpiry(previewUrl, previewService);
     try {
-      await repo.upsertAlbumPreview(albumId, {
-        service: previewService,
-        url: previewUrl,
-        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-      });
+      await repo.upsertAlbumPreview(albumId, previewObservation(previewService, previewUrl));
     } catch (err) {
       log.debug("Resolve", "Album preview persist failed:", err instanceof Error ? err.message : String(err));
     }
@@ -204,13 +194,7 @@ export async function persistArtistAndRespond(
       ...result.sourceArtist,
       sourceUrl: result.sourceArtist.webUrl,
     },
-    links: result.links.map((l) => ({
-      service: l.service,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-      externalId: l.externalId,
-    })),
+    links: toStoredLinks(result.links, { stripTracking: true }),
   });
 
   if (result.externalIds.length > 0) {

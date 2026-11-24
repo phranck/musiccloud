@@ -12,6 +12,7 @@
  */
 
 import { Service } from "@musiccloud/shared";
+import type { PreviewObservation } from "../db/repository.js";
 
 /**
  * Returns the unix-millis timestamp at which the preview URL expires,
@@ -24,6 +25,22 @@ import { Service } from "@musiccloud/shared";
  */
 export function getPreviewExpiry(previewUrl: string, _service?: string): number | null {
   return getDeezerPreviewExpiry(previewUrl);
+}
+
+/**
+ * Builds the preview row to store for a URL a service just returned, with the
+ * expiry its signature carries.
+ *
+ * @param service - The service the preview URL came from, stored as the row's
+ *   `service` and passed to {@link getPreviewExpiry}.
+ * @param url - The preview URL as the service returned it, stored unchanged.
+ * @returns The observation for `upsertTrackPreview` or `upsertAlbumPreview`.
+ *   Its `expiresAt` is the parsed expiry as a `Date`, or `null` when the URL
+ *   carries no parseable expiry and therefore never goes stale.
+ */
+export function previewObservation(service: string, url: string): PreviewObservation {
+  const expiresAtMs = getPreviewExpiry(url, service);
+  return { service, url, expiresAt: expiresAtMs ? new Date(expiresAtMs) : null };
 }
 
 /**

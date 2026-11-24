@@ -76,11 +76,11 @@
  * type has no detached late-link contract; that contract belongs to tracks in
  * `resolver.ts`, whose file header maps the complete request/persistence chain.
  */
-import { getPlatformLabel, type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { getPlatformLabel, type MatchMethod } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
-import { getPreviewExpiry } from "../lib/preview-url.js";
+import { previewObservation } from "../lib/preview-url.js";
 import { parseReleaseYear } from "../lib/release-date.js";
 import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
 import { pickRecordingArtworkUrl, RECORDING_ARTWORK_LOOKUP_SERVICES } from "./artwork.js";
@@ -89,6 +89,7 @@ import { IDENTIFIER_MATCH_CONFIDENCE } from "./constants.js";
 import { collectAlbumExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, findInactiveServiceFor, getActiveAdapters } from "./index.js";
 import { keepRecordingArtwork } from "./recording-artwork.js";
+import { fromCachedLinks, isStoredPreviewFresh, toStoredLinks } from "./resolved-links.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   AlbumMatchResult,
@@ -98,7 +99,6 @@ import type {
   ServiceAdapter,
   ServiceId,
 } from "./types.js";
-import { isValidServiceId } from "./types.js";
 
 // ─── Public Types ───────────────────────────────────────────────────────────
 
@@ -155,20 +155,6 @@ const ISRC_SAMPLE_SIZE = 5; // How many tracks to sample for ISRC inference
 
 // ─── Cache helpers ────────────────────────────────────────────────────────────
 
-function mapCachedAlbumLinks(
-  links: Array<{ service: string; url: string; confidence: number; matchMethod: string }>,
-): ResolvedAlbumLink[] {
-  return links
-    .filter((l) => isValidServiceId(l.service))
-    .map((l) => ({
-      service: l.service as ServiceId,
-      displayName: PLATFORM_CONFIG[l.service as ServiceId].label,
-      url: l.url,
-      confidence: l.confidence,
-      matchMethod: l.matchMethod as ResolvedAlbumLink["matchMethod"],
-    }));
-}
-
 async function tryAlbumCache(lookup: {
   url?: string;
   serviceLink?: ServiceLinkLookup;
@@ -186,7 +172,7 @@ async function tryAlbumCache(lookup: {
     if (!cached && lookup.upc) cached = await repo.findAlbumByUpc(lookup.upc);
     if (!cached) return null;
 
-    const links = mapCachedAlbumLinks(cached.links);
+    const links: ResolvedAlbumLink[] = fromCachedLinks(cached.links);
     log.debug("AlbumResolver", `Cache hit: ${links.length} links`);
 
     return { sourceAlbum: cached.album, links, albumId: cached.albumId, shortId: cached.shortId, externalIds: [] };
@@ -229,15 +215,7 @@ async function deriveCachedYouTubeMusicLink(
   if (cached.albumId) {
     try {
       const repo = await getRepository();
-      await repo.addLinksToAlbum(cached.albumId, [
-        {
-          service: derived.service,
-          url: derived.url,
-          confidence: derived.confidence,
-          matchMethod: derived.matchMethod,
-          externalId: derived.externalId,
-        },
-      ]);
+      await repo.addLinksToAlbum(cached.albumId, toStoredLinks([derived]));
     } catch (error) {
       log.deviation(
         {
@@ -330,16 +308,7 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
   if (cached.albumId && genuinelyNewLinks.length > 0) {
     try {
       const repo = await getRepository();
-      await repo.addLinksToAlbum(
-        cached.albumId,
-        genuinelyNewLinks.map((l) => ({
-          service: l.service,
-          url: l.url,
-          confidence: l.confidence,
-          matchMethod: l.matchMethod,
-          externalId: l.externalId,
-        })),
-      );
+      await repo.addLinksToAlbum(cached.albumId, toStoredLinks(genuinelyNewLinks));
     } catch (error) {
       log.deviation(
         {
@@ -376,12 +345,7 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
       const repo = await getRepository();
       for (const link of newLinks) {
         if (!link.topTrackPreviewUrl) continue;
-        const expiresAtMs = getPreviewExpiry(link.topTrackPreviewUrl, link.service);
-        await repo.upsertAlbumPreview(cached.albumId, {
-          service: link.service,
-          url: link.topTrackPreviewUrl,
-          expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-        });
+        await repo.upsertAlbumPreview(cached.albumId, previewObservation(link.service, link.topTrackPreviewUrl));
       }
     } catch (error) {
       log.deviation(
@@ -410,10 +374,7 @@ async function isAlbumPreviewRefreshNeeded(cached: AlbumResolutionResult): Promi
   try {
     const repo = await getRepository();
     const previews = await repo.findAlbumPreviews(cached.albumId);
-    if (previews.length === 0) return true;
-    const now = Date.now();
-    const fresh = previews.find((p) => p.expiresAt === null || p.expiresAt.getTime() > now);
-    return !fresh;
+    return !isStoredPreviewFresh(previews);
   } catch (error) {
     log.deviation(
       {
