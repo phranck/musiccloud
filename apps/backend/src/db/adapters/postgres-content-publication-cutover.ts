@@ -29,7 +29,7 @@ import {
   TERMS_DEVELOPER_PUBLICATION,
   TERMS_FRONTEND_PUBLICATION,
 } from "../content-publication-cutover.js";
-import { type ContentPublicationSqlRow, rowToContentPublication } from "./postgres-content-pages.js";
+import { type ContentPublicationSqlRow, rowToContentPublication } from "./postgres-content-publication-rows.js";
 
 /**
  * Adds a closed publication cutover in one transaction without replacing any
