@@ -1,8 +1,9 @@
 /**
  * @file The billing vocabulary: the periods Creem sells over, the currency and
- * the tax settings an offer carries, the two Creem environments, and the
- * states of a project's subscription. Beside it stand the shapes built from
- * it: an offer, a Creem product mapping and the selling readiness.
+ * the tax settings an offer carries, the bounds of a price and how one is
+ * written and read, the two Creem environments, and the states of a project's
+ * subscription. Beside it stand the shapes built from it: an offer, a Creem
+ * product mapping and the selling readiness.
  *
  * The database checks, the backend routes and the admin dashboard read these
  * values from here, so a value the database accepts is one every interface
@@ -61,6 +62,64 @@ export type OfferCurrencyValue = (typeof OfferCurrency)[keyof typeof OfferCurren
 
 /** Every {@link OfferCurrency} value. */
 export const OFFER_CURRENCIES: readonly OfferCurrencyValue[] = Object.values(OfferCurrency);
+
+/**
+ * How many of a currency's smallest unit make one whole unit. Both currencies
+ * in {@link OfferCurrency} divide into one hundred cents.
+ */
+export const CENTS_PER_UNIT = 100;
+
+/**
+ * The smallest amount an offer may name, one whole unit of its currency,
+ * because Creem refuses a recurring product below it.
+ *
+ * The offer routes' request schemas, the database check
+ * `chk_tier_offers_price`, the dashboard's price field and the amount a new
+ * offer starts with all read this value.
+ */
+export const MIN_PRICE_CENTS = CENTS_PER_UNIT;
+
+/**
+ * The largest amount an offer may name, one million whole units, as a guard
+ * against a typed zero too many. The offer routes' request schemas and the
+ * dashboard's price field read this value.
+ */
+export const MAX_PRICE_CENTS = 100_000_000;
+
+/**
+ * Writes an amount in cents as the price string the public plan list and the
+ * dashboard's price field carry: a whole amount without decimals (`"9"`,
+ * `"1490"`) and any other amount with exactly two (`"9.90"`).
+ *
+ * @param cents - The amount in the smallest currency unit, as Creem and the
+ *   offers hold it.
+ * @returns The amount in whole units as a decimal string, without a currency.
+ */
+export function formatCents(cents: number): string {
+  const units = cents / CENTS_PER_UNIT;
+  return Number.isInteger(units) ? String(units) : units.toFixed(2);
+}
+
+/**
+ * Reads a typed price in whole units, such as `"9.90"`, as cents.
+ *
+ * A value an offer may not carry comes back as `undefined`, so the control
+ * that would send it stays disabled rather than sending something the backend
+ * refuses.
+ *
+ * @param raw - What is in the field. Surrounding whitespace is ignored.
+ * @returns The amount in cents, rounded to the nearest cent, or `undefined`
+ *   when the field is empty, does not read as a number, or names an amount
+ *   below {@link MIN_PRICE_CENTS} or above {@link MAX_PRICE_CENTS}.
+ */
+export function parsePriceToCents(raw: string): number | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === "") return undefined;
+  const units = Number(trimmed);
+  if (!Number.isFinite(units)) return undefined;
+  const cents = Math.round(units * CENTS_PER_UNIT);
+  return cents >= MIN_PRICE_CENTS && cents <= MAX_PRICE_CENTS ? cents : undefined;
+}
 
 /** Whether tax sits inside the price or is added to it. */
 export const TaxMode = { Inclusive: "inclusive", Exclusive: "exclusive" } as const;

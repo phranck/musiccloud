@@ -2,7 +2,7 @@
  * @file Unit tests for the Creem price enrichment helper (MC-114).
  */
 
-import type { ApiTier, TierOffer } from "@musiccloud/shared";
+import { type ApiTier, OfferCurrency, type TierOffer } from "@musiccloud/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireCreemApiKey } from "../lib/creem-config.js";
 
@@ -17,18 +17,31 @@ vi.mock("../lib/infra/logger.js", () => ({
 
 import { log } from "../lib/infra/logger.js";
 import { CreemPriceOutcome, getCreemCatalog } from "./creem-catalog.js";
-import { centsToEuroString, enrichTiersWithCreemPrices } from "./tier-pricing.js";
+import { enrichTiersWithCreemPrices } from "./tier-pricing.js";
 
 const mockedCatalog = vi.mocked(getCreemCatalog);
 
-/** An offer of one plan, which is where a displayed price comes from. */
-function makeOffer(tierId: string, billingPeriod: string, priceCents: number): TierOffer {
+/**
+ * An offer of one plan, which is where a displayed price comes from.
+ *
+ * @param tierId - The plan the offer belongs to.
+ * @param billingPeriod - The period, in Creem's spelling.
+ * @param priceCents - The amount in cents.
+ * @param currency - The offer's currency, `EUR` unless a test says otherwise.
+ * @returns A complete offer.
+ */
+function makeOffer(
+  tierId: string,
+  billingPeriod: string,
+  priceCents: number,
+  currency: TierOffer["currency"] = OfferCurrency.Eur,
+): TierOffer {
   return {
     id: `offer_${tierId}_${billingPeriod}`,
     tierId,
     billingPeriod: billingPeriod as TierOffer["billingPeriod"],
     priceCents,
-    currency: "EUR",
+    currency,
     taxMode: null,
     taxCategory: null,
     imageUrl: null,
@@ -63,18 +76,6 @@ function makeTier(overrides: Partial<ApiTier>): ApiTier {
     ...overrides,
   };
 }
-
-describe("centsToEuroString", () => {
-  it("formats whole euros without decimals", () => {
-    expect(centsToEuroString(900)).toBe("9");
-    expect(centsToEuroString(9000)).toBe("90");
-    expect(centsToEuroString(149000)).toBe("1490");
-  });
-
-  it("formats fractional euros with two decimals", () => {
-    expect(centsToEuroString(990)).toBe("9.90");
-  });
-});
 
 describe("enrichTiersWithCreemPrices (MC-114)", () => {
   beforeEach(() => {
@@ -127,6 +128,33 @@ describe("enrichTiersWithCreemPrices (MC-114)", () => {
 
     expect(result[0]?.price).toBe("7");
     expect(result[0]?.priceYearly).toBe("70");
+  });
+
+  it("publishes each price with the currency of the offer it comes from", async () => {
+    mockedCatalog.mockResolvedValue({});
+    const tiers = [makeTier({ id: "tier_club" })];
+
+    const result = await enrichTiersWithCreemPrices(tiers, [
+      makeOffer("tier_club", "every-month", 900, OfferCurrency.Usd),
+    ]);
+
+    expect(result[0]?.price).toBe("9");
+    expect(result[0]?.priceCurrency).toBe(OfferCurrency.Usd);
+    expect(result[0]?.priceYearly).toBeNull();
+    expect(result[0]?.priceYearlyCurrency).toBeNull();
+  });
+
+  it("publishes the currency Creem returned where the price is Creem's", async () => {
+    mockedCatalog.mockResolvedValue({
+      tier_club: { "every-year": { productId: "p2", price: 9000, currency: OfferCurrency.Usd } },
+    });
+    const offers = [makeOffer("tier_club", "every-month", 900), makeOffer("tier_club", "every-year", 7000)];
+
+    const result = await enrichTiersWithCreemPrices([makeTier({ id: "tier_club" })], offers);
+
+    expect(result[0]?.priceCurrency).toBe(OfferCurrency.Eur);
+    expect(result[0]?.priceYearly).toBe("90");
+    expect(result[0]?.priceYearlyCurrency).toBe(OfferCurrency.Usd);
   });
 
   it("ignores the offers of another plan", async () => {

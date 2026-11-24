@@ -13,7 +13,7 @@
 import RollingText from "@/components/RollingText.astro";
 import { TierIcon } from "@/components/TierIcon";
 import { CoinIcon, TickCircleIcon } from "@/lib/icons";
-import { fetchPublicTiers, formatTierPrice } from "@/lib/tiers";
+import { fetchPublicTiers, formatPeriodPrice } from "@/lib/tiers";
 import { normalizeTierColor } from "@/lib/tierColor";
 // The component brings its own material, because it now stands on any page a
 // writer puts `[[plans]]` on rather than only on the one that used to import it.
@@ -126,14 +126,14 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                   <RollingText>
                     <Fragment slot="monthly">
                       <span class="text-3xl font-bold" style={`color:${tierColor}`}>
-                        {formatTierPrice(tier.price ?? tier.priceYearly ?? "")}
+                        {formatPeriodPrice(tier, "monthly")}
                       </span>
                       <span class="text-body text-fg-subtle"> / {tier.price ? "month" : "year"}</span>
                     </Fragment>
                     <Fragment slot="yearly">
                       {tier.priceYearly && <span class="text-body text-fg-subtle">only </span>}
                       <span class="text-3xl font-bold" style={`color:${tierColor}`}>
-                        {formatTierPrice(tier.priceYearly ?? tier.price ?? "")}
+                        {formatPeriodPrice(tier, "yearly")}
                       </span>
                       <span class="text-body text-fg-subtle"> / {tier.priceYearly ? "year" : "month"}</span>
                     </Fragment>

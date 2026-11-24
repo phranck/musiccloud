@@ -6,6 +6,7 @@ import {
   CREEM_MODES,
   DEFAULT_TIER_COLOR,
   DEVELOPER_PROJECT_STATUSES,
+  MIN_PRICE_CENTS,
   OFFER_CURRENCIES,
   SUBSCRIPTION_STATUSES,
   TAX_CATEGORIES,
@@ -212,8 +213,10 @@ export const tierOffers = pgTable(
       sql`${table.taxCategory} IS NULL OR ${table.taxCategory} IN (${sqlValueList(TAX_CATEGORIES)})`,
     ),
     // Creem refuses a recurring product below one whole unit of the currency
-    // and accepts zero only for a one-time product.
-    check("chk_tier_offers_price", sql`${table.priceCents} >= 100`),
+    // and accepts zero only for a one-time product. The bound is a shared
+    // constant written in as text, so the constraint reads `>= 100` exactly
+    // and the migration tool sees no change.
+    check("chk_tier_offers_price", sql`${table.priceCents} >= ${sql.raw(String(MIN_PRICE_CENTS))}`),
     check("chk_tier_offers_pay_what_you_want", sql`${table.payWhatYouWant} = false OR ${table.billingPeriod} = 'once'`),
   ],
 );

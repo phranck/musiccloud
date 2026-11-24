@@ -15,6 +15,8 @@ import {
   BILLING_PERIODS,
   CREEM_MODES,
   canPayWhatYouWant,
+  MAX_PRICE_CENTS,
+  MIN_PRICE_CENTS,
   OFFER_CURRENCIES,
   OfferCurrency,
   ROUTE_TEMPLATES,
@@ -39,8 +41,8 @@ import { resetCreemCatalogCache } from "../services/creem-catalog.js";
 /** Creem accepts at most three extra questions at the checkout. */
 const MAX_CUSTOM_FIELDS = 3;
 
-/** The largest amount an offer may name, as a guard against a typed zero too many. */
-const MAX_PRICE_CENTS = 100_000_000;
+/** An amount an offer may name, from one whole unit up to `MAX_PRICE_CENTS`. */
+const priceCentsSchema = { type: "integer", minimum: MIN_PRICE_CENTS, maximum: MAX_PRICE_CENTS } as const;
 
 /** One extra checkout question, as the request may state it. */
 const customFieldSchema = {
@@ -63,7 +65,7 @@ const customFieldSchema = {
  */
 const offerFieldsSchema = {
   billingPeriod: { type: "string", enum: BILLING_PERIODS },
-  priceCents: { type: "integer", minimum: 100, maximum: MAX_PRICE_CENTS },
+  priceCents: priceCentsSchema,
   currency: { type: "string", enum: OFFER_CURRENCIES },
   taxMode: { type: ["string", "null"], enum: [...TAX_MODES, null] },
   taxCategory: { type: ["string", "null"], enum: [...TAX_CATEGORIES, null] },
@@ -72,7 +74,7 @@ const offerFieldsSchema = {
   customFields: { type: "array", maxItems: MAX_CUSTOM_FIELDS, items: customFieldSchema },
   abandonedCartRecovery: { type: "boolean" },
   payWhatYouWant: { type: "boolean" },
-  suggestedPriceCents: { type: ["integer", "null"], minimum: 100, maximum: MAX_PRICE_CENTS },
+  suggestedPriceCents: { ...priceCentsSchema, type: ["integer", "null"] },
   sortOrder: { type: "integer", minimum: 0, maximum: 999 },
 } as const;
 

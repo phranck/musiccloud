@@ -70,7 +70,9 @@ export const PublicTierSchema = {
     "requestsPerDay",
     "attributionRequired",
     "price",
+    "priceCurrency",
     "priceYearly",
+    "priceYearlyCurrency",
     "color",
     "icon",
     "buttonLabel",
@@ -109,11 +111,23 @@ export const PublicTierSchema = {
     },
     price: {
       anyOf: [{ type: "string" }, { type: "null" }],
-      description: "Monthly euro price as a decimal string, or `null` when no monthly paid price applies.",
+      description:
+        "Monthly price in whole units of `priceCurrency` as a decimal string, or `null` when no monthly paid price applies.",
+    },
+    priceCurrency: {
+      anyOf: [{ type: "string" }, { type: "null" }],
+      description:
+        "ISO 4217 code of the currency `price` is charged in, such as `EUR` or `USD`. `null` exactly when `price` is `null`.",
     },
     priceYearly: {
       anyOf: [{ type: "string" }, { type: "null" }],
-      description: "Yearly euro price as a decimal string, or `null` when yearly billing is not offered.",
+      description:
+        "Yearly price in whole units of `priceYearlyCurrency` as a decimal string, or `null` when yearly billing is not offered.",
+    },
+    priceYearlyCurrency: {
+      anyOf: [{ type: "string" }, { type: "null" }],
+      description:
+        "ISO 4217 code of the currency `priceYearly` is charged in, such as `EUR` or `USD`. `null` exactly when `priceYearly` is `null`.",
     },
     color: { type: "string", pattern: TIER_COLOR_PATTERN.source, description: "Plan accent color as `#RRGGBB`." },
     icon: {
@@ -162,7 +176,9 @@ export const PublicTierSchema = {
     requestsPerDay: 10000,
     attributionRequired: true,
     price: null,
+    priceCurrency: null,
     priceYearly: null,
+    priceYearlyCurrency: null,
     color: DEFAULT_TIER_COLOR,
     icon: null,
     buttonLabel: null,
