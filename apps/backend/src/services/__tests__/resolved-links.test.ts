@@ -64,13 +64,30 @@ describe("isStoredPreviewFresh", () => {
   const NOW = 1_000_000;
 
   it("is fresh when a row has no expiry or expires later", () => {
-    expect(isStoredPreviewFresh([{ expiresAt: null }], NOW)).toBe(true);
-    expect(isStoredPreviewFresh([{ expiresAt: new Date(NOW - 1) }, { expiresAt: new Date(NOW + 1) }], NOW)).toBe(true);
+    expect(isStoredPreviewFresh([{ service: "deezer", expiresAt: null }], NOW)).toBe(true);
+    expect(
+      isStoredPreviewFresh(
+        [
+          { service: "deezer", expiresAt: new Date(NOW - 1) },
+          { service: "spotify", expiresAt: new Date(NOW + 1) },
+        ],
+        NOW,
+      ),
+    ).toBe(true);
   });
 
   it("is stale when every row has expired or there is none", () => {
-    expect(isStoredPreviewFresh([{ expiresAt: new Date(NOW) }], NOW)).toBe(false);
+    expect(isStoredPreviewFresh([{ service: "deezer", expiresAt: new Date(NOW) }], NOW)).toBe(false);
     expect(isStoredPreviewFresh([], NOW)).toBe(false);
+  });
+
+  /**
+   * A removed service's preview URL points at a host nobody serves any more,
+   * and an unsigned one never expires. Counting it would skip the Deezer
+   * refresh for that recording forever.
+   */
+  it("ignores a row of a service this build no longer knows", () => {
+    expect(isStoredPreviewFresh([{ service: "napster", expiresAt: null }], NOW)).toBe(false);
   });
 });
 

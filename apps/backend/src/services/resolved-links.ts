@@ -110,16 +110,24 @@ export function fromCachedLinks(rows: readonly CachedLinkRow[]): CachedResolvedL
 /**
  * Decides whether any stored preview of a track or album can still be played.
  *
+ * A row naming a service this build does not know is ignored. Its URL points at
+ * a removed service's host, and an unsigned one never expires, so counting it
+ * would skip the Deezer refresh for that recording for good.
+ *
  * @param previews - The preview rows stored for the entity.
  * @param now - The current time in unix milliseconds. Defaults to `Date.now()`.
- * @returns `true` when at least one row has no expiry or expires after `now`;
- *   `false` when every row has expired or there is no row at all.
+ * @returns `true` when at least one row of a known service has no expiry or
+ *   expires after `now`; `false` when every such row has expired or there is
+ *   no row at all.
  */
 export function isStoredPreviewFresh(
-  previews: readonly Pick<PreviewRow, "expiresAt">[],
+  previews: readonly Pick<PreviewRow, "service" | "expiresAt">[],
   now: number = Date.now(),
 ): boolean {
-  return previews.some((preview) => preview.expiresAt === null || preview.expiresAt.getTime() > now);
+  return previews.some(
+    (preview) =>
+      isValidServiceId(preview.service) && (preview.expiresAt === null || preview.expiresAt.getTime() > now),
+  );
 }
 
 /**
