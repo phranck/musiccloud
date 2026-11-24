@@ -14,7 +14,7 @@ vi.mock("../services/sponsoring-config.js", () => ({
 /** The NodeInfo question a website address is asked, answered by each test. */
 const previewMocks = vi.hoisted(() => ({ detectPlatformFromHost: vi.fn(async (): Promise<string | null> => null) }));
 
-vi.mock("../lib/preview-image.js", () => previewMocks);
+vi.mock("../lib/nodeinfo.js", () => previewMocks);
 
 import {
   createPendingSponsorship,
