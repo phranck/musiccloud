@@ -85,6 +85,9 @@ const JIOSAAVN_ALBUM_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/album\/[^/]+\
 // JioSaavn artist URLs: jiosaavn.com/artist/{slug}/{id}
 const JIOSAAVN_ARTIST_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/artist\/[^/]+\/([A-Za-z0-9_-]+)/;
 
+/** The consumer API endpoint every JioSaavn call goes to; the `__call` query parameter selects the operation. */
+const JIOSAAVN_API_URL = "https://www.jiosaavn.com/api.php";
+
 interface JioSaavnAlbum {
   // getAlbumById asks without api_version=4, which answers albumid, name, a
   // comma-separated primary_artists string and the full release_date. id and
@@ -209,7 +212,7 @@ async function readAnswer<T>(response: Response, what: string): Promise<T | null
  *   body that readAnswer rejects, or has no `results` list.
  */
 async function search<Result>(call: string, kind: ResourceKind, query: string): Promise<Result[]> {
-  const url = `https://www.jiosaavn.com/api.php?__call=${call}&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=5&q=${encodeURIComponent(query)}`;
+  const url = `${JIOSAAVN_API_URL}?__call=${call}&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=5&q=${encodeURIComponent(query)}`;
 
   const response = await jiosaavnFetch(url);
   if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, kind, query, Operation.Search);
@@ -256,7 +259,7 @@ function mapSongToTrack(song: JioSaavnSong): NormalizedTrack {
 }
 
 async function getTrackById(songId: string): Promise<NormalizedTrack | null> {
-  const url = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(songId)}&type=song&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0`;
+  const url = `${JIOSAAVN_API_URL}?__call=webapi.get&token=${encodeURIComponent(songId)}&type=song&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0`;
 
   const response = await jiosaavnFetch(url);
   if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Track, songId);
@@ -336,7 +339,7 @@ function mapAlbumToNormalized(album: JioSaavnAlbum & { id: string; title: string
  */
 async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   if (!/^\d+$/.test(albumId)) {
-    const tokenUrl = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(albumId)}&type=album&api_version=4&_format=json&_marker=0&ctx=web6dot0`;
+    const tokenUrl = `${JIOSAAVN_API_URL}?__call=webapi.get&token=${encodeURIComponent(albumId)}&type=album&api_version=4&_format=json&_marker=0&ctx=web6dot0`;
     const response = await jiosaavnFetch(tokenUrl);
     if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Album, albumId);
     const resolved = await readAnswer<JioSaavnAlbum>(response, `album token ${albumId}`);
@@ -346,7 +349,7 @@ async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
     }
     albumId = resolved.id;
   }
-  const url = `https://www.jiosaavn.com/api.php?__call=content.getAlbumDetails&albumid=${encodeURIComponent(albumId)}&_format=json&_marker=0&ctx=web6dot0`;
+  const url = `${JIOSAAVN_API_URL}?__call=content.getAlbumDetails&albumid=${encodeURIComponent(albumId)}&_format=json&_marker=0&ctx=web6dot0`;
   const response = await jiosaavnFetch(url);
   if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Album, albumId);
 
@@ -387,7 +390,7 @@ interface JioSaavnArtistSearchResult {
  * @throws Provider refusals or a document without a compatible public artist URL.
  */
 async function getArtistById(artistId: string): Promise<NormalizedArtist | null> {
-  const url = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(artistId)}&type=artist&n_song=0&n_album=0&api_version=4&_format=json&_marker=0&ctx=web6dot0`;
+  const url = `${JIOSAAVN_API_URL}?__call=webapi.get&token=${encodeURIComponent(artistId)}&type=artist&n_song=0&n_album=0&api_version=4&_format=json&_marker=0&ctx=web6dot0`;
   const response = await jiosaavnFetch(url);
   if (!response.ok) throw serviceHttpError(Service.JioSaavn, response.status, ResourceKind.Artist, artistId);
 
