@@ -16,7 +16,6 @@ import type {
   ListResult,
   TrackListItem,
 } from "../admin-repository.js";
-import type { AlbumListRow, TrackListRow } from "./postgres-admin-catalog.js";
 import type { ArtistRow } from "./postgres-artists.js";
 import {
   ALBUM_ARTIST_FIELDS_SELECT,
@@ -31,6 +30,47 @@ import {
   TRACK_ARTIST_FIELDS_SELECT,
   UNNAMED_ARTIST_NAME,
 } from "./postgres-shared.js";
+
+// ============================================================================
+// ROW TYPES
+// ============================================================================
+
+/**
+ * Raw shape of a track listing row, used by the admin listings only. Public
+ * resolution uses a wider, link-bearing shape, which `postgres-tracks.ts`
+ * defines. {@link listTracks} reads it.
+ */
+interface TrackListRow {
+  id: string;
+  title: string;
+  artists: string;
+  artist_credits: string;
+  album_name: string | null;
+  isrc: string | null;
+  artwork_url: string | null;
+  source_service: string | null;
+  created_at: Date;
+  short_id: string | null;
+  link_count: string;
+}
+
+/**
+ * Raw shape of an album listing row. {@link listAlbums} reads it.
+ */
+interface AlbumListRow {
+  id: string;
+  title: string;
+  artists: string;
+  artist_credits: string;
+  release_date: string | null;
+  total_tracks: number | null;
+  artwork_url: string | null;
+  upc: string | null;
+  source_service: string | null;
+  created_at: Date;
+  short_id: string | null;
+  link_count: string;
+}
 
 // ============================================================================
 // LISTING & PAGINATION

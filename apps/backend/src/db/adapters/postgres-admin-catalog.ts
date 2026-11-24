@@ -59,48 +59,6 @@ export {
 } from "./postgres-admin-maintenance.js";
 
 // ============================================================================
-// ROW TYPES
-// ============================================================================
-
-/**
- * Raw shape of a track listing row, used by the admin listings only. Public
- * resolution uses a wider, link-bearing shape, which `postgres-tracks.ts`
- * defines. `listTracks` in `postgres-admin-catalog-lists.ts` reads it.
- */
-export interface TrackListRow {
-  id: string;
-  title: string;
-  artists: string;
-  artist_credits: string;
-  album_name: string | null;
-  isrc: string | null;
-  artwork_url: string | null;
-  source_service: string | null;
-  created_at: Date;
-  short_id: string | null;
-  link_count: string;
-}
-
-/**
- * Raw shape of an album listing row. `listAlbums` in
- * `postgres-admin-catalog-lists.ts` reads it.
- */
-export interface AlbumListRow {
-  id: string;
-  title: string;
-  artists: string;
-  artist_credits: string;
-  release_date: string | null;
-  total_tracks: number | null;
-  artwork_url: string | null;
-  upc: string | null;
-  source_service: string | null;
-  created_at: Date;
-  short_id: string | null;
-  link_count: string;
-}
-
-// ============================================================================
 // SINGLE TRACK (admin editor)
 // ============================================================================
 
