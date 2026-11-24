@@ -48,10 +48,9 @@
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { youtubeVideoId } from "../../../lib/platform/youtube-video.js";
-import { calculateArtistNameConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
+import { normalizeTitle } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { stripYouTubeTopicSuffix } from "../../../lib/youtube-topic.js";
-import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AdapterCapabilities,
   AlbumCapabilities,
@@ -66,6 +65,7 @@ import type {
 } from "../../types.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
 import { getYouTubeAlbum, searchYouTubeAlbum } from "./album.js";
 import { youtubeFetch } from "./api.js";
 
@@ -270,34 +270,15 @@ export const youtubeAdapter: ServiceAdapter = {
       "search video details",
     );
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-
     // A free-text score follows the search's ranking, and the details call
     // does not promise to answer in that order, so each video is scored at
     // its position in the search result.
     const searchOrder = items.map((item) => item.id.videoId);
-    for (const video of videos) {
-      const track = mapVideoToTrack(video);
+    const { best, confidence } = pickBestCandidate(videos, (video) => {
       const position = searchOrder.indexOf(video.id);
-      const confidence = scoreSearchCandidate(query, track, position === -1 ? searchOrder.length : position);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+      return scoreSearchCandidate(query, mapVideoToTrack(video), position === -1 ? searchOrder.length : position);
+    });
+    return searchMatchResult("track", best && mapVideoToTrack(best), confidence);
   },
 
   detectArtistUrl(url: string): string | null {
@@ -367,28 +348,7 @@ export const youtubeAdapter: ServiceAdapter = {
       "search channel details",
     );
 
-    let bestMatch: NormalizedArtist | null = null;
-    let bestConfidence = 0;
-
-    for (const channel of channels) {
-      const artist = mapChannelToArtist(channel);
-      const confidence = calculateArtistNameConfidence(query.name, artist.name);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = artist;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      artist: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    const ranked = rankByArtistName(query.name, channels.map(mapChannelToArtist), (artist) => artist.name);
+    return searchMatchResult("artist", ranked?.item, ranked?.confidence ?? 0);
   },
 };
