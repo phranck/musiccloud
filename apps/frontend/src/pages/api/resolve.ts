@@ -1,19 +1,7 @@
-import { visitorAddress } from "@musiccloud/shared";
-import type { APIRoute } from "astro";
 import { resolveTrack } from "@/api/client";
+import { createResolveRoute } from "@/api/proxy-response";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request, clientAddress }) => {
-  const body = await request.json();
-  const origin = request.headers.get("Origin") ?? undefined;
-  const backendRes = await resolveTrack(body, visitorAddress({ request, clientAddress }), origin);
-  const headers = new Headers({ "Content-Type": "application/json" });
-  const retryAfter = backendRes.headers.get("Retry-After");
-  if (retryAfter) headers.set("Retry-After", retryAfter);
-
-  return new Response(backendRes.body, {
-    status: backendRes.status,
-    headers,
-  });
-};
+/** Astro proxy for the backend's commercial resolve route, built by `createResolveRoute`. */
+export const POST = createResolveRoute(resolveTrack);

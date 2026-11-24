@@ -3,6 +3,7 @@ export const prerender = false;
 import { parseJamendoAudioFormat, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { fetchCcAudio } from "@/api/client";
+import { relayHeaders } from "@/api/proxy-response";
 
 /** Upstream headers relayed verbatim so the `<audio>` element can range-seek. */
 const PASSTHROUGH_HEADERS = ["content-type", "content-length", "content-range", "accept-ranges", "cache-control"];
@@ -11,7 +12,7 @@ const PASSTHROUGH_HEADERS = ["content-type", "content-length", "content-range", 
  * Thin streaming proxy: forwards GET (with the visitor's `Range` header) to the
  * backend `/api/v1/cc/audio/:jamendoId` and relays the audio stream back from
  * the same origin. This lets the player's `<audio crossorigin="anonymous">`
- * load CC tracks — Jamendo's storage server omits the Range CORS headers the
+ * load CC tracks. Jamendo's storage server omits the Range CORS headers the
  * Web-Audio analyser needs, but here the request never leaves our origin.
  */
 export const GET: APIRoute = async ({ params, request, clientAddress }) => {
@@ -28,10 +29,5 @@ export const GET: APIRoute = async ({ params, request, clientAddress }) => {
   );
   if (!upstream.ok && upstream.status !== 206) return new Response(null, { status: upstream.status });
 
-  const headers = new Headers();
-  for (const name of PASSTHROUGH_HEADERS) {
-    const value = upstream.headers.get(name);
-    if (value) headers.set(name, value);
-  }
-  return new Response(upstream.body, { status: upstream.status, headers });
+  return new Response(upstream.body, { status: upstream.status, headers: relayHeaders(upstream, PASSTHROUGH_HEADERS) });
 };

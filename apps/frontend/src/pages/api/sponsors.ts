@@ -1,6 +1,7 @@
 import { visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { fetchSponsors } from "@/api/client";
+import { relayHeaders } from "@/api/proxy-response";
 
 export const prerender = false;
 
@@ -19,12 +20,7 @@ export const GET: APIRoute = async ({ request, clientAddress }) => {
   try {
     const upstream = await fetchSponsors(visitorAddress({ request, clientAddress }));
     if (!upstream.ok) return new Response(null, { status: upstream.status });
-    const headers = new Headers();
-    for (const name of FORWARDED_HEADERS) {
-      const value = upstream.headers.get(name);
-      if (value) headers.set(name, value);
-    }
-    return new Response(await upstream.text(), { status: 200, headers });
+    return new Response(await upstream.text(), { status: 200, headers: relayHeaders(upstream, FORWARDED_HEADERS) });
   } catch {
     return new Response(null, { status: 503 });
   }

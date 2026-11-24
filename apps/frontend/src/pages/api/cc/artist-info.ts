@@ -1,7 +1,8 @@
-import { createApiErrorBody, visitorAddress } from "@musiccloud/shared";
+import { visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 import { fetchCcArtistInfo } from "@/api/client";
+import { badRequestResponse } from "@/api/proxy-response";
 
 export const prerender = false;
 
@@ -15,12 +16,7 @@ export const GET: APIRoute = async ({ request, url, clientAddress }) => {
   const jamendoArtistId = url.searchParams.get("jamendoArtistId") ?? "";
   const artistName = url.searchParams.get("artistName") ?? "";
 
-  if (!jamendoArtistId.trim() || !artistName.trim()) {
-    return new Response(JSON.stringify(createApiErrorBody("MC-REQ-0001", { errorId: crypto.randomUUID() })), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  if (!jamendoArtistId.trim() || !artistName.trim()) return badRequestResponse();
 
   const res = await fetchCcArtistInfo(jamendoArtistId, artistName, visitorAddress({ request, clientAddress }));
   return new Response(res.body, {
