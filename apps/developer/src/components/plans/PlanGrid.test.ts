@@ -40,6 +40,7 @@ describe("PlanGrid", () => {
         id: "tier_annual",
         name: "Annual",
         priceYearly: "90",
+        priceYearlyCurrency: "EUR",
         free: false,
         selfServiceAssignable: false,
       }),
@@ -48,6 +49,25 @@ describe("PlanGrid", () => {
     expect(html).not.toContain("Free");
     expect(html).toContain("€90");
     expect(html).toContain("Not available yet");
+  });
+
+  it("shows a plan sold in dollars in dollars on both sides of the switch", async () => {
+    const html = await renderCard(
+      makePublicTier({
+        id: "tier_pro",
+        name: "Pro",
+        price: "9",
+        priceCurrency: "USD",
+        priceYearly: "90",
+        priceYearlyCurrency: "USD",
+        free: false,
+        selfServiceAssignable: false,
+      }),
+    );
+
+    expect(html).toContain("$9");
+    expect(html).toContain("$90");
+    expect(html).not.toContain("€");
   });
 
   it("says paid plan for a plan sold over neither headline period", async () => {

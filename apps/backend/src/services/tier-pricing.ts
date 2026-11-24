@@ -5,10 +5,11 @@
  * wherever a product exists, because that is what a customer is charged. Every
  * other field stays with our own source of truth. This module merges the two
  * into the tier list the public endpoint serves: the plan plus a monthly and a
- * yearly euro string, either of them `null` when that period is not sold.
+ * yearly price, each with its currency, either of them `null` when that period
+ * is not sold.
  */
 
-import type { ApiTier, TierOffer } from "@musiccloud/shared";
+import type { ApiTier, PublicTier, TierOffer } from "@musiccloud/shared";
 import { BillingPeriod, type BillingPeriodValue, formatCents } from "@musiccloud/shared";
 import { CreemKeyMissingError } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
@@ -18,12 +19,28 @@ import { type CreemCatalog, CreemPriceOutcome, getCreemCatalog } from "./creem-c
  * A plan as the public tier list shows it, with the two headline prices
  * worked out from its offers and the Creem catalogue.
  *
- * @property price - The monthly price as a euro string ("9" or "9.90"), or
- *   `null` when the plan sells nothing monthly.
+ * @property price - The monthly price in whole units as a decimal string ("9"
+ *   or "9.90"), or `null` when the plan sells nothing monthly.
+ * @property priceCurrency - The ISO 4217 code of `price`, or `null` exactly
+ *   when `price` is `null`.
  * @property priceYearly - The yearly price in the same shape, or `null` when
  *   the plan sells nothing yearly.
+ * @property priceYearlyCurrency - The ISO 4217 code of `priceYearly`, or
+ *   `null` exactly when `priceYearly` is `null`.
  */
-export type PricedTier = ApiTier & { price: string | null; priceYearly: string | null };
+export type PricedTier = ApiTier & Pick<PublicTier, "price" | "priceCurrency" | "priceYearly" | "priceYearlyCurrency">;
+
+/**
+ * One headline price: the amount as the public list writes it and the
+ * currency it is charged in.
+ *
+ * @property amount - The amount in whole units as a decimal string.
+ * @property currency - The ISO 4217 code the amount is in.
+ */
+interface HeadlinePrice {
+  amount: string;
+  currency: string;
+}
 
 /**
  * Returns the tiers with their two headline prices, taken from the live Creem
@@ -82,28 +99,37 @@ export async function enrichTiersWithCreemPrices(tiers: ApiTier[], offers: TierO
  * Merges what a plan asks for its two headline periods into the shape the
  * public tier list has always had.
  *
- * The offer carries the amount, and Creem's live price overrides it wherever a
- * product exists, because that is what a customer is actually charged. A plan
- * with no offer for a period reports `null` there, which is how the public
- * contract says that period is not sold.
+ * The offer carries the amount and its currency, and Creem's live price
+ * overrides both wherever a product exists, because that is what a customer is
+ * actually charged. A plan with no offer for a period reports `null` for the
+ * price and its currency there, which is how the public contract says that
+ * period is not sold.
  *
  * @param tiers - The plans.
  * @param offers - Every offer, of every plan.
  * @param catalog - The live prices, empty when Creem could not be read.
- * @returns The plans with their displayed prices.
+ * @returns The plans with their displayed prices and currencies.
  */
 function priceFromOffers(tiers: ApiTier[], offers: TierOffer[], catalog: CreemCatalog): PricedTier[] {
   return tiers.map((tier) => {
     const own = offers.filter((offer) => offer.tierId === tier.id);
     const live = catalog[tier.id];
 
-    const priceFor = (period: BillingPeriodValue): string | null => {
+    const priceFor = (period: BillingPeriodValue): HeadlinePrice | null => {
       const fromCreem = live?.[period];
-      if (fromCreem) return formatCents(fromCreem.price);
+      if (fromCreem) return { amount: formatCents(fromCreem.price), currency: fromCreem.currency };
       const offer = own.find((candidate) => candidate.billingPeriod === period);
-      return offer ? formatCents(offer.priceCents) : null;
+      return offer ? { amount: formatCents(offer.priceCents), currency: offer.currency } : null;
     };
 
-    return { ...tier, price: priceFor(BillingPeriod.Monthly), priceYearly: priceFor(BillingPeriod.Yearly) };
+    const monthly = priceFor(BillingPeriod.Monthly);
+    const yearly = priceFor(BillingPeriod.Yearly);
+    return {
+      ...tier,
+      price: monthly?.amount ?? null,
+      priceCurrency: monthly?.currency ?? null,
+      priceYearly: yearly?.amount ?? null,
+      priceYearlyCurrency: yearly?.currency ?? null,
+    };
   });
 }

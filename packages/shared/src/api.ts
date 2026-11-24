@@ -231,10 +231,18 @@ export interface ApiTier {
  * response without an error. A test in the backend holds the two together.
  */
 export interface PublicTier extends ApiTier {
-  /** Monthly price in euros as a numeric string, or `null` when the plan is not sold monthly. */
+  /** Monthly price in whole units of `priceCurrency` as a numeric string, or `null` when the plan is not sold monthly. */
   price: string | null;
-  /** Yearly price in euros as a numeric string, or `null` when no yearly billing is offered. */
+  /**
+   * The ISO 4217 code `price` is charged in, such as `EUR` or `USD`: the
+   * currency Creem returned for a live product, otherwise the offer's. `null`
+   * exactly when `price` is `null`.
+   */
+  priceCurrency: string | null;
+  /** Yearly price in whole units of `priceYearlyCurrency` as a numeric string, or `null` when no yearly billing is offered. */
   priceYearly: string | null;
+  /** The ISO 4217 code `priceYearly` is charged in, chosen as for `priceCurrency`. `null` exactly when `priceYearly` is `null`. */
+  priceYearlyCurrency: string | null;
   /** Whether the plan costs nothing. A paid plan can have neither price when it is sold over another period. */
   free: boolean;
   /** Whether a developer can put a project on this plan themselves today. */
