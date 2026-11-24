@@ -17,6 +17,19 @@ describe("extractOgTags", () => {
     expect(extractOgTags('<meta property="og:image" content="">').image).toBe("");
   });
 
+  it("decodes the entities a page writes into a content attribute", () => {
+    const page =
+      '<meta property="og:title" content="God&#x27;s Plan &amp; More &quot;Live&quot;"><meta property="og:image" content="https://example.test/a.jpg?w=1&amp;h=1">';
+    expect(extractOgTags(page)).toEqual({
+      title: 'God\'s Plan & More "Live"',
+      image: "https://example.test/a.jpg?w=1&h=1",
+    });
+  });
+
+  it("decodes an escaped entity only once", () => {
+    expect(extractOgTags('<meta property="og:title" content="A &amp;lt;B&amp;gt;">').title).toBe("A &lt;B&gt;");
+  });
+
   it("returns an empty map for a page without OG tags", () => {
     expect(extractOgTags("<html></html>")).toEqual({});
   });

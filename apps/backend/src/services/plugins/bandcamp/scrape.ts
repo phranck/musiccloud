@@ -30,6 +30,7 @@
  * discography and reads the band out of the title.
  */
 import { Operation, ResourceKind, Service } from "@musiccloud/shared";
+import { decodeHtmlEntities } from "../../../lib/html.js";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
 import type { AlbumTrackEntry, NormalizedAlbum, NormalizedTrack } from "../../types.js";
 import { type IsoDurationFormat, MS_PER_SECOND, parseIsoDurationMs } from "../_shared/duration.js";
@@ -145,22 +146,6 @@ export async function bandcampFetch(
 }
 
 /**
- * Decodes the HTML entities Bandcamp writes into a `data-` attribute value.
- *
- * @param value - The raw attribute value.
- * @returns The value with quotes, ampersands and angle brackets restored.
- */
-function decodeHtmlAttribute(value: string): string {
-  return value
-    .replace(/&quot;/g, '"')
-    .replace(/&#34;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
-}
-
-/**
  * Reads one JSON-valued `data-` attribute of a page.
  *
  * @param html - A Bandcamp page.
@@ -173,7 +158,7 @@ function parseDataAttribute<T>(html: string, attribute: string): T | null {
   if (!match?.[1]) return null;
 
   try {
-    return JSON.parse(decodeHtmlAttribute(match[1])) as T;
+    return JSON.parse(decodeHtmlEntities(match[1])) as T;
   } catch {
     return null;
   }

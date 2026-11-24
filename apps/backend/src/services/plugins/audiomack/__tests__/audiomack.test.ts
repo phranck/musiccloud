@@ -34,6 +34,7 @@ describe("Audiomack: current page metadata", () => {
       page: recordedPages[0],
     },
     { kind: "album", id: "folapondis/9-4108363", title: "9", artist: "FOLA", page: recordedPages[1] },
+    { kind: "track", id: "drake/gods-plan", title: "God's Plan", artist: "Drake", page: recordedPages[2] },
   ])("does not include page branding in the $kind performer credit", async ({ kind, id, title, artist, page }) => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(page.tags.join("\n")));
     const value = kind === "track" ? await audiomackAdapter.getTrack(id) : await audiomackAdapter.getAlbum?.(id);

@@ -13,19 +13,24 @@
  * the serverless bundle for this would be disproportionate.
  */
 
+import { decodeHtmlEntities } from "../../../lib/html.js";
+
 /**
  * Extracts all `og:*` meta tags from the given HTML string.
  *
+ * A `content` attribute is HTML, so its entities are decoded once: a page's
+ * `God&#x27;s Plan` reads as `God's Plan`, and `&amp;` in an image URL as `&`.
+ *
  * @param html - raw HTML response body
- * @returns map of OG key (without the `og:` prefix) to content value.
- *          Returns an empty object on HTML that has no OG tags.
+ * @returns map of OG key (without the `og:` prefix) to the decoded content
+ *          value. Returns an empty object on HTML that has no OG tags.
  */
 export function extractOgTags(html: string): Record<string, string> {
   const tags: Record<string, string> = {};
   const regex = /<meta\s+(?:property|name)="og:(\w+)"\s+content="([^"]*)"[^>]*>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(html)) !== null) {
-    tags[m[1]] = m[2];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(html)) !== null) {
+    tags[match[1]] = decodeHtmlEntities(match[2]);
   }
   return tags;
 }
