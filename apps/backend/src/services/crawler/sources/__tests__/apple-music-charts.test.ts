@@ -5,9 +5,12 @@ const assertAppleMusicDeveloperTokenMock = vi.hoisted(() => vi.fn());
 const appleMusicAvailableMock = vi.hoisted(() => vi.fn());
 const deviationMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../../../plugins/apple-music/adapter.js", () => ({
+vi.mock("../../../plugins/apple-music/token.js", () => ({
   appleMusicFetch: (...args: unknown[]) => appleMusicFetchMock(...args),
   assertAppleMusicDeveloperToken: () => assertAppleMusicDeveloperTokenMock(),
+}));
+
+vi.mock("../../../plugins/apple-music/adapter.js", () => ({
   appleMusicAdapter: {
     detectUrl: (url: string) => (url.startsWith("https://music.apple.com/") ? "at:1" : null),
   },

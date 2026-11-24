@@ -95,7 +95,7 @@ import { startBankWorker } from "./services/bank-ingestion.js";
 import { isEmailProviderHealthy } from "./services/email-provider.js";
 import { isPluginAvailable, validateAdapters } from "./services/index.js";
 import { startPendingSponsorshipExpiry } from "./services/pending-sponsorships.js";
-import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
+import { warmAppleMusicToken } from "./services/plugins/apple-music/token.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);

@@ -1,18 +1,15 @@
 /**
  * @file Crawler source: Apple Music Charts.
  *
- * Uses the Apple Music adapter's single authenticated request boundary. The
+ * Uses the Apple Music plugin's single authenticated request boundary in `token.ts`. The
  * source owns only its persisted configuration, chart-response validation,
  * and in-page candidate filtering; the heartbeat retains lock, accounting,
  * shared dedupe, persistence, and auto-disable ownership.
  */
 import { Service } from "@musiccloud/shared";
 import { log } from "../../../lib/infra/logger.js";
-import {
-  appleMusicAdapter,
-  appleMusicFetch,
-  assertAppleMusicDeveloperToken,
-} from "../../plugins/apple-music/adapter.js";
+import { appleMusicAdapter } from "../../plugins/apple-music/adapter.js";
+import { appleMusicFetch, assertAppleMusicDeveloperToken } from "../../plugins/apple-music/token.js";
 import { isPluginAvailable } from "../../plugins/registry.js";
 import {
   type Candidate,
