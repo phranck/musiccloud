@@ -18,7 +18,15 @@
  * for the shared instance.
  */
 import type { FastifyRequest } from "fastify";
+import { DAY_WINDOW_MS, MINUTE_WINDOW_MS, PUBLIC_DATA_REQUESTS_PER_MINUTE, SECOND_MS } from "./rate-limit-policy.js";
 import { secretsMatch } from "./secret-compare.js";
+
+/**
+ * How often each limiter in this file drops its expired entries: five minutes.
+ * Aggressive enough that a burst of unique keys does not bloat a Map for long,
+ * slack enough that the cleanup itself is background noise on the event loop.
+ */
+const CLEANUP_INTERVAL_MS = 5 * MINUTE_WINDOW_MS;
 
 export interface RateLimitCheck {
   limited: boolean;
@@ -45,7 +53,7 @@ function checkWindow(
   maxRequests: number,
   windowMs: number,
 ): RateLimitCheck {
-  const windowSeconds = Math.ceil(windowMs / 1000);
+  const windowSeconds = Math.ceil(windowMs / SECOND_MS);
   if (isRateLimitDisabled()) {
     return {
       limited: false,
@@ -70,7 +78,7 @@ function checkWindow(
       limited: true,
       limit: maxRequests,
       remaining: 0,
-      retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)),
+      retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / SECOND_MS)),
       windowSeconds,
     };
   }
@@ -204,12 +212,8 @@ export class DynamicRateLimiter {
 // the real visitor IP breaks every consumer downstream that reads it, this
 // limiter as much as Umami's geolocation. Any new proxy forwards the visitor
 // IP.
-//
-// Cleanup cadence is 5 minutes: aggressive enough that a burst of unique IPs
-// does not bloat the Map for long, slack enough that cleanup itself is
-// background noise on the event loop.
-export const apiRateLimiter = new RateLimiter(10, 60_000);
-const apiRateLimiterCleanupTimer = setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);
+export const apiRateLimiter = new RateLimiter(PUBLIC_DATA_REQUESTS_PER_MINUTE, MINUTE_WINDOW_MS);
+const apiRateLimiterCleanupTimer = setInterval(() => apiRateLimiter.cleanup(), CLEANUP_INTERVAL_MS);
 apiRateLimiterCleanupTimer.unref();
 
 // The site's own resolves: POST /api/v1/resolve and /api/v1/cc/resolve sent by
@@ -221,8 +225,8 @@ apiRateLimiterCleanupTimer.unref();
 // every resolve fans out to many upstream services. Callers with an API key
 // are counted by their own client quotas instead.
 export const SITE_RESOLVE_REQUESTS_PER_MINUTE = 30;
-export const siteResolveRateLimiter = new RateLimiter(SITE_RESOLVE_REQUESTS_PER_MINUTE, 60_000);
-const siteResolveRateLimiterCleanupTimer = setInterval(() => siteResolveRateLimiter.cleanup(), 5 * 60 * 1000);
+export const siteResolveRateLimiter = new RateLimiter(SITE_RESOLVE_REQUESTS_PER_MINUTE, MINUTE_WINDOW_MS);
+const siteResolveRateLimiterCleanupTimer = setInterval(() => siteResolveRateLimiter.cleanup(), CLEANUP_INTERVAL_MS);
 siteResolveRateLimiterCleanupTimer.unref();
 
 // The keyless GET /api/v1/resolve endpoint answers without a credential on
@@ -237,15 +241,12 @@ siteResolveRateLimiterCleanupTimer.unref();
 // resolving on behalf of its own users does not.
 export const KEYLESS_RESOLVE_REQUESTS_PER_MINUTE = 10;
 export const KEYLESS_RESOLVE_REQUESTS_PER_DAY = 500;
-const keylessResolveMinuteRateLimiter = new RateLimiter(KEYLESS_RESOLVE_REQUESTS_PER_MINUTE, 60_000);
-const keylessResolveDayRateLimiter = new RateLimiter(KEYLESS_RESOLVE_REQUESTS_PER_DAY, 24 * 60 * 60 * 1000);
-const keylessResolveCleanupTimer = setInterval(
-  () => {
-    keylessResolveMinuteRateLimiter.cleanup();
-    keylessResolveDayRateLimiter.cleanup();
-  },
-  5 * 60 * 1000,
-);
+const keylessResolveMinuteRateLimiter = new RateLimiter(KEYLESS_RESOLVE_REQUESTS_PER_MINUTE, MINUTE_WINDOW_MS);
+const keylessResolveDayRateLimiter = new RateLimiter(KEYLESS_RESOLVE_REQUESTS_PER_DAY, DAY_WINDOW_MS);
+const keylessResolveCleanupTimer = setInterval(() => {
+  keylessResolveMinuteRateLimiter.cleanup();
+  keylessResolveDayRateLimiter.cleanup();
+}, CLEANUP_INTERVAL_MS);
 keylessResolveCleanupTimer.unref();
 
 /**
@@ -268,19 +269,16 @@ export function checkKeylessResolveBudget(clientIp: string): RateLimitCheck {
 // registrations under one project share these commercial quota buckets.
 // Separate registration buckets below enforce optional narrower operational
 // caps without turning a registration into the subscription owner.
-export const projectMinuteRateLimiter = new DynamicRateLimiter(60_000);
-export const projectDayRateLimiter = new DynamicRateLimiter(24 * 60 * 60 * 1000);
-export const registrationMinuteRateLimiter = new DynamicRateLimiter(60_000);
-export const registrationDayRateLimiter = new DynamicRateLimiter(24 * 60 * 60 * 1000);
-const clientRateLimiterCleanupTimer = setInterval(
-  () => {
-    projectMinuteRateLimiter.cleanup();
-    projectDayRateLimiter.cleanup();
-    registrationMinuteRateLimiter.cleanup();
-    registrationDayRateLimiter.cleanup();
-  },
-  5 * 60 * 1000,
-);
+export const projectMinuteRateLimiter = new DynamicRateLimiter(MINUTE_WINDOW_MS);
+export const projectDayRateLimiter = new DynamicRateLimiter(DAY_WINDOW_MS);
+export const registrationMinuteRateLimiter = new DynamicRateLimiter(MINUTE_WINDOW_MS);
+export const registrationDayRateLimiter = new DynamicRateLimiter(DAY_WINDOW_MS);
+const clientRateLimiterCleanupTimer = setInterval(() => {
+  projectMinuteRateLimiter.cleanup();
+  projectDayRateLimiter.cleanup();
+  registrationMinuteRateLimiter.cleanup();
+  registrationDayRateLimiter.cleanup();
+}, CLEANUP_INTERVAL_MS);
 clientRateLimiterCleanupTimer.unref();
 
 /**

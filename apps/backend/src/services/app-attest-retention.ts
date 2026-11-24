@@ -5,7 +5,7 @@
  * The number is here, once. The privacy policy states the same period, so
  * changing it means changing that text too.
  */
-import { RETENTION_DAY_MS } from "./api-access-retention.js";
+import { DAY_WINDOW_MS } from "../lib/infra/rate-limit-policy.js";
 
 /**
  * How long a key is kept after its last use.
@@ -28,5 +28,5 @@ export async function sweepAppAttestKeyRetention(
   deleteUnusedSince: (cutoff: Date) => Promise<number>,
   now: number,
 ): Promise<number> {
-  return deleteUnusedSince(new Date(now - APP_ATTEST_KEY_RETENTION_DAYS * RETENTION_DAY_MS));
+  return deleteUnusedSince(new Date(now - APP_ATTEST_KEY_RETENTION_DAYS * DAY_WINDOW_MS));
 }

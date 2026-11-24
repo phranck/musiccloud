@@ -6,7 +6,7 @@
  * same period, so changing it means changing that text too.
  */
 import type { TrackRepository } from "../db/repository.js";
-import { RETENTION_DAY_MS } from "./api-access-retention.js";
+import { DAY_WINDOW_MS } from "../lib/infra/rate-limit-policy.js";
 
 /**
  * How long a telemetry event is kept.
@@ -28,5 +28,5 @@ export async function sweepAppTelemetryRetention(
   repo: Pick<TrackRepository, "deleteAppTelemetryEventsBefore">,
   now: number,
 ): Promise<number> {
-  return repo.deleteAppTelemetryEventsBefore(now - TELEMETRY_RETENTION_DAYS * RETENTION_DAY_MS);
+  return repo.deleteAppTelemetryEventsBefore(now - TELEMETRY_RETENTION_DAYS * DAY_WINDOW_MS);
 }

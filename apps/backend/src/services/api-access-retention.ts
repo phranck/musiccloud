@@ -6,14 +6,17 @@
  * once, and both the sweep and the audit read take them from here.
  */
 import type { ApiAccessRepository } from "../db/api-access-repository.js";
+import { DAY_WINDOW_MS } from "../lib/infra/rate-limit-policy.js";
 
 /**
  * How long a usage row is kept.
  *
- * Ninety days covers a quarter, which is the longest range any screen offers
- * and long enough to answer "was this developer always this busy". Nothing
- * bills on these rows, so keeping them beyond the question they answer buys
- * only disk.
+ * Ninety days covers a quarter, which is long enough to answer "was this
+ * developer always this busy". It must stay at least as long as
+ * `MAX_RANGE_DAYS` in `api-usage-window.ts`, because a read at that ceiling
+ * would otherwise find the older part of its range already deleted, and a test
+ * holds the two together. Nothing bills on these rows, so keeping them beyond
+ * the question they answer buys only disk.
  */
 export const USAGE_RETENTION_DAYS = 90;
 
@@ -26,9 +29,6 @@ export const USAGE_RETENTION_DAYS = 90;
  * kept longer than that question lasts.
  */
 export const AUDIT_RETENTION_DAYS = 365;
-
-/** One day in milliseconds. */
-export const RETENTION_DAY_MS = 24 * 60 * 60 * 1000;
 
 /** How many rows one sweep removed from each table. */
 export interface ApiAccessRetentionResult {
@@ -47,7 +47,7 @@ export async function sweepApiAccessRetention(
   repo: Pick<ApiAccessRepository, "deleteApiUsageEventsBefore" | "deleteApiAccessAuditEventsBefore">,
   now: number,
 ): Promise<ApiAccessRetentionResult> {
-  const usageRows = await repo.deleteApiUsageEventsBefore(now - USAGE_RETENTION_DAYS * RETENTION_DAY_MS);
-  const auditRows = await repo.deleteApiAccessAuditEventsBefore(now - AUDIT_RETENTION_DAYS * RETENTION_DAY_MS);
+  const usageRows = await repo.deleteApiUsageEventsBefore(now - USAGE_RETENTION_DAYS * DAY_WINDOW_MS);
+  const auditRows = await repo.deleteApiAccessAuditEventsBefore(now - AUDIT_RETENTION_DAYS * DAY_WINDOW_MS);
   return { usageRows, auditRows };
 }

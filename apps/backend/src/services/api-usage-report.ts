@@ -6,7 +6,8 @@
  * is allowed to ask, which is the route's business and not this file's.
  */
 import type { ApiAccessRepository, DeveloperProject } from "../db/api-access-repository.js";
-import { DAY_WINDOW_MS, MINUTE_WINDOW_MS, type UsageWindow } from "./api-usage-window.js";
+import { DAY_WINDOW_MS, MINUTE_WINDOW_MS } from "../lib/infra/rate-limit-policy.js";
+import type { UsageWindow } from "./api-usage-window.js";
 
 /**
  * Aggregated usage for one project, with the quota it is measured against.

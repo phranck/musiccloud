@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { UsageBucket } from "../../db/api-access-repository.js";
-import {
-  DAY_WINDOW_MS,
-  isUsageWindowRejection,
-  MAX_RANGE_MS,
-  resolveUsageWindow,
-  type UsageWindow,
-} from "../api-usage-window.js";
+import { DAY_WINDOW_MS } from "../../lib/infra/rate-limit-policy.js";
+import { isUsageWindowRejection, MAX_RANGE_MS, resolveUsageWindow, type UsageWindow } from "../api-usage-window.js";
 
 const NOW = Date.parse("2026-08-31T12:00:00.000Z");
 

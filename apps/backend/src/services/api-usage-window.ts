@@ -6,20 +6,20 @@
  * its own arithmetic. A bound that exists in one of two places is a bound.
  */
 import { UsageBucket, type UsageBucketValue } from "../db/api-access-repository.js";
-
-/** One minute, the window the per-minute quota is enforced over. */
-export const MINUTE_WINDOW_MS = 60_000;
-
-/** Twenty-four hours, the window the daily quota is enforced over. */
-export const DAY_WINDOW_MS = 24 * 60 * 60 * 1000;
+import { DAY_WINDOW_MS } from "../lib/infra/rate-limit-policy.js";
 
 /**
- * The widest range a single read may cover.
+ * How many days the widest read may cover: 31.
  *
  * A month of hourly steps is 744 rows, which is a chart. A year is not, and
- * the point of a ceiling is that nobody has to decide per call.
+ * the point of a ceiling is that nobody has to decide per call. The usage
+ * retention in `api-access-retention.ts` keeps at least this many days, so a
+ * range at the ceiling never reaches rows that are already gone.
  */
-export const MAX_RANGE_MS = 31 * DAY_WINDOW_MS;
+export const MAX_RANGE_DAYS = 31;
+
+/** The widest range a single read may cover, {@link MAX_RANGE_DAYS} in milliseconds. */
+export const MAX_RANGE_MS = MAX_RANGE_DAYS * DAY_WINDOW_MS;
 
 /**
  * Beyond this width the series is grouped by day rather than by hour, so the
@@ -65,7 +65,7 @@ export function resolveUsageWindow(
   if (Number.isNaN(from)) return { message: "from must be an ISO date." };
 
   if (from >= to) return { message: "from must be before to." };
-  if (to - from > MAX_RANGE_MS) return { message: "The range may cover at most 31 days." };
+  if (to - from > MAX_RANGE_MS) return { message: `The range may cover at most ${MAX_RANGE_DAYS} days.` };
 
   return { from, to, bucket: to - from <= HOURLY_SERIES_LIMIT_MS ? UsageBucket.Hour : UsageBucket.Day };
 }

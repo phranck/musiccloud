@@ -6,6 +6,7 @@
  */
 
 import { DEFAULT_TIER_COLOR, TIER_COLOR_PATTERN } from "@musiccloud/shared";
+import { DAY_WINDOW_HOURS, MINUTE_WINDOW_SECONDS } from "../lib/infra/rate-limit-policy.js";
 
 /** Standard availability response returned by public health probes. */
 export const HealthStatusResponseSchema = {
@@ -98,12 +99,12 @@ export const PublicTierSchema = {
     requestsPerMinute: {
       type: "integer",
       minimum: 1,
-      description: "Maximum authenticated requests in a rolling `60`-second window.",
+      description: `Maximum authenticated requests in a rolling \`${MINUTE_WINDOW_SECONDS}\`-second window.`,
     },
     requestsPerDay: {
       type: "integer",
       minimum: 1,
-      description: "Maximum authenticated requests in a rolling `24`-hour window.",
+      description: `Maximum authenticated requests in a rolling \`${DAY_WINDOW_HOURS}\`-hour window.`,
     },
     attributionRequired: {
       type: "boolean",

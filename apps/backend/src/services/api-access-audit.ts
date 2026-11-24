@@ -8,13 +8,17 @@
 import { type ApiAccessAuditActor, ApiAccessAuditActorType, type ApiAccessAuditTrail } from "@musiccloud/shared";
 
 import type { ApiAccessAuditEntry } from "../db/api-access-repository.js";
-import { AUDIT_RETENTION_DAYS, RETENTION_DAY_MS } from "./api-access-retention.js";
+import { DAY_WINDOW_MS } from "../lib/infra/rate-limit-policy.js";
+import { AUDIT_RETENTION_DAYS } from "./api-access-retention.js";
 
-/** The range a read covers when it names none: the last thirty days. */
-export const AUDIT_DEFAULT_RANGE_MS = 30 * RETENTION_DAY_MS;
+/** How many days a read covers when it names no range: the last 30. */
+export const AUDIT_DEFAULT_RANGE_DAYS = 30;
+
+/** The range a read covers when it names none, {@link AUDIT_DEFAULT_RANGE_DAYS} in milliseconds. */
+export const AUDIT_DEFAULT_RANGE_MS = AUDIT_DEFAULT_RANGE_DAYS * DAY_WINDOW_MS;
 
 /** The widest range a read may cover, which is as far back as the trail is kept. */
-export const AUDIT_MAX_RANGE_MS = AUDIT_RETENTION_DAYS * RETENTION_DAY_MS;
+export const AUDIT_MAX_RANGE_MS = AUDIT_RETENTION_DAYS * DAY_WINDOW_MS;
 
 /** How many entries a read returns when it names no limit. */
 export const AUDIT_DEFAULT_LIMIT = 50;
