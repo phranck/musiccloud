@@ -35,10 +35,21 @@ import type {
   NormalizedTrack,
 } from "../types.js";
 import { getGenreBrowseGrid, isLastfmAvailable, lastfmSearchByGenre } from "./lastfm.js";
-import { parseGenreQuery } from "./parser.js";
+import { GENRE_QUERY_PREFIX_PATTERN, parseGenreQuery } from "./parser.js";
 
 export type { ParsedGenreQuery } from "./parser.js";
 export { GenreQueryParseError, parseGenreQuery } from "./parser.js";
+
+/**
+ * The whole genre-browse query, `genre:?`: the {@link GENRE_QUERY_PREFIX_PATTERN}
+ * followed by a single `?` and nothing else apart from whitespace. Built from
+ * the prefix pattern so the browse and the search agree on what a `genre:`
+ * prefix is.
+ */
+const GENRE_BROWSE_QUERY_PATTERN = new RegExp(
+  `${GENRE_QUERY_PREFIX_PATTERN.source}\\s*\\?\\s*$`,
+  GENRE_QUERY_PREFIX_PATTERN.flags,
+);
 
 export class NoGenreSearchAdapterError extends Error {
   constructor() {
@@ -50,9 +61,13 @@ export class NoGenreSearchAdapterError extends Error {
 /**
  * Check whether the query is a genre-browse request (`genre:?`).
  * Must be called before `runGenreSearch` to intercept the special case.
+ *
+ * @param query - The raw resolve query as the user typed it.
+ * @returns `true` when the query is the `genre:` prefix, in any spelling
+ *   {@link GENRE_QUERY_PREFIX_PATTERN} accepts, followed only by `?`.
  */
 export function isGenreBrowseQuery(query: string): boolean {
-  return /^\s*genre\s*:\s*\?\s*$/i.test(query);
+  return GENRE_BROWSE_QUERY_PATTERN.test(query);
 }
 
 /**
@@ -106,9 +121,17 @@ export async function runGenreSearch(queryString: string): Promise<GenreSearchRe
   };
 }
 
-/** True iff the query starts with the `genre:` prefix (case-insensitive). */
+/**
+ * Check whether the query is a genre search, which the route hands to
+ * `runGenreSearch`. A `genre:?` query matches as well, so callers test
+ * `isGenreBrowseQuery` first.
+ *
+ * @param query - The raw resolve query as the user typed it.
+ * @returns `true` when the query starts with the `genre:` prefix in any
+ *   spelling {@link GENRE_QUERY_PREFIX_PATTERN} accepts, such as `genre : rock`.
+ */
 export function isGenreSearchQuery(query: string): boolean {
-  return query.trim().toLowerCase().startsWith("genre:");
+  return GENRE_QUERY_PREFIX_PATTERN.test(query);
 }
 
 // ─── Mappers: NormalizedX → GenreXCandidate ─────────────────────────────────
