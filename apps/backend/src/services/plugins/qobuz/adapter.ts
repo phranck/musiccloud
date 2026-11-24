@@ -20,7 +20,14 @@ import type {
   ServiceAdapter,
 } from "../../types";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
-import { pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
+import {
+  logCandidateScore,
+  pickBestCandidate,
+  pickBestTrack,
+  searchMatchResult,
+  trackScoreLogger,
+  usableTracks,
+} from "../_shared/rank.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
@@ -413,17 +420,14 @@ export const qobuzAdapter = {
     log.debug("Qobuz", `Search returned ${items.length} tracks for: ${q}`);
 
     // An untitled hit is skipped but keeps the provider position of every later hit.
-    const titled = items.flatMap((item, index) => (item.title ? [{ track: mapTrack(item), index }] : []));
-    const { best, confidence } = pickBestCandidate(titled, ({ track, index }) => {
-      const score = scoreSearchCandidate(query, track, index);
-      log.debug(
-        "Qobuz",
-        `  [${index}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${score.toFixed(3)}`,
-      );
-      return score;
-    });
+    const titled = usableTracks(items, (item) => Boolean(item.title), mapTrack);
+    const { best, confidence } = pickBestTrack(
+      titled,
+      (track, index) => scoreSearchCandidate(query, track, index),
+      trackScoreLogger("Qobuz"),
+    );
 
-    const result = searchMatchResult("track", best?.track, confidence);
+    const result = searchMatchResult("track", best, confidence);
     if (!result.found) {
       log.debug("Qobuz", `Best confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
@@ -549,11 +553,11 @@ export const qobuzAdapter = {
     }
 
     const named = items.flatMap((item) => (item.name ? [{ item, name: item.name }] : []));
-    const { best, confidence } = pickBestCandidate(named, ({ name }) => {
-      const score = calculateArtistNameConfidence(query.name, name);
-      log.debug("Qobuz", `  Artist "${name}" -> confidence=${score.toFixed(3)}`);
-      return score;
-    });
+    const { best, confidence } = pickBestCandidate(
+      named,
+      ({ name }) => calculateArtistNameConfidence(query.name, name),
+      ({ name }, _index, score) => logCandidateScore("Qobuz", `Artist "${name}"`, score),
+    );
 
     const id = String(best?.item.id ?? "");
     const artist: NormalizedArtist | null = best && {

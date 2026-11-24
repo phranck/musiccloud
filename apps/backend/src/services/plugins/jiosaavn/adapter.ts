@@ -68,7 +68,14 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
-import { pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
+import {
+  logCandidateScore,
+  pickBestCandidate,
+  pickBestTrack,
+  searchMatchResult,
+  trackScoreLogger,
+  usableTracks,
+} from "../_shared/rank.js";
 
 // JioSaavn URLs: jiosaavn.com/song/{slug}/{id}
 const JIOSAAVN_TRACK_REGEX = /^https?:\/\/(?:www\.)?jiosaavn\.com\/song\/[^/]+\/([A-Za-z0-9_-]+)/;
@@ -442,19 +449,14 @@ export const jiosaavnAdapter: ServiceAdapter = {
     log.debug("JioSaavn", `Search returned ${songs.length} results for: ${q}`);
 
     // A song without an ID or title is skipped but keeps the provider position of every later song.
-    const usable = songs.flatMap((song, index) =>
-      song.id && song.title ? [{ track: mapSongToTrack(song), index }] : [],
+    const usable = usableTracks(songs, (song) => Boolean(song.id && song.title), mapSongToTrack);
+    const { best, confidence } = pickBestTrack(
+      usable,
+      (track, index) => scoreSearchCandidate(query, track, index),
+      trackScoreLogger("JioSaavn"),
     );
-    const { best, confidence } = pickBestCandidate(usable, ({ track, index }) => {
-      const score = scoreSearchCandidate(query, track, index);
-      log.debug(
-        "JioSaavn",
-        `  [${index}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${score.toFixed(3)}`,
-      );
-      return score;
-    });
 
-    const result = searchMatchResult("track", best?.track, confidence);
+    const result = searchMatchResult("track", best, confidence);
     if (!result.found) {
       log.debug("JioSaavn", `Best confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
@@ -502,7 +504,7 @@ export const jiosaavnAdapter: ServiceAdapter = {
         const primary = primaryArtistNames(r);
         const artists = primary.length > 0 ? primary : r.music ? [r.music] : ["Unknown Artist"];
         const confidence = scoreAlbumCandidate(query, { title: r.title, artists, releaseDate: r.year });
-        log.debug("JioSaavn", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
+        logCandidateScore("JioSaavn", `"${r.title}"`, confidence);
         if (confidence > bestConfidence && confidence > ALBUM_PREVIEW_MIN_CONFIDENCE) {
           const full = await getAlbumById(r.id);
           if (!full) continue;
@@ -547,11 +549,11 @@ export const jiosaavnAdapter: ServiceAdapter = {
 
     log.debug("JioSaavn", `Artist search returned ${results.length} results for: ${query.name}`);
 
-    const { best, confidence } = pickBestCandidate(results, (item) => {
-      const score = calculateArtistNameConfidence(query.name, item.name);
-      log.debug("JioSaavn", `  "${item.name}" -> confidence=${score.toFixed(3)}`);
-      return score;
-    });
+    const { best, confidence } = pickBestCandidate(
+      results,
+      (item) => calculateArtistNameConfidence(query.name, item.name),
+      (item, _index, score) => logCandidateScore("JioSaavn", `"${item.name}"`, score),
+    );
 
     const artist: NormalizedArtist | null = best && {
       sourceService: "jiosaavn",

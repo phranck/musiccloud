@@ -34,7 +34,6 @@ import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -48,6 +47,7 @@ import type {
   SearchResultWithCandidates,
 } from "../../types.js";
 import { isFreeTextSearch, namesRecording, scoreSearchCandidate } from "../_shared/confidence.js";
+import { searchMatchResult } from "../_shared/rank.js";
 import { acquireMusicBrainzSlot } from "./rate-limit.js";
 
 const API_BASE = "https://musicbrainz.org/ws/2";
@@ -339,8 +339,23 @@ function mapArtist(artist: MbArtist): NormalizedArtist {
  */
 function combinedConfidence(query: SearchQuery, mbScore: number | undefined, projectScore: number): number {
   if (projectScore === 0 || !namesRecording(query)) return projectScore;
-  const normalizedMb = typeof mbScore === "number" ? Math.max(0, Math.min(1, mbScore / 100)) : 0;
-  return Math.max(normalizedMb, projectScore);
+  return Math.max(musicBrainzScore(mbScore), projectScore);
+}
+
+/** The score MusicBrainz gives its strongest search hit, the top of its percentage scale. */
+const MB_SCORE_SCALE = 100;
+
+/**
+ * Converts the relevance MusicBrainz reports with a search hit into the
+ * project's confidence scale.
+ *
+ * @param mbScore - MusicBrainz relevance from `0` to `MB_SCORE_SCALE`, or
+ *   `undefined` when the hit carries none.
+ * @returns The relevance divided by `MB_SCORE_SCALE` and clamped to `0` through
+ *   `1`, or `0` when MusicBrainz reported no score.
+ */
+function musicBrainzScore(mbScore: number | undefined): number {
+  return typeof mbScore === "number" ? Math.max(0, Math.min(1, mbScore / MB_SCORE_SCALE)) : 0;
 }
 
 export const musicbrainzAdapter = {
@@ -438,12 +453,7 @@ export const musicbrainzAdapter = {
     scored.sort((a, b) => b.confidence - a.confidence);
     const best = scored[0];
 
-    const bestMatch: MatchResult =
-      best.confidence >= MATCH_MIN_CONFIDENCE
-        ? { found: true, track: best.track, confidence: best.confidence, matchMethod: "search" }
-        : { found: false, confidence: best.confidence, matchMethod: "search" };
-
-    return { bestMatch, candidates: scored };
+    return { bestMatch: searchMatchResult("track", best.track, best.confidence), candidates: scored };
   },
 
   albumCapabilities: {
@@ -521,14 +531,7 @@ export const musicbrainzAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    const album = mapRelease(release);
-    const confidence = typeof release.score === "number" ? Math.max(0, Math.min(1, release.score / 100)) : 0;
-
-    if (confidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence, matchMethod: "search" };
-    }
-
-    return { found: true, album, confidence, matchMethod: "search" };
+    return searchMatchResult("album", mapRelease(release), musicBrainzScore(release.score));
   },
 
   artistCapabilities: {
@@ -570,13 +573,6 @@ export const musicbrainzAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    const mapped = mapArtist(artist);
-    const confidence = typeof artist.score === "number" ? Math.max(0, Math.min(1, artist.score / 100)) : 0;
-
-    if (confidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence, matchMethod: "search" };
-    }
-
-    return { found: true, artist: mapped, confidence, matchMethod: "search" };
+    return searchMatchResult("artist", mapArtist(artist), musicBrainzScore(artist.score));
   },
 };

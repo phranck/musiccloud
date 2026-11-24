@@ -1,7 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { log } from "../../../../lib/infra/logger.js";
 import { MATCH_MIN_CONFIDENCE } from "../../../constants.js";
 import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../../../types.js";
-import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../rank.js";
+import {
+  logCandidateScore,
+  pickBestCandidate,
+  pickBestTrack,
+  rankByArtistName,
+  searchMatchResult,
+  trackScoreLogger,
+  usableTracks,
+} from "../rank.js";
 
 /** A track fixture; only its identity matters to the result shape. */
 const track: NormalizedTrack = {
@@ -68,6 +77,86 @@ describe("pickBestCandidate", () => {
 
   it("reports no hit and zero confidence for an empty list", () => {
     expect(pickBestCandidate([], () => 1)).toEqual({ best: null, confidence: 0 });
+  });
+
+  it("reports every hit to onScored with its position and score, in order", () => {
+    const scored: Array<[string, number, number]> = [];
+    const scores = new Map([
+      ["a", 0.4],
+      ["b", 0.8],
+      ["c", 0.8],
+    ]);
+    const result = pickBestCandidate(
+      scores.keys(),
+      (name) => scores.get(name) ?? 0,
+      (name, index, confidence) => scored.push([name, index, confidence]),
+    );
+    expect(scored).toEqual([
+      ["a", 0, 0.4],
+      ["b", 1, 0.8],
+      ["c", 2, 0.8],
+    ]);
+    expect(result).toEqual({ best: "b", confidence: 0.8 });
+  });
+});
+
+describe("usableTracks", () => {
+  it("drops unusable hits without shifting the positions after them", () => {
+    const raw = [{ id: "a" }, { id: "" }, { id: "c" }];
+    const hits = usableTracks(
+      raw,
+      (item) => item.id !== "",
+      (item) => ({ ...track, sourceId: item.id }),
+    );
+    expect(hits.map((hit) => [hit.track.sourceId, hit.index])).toEqual([
+      ["a", 0],
+      ["c", 2],
+    ]);
+  });
+});
+
+describe("pickBestTrack", () => {
+  it("scores and logs each track with its original position and returns the track", () => {
+    const logged: Array<[string, number, number]> = [];
+    const hits = [
+      { track: { ...track, sourceId: "a" }, index: 1 },
+      { track: { ...track, sourceId: "b" }, index: 3 },
+    ];
+    const result = pickBestTrack(
+      hits,
+      (_track, index) => index / 10,
+      (scoredTrack, index, confidence) => logged.push([scoredTrack.sourceId, index, confidence]),
+    );
+    expect(logged).toEqual([
+      ["a", 1, 0.1],
+      ["b", 3, 0.3],
+    ]);
+    expect(result).toEqual({ best: hits[1].track, confidence: 0.3 });
+  });
+
+  it("reports no track for an empty list", () => {
+    const ignoreScore = () => {};
+    expect(pickBestTrack([], () => 1, ignoreScore)).toEqual({ best: null, confidence: 0 });
+  });
+});
+
+describe("score debug lines", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("prints a track with its position, artists and score", () => {
+    const debug = vi.spyOn(log, "debug").mockImplementation(() => {});
+    trackScoreLogger("Bandcamp")({ ...track, artists: ["A", "B"] }, 2, 0.87549);
+    expect(debug).toHaveBeenCalledWith("Bandcamp", '  [2] "Song" by A, B -> confidence=0.875');
+  });
+
+  it("prints the arrow the adapter names", () => {
+    const debug = vi.spyOn(log, "debug").mockImplementation(() => {});
+    trackScoreLogger("Napster", "→")(track, 0, 1);
+    logCandidateScore("Napster", 'Artist "Artist"', 0.5, "→");
+    expect(debug.mock.calls).toEqual([
+      ["Napster", '  [0] "Song" by Artist → confidence=1.000'],
+      ["Napster", '  Artist "Artist" → confidence=0.500'],
+    ]);
   });
 });
 

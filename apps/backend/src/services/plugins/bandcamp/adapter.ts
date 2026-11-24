@@ -66,10 +66,11 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { throwIfSearchIncomplete } from "../_shared/candidates.js";
-import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { bestSettledAlbum, throwIfSearchIncomplete } from "../_shared/candidates.js";
+import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import { pickBestTrack, searchMatchResult, trackScoreLogger } from "../_shared/rank.js";
 import { type BandcampAccount, creditedRelease } from "./label-credits.js";
 import { bandcampTransport } from "./transport.js";
 
@@ -401,40 +402,37 @@ async function fetchTracksForSearchResult(result: BandcampSearchResult): Promise
   return track ? [track] : [];
 }
 
-async function findBestBandcampMatch(
-  query: SearchQuery,
-  results: BandcampSearchResult[],
-): Promise<{ track: NormalizedTrack | null; confidence: number }> {
-  let bestMatch: NormalizedTrack | null = null;
-  let bestConfidence = 0;
+/** Writes the per-track score debug line of a Bandcamp search. */
+const logBandcampTrackScore = trackScoreLogger("Bandcamp");
 
+/**
+ * Fetches the tracks behind each search hit and keeps the best one.
+ *
+ * A track hit contributes its own page, an album hit every track of its album.
+ * Every track scores with the position of the search hit it came from, so all
+ * tracks of one album share that position.
+ *
+ * @param query - The track searched for.
+ * @param results - Bandcamp's search hits in the order it returned them.
+ * @returns The best track under `MATCH_MIN_CONFIDENCE`, or a miss with the
+ *   best score reached.
+ * @throws When a page failed to load and the result is a miss, because that
+ *   miss would not be complete.
+ */
+async function findBestBandcampMatch(query: SearchQuery, results: BandcampSearchResult[]): Promise<MatchResult> {
   const candidateResults = await Promise.allSettled(results.map((r) => fetchTracksForSearchResult(r)));
-
-  for (let i = 0; i < candidateResults.length; i++) {
-    const result = candidateResults[i];
-    if (result.status !== "fulfilled") continue;
-
-    for (const track of result.value) {
-      const confidence = scoreSearchCandidate(query, track, i);
-
-      log.debug(
-        "Bandcamp",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-      );
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
-    }
-  }
-
-  throwIfSearchIncomplete(
-    candidateResults,
-    Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
-    Service.BandCamp,
+  const tracks = candidateResults.flatMap((result, index) =>
+    result.status === "fulfilled" ? result.value.map((track) => ({ track, index })) : [],
   );
-  return { track: bestMatch, confidence: bestConfidence };
+  const { best, confidence } = pickBestTrack(
+    tracks,
+    (track, index) => scoreSearchCandidate(query, track, index),
+    logBandcampTrackScore,
+  );
+
+  const match = searchMatchResult("track", best, confidence);
+  throwIfSearchIncomplete(candidateResults, match.found, Service.BandCamp);
+  return match;
 }
 
 function parseAlbumJsonLd(html: string): BandcampAlbumJsonLd | null {
@@ -526,19 +524,11 @@ export const bandcampAdapter: ServiceAdapter = {
     if (results.length === 0) log.debug("Bandcamp", "Search returned no results for:", q);
     else log.debug("Bandcamp", `Search returned ${results.length} results for: ${q}`);
 
-    const best = await findBestBandcampMatch(query, results);
-
-    if (!best.track || best.confidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("Bandcamp", `Best confidence ${best.confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: best.confidence, matchMethod: "search" };
+    const match = await findBestBandcampMatch(query, results);
+    if (!match.found) {
+      log.debug("Bandcamp", `Best confidence ${match.confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    return {
-      found: true,
-      track: best.track,
-      confidence: best.confidence,
-      matchMethod: "search",
-    };
+    return match;
   },
 
   albumCapabilities: {
@@ -564,27 +554,6 @@ export const bandcampAdapter: ServiceAdapter = {
     if (results.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
     const albumResults = await Promise.allSettled(results.map((r) => fetchAlbumByUrl(r.url)));
-    let bestMatch: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const result of albumResults) {
-      if (result.status !== "fulfilled" || !result.value) continue;
-      const album = result.value;
-      const confidence = scoreAlbumCandidate(query, album);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = album;
-      }
-    }
-
-    throwIfSearchIncomplete(
-      albumResults,
-      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
-      Service.BandCamp,
-    );
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    return bestSettledAlbum(query, albumResults, Service.BandCamp);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

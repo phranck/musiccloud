@@ -49,7 +49,18 @@ import {
   requireProviderObject,
   safeNumericProviderCode,
 } from "../_shared/provider-response.js";
+import {
+  logCandidateScore,
+  pickBestCandidate,
+  pickBestTrack,
+  searchMatchResult,
+  trackScoreLogger,
+  usableTracks,
+} from "../_shared/rank.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
+
+/** Writes the per-track score debug line of a QQ Music search. */
+const logQQMusicTrackScore = trackScoreLogger("QQ Music");
 
 // QQ Music URLs: y.qq.com/n/ryqq/songDetail/{mid}
 const QQMUSIC_TRACK_REGEX = /^https?:\/\/y\.qq\.com\/n\/ryqq\/songDetail\/([A-Za-z0-9]+)/;
@@ -255,38 +266,17 @@ export const qqmusicAdapter: ServiceAdapter = {
 
     log.debug("QQ Music", `Search returned ${songs.length} results for: ${q}`);
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
+    const { best, confidence } = pickBestTrack(
+      usableTracks(songs, (song) => Boolean(song.mid && song.name), mapSong),
+      (track, index) => scoreSearchCandidate(query, track, index),
+      logQQMusicTrackScore,
+    );
 
-    for (let i = 0; i < songs.length; i++) {
-      const song = songs[i];
-      if (!song.mid || !song.name) continue;
-
-      const track = mapSong(song);
-      const confidence = scoreSearchCandidate(query, track, i);
-
-      log.debug(
-        "QQ Music",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-      );
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
+    const match = searchMatchResult("track", best, confidence);
+    if (!match.found) {
+      log.debug("QQ Music", `Best confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("QQ Music", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return match;
   },
 
   albumCapabilities: {
@@ -316,23 +306,12 @@ export const qqmusicAdapter: ServiceAdapter = {
 
     log.debug("QQ Music", `Album search returned ${results.length} results for: ${q}`);
 
-    let bestMatch: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const raw of results) {
-      if (!raw.mid || !raw.name) continue;
-      const album = mapQQAlbum(raw);
-      const confidence = scoreAlbumCandidate(query, album);
-      log.debug("QQ Music", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = album;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    const albums = results.filter((raw) => raw.mid && raw.name).map(mapQQAlbum);
+    const { best, confidence } = pickBestCandidate(
+      albums,
+      (album) => scoreAlbumCandidate(query, album),
+      (album, _index, albumConfidence) => logCandidateScore("QQ Music", `"${album.title}"`, albumConfidence),
+    );
+    return searchMatchResult("album", best, confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

@@ -45,7 +45,6 @@
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -57,6 +56,7 @@ import type {
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection, requireProviderObject } from "../_shared/provider-response.js";
+import { pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
 
 const API_BASE = "https://api.audius.co/v1";
 const APP_NAME = "music_cloud";
@@ -274,28 +274,10 @@ export const audiusAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-
-    for (let i = 0; i < items.length; i++) {
-      const track = mapTrack(items[i]);
-      const confidence = scoreSearchCandidate(query, track, i);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    const { best, confidence } = pickBestCandidate(items.map(mapTrack), (track, index) =>
+      scoreSearchCandidate(query, track, index),
+    );
+    return searchMatchResult("track", best, confidence);
   },
 
   albumCapabilities: {
@@ -319,20 +301,7 @@ export const audiusAdapter = {
     const albums = await searchAudiusAlbums(`${query.artist} ${query.title}`);
     if (albums.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
-    let bestMatch: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const album of albums) {
-      const confidence = scoreAlbumCandidate(query, album);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = album;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    const { best, confidence } = pickBestCandidate(albums, (album) => scoreAlbumCandidate(query, album));
+    return searchMatchResult("album", best, confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

@@ -47,7 +47,18 @@ import type {
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import {
+  logCandidateScore,
+  pickBestCandidate,
+  pickBestTrack,
+  searchMatchResult,
+  trackScoreLogger,
+  usableTracks,
+} from "../_shared/rank.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
+
+/** Writes the per-track score debug line of an Audiomack search. */
+const logAudiomackTrackScore = trackScoreLogger("Audiomack");
 
 // Audiomack URLs: audiomack.com/{artist}/song/{track-slug}
 const AUDIOMACK_TRACK_REGEX = /^https?:\/\/(?:www\.)?audiomack\.com\/([^/]+)\/song\/([^/?]+)/;
@@ -259,38 +270,17 @@ export const audiomackAdapter: ServiceAdapter = {
 
     log.debug("Audiomack", `Search returned ${songs.length} results for: ${q}`);
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
+    const { best, confidence } = pickBestTrack(
+      usableTracks(songs, (song) => Boolean(song.id && song.title), mapSong),
+      (track, index) => scoreSearchCandidate(query, track, index),
+      logAudiomackTrackScore,
+    );
 
-    for (let i = 0; i < songs.length; i++) {
-      const song = songs[i];
-      if (!song.id || !song.title) continue;
-
-      const track = mapSong(song);
-      const confidence = scoreSearchCandidate(query, track, i);
-
-      log.debug(
-        "Audiomack",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-      );
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
+    const match = searchMatchResult("track", best, confidence);
+    if (!match.found) {
+      log.debug("Audiomack", `Best confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("Audiomack", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return match;
   },
 
   albumCapabilities: {
@@ -323,23 +313,12 @@ export const audiomackAdapter: ServiceAdapter = {
 
     log.debug("Audiomack", `Album search returned ${results.length} results for: ${q}`);
 
-    let bestMatch: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const r of results) {
-      if (!r.id || !r.title) continue;
-      const album = mapAlbumResult(r);
-      const confidence = scoreAlbumCandidate(query, album);
-      log.debug("Audiomack", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = album;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    const albums = results.filter((result) => result.id && result.title).map(mapAlbumResult);
+    const { best, confidence } = pickBestCandidate(
+      albums,
+      (album) => scoreAlbumCandidate(query, album),
+      (album, _index, albumConfidence) => logCandidateScore("Audiomack", `"${album.title}"`, albumConfidence),
+    );
+    return searchMatchResult("album", best, confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
