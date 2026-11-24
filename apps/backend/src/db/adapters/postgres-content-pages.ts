@@ -168,7 +168,7 @@ function resolveSlugAfterRename(p: { slug: string; meta?: ContentPageMetaUpdate 
 }
 
 // ============================================================================
-// CONTENT PAGES — read (admin)
+// CONTENT PAGES: ADMIN READS
 // ============================================================================
 
 /**
@@ -260,7 +260,7 @@ export async function getAdminUsernamesByIds(pool: Pool, ids: string[]): Promise
 }
 
 // ============================================================================
-// CONTENT PAGES — read (public)
+// CONTENT PAGES: PUBLIC READS
 // ============================================================================
 
 /**
@@ -407,7 +407,7 @@ export async function replaceContentPublications(
 }
 
 // ============================================================================
-// CONTENT PAGES — write
+// CONTENT PAGES: WRITES
 // ============================================================================
 
 /**
