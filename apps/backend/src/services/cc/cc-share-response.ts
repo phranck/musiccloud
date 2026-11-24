@@ -5,80 +5,73 @@
  * persistent share-page loader both need the same projection: the wire-format CC
  * entity plus the related {@link CcArtistInfoResponse} (the artist's popular
  * tracks + similar tracks, built live from Jamendo). They differ only in the
- * wrapper field — the resolve response carries the DB `id`, the share-page
- * response carries `og` meta — so the expensive, shared core lives here and each
- * caller wraps it into its own response shape. Keeping it in one place means the
+ * wrapper field: the resolve response carries the DB `id`, and the share-page
+ * response carries `og` meta. The expensive, shared core therefore lives here,
+ * and each caller wraps it into its own response shape. Keeping it in one place means the
  * share page and the live view always render from identical data.
  */
 import type { ApiCcAlbum, ApiCcArtist, ApiCcTrack, CcArtistInfoResponse } from "@musiccloud/shared";
-import type { CcAlbumShareRow, CcArtistShareRow, CcTrackShareRow, PersistCcTrackData } from "../../db/repository.js";
+import type { CcAlbumShareRow, CcArtistShareRow, CcTrackShareRow } from "../../db/repository.js";
 import { buildCcArtistInfo } from "./cc-artist-info.js";
 import { getCcArtistTopTracks } from "./jamendo/client.js";
-import type { CcAlbum, CcArtist, CcTrack } from "./jamendo/types.js";
+import {
+  CC_TRACK_FIELDS,
+  CC_TRACK_WIRE_FIELDS,
+  type CcAlbum,
+  type CcArtist,
+  type CcTrack,
+  type CcTrackField,
+  pickTrackFields,
+} from "./jamendo/types.js";
 
 /**
  * Projects a resolved CC track to its wire shape. Shared by the track, album and
  * artist payloads so the track projection stays defined in exactly one place.
+ * The fields and their order come from {@link CC_TRACK_WIRE_FIELDS}.
  *
  * @param track - The resolved CC track.
  * @returns The wire-format CC track.
  */
 export function toApiCcTrack(track: CcTrack): ApiCcTrack {
   return {
-    jamendoId: track.jamendoId,
-    title: track.title,
-    artistName: track.artistName,
-    jamendoArtistId: track.jamendoArtistId,
-    albumName: track.albumName,
-    artworkUrl: track.artworkUrl,
-    durationMs: track.durationMs,
-    releaseDate: track.releaseDate,
-    licenseCcurl: track.licenseCcurl,
-    streamUrl: track.streamUrl,
-    downloadUrl: track.downloadUrl,
-    downloadAllowed: track.downloadAllowed,
-    waveform: track.waveform,
-    shareUrl: track.shareUrl,
-    musicInfo: track.musicInfo,
-    stats: track.stats,
+    ...pickTrackFields(track, CC_TRACK_WIRE_FIELDS),
     // Only the single-track resolve fetches licenses; elide the `false` so the
-    // album/artist `tracks[]` arrays (no include) stay schlank on the wire.
+    // album/artist `tracks[]` arrays (no include) stay small on the wire.
     proLicensing: track.proLicensing || undefined,
-    proUrl: track.proUrl,
   };
 }
+
+/** The one {@link CcTrack} field the share-page row has no column for. */
+const CC_TRACK_FIELD_WITHOUT_ROW_COLUMN = "jamendoAlbumId" satisfies CcTrackField;
+
+/** A {@link CcTrack} field that {@link CcTrackShareRow} carries under the same name. */
+type CcTrackRowField = Exclude<CcTrackField, typeof CC_TRACK_FIELD_WITHOUT_ROW_COLUMN>;
+
+/** The {@link CC_TRACK_FIELDS} that {@link mapDbRowToCcTrack} reads from the row. */
+const CC_TRACK_ROW_FIELDS = CC_TRACK_FIELDS.filter(
+  (field): field is CcTrackRowField => field !== CC_TRACK_FIELD_WITHOUT_ROW_COLUMN,
+);
 
 /**
  * Maps a {@link CcTrackShareRow} (DB read) to the {@link CcTrack} domain shape so
  * the share-page loader builds the wire payload from the DB instead of refetching
  * from Jamendo. Coerces the `integer` 0/1 flags to booleans and `null` columns to
- * `undefined` (the domain type uses optionals, not nulls).
+ * `undefined` (the domain type uses optionals, not nulls). The fields come from
+ * {@link CC_TRACK_ROW_FIELDS}, and the compiler rejects one the row lacks.
  *
  * @param row - The cc-track DB projection (with joined `jamendoArtistId`).
  * @returns The track in {@link CcTrack} domain shape.
  */
 export function mapDbRowToCcTrack(row: CcTrackShareRow): CcTrack {
+  const track: Partial<Record<CcTrackRowField, unknown>> = {};
+  for (const field of CC_TRACK_ROW_FIELDS) {
+    track[field] = row[field] ?? undefined;
+  }
   return {
-    jamendoId: row.jamendoId,
-    title: row.title,
-    artistName: row.artistName,
-    jamendoArtistId: row.jamendoArtistId,
-    albumName: row.albumName ?? undefined,
-    albumPosition: row.albumPosition ?? undefined,
-    artworkUrl: row.artworkUrl ?? undefined,
-    durationMs: row.durationMs ?? undefined,
-    releaseDate: row.releaseDate ?? undefined,
-    licenseCcurl: row.licenseCcurl ?? undefined,
-    streamUrl: row.streamUrl,
-    downloadUrl: row.downloadUrl ?? undefined,
+    ...track,
     downloadAllowed: row.downloadAllowed === 1,
-    waveform: row.waveform ?? undefined,
-    shareUrl: row.shareUrl ?? undefined,
-    musicInfo: row.musicInfo ?? undefined,
-    stats: row.stats ?? undefined,
     proLicensing: row.proLicensing === 1,
-    proUrl: row.proUrl ?? undefined,
-  };
+  } as CcTrack;
 }
 
 /**
@@ -113,43 +106,6 @@ export function mapDbRowToCcArtist(row: CcArtistShareRow): CcArtist {
     website: row.website ?? undefined,
     imageUrl: row.imageUrl ?? undefined,
     shareUrl: row.shareUrl ?? undefined,
-  };
-}
-
-/**
- * Projects a resolved {@link CcTrack} to the DB persist payload. Shared by the
- * resolve route's single track, album tracklist and artist top tracks, so the
- * share page can read the full entity from the DB. The detail
- * fields (`albumPosition`/`musicInfo`/`stats`/`pro*`) are populated only when the
- * source fetch included them (single-track resolve with
- * `include=musicinfo+stats+licenses`); list contexts leave them undefined and
- * override the position fields per index.
- *
- * @param track - The resolved CC track.
- * @returns The flattened persist payload.
- */
-export function ccTrackToPersistData(track: CcTrack): PersistCcTrackData {
-  return {
-    jamendoId: track.jamendoId,
-    title: track.title,
-    artistName: track.artistName,
-    jamendoArtistId: track.jamendoArtistId,
-    albumName: track.albumName,
-    jamendoAlbumId: track.jamendoAlbumId,
-    artworkUrl: track.artworkUrl,
-    durationMs: track.durationMs,
-    releaseDate: track.releaseDate,
-    licenseCcurl: track.licenseCcurl,
-    streamUrl: track.streamUrl,
-    downloadUrl: track.downloadUrl,
-    downloadAllowed: track.downloadAllowed,
-    waveform: track.waveform,
-    shareUrl: track.shareUrl,
-    albumPosition: track.albumPosition,
-    musicInfo: track.musicInfo,
-    stats: track.stats,
-    proLicensing: track.proLicensing,
-    proUrl: track.proUrl,
   };
 }
 
