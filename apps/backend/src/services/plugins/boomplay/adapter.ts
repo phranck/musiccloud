@@ -26,7 +26,7 @@
  * ## ISO 8601 duration
  *
  * The JSON-LD `duration` field is formatted as `"PT03M45S"` (ISO 8601
- * period). `parseDuration` handles the three components (hours,
+ * period). `parseIsoDurationMs` handles the three components (hours,
  * minutes, seconds) and yields milliseconds; an unparseable value
  * yields `undefined` rather than zero so the downstream display can
  * distinguish "no duration data" from "zero-length track".
@@ -46,6 +46,7 @@ import type {
 } from "../../types.js";
 import { bestSettledAlbum, bestSettledTrack } from "../_shared/candidates.js";
 import { searchText } from "../_shared/confidence.js";
+import { parseIsoDurationMs } from "../_shared/duration.js";
 import { readProviderHtml } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
@@ -73,16 +74,6 @@ interface BoomplayJsonLd {
   duration?: string; // ISO 8601: "PT03M45S"
   byArtist?: Array<{ name?: string }>;
   inAlbum?: { name?: string };
-}
-
-/** Parse ISO 8601 duration (PTxxMxxS) to milliseconds */
-function parseDuration(iso: string): number | undefined {
-  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
-  if (!match) return undefined;
-  const hours = parseInt(match[1] || "0", 10);
-  const minutes = parseInt(match[2] || "0", 10);
-  const seconds = parseInt(match[3] || "0", 10);
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
 }
 
 async function boomplayFetch(url: string, timeoutMs = 8000): Promise<Response> {
@@ -152,7 +143,7 @@ function mapJsonLd(data: BoomplayJsonLd, songId: string): NormalizedTrack {
     title: data.name ?? "Unknown",
     artists,
     albumName: data.inAlbum?.name,
-    durationMs: data.duration ? parseDuration(data.duration) : undefined,
+    durationMs: data.duration ? parseIsoDurationMs(data.duration) : undefined,
     artworkUrl: data.image,
     webUrl: `https://www.boomplay.com/songs/${songId}`,
   };

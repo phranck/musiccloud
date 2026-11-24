@@ -75,6 +75,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate } from "../_shared/confidence.js";
+import { type IsoDurationFormat, MS_PER_SECOND, parseIsoDurationMs } from "../_shared/duration.js";
 import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
 import { scoreCatalogueTrackCandidate, trackSearchTexts } from "../_shared/track-search-query.js";
 
@@ -440,26 +441,22 @@ function tidalAnswered(response: Response, kind: ResourceKind, id: string, op: O
 }
 
 /**
+ * Tidal's period dialect: `PT5M41S` with fractional seconds allowed, and a
+ * bare `PT` rejected, because an empty period is malformed metadata rather
+ * than a zero-length recording.
+ */
+const TIDAL_DURATION_FORMAT: IsoDurationFormat = { fractionalSeconds: true, requireComponent: true };
+
+/**
  * Parses a complete provider duration before it participates in identity scoring.
  *
- * @param duration - Numeric seconds or an ISO 8601 time period with at least one component.
+ * @param duration - Numeric seconds or an ISO 8601 time period in {@link TIDAL_DURATION_FORMAT}.
  * @returns Milliseconds, or undefined for an absent or malformed period.
  */
 function parseDuration(duration: number | string | undefined): number | undefined {
   if (duration === undefined) return undefined;
-
-  // ISO 8601 duration format: PT5M41S (5 minutes 41 seconds)
-  if (typeof duration === "string") {
-    const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(duration);
-    if (!match || !match.slice(1).some((component) => component !== undefined)) return undefined;
-    const hours = Number(match[1]) || 0;
-    const minutes = Number(match[2]) || 0;
-    const seconds = Number(match[3]) || 0;
-    return (hours * 3600 + minutes * 60 + seconds) * 1000;
-  }
-
-  // Fallback: assume duration is in seconds
-  return duration * 1000;
+  if (typeof duration === "string") return parseIsoDurationMs(duration, TIDAL_DURATION_FORMAT);
+  return duration * MS_PER_SECOND;
 }
 
 function extractArtistNames(resource: TidalTrackResource, included?: TidalTrackResponse["included"]): string[] {

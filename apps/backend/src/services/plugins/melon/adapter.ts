@@ -50,6 +50,7 @@ import type {
 import { splitArtistNames } from "../_shared/artists.js";
 import { bestSettledAlbum, bestSettledTrack } from "../_shared/candidates.js";
 import { searchText } from "../_shared/confidence.js";
+import { parseIsoDurationMs } from "../_shared/duration.js";
 import { extractOgTags } from "../_shared/og.js";
 import { readProviderHtml } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
@@ -106,15 +107,6 @@ function melonArtistNames(data: MelonJsonLd["byArtist"], html: string): string[]
   return artists.length > 0 ? artists : melonOpenGraph(html).artists;
 }
 
-function parseDuration(iso: string): number | undefined {
-  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
-  if (!match) return undefined;
-  const hours = parseInt(match[1] || "0", 10);
-  const minutes = parseInt(match[2] || "0", 10);
-  const seconds = parseInt(match[3] || "0", 10);
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
-}
-
 async function melonFetch(url: string, timeoutMs = 8000): Promise<Response> {
   return fetchWithTimeout(
     url,
@@ -163,7 +155,7 @@ async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
       title: jsonLd.name,
       artists,
       albumName: jsonLd.inAlbum?.name,
-      durationMs: jsonLd.duration ? parseDuration(jsonLd.duration) : undefined,
+      durationMs: jsonLd.duration ? parseIsoDurationMs(jsonLd.duration) : undefined,
       artworkUrl: jsonLd.image,
       webUrl: `https://www.melon.com/song/detail.htm?songId=${songId}`,
     };

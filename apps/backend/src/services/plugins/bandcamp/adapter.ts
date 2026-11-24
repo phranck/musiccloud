@@ -18,9 +18,9 @@
  * ## ISO 8601 with hours (`P00H03M45S`)
  *
  * Bandcamp's durations have an unusual form: `P00H03M45S` (no `T`
- * delimiter, always starts with `P`). `parseDuration` accepts this
- * format. Unparseable values yield `undefined` so the UI can
- * distinguish "missing" from "zero".
+ * delimiter, always starts with `P`). `parseIsoDurationMs` reads it
+ * with `BANDCAMP_DURATION_FORMAT`. Unparseable values yield `undefined`
+ * so the UI can distinguish "missing" from "zero".
  *
  * ## Requests through `curl`
  *
@@ -68,6 +68,7 @@ import type {
 } from "../../types.js";
 import { bestSettledAlbum, throwIfSearchIncomplete } from "../_shared/candidates.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { type IsoDurationFormat, MS_PER_SECOND, parseIsoDurationMs } from "../_shared/duration.js";
 import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import { pickBestTrack, searchMatchResult, trackScoreLogger } from "../_shared/rank.js";
@@ -148,14 +149,8 @@ interface BandcampEmbedData {
   };
 }
 
-function parseDuration(iso: string): number | undefined {
-  const match = /^P(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
-  if (!match) return undefined;
-  const hours = parseInt(match[1] || "0", 10);
-  const minutes = parseInt(match[2] || "0", 10);
-  const seconds = parseInt(match[3] || "0", 10);
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
-}
+/** Bandcamp's period dialect: `P00H03M45S`, with no `T` after the `P`. */
+const BANDCAMP_DURATION_FORMAT: IsoDurationFormat = { timeDesignator: false };
 
 /**
  * Requests a Bandcamp page or the search endpoint through {@link bandcampTransport}.
@@ -222,7 +217,7 @@ async function fetchTrackByUrl(trackUrl: string): Promise<NormalizedTrack | null
       title: jsonLd.name,
       artists: [credit?.artist ?? artist ?? "Unknown Artist"],
       albumName: credit?.title ?? albumName,
-      durationMs: jsonLd.duration ? parseDuration(jsonLd.duration) : undefined,
+      durationMs: jsonLd.duration ? parseIsoDurationMs(jsonLd.duration, BANDCAMP_DURATION_FORMAT) : undefined,
       artworkUrl: jsonLd.image,
       releaseDate: jsonLd.datePublished,
       webUrl: jsonLd.url ?? trackUrl,
@@ -382,9 +377,9 @@ async function fetchTracksByAlbumUrl(albumUrl: string): Promise<NormalizedTrack[
       albumName,
       durationMs:
         tralbumTrack?.duration !== undefined
-          ? Math.round(tralbumTrack.duration * 1000)
+          ? Math.round(tralbumTrack.duration * MS_PER_SECOND)
           : jsonTrack?.item?.duration
-            ? parseDuration(jsonTrack.item.duration)
+            ? parseIsoDurationMs(jsonTrack.item.duration, BANDCAMP_DURATION_FORMAT)
             : undefined,
       artworkUrl: jsonLd.image,
       releaseDate: jsonLd.datePublished,
@@ -463,7 +458,7 @@ async function fetchAlbumByUrl(albumUrl: string): Promise<NormalizedAlbum | null
       tracks.push({
         title: item.item.name,
         trackNumber: item.position,
-        durationMs: item.item.duration ? parseDuration(item.item.duration) : undefined,
+        durationMs: item.item.duration ? parseIsoDurationMs(item.item.duration, BANDCAMP_DURATION_FORMAT) : undefined,
       });
     }
   }

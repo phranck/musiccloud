@@ -64,6 +64,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { type IsoDurationFormat, parseIsoDurationMs } from "../_shared/duration.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
 import { getYouTubeAlbum, searchYouTubeAlbum } from "./album.js";
@@ -104,15 +105,20 @@ interface YouTubeSearchItem {
   snippet: YouTubeSnippet;
 }
 
+/**
+ * YouTube's period dialect: the first `PT4M30S` anywhere in the text, so a
+ * period followed by other text still reads up to where it stops.
+ */
+const YOUTUBE_DURATION_FORMAT: IsoDurationFormat = { embedded: true };
+
+/**
+ * Reads a video's `contentDetails.duration`.
+ *
+ * @param iso - The period YouTube reports, in {@link YOUTUBE_DURATION_FORMAT}.
+ * @returns Milliseconds, or `0` when the text holds no such period.
+ */
 function parseIsoDuration(iso: string): number {
-  const match = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(iso);
-  if (!match) return 0;
-
-  const hours = parseInt(match[1] ?? "0", 10);
-  const minutes = parseInt(match[2] ?? "0", 10);
-  const seconds = parseInt(match[3] ?? "0", 10);
-
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
+  return parseIsoDurationMs(iso, YOUTUBE_DURATION_FORMAT) ?? 0;
 }
 
 function getBestThumbnail(thumbnails: YouTubeSnippet["thumbnails"]): string | undefined {

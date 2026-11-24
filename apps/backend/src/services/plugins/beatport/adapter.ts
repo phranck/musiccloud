@@ -56,6 +56,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { parseClockDurationMs } from "../_shared/duration.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import {
   logCandidateScore,
@@ -243,12 +244,7 @@ function mapTrack(track: BeatportTrack): NormalizedTrack {
 
   // Parse length string "7:22" to ms if length_ms not available
   let durationMs = track.length_ms;
-  if (!durationMs && track.length) {
-    const parts = track.length.split(":");
-    if (parts.length === 2) {
-      durationMs = (parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10)) * 1000;
-    }
-  }
+  if (!durationMs && track.length) durationMs = parseClockDurationMs(track.length) ?? durationMs;
 
   return {
     sourceService: "beatport",
