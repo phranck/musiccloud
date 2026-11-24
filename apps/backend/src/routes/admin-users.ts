@@ -65,8 +65,8 @@ import {
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
-import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import { buildAdminUserResponse } from "../lib/admin-session.js";
 import { INVALID_EMAIL_CODE, normalizeEmailAddress } from "../lib/email-address.js";
 import { requireEnv } from "../lib/env.js";
 import { isGravatarAddress } from "../lib/gravatar.js";
@@ -80,7 +80,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.users.list, async () => {
     const repo = await getAdminRepository();
     const users = await repo.listAdminUsers();
-    return users.map(toResponse);
+    return users.map(buildAdminUserResponse);
   });
 
   // POST /api/admin/users (owner only)
@@ -155,7 +155,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     }
 
     return reply.status(201).send({
-      user: toResponse(user!),
+      user: buildAdminUserResponse(user!),
       inviteUrl,
     });
   });
@@ -212,7 +212,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const updated = await repo.updateAdminUser(id, updates);
     if (!updated) return reply.status(404).send({ error: "User not found" });
 
-    return toResponse(updated);
+    return buildAdminUserResponse(updated);
   });
 
   // DELETE /api/admin/users/:id (owner only)
@@ -260,7 +260,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       const updated = await repo.updateAdminUser(id, { avatarUrl: body.dataUrl });
       if (!updated) return reply.status(404).send({ error: "User not found" });
 
-      return toResponse(updated);
+      return buildAdminUserResponse(updated);
     },
   );
 
@@ -284,7 +284,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const updated = await repo.updateAdminUser(id, { avatarUrl: body.gravatarUrl });
     if (!updated) return reply.status(404).send({ error: "User not found" });
 
-    return toResponse(updated);
+    return buildAdminUserResponse(updated);
   });
 
   // DELETE /api/admin/users/:id/avatar
@@ -300,7 +300,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const updated = await repo.updateAdminUser(id, { avatarUrl: null });
     if (!updated) return reply.status(404).send({ error: "User not found" });
 
-    return toResponse(updated);
+    return buildAdminUserResponse(updated);
   });
 }
 
@@ -320,30 +320,4 @@ async function getCaller(request: { user?: unknown }) {
   if (!payload?.sub) return null;
   const repo = await getAdminRepository();
   return repo.findAdminById(payload.sub);
-}
-
-/**
- * Shapes a DB `AdminUser` row into the public response. Critically,
- * strips every sensitive column (`passwordHash`, `inviteTokenHash`,
- * `inviteExpiresAt`) by inclusion list rather than exclusion list, so
- * adding a new sensitive column cannot accidentally leak it through this
- * endpoint.
- *
- * @param user - row from the admin repository
- * @returns the API-safe user payload
- */
-function toResponse(user: AdminUser) {
-  return {
-    id: user.id,
-    username: user.username,
-    email: user.email ?? undefined,
-    role: user.role as "owner" | "admin" | "moderator",
-    isOwner: user.role === "owner",
-    firstName: user.firstName,
-    lastName: user.lastName,
-    avatarUrl: user.avatarUrl,
-    sessionTimeoutMinutes: user.sessionTimeoutMinutes,
-    createdAt: new Date(user.createdAt).toISOString(),
-    lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt).toISOString() : null,
-  };
 }

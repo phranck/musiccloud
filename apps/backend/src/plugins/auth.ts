@@ -49,6 +49,7 @@ import fp from "fastify-plugin";
 import type { ApiClient, DeveloperProject } from "../db/api-access-repository.js";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getApiAccessRepository } from "../db/index.js";
+import { ADMIN_TOKEN_ROLE } from "../lib/admin-session.js";
 import { createApiErrorResponse, sanitizeErrorForLog } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import {
@@ -326,7 +327,8 @@ async function authPlugin(app: FastifyInstance) {
    * JWT + role-based authentication for admin dashboard endpoints.
    *
    * Requires a valid `Authorization: Bearer <JWT>` header **and** a JWT
-   * payload claim of `role === "admin"`. Unlike `authenticatePublic`, there
+   * payload claim of `role === ADMIN_TOKEN_ROLE` (`"admin"`), the claim
+   * `signAdminToken` in `lib/admin-session.ts` writes. Unlike `authenticatePublic`, there
    * is no API-key fallback — the admin surface is JWT-only so every admin
    * action can be traced to an authenticated user.
    *
@@ -346,7 +348,7 @@ async function authPlugin(app: FastifyInstance) {
     try {
       await request.jwtVerify();
       const payload = request.user as { role?: string };
-      if (payload.role !== "admin") {
+      if (payload.role !== ADMIN_TOKEN_ROLE) {
         return reply.status(403).send({ error: "FORBIDDEN", message: "Admin access required." });
       }
     } catch {
