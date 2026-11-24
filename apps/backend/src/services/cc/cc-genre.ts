@@ -41,7 +41,8 @@ import type {
   ResolveCcGenreSearchResponse,
 } from "@musiccloud/shared";
 import { ccGenreArtworkTileUrl } from "../genre-artwork/genre-key.js";
-import { parseGenreQuery } from "../genre-search/index.js";
+import { parseGenreQuery } from "../genre-search/parser.js";
+import { buildGenreSearchEnvelope } from "../genre-search/search-envelope.js";
 import { ccAlbumCandidateId, ccArtistCandidateId, ccCandidateId } from "./cc-resolver.js";
 import { getCcArtistsByIds, getCcGenres, searchCcTracks } from "./jamendo/client.js";
 import type { CcArtist, CcGenre, CcTrack } from "./jamendo/types.js";
@@ -198,9 +199,10 @@ export async function runCcGenreBrowse(): Promise<ResolveCcGenreBrowseResponse> 
  * `GET /tracks?tags=<genres joined by '+'>` page sized to fill the requested
  * columns. Tracks map directly; albums and artists are deduped from the same
  * rows ({@link deriveAlbumColumn} / {@link deriveArtistColumn}), the artist
- * column adding one `GET /artists?id=…` enrichment call. A `null` per-type count
- * means that column was not requested and is returned as `null` (and its work is
- * skipped).
+ * column adding one `GET /artists?id=…` enrichment call. The response envelope
+ * comes from {@link buildGenreSearchEnvelope}, which the commercial search
+ * shares: a `null` per-type count means that column was not requested and is
+ * returned as `null` (and its work is skipped).
  *
  * @param query - Raw `genre: <name>[|<name>...]` query string.
  * @returns A `genre-search` response with up to three Jamendo-sourced columns.
@@ -209,34 +211,20 @@ export async function runCcGenreBrowse(): Promise<ResolveCcGenreBrowseResponse> 
  */
 export async function runCcGenreSearch(query: string): Promise<ResolveCcGenreSearchResponse> {
   const parsed = parseGenreQuery(query);
-  const wantTracks = parsed.tracks;
-  const wantAlbums = parsed.albums;
-  const wantArtists = parsed.artists;
 
   // One tags query feeds all three columns; over-fetch so the album/artist dedup
   // still yields enough distinct rows.
   const fetchLimit = Math.max(
-    wantTracks ?? 0,
-    (wantAlbums ?? 0) * CC_GENRE_DEDUP_OVERFETCH,
-    (wantArtists ?? 0) * CC_GENRE_DEDUP_OVERFETCH,
+    parsed.tracks ?? 0,
+    (parsed.albums ?? 0) * CC_GENRE_DEDUP_OVERFETCH,
+    (parsed.artists ?? 0) * CC_GENRE_DEDUP_OVERFETCH,
     1,
   );
   const tracks = await searchCcTracks({ tags: parsed.genres.join("+"), limit: fetchLimit });
 
-  return {
-    status: "genre-search",
-    query: {
-      genres: parsed.genres,
-      vibe: parsed.vibe,
-      tracks: parsed.tracks,
-      albums: parsed.albums,
-      artists: parsed.artists,
-    },
-    results: {
-      tracks: wantTracks !== null ? tracks.slice(0, wantTracks).map(toGenreTrackCandidate) : null,
-      albums: wantAlbums !== null ? deriveAlbumColumn(tracks, wantAlbums) : null,
-      artists: wantArtists !== null ? await deriveArtistColumn(tracks, wantArtists) : null,
-    },
-    warnings: parsed.warnings ?? [],
-  };
+  return buildGenreSearchEnvelope(parsed, {
+    tracks: (count) => tracks.slice(0, count).map(toGenreTrackCandidate),
+    albums: (count) => deriveAlbumColumn(tracks, count),
+    artists: (count) => deriveArtistColumn(tracks, count),
+  });
 }
