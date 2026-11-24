@@ -13,6 +13,7 @@
  * disagreement one step earlier.
  */
 
+import { tryDecodeURIComponent } from "./percent-decoding.js";
 import { isSameSiteRelativePath } from "./safe-url.js";
 
 /**
@@ -68,10 +69,8 @@ export function normalizeEditorialPath(path: string): string {
     throw new Error("Editorial path contains an ambiguous separator");
   }
 
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(candidate);
-  } catch {
+  const decoded = tryDecodeURIComponent(candidate);
+  if (decoded === null) {
     throw new Error("Editorial path contains invalid percent encoding");
   }
 

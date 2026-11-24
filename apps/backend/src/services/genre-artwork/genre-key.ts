@@ -8,7 +8,7 @@
  * can use them without loading image rendering.
  */
 
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, tryDecodeURIComponent } from "@musiccloud/shared";
 
 /**
  * Cache-bust version of every genre tile URL, commercial and CC alike.
@@ -37,14 +37,26 @@ export function isValidGenreKey(key: string): boolean {
 }
 
 /**
- * Turns the `:genreKey` path segment into the key artworks are stored under:
- * percent-decoded, lowercased, inner whitespace collapsed and trimmed.
+ * Turns the `:genreKey` route parameter into the key artworks are stored
+ * under: percent-decoded once more, lowercased, inner whitespace collapsed and
+ * trimmed.
  *
- * @param raw - The raw path segment.
- * @returns The normalized key.
+ * Fastify has already decoded the parameter once, and the second decode is
+ * still needed because the frontend proxy forwards reserved characters
+ * encoded: Astro decodes its path with `decodeURI`, which leaves `%26` (`&`)
+ * and `%2B` (`+`) in place, and the proxy encodes the parameter again with
+ * `encodeURIComponent` before calling the backend. So `r%26b` reaches the
+ * route as `r%26b` and only this decode turns it into `r&b`.
+ *
+ * Never throws. A parameter whose `%` is a literal character, such as `100%`,
+ * is not a valid encoding and is kept as it is, so the route's
+ * {@link isValidGenreKey} check refuses it with a 400.
+ *
+ * @param raw - The `:genreKey` route parameter as Fastify decoded it.
+ * @returns The normalized key, which may still be invalid.
  */
 export function normalizeGenreKey(raw: string): string {
-  return decodeURIComponent(raw).toLowerCase().replace(/\s+/g, " ").trim();
+  return (tryDecodeURIComponent(raw) ?? raw).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 /**

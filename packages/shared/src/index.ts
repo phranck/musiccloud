@@ -38,6 +38,7 @@ export * from "./markdown-shortcodes/index.js";
 export * from "./music-links.js";
 export * from "./overlay-geometry.js";
 export * from "./pending-sponsorships.js";
+export * from "./percent-decoding.js";
 export * from "./platform.js";
 export * from "./plugins.js";
 export * from "./public-error-catalog.js";
