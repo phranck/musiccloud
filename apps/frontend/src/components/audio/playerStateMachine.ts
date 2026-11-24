@@ -159,7 +159,7 @@ export function playerReducer(state: PlayerState, action: PlayerAction): PlayerS
 }
 
 /** Fallback track length when the element reports no usable duration (preview clips are ~30s). */
-const DEFAULT_DURATION_SECONDS = 30;
+export const DEFAULT_DURATION_SECONDS = 30;
 
 /**
  * Usable track length in seconds, falling back to {@link DEFAULT_DURATION_SECONDS}

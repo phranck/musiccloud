@@ -39,19 +39,19 @@ const STEREO_LEVEL_SMOOTHING = 0.4;
  * analyser cannot deliver samples, so the bars ease back to zero instead
  * of snapping off.
  */
-const STEREO_LEVEL_DECAY = 0.5;
+export const STEREO_LEVEL_DECAY = 0.5;
 /**
  * Time the per-channel peak indicator stays pinned at its last maximum
  * before it starts decaying back toward zero. Classic VU/peak-meter feel:
  * about a second of stand-still so the eye can latch onto transients.
  */
-const STEREO_PEAK_HOLD_MS = 900;
+export const STEREO_PEAK_HOLD_MS = 900;
 /**
  * Linear decay applied to the held peak (0..1 scale) per spectrum tick
  * once the hold window has elapsed. At a 50ms tick that yields ~0.5/sec,
  * so a full-scale hold falls back to zero in roughly two seconds.
  */
-const STEREO_PEAK_HOLD_DECAY_PER_TICK = 0.025;
+export const STEREO_PEAK_HOLD_DECAY_PER_TICK = 0.025;
 
 /**
  * Per-channel peak hold level (0..1) and the timestamp at which it was last
