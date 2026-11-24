@@ -40,6 +40,10 @@ export type {
 } from "./repository/cc.js";
 
 import type { CrawlRepository } from "./repository/crawl.js";
+import type { CatalogMaintenanceRepository } from "./repository/maintenance.js";
+
+export type { CatalogMaintenanceRepository } from "./repository/maintenance.js";
+
 import type { AppTelemetryRepository } from "./repository/telemetry.js";
 
 export type { ArtistCredit, ExternalIdRecord } from "../services/types.js";
@@ -223,6 +227,7 @@ export type RecordingKind = "track" | "album";
  */
 export interface TrackRepository
   extends ArtistRepository,
+    CatalogMaintenanceRepository,
     ArtistIdentityEnrichmentRepository,
     AppTelemetryRepository,
     CrawlRepository {
@@ -541,32 +546,6 @@ export interface TrackRepository
    * @returns A promise that resolves when the operation completes.
    */
   upsertAlbumPreview(albumId: string, observation: PreviewObservation): Promise<void>;
-
-  // Maintenance
-  /**
-   * Updates track timestamp.
-   *
-   * @param trackId - The `trackId` value.
-   * @returns A promise that resolves when the operation completes.
-   */
-  updateTrackTimestamp(trackId: string): Promise<void>;
-  /**
-   * Handles cleanup stale cache.
-   *
-   * @param ttlMs - The `ttlMs` value.
-   * @returns The numeric result of the query or mutation.
-   */
-  cleanupStaleCache(ttlMs?: number): Promise<number>;
-
-  // Readiness probe: returns the subset of `expected` table names that are
-  // missing from the public schema (empty list = all present).
-  /**
-   * Finds missing tables.
-   *
-   * @param expected - The `expected` value.
-   * @returns The matching rows.
-   */
-  findMissingTables(expected: string[]): Promise<string[]>;
 
   // Example: random short ID for landing page teaser
   /**
