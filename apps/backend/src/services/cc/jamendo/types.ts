@@ -3,7 +3,7 @@
  *
  * Two layers: raw response shapes exactly as Jamendo returns them
  * (`Jamendo*Raw`, snake_case), and clean CC domain objects the rest of the
- * backend consumes (`Cc*`, camelCase). The client maps raw → domain.
+ * backend consumes (`Cc*`, camelCase). `map.ts` maps raw → domain.
  */
 
 import type { CcMusicInfo, CcTrackStats } from "@musiccloud/shared";
@@ -126,7 +126,7 @@ export interface JamendoArtistRaw {
  * A Jamendo genre in musiccloud's domain shape. Drives the CC browse grid:
  * `name` feeds `tags=<name>` track searches and the genre-artwork cover
  * lookup; `displayName` is the human label. The set is a hand-curated list of
- * Jamendo genre tags (see `CC_GENRES` in `client.ts`) — Jamendo has no
+ * Jamendo genre tags (see `CC_GENRES` in `genres.ts`), because Jamendo has no
  * dedicated "top genres" endpoint.
  *
  * No tile-cover field: the browse tile cover is the procedurally generated

@@ -97,9 +97,9 @@ export default async function ccGenreArtworkRoutes(app: FastifyInstance) {
           .send(cached.jpeg);
       }
 
-      // Prefer the curated station's cleaned label (e.g. "Drum & Bass") over a
-      // title-cased key. `getCcGenres` is memoized, so this never refetches
-      // `/radios` per tile.
+      // Prefer the curated genre's display label (e.g. "Drum & Bass") over a
+      // title-cased key. `getCcGenres` returns the static table in
+      // `services/cc/jamendo/genres.ts`, so no tile sends a Jamendo request here.
       const displayName =
         (await getCcGenres()).find((g) => g.name === genreKey)?.displayName ?? genreDisplayName(genreKey);
       // `ensureArtwork` tolerates a missing cover and renders a flat-colour
