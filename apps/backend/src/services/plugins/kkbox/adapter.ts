@@ -66,7 +66,13 @@ import type {
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
-import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
+import {
+  logCandidateScore,
+  pickBestCandidate,
+  rankByArtistName,
+  searchMatchResult,
+  trackScoreLogger,
+} from "../_shared/rank.js";
 
 const API_BASE = "https://api.kkbox.com/v1.1";
 
@@ -363,14 +369,11 @@ export const kkboxAdapter = {
     log.debug("KKBOX", `Search returned ${items.length} tracks for: ${query.artist} ${query.title}`);
 
     const tracks = items.slice(0, KKBOX_SEARCH_LIMIT).map(mapTrack);
-    const { best, confidence } = pickBestCandidate(tracks, (track, index) => {
-      const score = scoreSearchCandidate(query, track, index);
-      log.debug(
-        "KKBOX",
-        `  [${index}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${score.toFixed(3)}`,
-      );
-      return score;
-    });
+    const { best, confidence } = pickBestCandidate(
+      tracks,
+      (track, index) => scoreSearchCandidate(query, track, index),
+      trackScoreLogger("KKBOX"),
+    );
     return searchMatchResult("track", best, confidence);
   },
 
@@ -403,11 +406,11 @@ export const kkboxAdapter = {
     log.debug("KKBOX", `Album search returned ${results.length} results for: ${q}`);
 
     const candidates = results.map((raw) => ({ name: raw.name, album: mapAlbum(raw) }));
-    const { best, confidence } = pickBestCandidate(candidates, ({ name, album }) => {
-      const score = scoreAlbumCandidate(query, album);
-      log.debug("KKBOX", `  "${name}" -> confidence=${score.toFixed(3)}`);
-      return score;
-    });
+    const { best, confidence } = pickBestCandidate(
+      candidates,
+      ({ album }) => scoreAlbumCandidate(query, album),
+      ({ name }, _index, score) => logCandidateScore("KKBOX", `"${name}"`, score),
+    );
     const result = searchMatchResult("album", best?.album, confidence);
     if (!result.album) return result;
 

@@ -65,7 +65,7 @@ import type {
 import { splitArtistNames } from "../_shared/artists.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
-import { pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
+import { logCandidateScore, pickBestCandidate, searchMatchResult, trackScoreLogger } from "../_shared/rank.js";
 
 const API_BASE = "https://api.napster.com/v2.2";
 
@@ -283,14 +283,11 @@ export const napsterAdapter = {
 
     log.debug("Napster", `Search returned ${items.length} tracks for: ${q}`);
 
-    const { best, confidence } = pickBestCandidate(items.map(mapTrack), (track, index) => {
-      const score = scoreSearchCandidate(query, track, index);
-      log.debug(
-        "Napster",
-        `  [${index}] "${track.title}" by ${track.artists.join(", ")} → confidence=${score.toFixed(3)}`,
-      );
-      return score;
-    });
+    const { best, confidence } = pickBestCandidate(
+      items.map(mapTrack),
+      (track, index) => scoreSearchCandidate(query, track, index),
+      trackScoreLogger("Napster", "→"),
+    );
 
     const result = searchMatchResult("track", best, confidence);
     if (!result.found) {
@@ -361,11 +358,11 @@ export const napsterAdapter = {
 
     log.debug("Napster", `Artist search returned ${items.length} results for: ${query.name}`);
 
-    const { best, confidence } = pickBestCandidate(items, (item) => {
-      const score = calculateArtistNameConfidence(query.name, item.name);
-      log.debug("Napster", `  Artist "${item.name}" → confidence=${score.toFixed(3)}`);
-      return score;
-    });
+    const { best, confidence } = pickBestCandidate(
+      items,
+      (item) => calculateArtistNameConfidence(query.name, item.name),
+      (item, _index, score) => logCandidateScore("Napster", `Artist "${item.name}"`, score, "→"),
+    );
 
     const artist: NormalizedArtist | null = best && {
       sourceService: "napster",
