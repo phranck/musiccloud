@@ -1,65 +1,11 @@
 /**
  * Last.fm `artist.getInfo` wrapper. Returns the bio summary, listener
- * counts, and similar-artist names. Upstream biography HTML is normalized
- * here so every caller receives plain text rather than parser-sensitive markup.
+ * counts, and similar-artist names. The bio arrives as HTML and leaves as
+ * plain text through `extractBioSummary` in `bio.ts`.
  */
 
-import { type DefaultTreeAdapterTypes, parseFragment } from "parse5";
-import { lastFmApiKey, lastFmGet } from "./lastfm-response.js";
-
-const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
-const DISCARDED_ELEMENT_NAMES = new Set([
-  "embed",
-  "iframe",
-  "noembed",
-  "noscript",
-  "object",
-  "plaintext",
-  "script",
-  "style",
-  "template",
-  "textarea",
-  "xmp",
-]);
-const BLOCK_ELEMENT_NAMES = new Set([
-  "address",
-  "article",
-  "aside",
-  "blockquote",
-  "br",
-  "dd",
-  "div",
-  "dl",
-  "dt",
-  "fieldset",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "header",
-  "hr",
-  "li",
-  "main",
-  "nav",
-  "ol",
-  "p",
-  "pre",
-  "section",
-  "table",
-  "tbody",
-  "td",
-  "tfoot",
-  "th",
-  "thead",
-  "tr",
-  "ul",
-]);
+import { extractBioSummary } from "./bio.js";
+import { lastFmApiKey, lastFmGet } from "./client.js";
 
 export interface LastFmArtistInfoResult {
   bioSummary: string | null;
@@ -97,62 +43,4 @@ export async function fetchLastFmArtistInfo(name: string): Promise<LastFmArtistI
     listeners: artist.stats?.listeners ? parseInt(artist.stats.listeners, 10) : null,
     similarArtists: (artist.similar?.artist ?? []).slice(0, 5).map((a) => a.name),
   };
-}
-
-function collectReadableText(node: DefaultTreeAdapterTypes.Node, chunks: string[]): void {
-  if (node.nodeName === "#text" && "value" in node) {
-    chunks.push(node.value);
-    return;
-  }
-
-  if ("tagName" in node) {
-    const elementName = node.tagName.toLowerCase();
-    if (node.namespaceURI !== HTML_NAMESPACE || DISCARDED_ELEMENT_NAMES.has(elementName)) return;
-
-    const separatesText = BLOCK_ELEMENT_NAMES.has(elementName);
-    if (separatesText) chunks.push(" ");
-    for (const child of node.childNodes) collectReadableText(child, chunks);
-    if (separatesText) chunks.push(" ");
-    return;
-  }
-
-  if ("childNodes" in node) {
-    for (const child of node.childNodes) collectReadableText(child, chunks);
-  }
-}
-
-function collapseWhitespace(value: string): string {
-  let result = "";
-  let separatorPending = false;
-
-  for (const character of value) {
-    if (character.trim().length === 0) {
-      separatorPending = result.length > 0;
-      continue;
-    }
-    if (separatorPending) result += " ";
-    result += character;
-    separatorPending = false;
-  }
-
-  return result;
-}
-
-function parsePlainTextFragment(value: string): string {
-  const chunks: string[] = [];
-  collectReadableText(parseFragment(value), chunks);
-  return collapseWhitespace(chunks.join(""));
-}
-
-/**
- * Last.fm controls this HTML fragment, while profile consumers require a
- * plain-text contract. Parsing once removes active nodes and attributes;
- * parsing the extracted text again prevents entity-encoded markup from
- * becoming executable if a later rendering boundary interprets the value.
- */
-function extractBioSummary(raw: string | null): string | null {
-  if (!raw) return null;
-  const decodedText = parsePlainTextFragment(raw);
-  if (!decodedText) return null;
-  return parsePlainTextFragment(decodedText) || null;
 }

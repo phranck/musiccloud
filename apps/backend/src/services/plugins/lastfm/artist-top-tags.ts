@@ -8,7 +8,8 @@
  * sees them.
  */
 
-import { isGenreTag, lastFmApiKey, lastFmGet } from "./lastfm-response.js";
+import { lastFmApiKey, lastFmGet } from "./client.js";
+import { isGenreTag } from "./genre-tags.js";
 
 const MAX_TAGS = 3;
 
