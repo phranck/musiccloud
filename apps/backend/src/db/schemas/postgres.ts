@@ -1,3 +1,11 @@
+/**
+ * The Drizzle schema of the Postgres database, one file per domain under `domains/`.
+ *
+ * `drizzle.config.postgres.ts` and every importer read the schema from this file, so it
+ * re-exports every table of every domain. `domains/column-types.ts` holds column helpers
+ * and no tables, so it is not re-exported.
+ */
+
 import {
   API_CLIENT_STATUSES,
   API_TOKEN_STATUSES,
@@ -22,12 +30,11 @@ import {
   TAX_MODES,
   type VinylLayout,
 } from "@musiccloud/shared";
-import { type SQL, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
   check,
-  customType,
   date,
   foreignKey,
   index,
@@ -41,33 +48,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-
-/**
- * Postgres `bytea` column helper. Drizzle does not ship a first-party
- * bytea column type, so we declare one via `customType`. Values are read
- * and written as Node `Buffer` instances (the shape `pg` uses natively).
- */
-const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
-  dataType() {
-    return "bytea";
-  },
-});
-
-/**
- * The quoted list a check constraint compares a column against, such as
- * `'active', 'suspended'`.
- *
- * The values are the shared package's own constants and never request input,
- * so writing them into the SQL as text is safe. The constraint text comes out
- * exactly as it was written by hand, so moving a check onto a shared list
- * changes no migration.
- *
- * @param values - The allowed values.
- * @returns The list as raw SQL.
- */
-function sqlValueList(values: readonly string[]): SQL {
-  return sql.raw(values.map((value) => `'${value}'`).join(", "));
-}
+import { bytea, sqlValueList } from "./domains/column-types.js";
 
 /**
  * Canonical track records resolved from streaming-service inputs.
@@ -385,7 +366,7 @@ export const albumShortUrls = pgTable(
   ],
 );
 
-/** Further short ids that address an album, for the same reason as {@link trackShortUrlAliases}. */
+/** Further short ids that address an album, for the same reason as `trackShortUrlAliases`. */
 export const albumShortUrlAliases = pgTable(
   "album_short_url_aliases",
   {
@@ -1078,8 +1059,8 @@ export const developerPortalAvailabilityEvents = pgTable(
 );
 
 // Permanent cache for artist images (Spotify-backed). Used by genre-search
-// and artist-info to avoid redundant Spotify lookups. No TTL — images are
-// small URLs that don't change often enough to warrant expiry.
+// and artist-info to avoid redundant Spotify lookups. Rows never expire,
+// because images are small URLs that don't change often enough to warrant expiry.
 /**
  * Permanent cache of artist image URLs keyed by normalized artist name.
  * Used by genre search and artist-info flows to avoid repeated upstream image
@@ -1161,8 +1142,8 @@ export const genreArtworks = pgTable("genre_artworks", {
  * for protected built-in templates. A template's expected `{{var}}` variables
  * are auto-extracted from its subject + body at use time (MC-080), not stored.
  * The nine trailing branding columns are per-template overrides
- * (MC-079): each is nullable, and `NULL` means "no override — inherit the
- * corresponding {@link emailBranding} global default for this render". A
+ * (MC-079): each is nullable, and `NULL` means that the template has no override
+ * and inherits the corresponding {@link emailBranding} global default for this render. A
  * non-null value wins over the global default for that one field only (merge
  * logic lives in `email-renderer.ts`'s `resolveBranding`).
  */
@@ -1199,7 +1180,7 @@ export type EmailTemplateInsert = typeof emailTemplates.$inferInsert;
  * The four gradient columns are NOT NULL with the real website night-sky
  * shader defaults (`apps/frontend/src/components/background/nightSky/settings.ts`):
  * a gradient always needs two colours to render, so there is no nullable
- * fallback chain here — a fresh setup already looks coherent without any admin
+ * fallback chain here. A fresh setup already looks coherent without any admin
  * action. The two background-image asset ids stay nullable (no image until the
  * user uploads one; the gradient alone renders in the meantime).
  */
@@ -1220,7 +1201,7 @@ export type EmailBrandingRow = typeof emailBranding.$inferSelect;
 export type EmailBrandingInsert = typeof emailBranding.$inferInsert;
 
 /**
- * Binary email images (MC-078). Mirrors {@link genreArtworks}: bytes live in
+ * Binary email images (MC-078). Mirrors `genreArtworks`: bytes live in
  * Postgres, served by `GET /api/admin/email-assets/:id` with a long immutable
  * cache. Referenced by {@link emailBranding} and by `image` body-blocks.
  */
@@ -1435,7 +1416,7 @@ export type NavigationItemPlacementRow = typeof navigationItemPlacements.$inferS
 export type NavigationItemPlacementInsert = typeof navigationItemPlacements.$inferInsert;
 
 // Error/telemetry events posted by the Apple client (Testflight only).
-// No foreign keys — entries must survive user/install churn so we can still
+// The table has no foreign keys, because entries must survive user/install churn so we can still
 // correlate historical issues. `install_id` is an opaque random UUID the
 // client keeps in its Keychain; it is not linked to any admin user.
 /**
@@ -1527,8 +1508,8 @@ export const appAttestChallenges = pgTable(
 );
 
 // Per-source crawler state. Populated lazily on heartbeat tick via
-// idempotent ON CONFLICT DO NOTHING upsert from the in-memory registry —
-// adding a new source costs zero migration work. Mutable fields
+// idempotent ON CONFLICT DO NOTHING upsert from the in-memory registry,
+// so adding a new source costs zero migration work. Mutable fields
 // (`enabled`, `intervalMinutes`, `config`, `cursor`) are written from the
 // admin API at runtime; transient fields (`runningSince`, `lastRunAt`,
 // `nextRunAt`, `consecutiveErrors`, `lastError`) are written by the
@@ -1563,8 +1544,8 @@ export type CrawlStateInsert = typeof crawlState.$inferInsert;
 
 // Per-tick observability log. One row per source per heartbeat tick that
 // did real work (skipped/locked ticks are recorded as `status = 'skipped'`
-// only when a tick was actually attempted but lock acquisition failed —
-// purely-idle minutes write nothing). Counters get finalized in the same
+// only when a tick was actually attempted but lock acquisition failed,
+// while purely idle minutes write nothing). Counters get finalized in the same
 // transaction as the `crawl_state` update.
 /**
  * Historical crawler heartbeat run records.
@@ -1595,7 +1576,7 @@ export type CrawlRunRow = typeof crawlRuns.$inferSelect;
 export type CrawlRunInsert = typeof crawlRuns.$inferInsert;
 
 // ============================================================================
-// CREATIVE COMMONS (Jamendo) — separate entity families, no commercial overlap
+// CREATIVE COMMONS (Jamendo). These entity families share nothing with the commercial catalog.
 // ============================================================================
 
 /**
@@ -1757,7 +1738,7 @@ export const ccArtistShortUrls = pgTable(
 
 /**
  * External developer accounts for the developer portal, kept entirely
- * separate from {@link adminUsers}. Backs the email/password auth flow
+ * separate from `adminUsers`. Backs the email/password auth flow
  * (signup, verification, login, password reset) and acts as the owning
  * entity for {@link developerIdentities} and {@link developerEmailTokens}.
  *
@@ -2251,7 +2232,7 @@ export type ApiClientInsert = typeof apiClients.$inferInsert;
  * `X-API-Key: <uuid-v4>`. Only the SHA-256 hash is persisted (`tokenHash`),
  * so the token itself exists once, in the response that issues it, and
  * nowhere afterwards; `tokenPrefix` is safe to display. Both admins
- * and the owning developer can create/revoke/rotate tokens — see
+ * and the owning developer can create/revoke/rotate tokens through
  * `api-access-repository.ts`. `rotatedFromTokenId` is informational only
  * (no FK constraint, to avoid a self-referential-FK typing detour for a
  * field that is never used for integrity checks, only display history).
@@ -2323,7 +2304,7 @@ export type ApiUsageEventInsert = typeof apiUsageEvents.$inferInsert;
 /**
  * Audit trail for every mutating action on projects, registrations and tokens.
  * `actorAdminId` is set for admin-initiated actions, `actorDeveloperAccountId`
- * for developer self-service actions — exactly one of the two is set (never
+ * for developer self-service actions. Exactly one of the two is set (never
  * both, never neither) by every writer in `api-access-repository.ts`.
  */
 export const apiAccessAuditEvents = pgTable(
