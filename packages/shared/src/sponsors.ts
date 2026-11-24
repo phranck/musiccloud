@@ -13,7 +13,7 @@
  */
 
 import { DAY_MS, DAY_PATTERN, FundingWindowDays, isCalendarDay } from "./donations.js";
-import { normalizeSocialMediaLinks, SOCIAL_MEDIA_LINK_SCHEMA, type SocialMediaLinks } from "./social-media.js";
+import { normalizeSocialMediaLinks, SOCIAL_MEDIA_LINK_SCHEMA, type SocialMediaLinks } from "./social-media/index.js";
 
 /** Bounds on every field of a sponsor. The request schema and the dashboard's inputs read them. */
 export const SPONSOR_LIMITS = {

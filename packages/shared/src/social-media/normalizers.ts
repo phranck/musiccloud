@@ -1,181 +1,31 @@
 /**
- * @file Where somebody can be found: the social platforms musiccloud knows, how
- * an address is sorted into one of them, and how it is brought to its
- * canonical form.
+ * @file The per-platform normalizers that bring an address or handle to its
+ * canonical form, the table mapping each platform to its normalizer, and
+ * {@link normalizeSocialMediaValue}, the one public entry to them.
  *
  * Ported from lmaa.space (`packages/shared/src/utils/social-media.ts`). The
  * recognition and the normalizers are unchanged. musiccloud validates requests
  * with JSON schema rather than Zod, so the Zod schemas at the end of lmaa's
- * file are {@link SOCIAL_MEDIA_LINK_SCHEMA} and {@link normalizeSocialMediaLinks}
- * here, and only the list shape is read, because musiccloud never stored the
- * older map shape.
+ * file are `SOCIAL_MEDIA_LINK_SCHEMA` and `normalizeSocialMediaLinks` in
+ * `links.ts` here, and only the list shape is read, because musiccloud never
+ * stored the older map shape.
  */
 
-/** Ordered list of all supported social media platform keys. */
-export const SOCIAL_PLATFORM_KEYS = [
-  "applepodcasts",
-  "mastodon",
-  "pixelfed",
-  "friendica",
-  "bluesky",
-  "instagram",
-  "facebook",
-  "whatsapp",
-  "signal",
-  "discord",
-  "threads",
-  "tiktok",
-  "x",
-  "youtube",
-  "twitch",
-  "tumblr",
-  "linkedin",
-  "xing",
-  "pinterest",
-  "patreon",
-  "mixcloud",
-  "soundcloud",
-  "spotify",
-  "github",
-  "gitlab",
-  "codeberg",
-  "website",
-] as const;
-
-/** Union type of all valid social media platform keys derived from `SOCIAL_PLATFORM_KEYS`. */
-export type SocialPlatformKey = (typeof SOCIAL_PLATFORM_KEYS)[number];
-
-/**
- * The platform of an address that belongs to no network: somebody's own site.
- *
- * It is the fallback every unrecognised address is sorted into, the platform
- * the editor may overrule with a recognised one, and the one the sponsor
- * picture lookup reads last, for the site's own mark rather than a portrait.
- */
-export const WEBSITE_PLATFORM = "website" satisfies SocialPlatformKey;
-
-/**
- * One place somebody can be found, as a platform together with the address that
- * leads there.
- *
- * @property platform One of `SOCIAL_PLATFORM_KEYS`, in its canonical spelling.
- * @property url The address, normalized for that platform.
- */
-export interface SocialMediaLink {
-  platform: SocialPlatformKey;
-  url: string;
-}
-
-/**
- * Every place somebody can be found, in the order they were entered.
- *
- * A list rather than a map from platform to address, because one person may
- * have two websites or two accounts on the same network. A map holds one value
- * per key, so the second address would replace the first without saying so.
- */
-export type SocialMediaLinks = SocialMediaLink[];
-
-const PLATFORM_SET = new Set<string>(SOCIAL_PLATFORM_KEYS);
-
-function canonicalizePlatformKey(platform: string): string {
-  return platform === "twitter" ? "x" : platform;
-}
-
-function stripTrailingSlash(s: string): string {
-  return s.endsWith("/") ? s.slice(0, -1) : s;
-}
-
-function stripLeadingAt(s: string): string {
-  return s.startsWith("@") ? s.slice(1) : s;
-}
-
-function tryParseUrl(s: string): URL | null {
-  try {
-    return new URL(s);
-  } catch {
-    return null;
-  }
-}
-
-function stripWww(host: string): string {
-  return host.startsWith("www.") ? host.slice(4) : host;
-}
-
-function isPinterestHost(host: string): boolean {
-  return host.startsWith("pinterest.") || host.endsWith(".pinterest.com") || host === "pin.it";
-}
-
-function isFacebookHost(host: string): boolean {
-  return host === "facebook.com" || host === "fb.com" || host.endsWith(".facebook.com");
-}
-
-function isLinkedinHost(host: string): boolean {
-  return host === "linkedin.com" || host.endsWith(".linkedin.com");
-}
-
-function isXingHost(host: string): boolean {
-  return host === "xing.com" || host.endsWith(".xing.com");
-}
-
-function isXHost(host: string): boolean {
-  return host === "x.com" || host === "twitter.com" || host.endsWith(".x.com") || host.endsWith(".twitter.com");
-}
-
-function isTumblrHost(host: string): boolean {
-  return host === "tumblr.com" || host.endsWith(".tumblr.com");
-}
-
-const LINKEDIN_RESERVED_PATHS = new Set([
-  "in",
-  "company",
-  "school",
-  "groups",
-  "learning",
-  "jobs",
-  "posts",
-  "pulse",
-  "feed",
-  "me",
-  "notifications",
-  "messaging",
-  "mynetwork",
-  "events",
-  "services",
-  "pages",
-  "help",
-  "pricing",
-  "login",
-  "signup",
-  "news",
-  "careers",
-  "legal",
-  "terms",
-  "policies",
-  "products",
-  "ads",
-  "marketing",
-  "premium",
-  "recruiter",
-  "search",
-  "profile",
-  "settings",
-  "security",
-  "privacy",
-  "account",
-  "today",
-  "showcase",
-  "influencer",
-  "talent",
-  "business",
-  "sales",
-  "mobile",
-  "pub",
-  "public-profile",
-]);
-
-function extractPathUser(url: URL): string {
-  return stripTrailingSlash(url.pathname).split("/").pop() ?? "";
-}
+import type { SocialPlatformKey } from "./platforms.js";
+import {
+  canonicalizePlatformKey,
+  extractPathUser,
+  isFacebookHost,
+  isLinkedinHost,
+  isPinterestHost,
+  isXHost,
+  isXingHost,
+  LINKEDIN_RESERVED_PATHS,
+  stripLeadingAt,
+  stripTrailingSlash,
+  stripWww,
+  tryParseUrl,
+} from "./url-helpers.js";
 
 function normalizeInstagram(input: string): string | null {
   const trimmed = input.trim();
@@ -383,7 +233,7 @@ function normalizeMastodon(input: string): string | null {
 }
 
 /**
- * Canonicalises a Pixelfed address.
+ * Canonicalizes a Pixelfed address.
  *
  * Pixelfed is hosted by whoever runs an instance, so the host says nothing and
  * cannot be checked. A profile is `/<handle>`, which is the form the service
@@ -475,7 +325,7 @@ function normalizeLinkedin(input: string): string | null {
 }
 
 /**
- * Canonicalises a XING address.
+ * Canonicalizes a XING address.
  *
  * A person is at `/profile/<handle>`, and anything else the site addresses keeps
  * the path it came with rather than being refused: the shapes XING uses beyond
@@ -748,93 +598,10 @@ function normalizeWebsite(input: string): string | null {
   return stripTrailingSlash(url.href);
 }
 
-const DOMAIN_TO_PLATFORM: Record<string, SocialPlatformKey> = {
-  "instagram.com": "instagram",
-  "facebook.com": "facebook",
-  "fb.com": "facebook",
-  "threads.net": "threads",
-  "threads.com": "threads",
-  "tiktok.com": "tiktok",
-  "youtube.com": "youtube",
-  "youtu.be": "youtube",
-  "twitch.tv": "twitch",
-  "x.com": "x",
-  "twitter.com": "x",
-  "bsky.app": "bluesky",
-  "linkedin.com": "linkedin",
-  "xing.com": "xing",
-  "pin.it": "pinterest",
-  "patreon.com": "patreon",
-  "tumblr.com": "tumblr",
-  "mixcloud.com": "mixcloud",
-  "soundcloud.com": "soundcloud",
-  "podcasts.apple.com": "applepodcasts",
-  "open.spotify.com": "spotify",
-  "spotify.com": "spotify",
-  "wa.me": "whatsapp",
-  "whatsapp.com": "whatsapp",
-  "signal.me": "signal",
-  "signal.group": "signal",
-  "discord.gg": "discord",
-  "discord.com": "discord",
-  "discordapp.com": "discord",
-  "github.com": "github",
-  "gist.github.com": "github",
-  "gitlab.com": "gitlab",
-  "codeberg.org": "codeberg",
-};
-
 /**
- * Puts `https://` in front of an address that carries no scheme.
- *
- * People write `xing.com/profile/somebody` far more often than they write the
- * scheme, and both halves of sorting an address have to read the same string
- * for that to work.
- *
- * @param input - An address, trimmed.
- * @returns The address with a scheme.
+ * The normalizer of each platform. GitHub, GitLab and Codeberg addresses are
+ * normalized like any website.
  */
-function withHttpsScheme(input: string): string {
-  return /^https?:\/\//i.test(input) ? input : `https://${input}`;
-}
-
-/**
- * Infers a social media platform from a URL string.
- *
- * Returns `null` when the host does not match any known platform or the input
- * cannot be parsed as a URL.
- *
- * @param input - A URL string (with or without protocol prefix).
- * @returns The matching `SocialPlatformKey`, or `null` if unrecognised.
- */
-export function detectPlatformFromUrl(input: string): SocialPlatformKey | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-
-  const url = tryParseUrl(withHttpsScheme(trimmed));
-  if (!url) return null;
-
-  const host = stripWww(url.hostname);
-
-  // Direct domain match
-  const direct = DOMAIN_TO_PLATFORM[host];
-  if (direct) return direct;
-
-  if (isFacebookHost(host)) return "facebook";
-  if (isLinkedinHost(host)) return "linkedin";
-  if (isXingHost(host)) return "xing";
-  if (isXHost(host)) return "x";
-  if (isTumblrHost(host)) return "tumblr";
-
-  if (isPinterestHost(host)) return "pinterest";
-
-  // Mastodon heuristic: path starts with /@ or /web/@
-  const path = stripTrailingSlash(url.pathname);
-  if (path.startsWith("/@") || path.startsWith("/web/@")) return "mastodon";
-
-  return null;
-}
-
 const normalizers: Record<SocialPlatformKey, (input: string) => string | null> = {
   instagram: normalizeInstagram,
   facebook: normalizeFacebook,
@@ -880,189 +647,4 @@ export function normalizeSocialMediaValue(platform: string, input: string): stri
   const fn = normalizers[canonicalPlatform as SocialPlatformKey];
   if (!fn) return null;
   return fn(input);
-}
-
-/**
- * `user@instance.tld`, with or without the leading `@`, being how a fediverse
- * address is written where it is not written as a link.
- */
-const FEDIVERSE_HANDLE = /^@?[^@\s/]+@[^@\s/]+\.[^@\s/]+$/;
-
-/**
- * Sorts one address a person typed into the service it belongs to.
- *
- * Somebody giving their address should not first have to say what kind it is.
- * The list of services and the shapes their addresses take is already here, so
- * the sorting is ours to do rather than theirs.
- *
- * An address on none of the known services is a website, which is a service in
- * its own right here rather than a leftover.
- *
- * @param input - What the person typed, with or without a scheme.
- * @returns The platform key and the canonical address, or `null` when the input
- *   is not an address at all.
- */
-export function classifyProfileLink(input: string): SocialMediaLink | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-
-  // A fediverse handle is answered before anything else, because it carries no
-  // scheme and putting one in front of it makes the part before the second `@`
-  // into userinfo: `@kim@chaos.social` would come out as a website on
-  // `chaos.social` belonging to a user called `@kim`.
-  if (FEDIVERSE_HANDLE.test(trimmed)) {
-    const handleUrl = normalizeSocialMediaValue("mastodon", trimmed);
-    if (handleUrl) return { platform: "mastodon", url: handleUrl };
-  }
-
-  // Where the host named a service, the normaliser is handed the same address
-  // the detection read rather than the one it was typed as. Without that,
-  // `xing.com/profile/somebody` is recognised and then refused, because every
-  // normaliser parses a URL and falls through to its bare-handle branch when
-  // there is no scheme to parse.
-  const platform = detectPlatformFromUrl(trimmed);
-  const value = platform ? withHttpsScheme(trimmed) : trimmed;
-  const url = normalizeSocialMediaValue(platform ?? WEBSITE_PLATFORM, value);
-  return url ? { platform: platform ?? WEBSITE_PLATFORM, url } : null;
-}
-
-/**
- * Whether an address is a bare fediverse handle such as `@kim@chaos.social`.
- *
- * A handle names an instance and a person and stops there, so it cannot say
- * which fediverse service is running on that instance. Mastodon, Pixelfed and
- * Friendica handles are written identically, and {@link detectProfilePlatform}
- * answers Mastodon for all three because that is the common case.
- *
- * A caller that lets somebody name the service themselves asks this first, so a
- * handle fills an empty choice without overruling one that was made.
- *
- * @param input - What the person typed.
- * @returns `true` for `user@instance` and `@user@instance`.
- */
-export function isFediverseHandle(input: string): boolean {
-  return FEDIVERSE_HANDLE.test(input.trim());
-}
-
-/**
- * Names the service an address belongs to, or nothing where it names none.
- *
- * The same answer {@link classifyProfileLink} gives, reported the way a form
- * needs it. That function falls back to `website` for anything it does not
- * recognise, which is right when the answer has to be something. A control
- * offering a platform to pick by hand needs the opposite: it has to know when
- * the address said nothing, so it can leave the choice somebody made standing.
- *
- * Reach for this rather than {@link detectPlatformFromUrl} anywhere a person
- * types an address. That one reads a URL and knows a service by its host, so it
- * cannot see a fediverse handle: the instance is somebody's own domain and the
- * `@user@` in front of it parses as URL userinfo.
- *
- * @param input - What the person typed, with or without a scheme.
- * @returns The platform key, or `null` where the address names no particular
- *   service and where it is not an address at all.
- */
-export function detectProfilePlatform(input: string): SocialPlatformKey | null {
-  const classified = classifyProfileLink(input);
-  if (!classified || classified.platform === WEBSITE_PLATFORM) return null;
-  return classified.platform;
-}
-
-/** Longest address one link may carry: 500 characters. */
-export const SOCIAL_MEDIA_URL_MAX_LENGTH = 500;
-
-/**
- * The JSON schema of one address as a request carries it, for a route's Ajv.
- *
- * The platform is one of {@link SOCIAL_PLATFORM_KEYS} or `twitter`, which
- * {@link normalizeSocialMediaLinks} reads as `x`. Whether the address fits its
- * platform is checked in code by that function, because a pattern cannot.
- */
-export const SOCIAL_MEDIA_LINK_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["platform", "url"],
-  properties: {
-    platform: { type: "string", enum: [...SOCIAL_PLATFORM_KEYS, "twitter"] },
-    url: { type: "string", maxLength: SOCIAL_MEDIA_URL_MAX_LENGTH },
-  },
-} as const;
-
-/**
- * One address {@link normalizeSocialMediaLinks} refused.
- *
- * @property index - Its position in the list as given.
- * @property platform - The platform it claimed.
- * @property url - The address as given.
- */
-export interface RejectedSocialMediaLink {
-  index: number;
-  platform: string;
-  url: string;
-}
-
-/**
- * Turns the addresses somebody entered into a normalized list.
- *
- * An entry naming a platform nobody knows, or carrying an address that does not
- * fit the platform it claims, is reported as rejected rather than dropped in
- * silence. An empty address is skipped, because a cleared field is not a
- * mistake. The same address given twice for the same platform is kept once,
- * whilst two different addresses for that platform both stay.
- *
- * @param given - The addresses as given, platform and address each.
- * @returns The accepted addresses in the order they were given, and every
- *   rejected one. The list may be stored only while `rejected` is empty.
- */
-export function normalizeSocialMediaLinks(given: readonly { platform: string; url: string }[]): {
-  links: SocialMediaLinks;
-  rejected: RejectedSocialMediaLink[];
-} {
-  const links: SocialMediaLinks = [];
-  const rejected: RejectedSocialMediaLink[] = [];
-  const seen = new Set<string>();
-
-  given.forEach((entry, index) => {
-    const platform = canonicalizePlatformKey(entry.platform);
-
-    if (!PLATFORM_SET.has(platform)) {
-      rejected.push({ index, platform: entry.platform, url: entry.url });
-      return;
-    }
-
-    if (!entry.url) return;
-
-    const url = normalizeSocialMediaValue(platform, entry.url);
-    if (!url || url.length > SOCIAL_MEDIA_URL_MAX_LENGTH) {
-      rejected.push({ index, platform: entry.platform, url: entry.url });
-      return;
-    }
-
-    const identity = `${platform} ${url}`;
-    if (seen.has(identity)) return;
-    seen.add(identity);
-
-    links.push({ platform: platform as SocialPlatformKey, url });
-  });
-
-  return { links, rejected };
-}
-
-/**
- * The first address given for one platform.
- *
- * For the places that ask about one particular network, such as the avatar
- * lookup wanting the Mastodon account. Where somebody gave several addresses
- * for that platform, the first one answers, because that is the one they
- * entered first.
- *
- * @param links The addresses to search, which may be absent.
- * @param platform The platform being asked about.
- * @returns The address, or `undefined` when that platform is not among them.
- */
-export function findSocialMediaUrl(
-  links: SocialMediaLinks | undefined,
-  platform: SocialPlatformKey,
-): string | undefined {
-  return links?.find((link) => link.platform === platform)?.url;
 }
