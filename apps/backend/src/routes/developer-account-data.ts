@@ -42,8 +42,8 @@ export async function devAccountDataRoutes(app: FastifyInstance) {
    * Zone"). Cascades to the account's identities, email tokens, API-access
    * requests and clients (see `deleteDeveloperAccount`), then clears the
    * session cookie. When the account has a password set, `body.password`
-   * must match it (401 `INVALID_CREDENTIALS` otherwise) — an extra
-   * confirmation for an irreversible action. A GitHub-only account
+   * must match it (401 `INVALID_CREDENTIALS` otherwise), because the action
+   * cannot be undone and needs an extra confirmation. A GitHub-only account
    * (`hasPassword: false` on `/me`) has no password to confirm, so the body
    * is not required.
    */
