@@ -311,12 +311,7 @@ function extractFromJsonLd(html: string): JsonLdMusicRecording | null {
 
 function mapAlbumData(data: PandoraAlbumData, sourceId: string): NormalizedAlbum {
   const webPath = data.shareableUrlPath ?? `/artist/${sourceId}`;
-  const artists = data.artistName
-    ? data.artistName
-        .split(/[,&]/)
-        .map((a) => a.trim())
-        .filter(Boolean)
-    : ["Unknown Artist"];
+  const artists = splitArtistNames(data.artistName);
 
   return {
     sourceService: "pandora",
@@ -378,17 +373,11 @@ async function fetchAlbumByPath(albumPath: string): Promise<NormalizedAlbum | nu
     onInvalid: () => log.debug("Pandora", "Failed to parse JSON-LD for album"),
   });
   if (ldData?.name) {
-    const artists = ldData.byArtist?.name
-      ? ldData.byArtist.name
-          .split(/[,&]/)
-          .map((a) => a.trim())
-          .filter(Boolean)
-      : ["Unknown Artist"];
     return {
       sourceService: "pandora",
       sourceId: albumPath,
       title: ldData.name,
-      artists,
+      artists: splitArtistNames(ldData.byArtist?.name),
       artworkUrl: ldData.image,
       webUrl: ldData.url ?? pageUrl,
     };

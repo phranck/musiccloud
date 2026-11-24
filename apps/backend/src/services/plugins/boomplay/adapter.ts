@@ -43,6 +43,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { artistNamesOrUnknown } from "../_shared/artists.js";
 import {
   ENGLISH_ACCEPT_LANGUAGE,
   fetchProviderPage,
@@ -128,7 +129,7 @@ async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
 }
 
 function mapJsonLd(data: BoomplayJsonLd, songId: string): NormalizedTrack {
-  const artists = data.byArtist?.map((a) => a.name).filter((n): n is string => Boolean(n)) ?? ["Unknown Artist"];
+  const artists = artistNamesOrUnknown(data.byArtist?.map((artist) => artist.name));
 
   return {
     sourceService: "boomplay",
@@ -164,7 +165,7 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
   const jsonLd = parseAlbumJsonLd(html);
   if (!jsonLd) return null;
 
-  const artists = jsonLd.byArtist?.map((a) => a.name).filter((n): n is string => Boolean(n)) ?? ["Unknown Artist"];
+  const artists = artistNamesOrUnknown(jsonLd.byArtist?.map((artist) => artist.name));
   return {
     sourceService: "boomplay",
     sourceId: albumId,

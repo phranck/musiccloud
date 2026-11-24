@@ -67,6 +67,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { UNKNOWN_ARTIST } from "../_shared/artists.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import {
   logCandidateScore,
@@ -232,7 +233,7 @@ function mapSongToTrack(song: JioSaavnSong): NormalizedTrack {
   }
 
   if (artists.length === 0) {
-    artists.push("Unknown Artist");
+    artists.push(UNKNOWN_ARTIST);
   }
 
   // Get best quality image (replace 150x150 with 500x500)
@@ -291,7 +292,7 @@ function primaryArtistNames(album: Pick<JioSaavnAlbum, "more_info" | "primary_ar
 
 function mapAlbumToNormalized(album: JioSaavnAlbum & { id: string; title: string }): NormalizedAlbum {
   const artists = primaryArtistNames(album);
-  if (artists.length === 0) artists.push("Unknown Artist");
+  if (artists.length === 0) artists.push(UNKNOWN_ARTIST);
 
   const songCount = album.more_info?.song_count
     ? parseInt(album.more_info.song_count, 10)
@@ -398,11 +399,25 @@ async function getArtistById(artistId: string): Promise<NormalizedArtist | null>
     throw new UpstreamUnavailableError("jiosaavn", `artist ${artistId} answered without a compatible public URL`);
   }
 
+  return mapArtist(data.artistId, data.name, data.image, webUrl);
+}
+
+/**
+ * Builds the shared artist shape from what an artist document or an artist
+ * search result reports, for both lookup and search.
+ *
+ * @param sourceId - The artist's catalog id from the lookup, or its search result id.
+ * @param name - The artist's name as JioSaavn reports it.
+ * @param image - JioSaavn's image address, which embeds a small size.
+ * @param webUrl - The artist's public page.
+ * @returns The artist with its image rewritten to the 500x500 variant.
+ */
+function mapArtist(sourceId: string, name: string, image: string | undefined, webUrl: string): NormalizedArtist {
   return {
     sourceService: "jiosaavn",
-    sourceId: data.artistId,
-    name: data.name,
-    imageUrl: data.image?.replace(/150x150|50x50/, "500x500"),
+    sourceId,
+    name,
+    imageUrl: image?.replace(/150x150|50x50/, "500x500"),
     webUrl,
   };
 }
@@ -502,7 +517,7 @@ export const jiosaavnAdapter: ServiceAdapter = {
       log.debug("JioSaavn", `Album search returned ${results.length} results for: ${text}`);
       for (const r of results) {
         const primary = primaryArtistNames(r);
-        const artists = primary.length > 0 ? primary : r.music ? [r.music] : ["Unknown Artist"];
+        const artists = primary.length > 0 ? primary : r.music ? [r.music] : [UNKNOWN_ARTIST];
         const confidence = scoreAlbumCandidate(query, { title: r.title, artists, releaseDate: r.year });
         logCandidateScore("JioSaavn", `"${r.title}"`, confidence);
         if (confidence > bestConfidence && confidence > ALBUM_PREVIEW_MIN_CONFIDENCE) {
@@ -555,13 +570,9 @@ export const jiosaavnAdapter: ServiceAdapter = {
       (item, _index, score) => logCandidateScore("JioSaavn", `"${item.name}"`, score),
     );
 
-    const artist: NormalizedArtist | null = best && {
-      sourceService: "jiosaavn",
-      sourceId: best.id,
-      name: best.name,
-      imageUrl: best.image?.replace(/150x150|50x50/, "500x500"),
-      webUrl: best.perma_url ?? `https://www.jiosaavn.com/artist/-/${best.id}`,
-    };
+    const artist =
+      best &&
+      mapArtist(best.id, best.name, best.image, best.perma_url ?? `https://www.jiosaavn.com/artist/-/${best.id}`);
     const result = searchMatchResult("artist", artist, confidence);
     if (!result.found) {
       log.debug("JioSaavn", `Best artist confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);

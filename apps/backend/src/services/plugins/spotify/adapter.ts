@@ -72,7 +72,7 @@ import type {
   SearchResultWithCandidates,
   ServiceAdapter,
 } from "../../types.js";
-import { artistSearchNames } from "../_shared/artists.js";
+import { artistSearchNames, uniqueArtistNames } from "../_shared/artists.js";
 import { isFreeTextSearch, scoreAlbumCandidate, scoreSearchCandidate } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
@@ -193,9 +193,29 @@ const capabilities: AdapterCapabilities = {
   supportsArtwork: true,
 };
 
-function pushUnique(values: string[], value: string | undefined): void {
-  const normalized = value?.trim();
-  if (normalized && !values.some((v) => v.toLowerCase() === normalized.toLowerCase())) values.push(normalized);
+/** How many query alternatives the one-shot track search tries at most: `6`. */
+const SPOTIFY_TRACK_SEARCH_VARIANT_LIMIT = 6;
+
+/** How many of an artist's genres the adapter forwards: the first `5` Spotify lists. */
+const SPOTIFY_ARTIST_GENRE_LIMIT = 5;
+
+/**
+ * Maps a Spotify artist to the shared artist shape, for both lookup and search.
+ *
+ * @param raw - An artist object from `/artists/{id}` or an artist search page.
+ * @returns The artist with its first image, at most
+ *   {@link SPOTIFY_ARTIST_GENRE_LIMIT} genres, and its Spotify page, which falls
+ *   back to the canonical artist URL when Spotify sends none.
+ */
+function mapArtist(raw: SpotifyArtistResponse): NormalizedArtist {
+  return {
+    sourceService: "spotify",
+    sourceId: raw.id,
+    name: raw.name,
+    imageUrl: raw.images?.[0]?.url,
+    genres: raw.genres?.slice(0, SPOTIFY_ARTIST_GENRE_LIMIT),
+    webUrl: raw.external_urls?.spotify ?? `https://open.spotify.com/artist/${raw.id}`,
+  };
 }
 
 /**
@@ -205,12 +225,8 @@ function pushUnique(values: string[], value: string | undefined): void {
  * @returns Ordered, case-insensitively distinct full credits and component names.
  */
 function buildArtistSearchTerms(query: SearchQuery): string[] {
-  const artists: string[] = [];
-  for (const artist of query.artists?.length ? query.artists : [query.artist]) {
-    for (const part of artistSearchNames(artist)) pushUnique(artists, part);
-  }
-  pushUnique(artists, query.artist);
-  return artists;
+  const credits = query.artists?.length ? query.artists : [query.artist];
+  return uniqueArtistNames([...credits.flatMap(artistSearchNames), query.artist]);
 }
 
 /**
@@ -234,19 +250,20 @@ function spotifyFieldFilters(title: string, artist: string, album?: string): str
  * Builds the bounded query alternatives the one-shot track search tries in turn.
  *
  * @param query - Free text, or structured metadata that may leave out the title or the artist.
- * @returns The free text alone, or up to six filtered and plain variants across the artist credits, without empty filters.
+ * @returns The free text alone, or up to {@link SPOTIFY_TRACK_SEARCH_VARIANT_LIMIT}
+ *   trimmed, case-insensitively distinct filtered and plain variants across the
+ *   artist credits, without empty filters.
  */
 function buildSpotifyTrackSearchQueries(query: SearchQuery): string[] {
   if (isFreeTextSearch(query)) return [query.title];
 
-  const variants: string[] = [];
-  for (const artist of buildArtistSearchTerms(query)) {
-    pushUnique(variants, spotifyFieldFilters(query.title, artist, query.album));
-    pushUnique(variants, spotifyFieldFilters(query.title, artist));
-    pushUnique(variants, `${query.title} ${artist}`);
-  }
-  pushUnique(variants, query.album ? `${query.title} ${query.album}` : query.title);
-  return variants.slice(0, 6);
+  const variants = buildArtistSearchTerms(query).flatMap((artist) => [
+    spotifyFieldFilters(query.title, artist, query.album),
+    spotifyFieldFilters(query.title, artist),
+    `${query.title} ${artist}`,
+  ]);
+  variants.push(query.album ? `${query.title} ${query.album}` : query.title);
+  return uniqueArtistNames(variants).slice(0, SPOTIFY_TRACK_SEARCH_VARIANT_LIMIT);
 }
 
 export const spotifyAdapter = {
@@ -516,16 +533,8 @@ export const spotifyAdapter = {
       throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Artist, artistId);
     }
 
-    const data = await response.json();
-
-    return {
-      sourceService: "spotify",
-      sourceId: data.id,
-      name: data.name,
-      imageUrl: data.images?.[0]?.url,
-      genres: data.genres?.slice(0, 5),
-      webUrl: data.external_urls?.spotify ?? `https://open.spotify.com/artist/${data.id}`,
-    };
+    const data: SpotifyArtistResponse = await response.json();
+    return mapArtist(data);
   },
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
@@ -543,14 +552,6 @@ export const spotifyAdapter = {
     );
 
     const ranked = rankByArtistName(query.name, items, (item) => item.name);
-    const artist: NormalizedArtist | null = ranked && {
-      sourceService: "spotify",
-      sourceId: ranked.item.id,
-      name: ranked.item.name,
-      imageUrl: ranked.item.images?.[0]?.url,
-      genres: ranked.item.genres?.slice(0, 5),
-      webUrl: ranked.item.external_urls?.spotify ?? `https://open.spotify.com/artist/${ranked.item.id}`,
-    };
-    return searchMatchResult("artist", artist, ranked?.confidence ?? 0);
+    return searchMatchResult("artist", ranked && mapArtist(ranked.item), ranked?.confidence ?? 0);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

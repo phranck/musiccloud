@@ -167,6 +167,26 @@ function mapAlbum(raw: DeezerAlbumResponse): NormalizedAlbum {
 }
 
 /**
+ * Maps a Deezer artist to the shared artist shape, for both lookup and search.
+ *
+ * Deezer answers a stock silhouette for an artist without a picture. It reads
+ * as no image, so the resolver takes another service's picture.
+ *
+ * @param raw - An artist from `/artist/{id}` or a ranked artist search hit.
+ * @returns The artist with its own picture only, and its Deezer page, which
+ *   falls back to the canonical artist URL when Deezer sends no `link`.
+ */
+function mapArtist(raw: DeezerArtistSearchHit): NormalizedArtist {
+  return {
+    sourceService: "deezer",
+    sourceId: String(raw.id),
+    name: raw.name,
+    imageUrl: pickDeezerArtistImage(raw) ?? undefined,
+    webUrl: raw.link ?? `https://www.deezer.com/artist/${raw.id}`,
+  };
+}
+
+/**
  * Looks one Deezer object up by its id, for `getTrack`, `getAlbum` and
  * `getArtist`.
  *
@@ -488,16 +508,7 @@ export const deezerAdapter = {
       ResourceKind.Artist,
       artistId,
     );
-
-    return {
-      sourceService: "deezer",
-      sourceId: String(data.id),
-      name: data.name,
-      // Deezer answers a stock silhouette for an artist without a picture. It
-      // reads as no image, so the resolver takes another service's picture.
-      imageUrl: pickDeezerArtistImage(data) ?? undefined,
-      webUrl: data.link ?? `https://www.deezer.com/artist/${data.id}`,
-    };
+    return mapArtist(data);
   },
 
   /**
@@ -512,14 +523,6 @@ export const deezerAdapter = {
     const best = await rankDeezerArtistSearch(query.name);
     if (best === null) return searchMatchResult("artist", null, 0);
 
-    const { item: hit, confidence } = best;
-    const artist: NormalizedArtist = {
-      sourceService: "deezer",
-      sourceId: String(hit.id),
-      name: hit.name,
-      imageUrl: pickDeezerArtistImage(hit) ?? undefined,
-      webUrl: hit.link ?? `https://www.deezer.com/artist/${hit.id}`,
-    };
-    return searchMatchResult("artist", artist, confidence);
+    return searchMatchResult("artist", mapArtist(best.item), best.confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

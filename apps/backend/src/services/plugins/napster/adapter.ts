@@ -198,6 +198,24 @@ function mapTrack(raw: NapsterTrackResponse): NormalizedTrack {
   };
 }
 
+/**
+ * Maps a Napster artist to the shared artist shape, for both lookup and search.
+ *
+ * @param raw - An artist from `/artists/{id}` or an artist search.
+ * @returns The artist with its image and page address derived from its ID.
+ *   Napster reports no genres, so `genres` stays `undefined`.
+ */
+function mapArtist(raw: NapsterArtistResponse): NormalizedArtist {
+  return {
+    sourceService: "napster",
+    sourceId: raw.id,
+    name: raw.name,
+    imageUrl: artistImageUrl(raw.id),
+    genres: undefined,
+    webUrl: `https://play.napster.com/artist/${raw.id}`,
+  };
+}
+
 export const napsterAdapter = {
   id: "napster",
   displayName: getPlatformLabel("napster"),
@@ -333,15 +351,7 @@ export const napsterAdapter = {
       throw serviceNotFoundError(Service.Napster, ResourceKind.Artist, artistId);
     }
 
-    const artist = artists[0];
-    return {
-      sourceService: "napster",
-      sourceId: artist.id,
-      name: artist.name,
-      imageUrl: artistImageUrl(artist.id),
-      genres: undefined,
-      webUrl: `https://play.napster.com/artist/${artist.id}`,
-    };
+    return mapArtist(artists[0]);
   },
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
@@ -367,15 +377,7 @@ export const napsterAdapter = {
       (item, _index, score) => logCandidateScore("Napster", `Artist "${item.name}"`, score, "→"),
     );
 
-    const artist: NormalizedArtist | null = best && {
-      sourceService: "napster",
-      sourceId: best.id,
-      name: best.name,
-      imageUrl: artistImageUrl(best.id),
-      genres: undefined,
-      webUrl: `https://play.napster.com/artist/${best.id}`,
-    };
-    const result = searchMatchResult("artist", artist, confidence);
+    const result = searchMatchResult("artist", best && mapArtist(best), confidence);
     if (!result.found) {
       log.debug("Napster", `Best artist confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }

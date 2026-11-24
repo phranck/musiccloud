@@ -64,7 +64,9 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { UNKNOWN_ARTIST } from "../_shared/artists.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { pickLargestImage } from "../_shared/images.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import {
   logCandidateScore,
@@ -96,6 +98,16 @@ const tokenManager = new TokenManager({
   clientSecretEnv: "KKBOX_CLIENT_SECRET",
 });
 
+/** One size of an album cover or artist picture, as KKBOX lists them in `images`. */
+interface KkboxImage {
+  /** The image address. */
+  url: string;
+  /** Width in pixels, which decides the variant the adapter picks. */
+  width: number;
+  /** Height in pixels, which the adapter does not read. */
+  height: number;
+}
+
 interface KkboxTrackResponse {
   id: string;
   name: string;
@@ -109,7 +121,7 @@ interface KkboxTrackResponse {
     id: string;
     name: string;
     url: string;
-    images?: Array<{ url: string; width: number; height: number }>;
+    images?: KkboxImage[];
   };
   artist?: {
     id: string;
@@ -136,7 +148,7 @@ interface KkboxAlbumResponse {
   name: string;
   url: string;
   release_date?: string;
-  images?: Array<{ url: string; width: number; height: number }>;
+  images?: KkboxImage[];
   artist?: { id: string; name: string };
   total_tracks?: number;
 }
@@ -145,7 +157,7 @@ interface KkboxArtistResponse {
   id: string;
   name: string;
   url: string;
-  images?: Array<{ url: string; width: number; height: number }>;
+  images?: KkboxImage[];
 }
 
 /** The `type` values of a KKBOX search that this adapter uses. */
@@ -170,10 +182,36 @@ async function kkboxFetch(endpoint: string): Promise<Response> {
   });
 }
 
-function pickLargestImage(images?: Array<{ url: string; width: number; height: number }>): string | undefined {
-  if (!images || images.length === 0) return undefined;
-  const sorted = [...images].sort((a, b) => (b.width ?? 0) - (a.width ?? 0));
-  return sorted[0].url;
+/**
+ * Picks the widest of KKBOX's image variants through the shared {@link pickLargestImage}.
+ *
+ * @param images - An album's or artist's `images`, or `undefined` when absent.
+ * @returns The `url` of the widest variant, or `undefined` without a variant.
+ */
+function pickLargestKkboxImage(images?: readonly KkboxImage[]): string | undefined {
+  return pickLargestImage(
+    images,
+    (image) => image.width,
+    (image) => image.url,
+  );
+}
+
+/**
+ * Maps a KKBOX artist to the shared artist shape, for both lookup and search.
+ *
+ * @param raw - An artist from `/artists/{id}` or an artist search list.
+ * @returns The artist with its widest image and its KKBOX page. Without a `url`
+ *   from KKBOX the page is built from the configured territory, see {@link getTerritory}.
+ */
+function mapArtist(raw: KkboxArtistResponse): NormalizedArtist {
+  const territory = getTerritory().toLowerCase();
+  return {
+    sourceService: "kkbox",
+    sourceId: raw.id,
+    name: raw.name,
+    imageUrl: pickLargestKkboxImage(raw.images),
+    webUrl: raw.url || `https://www.kkbox.com/${territory}/${territory}/artist/${raw.id}`,
+  };
 }
 
 function mapTrack(raw: KkboxTrackResponse): NormalizedTrack {
@@ -182,11 +220,11 @@ function mapTrack(raw: KkboxTrackResponse): NormalizedTrack {
     sourceId: raw.id,
     isrc: raw.isrc,
     title: raw.name,
-    artists: raw.artist?.name ? [raw.artist.name] : ["Unknown Artist"],
+    artists: raw.artist?.name ? [raw.artist.name] : [UNKNOWN_ARTIST],
     albumName: raw.album?.name,
     durationMs: raw.duration,
     isExplicit: raw.explicitness,
-    artworkUrl: pickLargestImage(raw.album?.images),
+    artworkUrl: pickLargestKkboxImage(raw.album?.images),
     webUrl: raw.url || `https://www.kkbox.com/tw/en/song/${raw.id}`,
   };
 }
@@ -204,10 +242,10 @@ function mapAlbum(raw: KkboxAlbumResponse, tracks?: KkboxAlbumTrack[]): Normaliz
     sourceService: "kkbox",
     sourceId: raw.id,
     title: raw.name,
-    artists: raw.artist?.name ? [raw.artist.name] : ["Unknown Artist"],
+    artists: raw.artist?.name ? [raw.artist.name] : [UNKNOWN_ARTIST],
     releaseDate: raw.release_date,
     totalTracks: raw.total_tracks ?? (albumTracks.length > 0 ? albumTracks.length : undefined),
-    artworkUrl: pickLargestImage(raw.images),
+    artworkUrl: pickLargestKkboxImage(raw.images),
     webUrl: raw.url || `https://www.kkbox.com/${territory.toLowerCase()}/${territory.toLowerCase()}/album/${raw.id}`,
     tracks: albumTracks.length > 0 ? albumTracks : undefined,
   };
@@ -451,31 +489,13 @@ export const kkboxAdapter = {
     }
 
     const data: KkboxArtistResponse = await response.json();
-
-    return {
-      sourceService: "kkbox",
-      sourceId: data.id,
-      name: data.name,
-      imageUrl: pickLargestImage(data.images),
-      webUrl:
-        data.url || `https://www.kkbox.com/${territory.toLowerCase()}/${territory.toLowerCase()}/artist/${data.id}`,
-    };
+    return mapArtist(data);
   },
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
-    const territory = getTerritory();
     const items = await searchKkbox<KkboxArtistResponse>(query.name, "artist", ResourceKind.Artist, Operation.Search);
 
     const ranked = rankByArtistName(query.name, items, (item) => item.name);
-    const artist: NormalizedArtist | null = ranked && {
-      sourceService: "kkbox",
-      sourceId: ranked.item.id,
-      name: ranked.item.name,
-      imageUrl: pickLargestImage(ranked.item.images),
-      webUrl:
-        ranked.item.url ||
-        `https://www.kkbox.com/${territory.toLowerCase()}/${territory.toLowerCase()}/artist/${ranked.item.id}`,
-    };
-    return searchMatchResult("artist", artist, ranked?.confidence ?? 0);
+    return searchMatchResult("artist", ranked && mapArtist(ranked.item), ranked?.confidence ?? 0);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

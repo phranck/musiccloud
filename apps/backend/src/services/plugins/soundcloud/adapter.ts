@@ -18,6 +18,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types";
+import { UNKNOWN_ARTIST } from "../_shared/artists.js";
 import { fetchProviderPage, type ProviderPageOptions, withQueryParam } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { readProviderJson } from "../_shared/provider-response.js";
@@ -258,7 +259,7 @@ function mapApiTrack(data: ScTrackData, sourceId: string): NormalizedTrack {
     sourceId,
     isrc: pub?.isrc || undefined,
     title: data.title ?? "Unknown",
-    artists: artist ? [artist] : ["Unknown Artist"],
+    artists: artist ? [artist] : [UNKNOWN_ARTIST],
     durationMs: data.full_duration ?? data.duration,
     releaseDate: data.release_date ?? data.created_at ?? undefined,
     isExplicit: typeof pub?.explicit === "boolean" ? pub.explicit : undefined,
@@ -316,7 +317,7 @@ function parseDurationTag(value: string | undefined): number | undefined {
 // --- Album helpers ---
 
 function mapApiPlaylist(data: ScPlaylistData, sourcePath: string): NormalizedAlbum {
-  const artist = data.user?.username ?? data.user?.full_name ?? "Unknown Artist";
+  const artist = data.user?.username ?? data.user?.full_name ?? UNKNOWN_ARTIST;
   const tracks: AlbumTrackEntry[] = [];
   const playlistTracks = data.tracks ?? [];
   for (let i = 0; i < playlistTracks.length; i++) {
@@ -380,6 +381,36 @@ async function searchSoundCloudAlbums(
       trackCount: playlist.track_count,
     }))
     .filter((candidate) => candidate.path);
+}
+
+// --- Artist helpers ---
+
+/**
+ * The name a profile shows.
+ *
+ * @param user - A profile from `/resolve` or a user search.
+ * @returns Its full name, else its username, else an empty string.
+ */
+function artistName(user: ScUserData): string {
+  return user.full_name || user.username || "";
+}
+
+/**
+ * Maps a SoundCloud profile to the shared artist shape, for both lookup and search.
+ *
+ * @param user - A profile from `/resolve` or a user search.
+ * @param sourcePath - The profile's path after `soundcloud.com/`, which becomes
+ *   the source id and the page address when the profile has no permalink.
+ * @returns The artist with its avatar upscaled to the 500x500 variant.
+ */
+function mapArtist(user: ScUserData, sourcePath: string): NormalizedArtist {
+  return {
+    sourceService: "soundcloud",
+    sourceId: sourcePath,
+    name: artistName(user),
+    imageUrl: user.avatar_url?.replace("-large", "-t500x500"),
+    webUrl: user.permalink_url ?? `https://soundcloud.com/${sourcePath}`,
+  };
 }
 
 // --- Adapter ---
@@ -546,32 +577,17 @@ export const soundcloudAdapter = {
       throw new UpstreamUnavailableError(Service.SoundCloud, `resolve of artist ${artistId} answered without a name`);
     }
 
-    return {
-      sourceService: "soundcloud",
-      sourceId: artistId,
-      name: data.full_name || data.username || artistId,
-      imageUrl: data.avatar_url?.replace("-large", "-t500x500"),
-      webUrl: data.permalink_url ?? pageUrl,
-    };
+    return mapArtist(data, artistId);
   },
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
     const items = await scSearch<ScUserData>("users", query.name, ResourceKind.Artist);
-    /** The name a profile shows: its full name, else its username, else an empty string. */
-    const artistName = (item: ScUserData) => item.full_name || item.username || "";
     const ranked = rankByArtistName(query.name, items, artistName);
     if (!ranked) return searchMatchResult("artist", null, 0);
 
     const { item } = ranked;
     const username = item.permalink_url?.replace("https://soundcloud.com/", "") ?? String(item.id);
-    const artist: NormalizedArtist = {
-      sourceService: "soundcloud",
-      sourceId: username,
-      name: artistName(item),
-      imageUrl: item.avatar_url?.replace("-large", "-t500x500"),
-      webUrl: item.permalink_url ?? `https://soundcloud.com/${username}`,
-    };
-    return searchMatchResult("artist", artist, ranked.confidence);
+    return searchMatchResult("artist", mapArtist(item, username), ranked.confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
 
