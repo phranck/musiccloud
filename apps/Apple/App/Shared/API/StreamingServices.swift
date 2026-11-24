@@ -103,7 +103,6 @@ enum StreamingServices {
         Service(id: "tidal", displayName: "Tidal", exactDomains: ["tidal.com", "www.tidal.com", "listen.tidal.com"]),
         Service(id: "deezer", displayName: "Deezer", exactDomains: ["deezer.com", "www.deezer.com"]),
         Service(id: "audius", displayName: "Audius", exactDomains: ["audius.co"]),
-        Service(id: "napster", displayName: "Napster", exactDomains: ["napster.com", "play.napster.com", "web.napster.com"]),
         Service(id: "pandora", displayName: "Pandora", exactDomains: ["pandora.com", "www.pandora.com"]),
         Service(id: "qobuz", displayName: "Qobuz", exactDomains: ["open.qobuz.com", "play.qobuz.com"]),
         Service(id: "boomplay", displayName: "Boomplay", exactDomains: ["boomplay.com", "www.boomplay.com"]),

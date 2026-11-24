@@ -85,8 +85,6 @@ struct StreamingServicesTests {
 
     @Test func audiusURL() { #expect(StreamingServices.isStreamingURL("https://audius.co/artist/track")) }
 
-    @Test func napsterURL() { #expect(StreamingServices.isStreamingURL("https://play.napster.com/track/tra.123")) }
-
     @Test func pandoraURL() { #expect(StreamingServices.isStreamingURL("https://www.pandora.com/artist/track")) }
 
     @Test func qobuzURL() { #expect(StreamingServices.isStreamingURL("https://open.qobuz.com/album/abc123")) }
