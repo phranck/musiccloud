@@ -1,5 +1,5 @@
 import { type ColumnDef, DataTable, DataTableScroll, StatusBadge } from "@musiccloud/dashboard-ui";
-import { ApiTokenStatus } from "@musiccloud/shared";
+import { ApiTokenStatus, quotaSummaryLabel } from "@musiccloud/shared";
 import {
   Code as CodeIcon,
   MagnifyingGlass as MagnifyingGlassIcon,
@@ -23,18 +23,17 @@ const messages = dashboardCopy;
 const dm = messages.developer;
 
 /**
- * The traffic a registration is configured for, as one line. A registration
- * whose project has no granting plan has no configured volume, and says so
- * rather than printing a number that nothing enforces.
+ * The traffic a registration is configured for, as one line, worded by the
+ * shared `quotaSummaryLabel` like every other quota in the dashboard and the
+ * portal. The cell and the search filter both read it, so a search matches
+ * exactly what the row shows.
  *
  * @param client - The registration to describe.
- * @returns The volume line, or the no-plan label.
+ * @returns For example `"60 requests/minute · 10,000 requests/day"`, or the
+ *   no-plan label when the project has no granting plan.
  */
 function trafficLabel(client: ApiClientResponse): string {
-  if (client.effectiveRequestsPerMinute === null || client.effectiveRequestsPerDay === null) {
-    return dm.clientTrafficNoPlan;
-  }
-  return `${client.effectiveRequestsPerMinute}${dm.perMinute} · ${client.effectiveRequestsPerDay}${dm.perDay}`;
+  return quotaSummaryLabel(client.effectiveRequestsPerMinute, client.effectiveRequestsPerDay);
 }
 
 /**

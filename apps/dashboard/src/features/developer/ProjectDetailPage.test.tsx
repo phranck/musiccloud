@@ -121,7 +121,7 @@ describe("ProjectDetailPage", () => {
     // The section's own test covers what it shows; here the page only has to
     // hand it the project it loaded.
     expect(screen.getByText("Plan and quota")).not.toBeNull();
-    expect(screen.getByText("Enforced now: 60")).not.toBeNull();
+    expect(screen.getByText("Enforced now: 60 requests/minute")).not.toBeNull();
   });
 
   it("says what suspending does before the action, and suspends on it", async () => {

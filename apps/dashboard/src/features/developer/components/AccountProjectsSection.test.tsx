@@ -80,7 +80,7 @@ describe("AccountProjectsSection", () => {
     expect(await screen.findByText("Beat Machine")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Edit" })).not.toBeNull();
     expect(screen.queryByText("Free")).toBeNull();
-    expect(screen.queryByText("60/minute · 10000/day")).toBeNull();
+    expect(screen.queryByText("60 requests/minute · 10,000 requests/day")).toBeNull();
   });
 
   it("says the account holds no projects rather than showing an empty table", async () => {
@@ -97,7 +97,7 @@ describe("AccountProjectsSection", () => {
 
     expect(await screen.findByText("Beat Machine")).not.toBeNull();
     expect(screen.getByText("Free")).not.toBeNull();
-    expect(screen.getByText("60/minute · 10000/day")).not.toBeNull();
+    expect(screen.getByText("60 requests/minute · 10,000 requests/day")).not.toBeNull();
     expect(screen.getByText("2")).not.toBeNull();
   });
 
