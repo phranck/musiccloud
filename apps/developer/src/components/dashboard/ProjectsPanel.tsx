@@ -1,5 +1,5 @@
 import { type ColumnDef, DataTable, StatusBadge } from "@musiccloud/dashboard-ui";
-import { MAX_APP_NAME_LENGTH } from "@musiccloud/shared";
+import { MAX_APP_NAME_LENGTH, quotaSummaryLabel } from "@musiccloud/shared";
 import { type ChangeEvent, type SyntheticEvent, useCallback, useEffect, useMemo, useReducer } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
@@ -24,7 +24,6 @@ import {
   projectsPanelReducer,
   toPanelFailure,
 } from "@/lib/projectsPanelState";
-import { quotaSummaryLabel } from "@/lib/quotaLabel";
 
 /**
  * Props for {@link ProjectsPanel}.

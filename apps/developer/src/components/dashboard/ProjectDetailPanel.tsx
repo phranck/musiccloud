@@ -1,5 +1,11 @@
 import { StatusBadge } from "@musiccloud/dashboard-ui";
-import { DeveloperProjectStatus, type DeveloperProjectStatusValue, MAX_APP_NAME_LENGTH } from "@musiccloud/shared";
+import {
+  DeveloperProjectStatus,
+  type DeveloperProjectStatusValue,
+  MAX_APP_NAME_LENGTH,
+  perDayQuotaLabel,
+  perMinuteQuotaLabel,
+} from "@musiccloud/shared";
 import { type ChangeEvent, type SyntheticEvent, useCallback, useEffect, useReducer } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
@@ -12,7 +18,6 @@ import { FormPhase } from "@/lib/formPhase";
 import { DataIcon, HealthIcon } from "@/lib/icons";
 import { PROJECT_DETAIL_INITIAL_STATE, ProjectDetailActionType, projectDetailReducer } from "@/lib/projectDetailState";
 import { toPanelFailure } from "@/lib/projectsPanelState";
-import { perDayQuotaLabel, perMinuteQuotaLabel } from "@/lib/quotaLabel";
 
 /**
  * Props for {@link ProjectDetailPanel}.
