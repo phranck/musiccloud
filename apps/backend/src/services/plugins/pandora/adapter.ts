@@ -15,6 +15,7 @@ import type {
 } from "../../types";
 import { splitArtistNames } from "../_shared/artists.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { JSON_LD_ALBUM_TYPE, JSON_LD_RECORDING_TYPE, JSON_LD_SCRIPT_PATTERN, readJsonLd } from "../_shared/json-ld.js";
 import {
   logCandidateScore,
   pickBestCandidate,
@@ -304,18 +305,18 @@ function extractFromStore(html: string): PandoraTrackData | null {
   }
 }
 
+/**
+ * Reads a track page's `MusicRecording` block, logging a block that is not JSON.
+ *
+ * @param html - A Pandora track page.
+ * @returns The block, or `null` when the page has none, it is not JSON, or it
+ *   is not a recording block.
+ */
 function extractFromJsonLd(html: string): JsonLdMusicRecording | null {
-  const match = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i.exec(html);
-  if (!match) return null;
-
-  try {
-    const data = JSON.parse(match[1]) as JsonLdMusicRecording;
-    if (data["@type"] === "MusicRecording") return data;
-    return null;
-  } catch {
-    log.debug("Pandora", "Failed to parse JSON-LD");
-    return null;
-  }
+  return readJsonLd<JsonLdMusicRecording>(html, JSON_LD_RECORDING_TYPE, {
+    pattern: JSON_LD_SCRIPT_PATTERN,
+    onInvalid: () => log.debug("Pandora", "Failed to parse JSON-LD"),
+  });
 }
 
 // --- Album helpers ---
@@ -378,35 +379,31 @@ async function fetchAlbumByPath(albumPath: string): Promise<NormalizedAlbum | nu
   }
 
   // Try JSON-LD for MusicAlbum
-  const match = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i.exec(html);
-  if (match) {
-    try {
-      const ldData = JSON.parse(match[1]) as {
-        "@type"?: string;
-        name?: string;
-        byArtist?: { name?: string };
-        image?: string;
-        url?: string;
-      };
-      if (ldData["@type"] === "MusicAlbum" && ldData.name) {
-        const artists = ldData.byArtist?.name
-          ? ldData.byArtist.name
-              .split(/[,&]/)
-              .map((a) => a.trim())
-              .filter(Boolean)
-          : ["Unknown Artist"];
-        return {
-          sourceService: "pandora",
-          sourceId: albumPath,
-          title: ldData.name,
-          artists,
-          artworkUrl: ldData.image,
-          webUrl: ldData.url ?? pageUrl,
-        };
-      }
-    } catch {
-      log.debug("Pandora", "Failed to parse JSON-LD for album");
-    }
+  const ldData = readJsonLd<{
+    "@type"?: string;
+    name?: string;
+    byArtist?: { name?: string };
+    image?: string;
+    url?: string;
+  }>(html, JSON_LD_ALBUM_TYPE, {
+    pattern: JSON_LD_SCRIPT_PATTERN,
+    onInvalid: () => log.debug("Pandora", "Failed to parse JSON-LD for album"),
+  });
+  if (ldData?.name) {
+    const artists = ldData.byArtist?.name
+      ? ldData.byArtist.name
+          .split(/[,&]/)
+          .map((a) => a.trim())
+          .filter(Boolean)
+      : ["Unknown Artist"];
+    return {
+      sourceService: "pandora",
+      sourceId: albumPath,
+      title: ldData.name,
+      artists,
+      artworkUrl: ldData.image,
+      webUrl: ldData.url ?? pageUrl,
+    };
   }
 
   // Pandora answers 404 for an album it does not have, so a page that loaded

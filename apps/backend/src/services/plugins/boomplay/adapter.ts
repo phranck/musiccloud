@@ -47,12 +47,23 @@ import type {
 import { bestSettledAlbum, bestSettledTrack } from "../_shared/candidates.js";
 import { searchText } from "../_shared/confidence.js";
 import { parseIsoDurationMs } from "../_shared/duration.js";
+import { JSON_LD_ALBUM_TYPE, JSON_LD_RECORDING_TYPE, readJsonLd } from "../_shared/json-ld.js";
 import { readProviderHtml } from "../_shared/provider-response.js";
+import { scrapeIds } from "../_shared/scrape-ids.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const BOOMPLAY_SONG_REGEX = /^https?:\/\/(?:www\.)?boomplay\.com\/songs\/(\d+)/;
 // Boomplay album URLs: boomplay.com/albums/{id}
 const BOOMPLAY_ALBUM_REGEX = /^https?:\/\/(?:www\.)?boomplay\.com\/albums\/(\d+)/;
+
+/** How many search hits the adapter fetches pages for, 5, as the file comment explains. */
+const BOOMPLAY_SEARCH_ID_LIMIT = 5;
+
+/** A song id on the search page, from the `data-id` attribute of a result node. */
+const BOOMPLAY_SONG_ID_PATTERN = /data-id="(\d+)"/g;
+
+/** An album id on the search page, from an `/albums/{id}` link. */
+const BOOMPLAY_ALBUM_LINK_PATTERN = /\/albums\/(\d+)/g;
 
 /** JSON-LD MusicAlbum schema as embedded in Boomplay album pages */
 interface BoomplayAlbumJsonLd {
@@ -106,20 +117,6 @@ async function fetchSearchPage(query: string, kind: ResourceKind): Promise<Respo
   return response;
 }
 
-/** Extract JSON-LD MusicRecording from a Boomplay song page */
-function parseJsonLd(html: string): BoomplayJsonLd | null {
-  const match = /application\/ld\+json">\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
-  if (!match?.[1]) return null;
-
-  try {
-    const data = JSON.parse(match[1]) as BoomplayJsonLd;
-    if (data["@type"] !== "MusicRecording") return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
 /** Fetch a Boomplay song page and extract track metadata from JSON-LD */
 async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   const url = `https://www.boomplay.com/songs/${songId}`;
@@ -128,7 +125,7 @@ async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   if (!response.ok) throw serviceHttpError(Service.Boomplay, response.status, ResourceKind.Track, songId);
 
   const html = await response.text();
-  const jsonLd = parseJsonLd(html);
+  const jsonLd = readJsonLd<BoomplayJsonLd>(html, JSON_LD_RECORDING_TYPE);
   if (!jsonLd?.name) return null;
 
   return mapJsonLd(jsonLd, songId);
@@ -149,17 +146,16 @@ function mapJsonLd(data: BoomplayJsonLd, songId: string): NormalizedTrack {
   };
 }
 
-/** Extract JSON-LD MusicAlbum from a Boomplay album page */
+/**
+ * Reads an album page's `MusicAlbum` block.
+ *
+ * @param html - A Boomplay album page.
+ * @returns The block, or `null` when the page has none, it is not an album
+ *   block, or it carries no name.
+ */
 function parseAlbumJsonLd(html: string): BoomplayAlbumJsonLd | null {
-  const match = /application\/ld\+json">\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
-  if (!match?.[1]) return null;
-  try {
-    const data = JSON.parse(match[1]) as BoomplayAlbumJsonLd;
-    if (data["@type"] !== "MusicAlbum" || !data.name) return null;
-    return data;
-  } catch {
-    return null;
-  }
+  const data = readJsonLd<BoomplayAlbumJsonLd>(html, JSON_LD_ALBUM_TYPE);
+  return data?.name ? data : null;
 }
 
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
@@ -190,18 +186,7 @@ async function searchBoomplayAlbumIds(query: string): Promise<string[]> {
 
   const html = await readProviderHtml(response, Service.Boomplay, "album search");
 
-  // Extract album IDs from /albums/{id} links in the search page
-  const albumIds: string[] = [];
-  const seen = new Set<string>();
-  const idMatches = html.matchAll(/\/albums\/(\d+)/g);
-  for (const m of idMatches) {
-    if (m[1] && !seen.has(m[1])) {
-      seen.add(m[1]);
-      albumIds.push(m[1]);
-    }
-    if (albumIds.length >= 5) break;
-  }
-  return albumIds;
+  return scrapeIds(html, BOOMPLAY_ALBUM_LINK_PATTERN, BOOMPLAY_SEARCH_ID_LIMIT);
 }
 
 export const boomplayAdapter: ServiceAdapter = {
@@ -238,17 +223,7 @@ export const boomplayAdapter: ServiceAdapter = {
     const response = await fetchSearchPage(q, ResourceKind.Track);
     const html = await readProviderHtml(response, Service.Boomplay, "track search");
 
-    // Extract data-id attributes (song IDs embedded in search results)
-    const idMatches = html.matchAll(/data-id="(\d+)"/g);
-    const songIds: string[] = [];
-    const seen = new Set<string>();
-    for (const m of idMatches) {
-      if (m[1] && !seen.has(m[1])) {
-        seen.add(m[1]);
-        songIds.push(m[1]);
-      }
-      if (songIds.length >= 5) break;
-    }
+    const songIds = scrapeIds(html, BOOMPLAY_SONG_ID_PATTERN, BOOMPLAY_SEARCH_ID_LIMIT);
 
     if (songIds.length === 0) {
       log.debug("Boomplay", "Search returned no song IDs for:", q);

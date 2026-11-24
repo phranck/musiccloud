@@ -57,6 +57,7 @@ import type {
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { parseClockDurationMs } from "../_shared/duration.js";
+import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import {
   logCandidateScore,
@@ -277,19 +278,18 @@ async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> 
   }
 
   // Fallback to OG tags
-  const ogTitle = /<meta\s+property="og:title"\s+content="([^"]*)"[^>]*>/i.exec(html)?.[1];
-  const ogImage = /<meta\s+property="og:image"\s+content="([^"]*)"[^>]*>/i.exec(html)?.[1];
+  const og = extractOgTags(html);
 
-  if (ogTitle) {
+  if (og.title) {
     // OG title: "Artist - Track (Mix) [Label] | Beatport"
-    const titleMatch = /^(.+?)\s*-\s*(.+?)(?:\s*\[.*\])?\s*\|?\s*(?:Music & Downloads on\s*)?Beatport$/i.exec(ogTitle);
+    const titleMatch = /^(.+?)\s*-\s*(.+?)(?:\s*\[.*\])?\s*\|?\s*(?:Music & Downloads on\s*)?Beatport$/i.exec(og.title);
     if (titleMatch) {
       return {
         sourceService: "beatport",
         sourceId: trackId,
         title: titleMatch[2].trim(),
         artists: [titleMatch[1].trim()],
-        artworkUrl: ogImage || undefined,
+        artworkUrl: og.image || undefined,
         webUrl: `https://www.beatport.com/track/x/${trackId}`,
       };
     }

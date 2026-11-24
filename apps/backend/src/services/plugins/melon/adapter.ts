@@ -51,14 +51,31 @@ import { splitArtistNames } from "../_shared/artists.js";
 import { bestSettledAlbum, bestSettledTrack } from "../_shared/candidates.js";
 import { searchText } from "../_shared/confidence.js";
 import { parseIsoDurationMs } from "../_shared/duration.js";
+import { JSON_LD_ALBUM_TYPE, JSON_LD_RECORDING_TYPE, readJsonLd } from "../_shared/json-ld.js";
 import { extractOgTags } from "../_shared/og.js";
 import { readProviderHtml } from "../_shared/provider-response.js";
+import { scrapeIds } from "../_shared/scrape-ids.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 // Melon URLs: melon.com/song/detail.htm?songId={id}
 const MELON_TRACK_REGEX = /^https?:\/\/(?:www\.)?melon\.com\/song\/detail\.htm\?songId=(\d+)/;
 // Melon album URLs: melon.com/album/detail.htm?albumId={id}
 const MELON_ALBUM_REGEX = /^https?:\/\/(?:www\.)?melon\.com\/album\/detail\.htm\?albumId=(\d+)/;
+
+/** How many search hits the adapter fetches pages for, 5. */
+const MELON_SEARCH_ID_LIMIT = 5;
+
+/** A song id on the song search page, from its `data-song-no` attribute. */
+const MELON_SONG_ID_PATTERN = /data-song-no="(\d+)"/g;
+
+/** An album id on the album search page, from its `data-album-no` attribute. */
+const MELON_ALBUM_ID_PATTERN = /data-album-no=["'](\d+)["']/g;
+
+/**
+ * An album id from an `albumId=` link, read only when the album search page
+ * has no `data-album-no` attribute at all.
+ */
+const MELON_ALBUM_LINK_PATTERN = /albumId=(\d+)/g;
 
 interface MelonAlbumJsonLd {
   "@type"?: string;
@@ -121,19 +138,6 @@ async function melonFetch(url: string, timeoutMs = 8000): Promise<Response> {
   );
 }
 
-function parseJsonLd(html: string): MelonJsonLd | null {
-  const match = /application\/ld\+json">\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
-  if (!match?.[1]) return null;
-
-  try {
-    const data = JSON.parse(match[1]) as MelonJsonLd;
-    if (data["@type"] !== "MusicRecording") return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
 async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   const url = `https://www.melon.com/song/detail.htm?songId=${songId}`;
   const response = await melonFetch(url);
@@ -145,7 +149,7 @@ async function fetchTrackById(songId: string): Promise<NormalizedTrack | null> {
   const html = await response.text();
 
   // Try JSON-LD first
-  const jsonLd = parseJsonLd(html);
+  const jsonLd = readJsonLd<MelonJsonLd>(html, JSON_LD_RECORDING_TYPE);
   if (jsonLd?.name) {
     const artists = melonArtistNames(jsonLd.byArtist, html);
 
@@ -187,31 +191,19 @@ async function searchForSongIds(query: string): Promise<string[]> {
 
   const html = await readProviderHtml(response, Service.Melon, "track search");
 
-  // Extract song IDs from data-song-no attributes
-  const songIds: string[] = [];
-  const seen = new Set<string>();
-  const idMatches = html.matchAll(/data-song-no="(\d+)"/g);
-  for (const m of idMatches) {
-    if (m[1] && !seen.has(m[1])) {
-      seen.add(m[1]);
-      songIds.push(m[1]);
-    }
-    if (songIds.length >= 5) break;
-  }
-
-  return songIds;
+  return scrapeIds(html, MELON_SONG_ID_PATTERN, MELON_SEARCH_ID_LIMIT);
 }
 
+/**
+ * Reads an album page's `MusicAlbum` block.
+ *
+ * @param html - A Melon album page.
+ * @returns The block, or `null` when the page has none, it is not an album
+ *   block, or it carries no name.
+ */
 function parseMelonAlbumJsonLd(html: string): MelonAlbumJsonLd | null {
-  const match = /application\/ld\+json">\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
-  if (!match?.[1]) return null;
-  try {
-    const data = JSON.parse(match[1]) as MelonAlbumJsonLd;
-    if (data["@type"] !== "MusicAlbum" || !data.name) return null;
-    return data;
-  } catch {
-    return null;
-  }
+  const data = readJsonLd<MelonAlbumJsonLd>(html, JSON_LD_ALBUM_TYPE);
+  return data?.name ? data : null;
 }
 
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
@@ -263,18 +255,8 @@ async function searchMelonAlbumIds(query: string): Promise<string[]> {
   }
 
   const html = await readProviderHtml(response, Service.Melon, "album search");
-  const albumIds: string[] = [];
-  const seen = new Set<string>();
-  const currentIds = [...html.matchAll(/data-album-no=["'](\d+)["']/g)];
-  const idMatches = currentIds.length > 0 ? currentIds : html.matchAll(/albumId=(\d+)/g);
-  for (const m of idMatches) {
-    if (m[1] && !seen.has(m[1])) {
-      seen.add(m[1]);
-      albumIds.push(m[1]);
-    }
-    if (albumIds.length >= 5) break;
-  }
-  return albumIds;
+  const albumIds = scrapeIds(html, MELON_ALBUM_ID_PATTERN, MELON_SEARCH_ID_LIMIT);
+  return albumIds.length > 0 ? albumIds : scrapeIds(html, MELON_ALBUM_LINK_PATTERN, MELON_SEARCH_ID_LIMIT);
 }
 
 export const melonAdapter: ServiceAdapter = {
