@@ -75,7 +75,6 @@ import { log } from "../../../lib/infra/logger";
 import { ResolveError } from "../../../lib/resolve/errors";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AdapterCapabilities,
   AlbumCapabilities,
@@ -94,6 +93,7 @@ import type {
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection, requireProviderObject } from "../_shared/provider-response.js";
+import { type BestCandidate, pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
 
 /**
  * Apple Music URL regex - URL-based flows (detectUrl / detectAlbumUrl).
@@ -506,6 +506,77 @@ function mapAlbum(raw: AppleMusicAlbumResource): NormalizedAlbum {
   };
 }
 
+/**
+ * How many hits each storefront search asks Apple Music for: `5`.
+ */
+const APPLE_MUSIC_SEARCH_LIMIT = 5;
+
+/**
+ * One text search across the storefront cascade.
+ *
+ * @property category - The Apple search category, which is both the `types`
+ *   parameter and the key of the results object: `"songs"`, `"albums"` or
+ *   `"artists"`.
+ * @property term - The search text, already URL-encoded.
+ * @property kind - What is searched for, which a cascade failure names.
+ * @property id - The title or name searched for, which a cascade failure names.
+ * @property map - Turns one Apple resource into the normalized entity.
+ * @property score - Scores one entity; receives its position in its
+ *   storefront's hits, counted from `0`.
+ * @property toResult - Turns the best entity across all storefronts and its
+ *   score into the adapter result. Its `found` decides whether a failed
+ *   storefront is only logged or thrown.
+ */
+interface StorefrontSearch<Resource, Entity, Result extends { found: boolean }> {
+  category: "songs" | "albums" | "artists";
+  term: string;
+  kind: ResourceKind;
+  id: string;
+  map: (resource: Resource) => Entity;
+  score: (entity: Entity, index: number) => number;
+  toResult: (best: Entity | null, confidence: number) => Result;
+}
+
+/**
+ * Searches each storefront of `getStorefrontCascade` and keeps the best hit
+ * across all of them.
+ *
+ * Within one storefront the earliest of the highest scores wins, through
+ * `pickBestCandidate`. A later storefront replaces the kept hit only when its
+ * best scores strictly higher. The cascade stops once the kept hit reaches
+ * `SEARCH_EARLY_EXIT_CONFIDENCE`, so the common case asks one storefront.
+ *
+ * @param search - What to search for and how to score and report it.
+ * @returns The result `search.toResult` builds from the best hit.
+ * @throws The provider failure of a storefront when no storefront answered,
+ *   or when the result is a miss and a storefront failed with anything but
+ *   `404`, because that miss would not be complete.
+ */
+async function searchAcrossStorefronts<Resource, Entity, Result extends { found: boolean }>(
+  search: StorefrontSearch<Resource, Entity, Result>,
+): Promise<Result> {
+  let kept: BestCandidate<Entity> = { best: null, confidence: 0 };
+  const cascade = new StorefrontCascadeOutcome();
+
+  for (const storefront of getStorefrontCascade()) {
+    const response = await appleMusicFetch(
+      `/catalog/${storefront}/search?types=${search.category}&term=${search.term}&limit=${APPLE_MUSIC_SEARCH_LIMIT}`,
+    );
+    if (!cascade.record(response, storefront)) continue;
+
+    const data = await response.json();
+    const entities = searchResources<Resource>(data.results, search.category).map(search.map);
+    const storefrontBest = pickBestCandidate(entities, search.score);
+    if (storefrontBest.confidence > kept.confidence) kept = storefrontBest;
+
+    if (kept.confidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
+  }
+
+  const result = search.toResult(kept.best, kept.confidence);
+  cascade.throwIfUnresolved(search.kind, search.id, result.found);
+  return result;
+}
+
 const capabilities: AdapterCapabilities = {
   supportsIsrc: true,
   // Apple's previews and artwork are left out; see the file comment.
@@ -658,46 +729,15 @@ export const appleMusicAdapter: ServiceAdapter = {
    */
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const text = searchText(query);
-    const term = encodeURIComponent(query.album ? `${text} ${query.album}` : text);
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-    const cascade = new StorefrontCascadeOutcome();
-
-    for (const storefront of getStorefrontCascade()) {
-      const response = await appleMusicFetch(`/catalog/${storefront}/search?types=songs&term=${term}&limit=5`);
-      if (!cascade.record(response, storefront)) continue;
-
-      const data = await response.json();
-      const songs = searchResources<AppleMusicSongResource>(data.results, "songs");
-
-      for (let index = 0; index < songs.length; index++) {
-        const track = mapTrack(songs[index]);
-        const confidence = scoreSearchCandidate(query, track, index);
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = track;
-        }
-      }
-
-      if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
-    }
-    cascade.throwIfUnresolved(
-      ResourceKind.Track,
-      query.title,
-      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
-    );
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return searchAcrossStorefronts({
+      category: "songs",
+      term: encodeURIComponent(query.album ? `${text} ${query.album}` : text),
+      kind: ResourceKind.Track,
+      id: query.title,
+      map: mapTrack,
+      score: (track, index) => scoreSearchCandidate(query, track, index),
+      toResult: (best, confidence) => searchMatchResult("track", best, confidence),
+    });
   },
 
   /**
@@ -729,46 +769,15 @@ export const appleMusicAdapter: ServiceAdapter = {
    * {@link searchTrack} - see that method for the cascade strategy.
    */
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
-    const term = encodeURIComponent(`${query.artist} ${query.title}`);
-    let bestMatch: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-    const cascade = new StorefrontCascadeOutcome();
-
-    for (const storefront of getStorefrontCascade()) {
-      const response = await appleMusicFetch(`/catalog/${storefront}/search?types=albums&term=${term}&limit=5`);
-      if (!cascade.record(response, storefront)) continue;
-
-      const data = await response.json();
-      const albums = searchResources<AppleMusicAlbumResource>(data.results, "albums");
-
-      for (const album of albums) {
-        const normalized = mapAlbum(album);
-        const confidence = scoreAlbumCandidate(query, normalized);
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = normalized;
-        }
-      }
-
-      if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
-    }
-    cascade.throwIfUnresolved(
-      ResourceKind.Album,
-      query.title,
-      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
-    );
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      album: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return searchAcrossStorefronts({
+      category: "albums",
+      term: encodeURIComponent(`${query.artist} ${query.title}`),
+      kind: ResourceKind.Album,
+      id: query.title,
+      map: mapAlbum,
+      score: (album) => scoreAlbumCandidate(query, album),
+      toResult: (best, confidence) => searchMatchResult("album", best, confidence),
+    });
   },
 
   /**
@@ -809,45 +818,14 @@ export const appleMusicAdapter: ServiceAdapter = {
    * {@link searchTrack} - see that method for the cascade strategy.
    */
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
-    const term = encodeURIComponent(query.name);
-    let bestMatch: NormalizedArtist | null = null;
-    let bestConfidence = 0;
-    const cascade = new StorefrontCascadeOutcome();
-
-    for (const storefront of getStorefrontCascade()) {
-      const response = await appleMusicFetch(`/catalog/${storefront}/search?types=artists&term=${term}&limit=5`);
-      if (!cascade.record(response, storefront)) continue;
-
-      const data = await response.json();
-      const artists = searchResources<AppleMusicArtistResource>(data.results, "artists");
-
-      for (const raw of artists) {
-        const artist = mapArtist(raw);
-        const confidence = calculateArtistNameConfidence(query.name, artist.name);
-
-        if (confidence > bestConfidence) {
-          bestConfidence = confidence;
-          bestMatch = artist;
-        }
-      }
-
-      if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
-    }
-    cascade.throwIfUnresolved(
-      ResourceKind.Artist,
-      query.name,
-      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
-    );
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      artist: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return searchAcrossStorefronts({
+      category: "artists",
+      term: encodeURIComponent(query.name),
+      kind: ResourceKind.Artist,
+      id: query.name,
+      map: mapArtist,
+      score: (artist) => calculateArtistNameConfidence(query.name, artist.name),
+      toResult: (best, confidence) => searchMatchResult("artist", best, confidence),
+    });
   },
 };
