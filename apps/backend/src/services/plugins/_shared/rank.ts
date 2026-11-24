@@ -8,6 +8,7 @@
  * way.
  */
 
+import { log } from "../../../lib/infra/logger.js";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize.js";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -42,15 +43,23 @@ export interface BestCandidate<T> {
  * @param items - The hits in the order the service returned them.
  * @param score - Scores one hit; receives the hit and its position in `items`,
  *   counted from `0`.
+ * @param onScored - Called once per hit right after it is scored, in the order
+ *   of `items`, with the hit, its position and its score. Adapters pass a
+ *   logger from `trackScoreLogger` here. Defaults to no callback.
  * @returns The best hit and its score, or `{ best: null, confidence: 0 }` when
  *   `items` is empty.
  */
-export function pickBestCandidate<T>(items: Iterable<T>, score: (item: T, index: number) => number): BestCandidate<T> {
+export function pickBestCandidate<T>(
+  items: Iterable<T>,
+  score: (item: T, index: number) => number,
+  onScored?: (item: T, index: number, confidence: number) => void,
+): BestCandidate<T> {
   let best: T | null = null;
   let confidence = 0;
   let index = 0;
   for (const item of items) {
     const itemConfidence = score(item, index);
+    onScored?.(item, index, itemConfidence);
     if (best === null || itemConfidence > confidence) {
       best = item;
       confidence = itemConfidence;
@@ -58,6 +67,55 @@ export function pickBestCandidate<T>(items: Iterable<T>, score: (item: T, index:
     index++;
   }
   return { best, confidence };
+}
+
+/**
+ * The arrow between a hit and its score in a score debug line. `"->"` is the
+ * default every adapter uses; Napster and Pandora print `"→"`.
+ */
+export type ScoreArrow = "->" | "→";
+
+/** The arrow `logCandidateScore` and `trackScoreLogger` print unless told otherwise. */
+const DEFAULT_SCORE_ARROW: ScoreArrow = "->";
+
+/** Decimal places a score debug line prints the confidence with: `3`. */
+const SCORE_LOG_DECIMALS = 3;
+
+/**
+ * Writes the debug line for one scored search hit:
+ * `  <label> -> confidence=0.875`.
+ *
+ * @param component - The log component, usually the adapter's display name.
+ * @param label - Names the hit, such as `"Title"` or `Artist "Name"`.
+ * @param confidence - The hit's score, printed with `SCORE_LOG_DECIMALS` places.
+ * @param arrow - The arrow between label and score. Defaults to
+ *   `DEFAULT_SCORE_ARROW`.
+ */
+export function logCandidateScore(
+  component: string,
+  label: string,
+  confidence: number,
+  arrow: ScoreArrow = DEFAULT_SCORE_ARROW,
+): void {
+  log.debug(component, `  ${label} ${arrow} confidence=${confidence.toFixed(SCORE_LOG_DECIMALS)}`);
+}
+
+/**
+ * Builds the `onScored` callback that writes one debug line per scored track:
+ * `  [2] "Title" by Artist A, Artist B -> confidence=0.875`.
+ *
+ * @param component - The log component, usually the adapter's display name.
+ * @param arrow - The arrow between track and score. Defaults to
+ *   `DEFAULT_SCORE_ARROW`.
+ * @returns A callback taking the track, the position the line prints and the
+ *   track's score.
+ */
+export function trackScoreLogger(
+  component: string,
+  arrow: ScoreArrow = DEFAULT_SCORE_ARROW,
+): (track: NormalizedTrack, index: number, confidence: number) => void {
+  return (track, index, confidence) =>
+    logCandidateScore(component, `[${index}] "${track.title}" by ${track.artists.join(", ")}`, confidence, arrow);
 }
 
 /**
