@@ -60,6 +60,7 @@ import {
   EmailAction,
   EmailRecipientKind,
   ENDPOINTS,
+  isAdminRole,
   ROUTE_TEMPLATES,
   validatePasswordLength,
 } from "@musiccloud/shared";
@@ -77,6 +78,22 @@ import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { hashPassword } from "../services/developer-auth.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 
+/**
+ * The 400 body for a role outside `AdminRole`. A stored role of any other
+ * name would match neither the owner check nor the admin check, so the
+ * create and update handlers refuse it before writing.
+ */
+const INVALID_ROLE_BODY = {
+  error: "INVALID_REQUEST",
+  message: `Role must be one of: ${Object.values(AdminRole).join(", ")}.`,
+} as const;
+
+/**
+ * Registers the admin user management routes: list, invite, update, delete
+ * and the three avatar routes. See the file header for the permission model.
+ *
+ * @param app - The admin scope, whose `authenticateAdmin` gate runs first.
+ */
 export default async function adminUserRoutes(app: FastifyInstance) {
   // GET /api/admin/users
   app.get(ENDPOINTS.admin.users.list, async () => {
@@ -95,7 +112,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const body = request.body as {
       username?: string;
       email?: string;
-      role?: string;
+      role?: unknown;
     } | null;
     if (!body?.username || !body?.email) {
       return reply.status(400).send({ error: "username and email required" });
@@ -104,6 +121,10 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const email = normalizeEmailAddress(body.email);
     if (!email) return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
 
+    // An absent or empty role invites an admin.
+    const role = body.role || AdminRole.Admin;
+    if (!isAdminRole(role)) return reply.status(400).send(INVALID_ROLE_BODY);
+
     const repo = await getAdminRepository();
     const id = nanoid();
     const inviteToken = nanoid(48);
@@ -111,8 +132,6 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     // tokens. Work factor 10 is fine for one-time tokens that expire in
     // a week; bcrypt 12 (used on real passwords) is overkill here.
     const inviteTokenHash = await bcrypt.hash(inviteToken, 10);
-
-    const role = body.role || AdminRole.Admin;
 
     await repo.createAdminUser({
       id,
@@ -203,6 +222,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       if (caller.role !== AdminRole.Owner || caller.id === id) {
         return reply.status(403).send({ error: "FORBIDDEN" });
       }
+      if (!isAdminRole(body.role)) return reply.status(400).send(INVALID_ROLE_BODY);
       updates.role = body.role;
     }
 
