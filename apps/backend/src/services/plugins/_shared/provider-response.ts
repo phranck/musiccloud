@@ -57,6 +57,27 @@ export function requireProviderObject<T extends object>(
 }
 
 /**
+ * Parses a JSON endpoint without treating an unreadable body as a catalog miss.
+ *
+ * This is a document-format check. The envelope, its provider error codes and
+ * explicit empty-result semantics remain the adapter's responsibility.
+ *
+ * @param response - Successful provider response, whose status the caller has already checked.
+ * @param service - Provider responsible for this reply.
+ * @param operation - Fixed description, never the unrestricted provider body.
+ * @returns The parsed body as the caller's expected type. It is not validated,
+ *   so it may be `null` or a primitive when the provider answered one.
+ * @throws {UpstreamUnavailableError} When the body is not JSON, with the parse error as its cause.
+ */
+export async function readProviderJson<T>(response: Response, service: ServiceId, operation: string): Promise<T> {
+  try {
+    return (await response.json()) as T;
+  } catch (error) {
+    throw new UpstreamUnavailableError(service, `${operation} answered with a body that is not JSON`, error);
+  }
+}
+
+/**
  * Reads an HTML endpoint without treating JSON, blank text or a restricted redirect as a catalog miss.
  *
  * This is a document-format check. Search selectors and explicit empty-result
