@@ -3,17 +3,10 @@
  * the `useAudioController` hook, the props it takes, and the timing constants
  * and time formatting only it uses.
  */
-import gsap from "gsap";
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 import { AudioStatus, type AudioStatus as AudioStatusType } from "@/components/audio/AudioStatus";
 import { fadeOutForTeardown, muteForStartup, rampUpFromStartup } from "@/components/audio/audioFades";
-import {
-  type AudioGraphNodes,
-  disconnectAudioGraph,
-  getAudioContextConstructor,
-  type StereoSpectrumAnalysers,
-  type StereoSpectrumData,
-} from "@/components/audio/audioGraph";
+import { disconnectAudioGraph } from "@/components/audio/audioGraph";
 import { registerAudioForKeyboard } from "@/components/audio/audioKeyboardRegistry";
 import { resolveSeekTarget, SEEK_END_GUARD_SECONDS } from "@/components/audio/audioSeek";
 import {
@@ -28,28 +21,10 @@ import {
   resolveAudioProgressRatio,
 } from "@/components/audio/playerStateMachine";
 import { fetchPreviewUrl } from "@/components/audio/previewSource";
-import {
-  advancePeakHold,
-  decayPeakHoldChannel,
-  decayStereoLevel,
-  fadeBandValue,
-  resolveSpectrumBandsInto,
-  resolveStereoLevel,
-  resolveTimeDomainRms,
-  SPECTRUM_CHANNEL_BAND_COUNT,
-  SPECTRUM_RECOVERY_CHECK_MS,
-  SPECTRUM_UPDATE_MS,
-  type StereoPeakHoldState,
-} from "@/components/audio/spectrumAnalysis";
-import {
-  clearSpectrumFrame,
-  getSpectrumFrame,
-  isSpectrumActive,
-  publishSpectrumFrame,
-  writeSpectrumLevels,
-  writeSpectrumPeakHold,
-} from "@/components/audio/spectrumStore";
+import { clearSpectrumFrame } from "@/components/audio/spectrumStore";
+import { useAudioGraph } from "@/components/audio/useAudioGraph";
 import { usePlaybackProgress } from "@/components/audio/usePlaybackProgress";
+import { useSpectrumLoop, useSpectrumWatchdog } from "@/components/audio/useSpectrumLoop";
 import { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
 import { audioCopy } from "@/copy/audio";
 import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
@@ -141,22 +116,22 @@ export function useAudioController({
   // path, where the component mounted without a preview URL.
   const effectiveUrl = previewUrl ?? fetchedUrl;
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analysersRef = useRef<StereoSpectrumAnalysers | null>(null);
-  const channelSplitterRef = useRef<ChannelSplitterNode | null>(null);
-  const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  // Frame loops run on the shared gsap.ticker (plan MC-029 Task 5.3, policy 3 —
-  // no private requestAnimationFrame source). Each ref holds the registered
-  // ticker callback so the matching stop can remove it; null means "not running".
-  const spectrumTickRef = useRef<(() => void) | null>(null);
-  const spectrumDataRef = useRef<StereoSpectrumData | null>(null);
-  const spectrumLastUpdateRef = useRef(0);
-  // Peak-hold timing state stays local (the store only carries the resulting
-  // level, not the per-channel hold timestamp). Bands/levels/peak-hold levels
-  // live in the spectrum store and are written in place each tick (Task 5.1).
-  const peakHoldLeftRef = useRef<StereoPeakHoldState>({ level: 0, setAt: 0 });
-  const peakHoldRightRef = useRef<StereoPeakHoldState>({ level: 0, setAt: 0 });
+  const {
+    analysersRef,
+    spectrumDataRef,
+    spectrumTickRef,
+    resetPeakHold,
+    stopSpectrumLoop,
+    startSpectrumFadeOut,
+    startSpectrumLoop,
+  } = useSpectrumLoop();
+  const { audioContextRef, gainNodeRef, releaseAudioGraph, teardownSpectrum, ensureSpectrumAnalyzer } = useAudioGraph({
+    analysersRef,
+    spectrumDataRef,
+    startSpectrumLoop,
+    stopSpectrumLoop,
+    resetPeakHold,
+  });
   const {
     progressRatio,
     setProgressRatioValue,
@@ -227,67 +202,9 @@ export function useAudioController({
     return () => controller.abort();
   }, [previewUrl, refreshShortId]);
 
-  const resetPeakHold = useCallback(() => {
-    peakHoldLeftRef.current = { level: 0, setAt: 0 };
-    peakHoldRightRef.current = { level: 0, setAt: 0 };
-  }, []);
-
-  const stopSpectrumLoop = useCallback(
-    ({ clearBands = true }: { clearBands?: boolean } = {}) => {
-      if (spectrumTickRef.current) gsap.ticker.remove(spectrumTickRef.current);
-      spectrumTickRef.current = null;
-      spectrumLastUpdateRef.current = 0;
-      if (!clearBands) return;
-      clearSpectrumFrame();
-      resetPeakHold();
-    },
-    [resetPeakHold],
-  );
-
   const setProgressRatioFromEvent = useEffectEvent(setProgressRatioValue);
   const startProgressRewindFromEvent = useEffectEvent(startProgressRewind);
 
-  const startSpectrumFadeOut = useCallback(() => {
-    stopSpectrumLoop({ clearBands: false });
-    if (!isSpectrumActive()) return;
-    const frame = getSpectrumFrame();
-
-    const tick = () => {
-      const now = performance.now();
-      if (now - spectrumLastUpdateRef.current < SPECTRUM_UPDATE_MS) return;
-      spectrumLastUpdateRef.current = now;
-
-      // Decay every band toward zero in place (no allocation per fade tick).
-      let bandsStillVisible = false;
-      for (let band = 0; band < frame.leftBands.length; band += 1) {
-        const left = fadeBandValue(frame.leftBands[band] ?? 0);
-        const right = fadeBandValue(frame.rightBands[band] ?? 0);
-        frame.leftBands[band] = left;
-        frame.rightBands[band] = right;
-        if (left > 0 || right > 0) bandsStillVisible = true;
-      }
-      const nextLeftLevel = decayStereoLevel(frame.levels[0] ?? 0);
-      const nextRightLevel = decayStereoLevel(frame.levels[1] ?? 0);
-      writeSpectrumLevels(nextLeftLevel, nextRightLevel);
-      const nextLeftHold = decayPeakHoldChannel(peakHoldLeftRef.current);
-      const nextRightHold = decayPeakHoldChannel(peakHoldRightRef.current);
-      peakHoldLeftRef.current = nextLeftHold;
-      peakHoldRightRef.current = nextRightHold;
-      writeSpectrumPeakHold(nextLeftHold.level, nextRightHold.level);
-      publishSpectrumFrame();
-
-      const levelsStillVisible = nextLeftLevel > 0 || nextRightLevel > 0;
-      const peakHoldStillVisible = nextLeftHold.level > 0 || nextRightHold.level > 0;
-      if (bandsStillVisible || levelsStillVisible || peakHoldStillVisible) return;
-      gsap.ticker.remove(tick);
-      spectrumTickRef.current = null;
-      clearSpectrumFrame();
-      resetPeakHold();
-    };
-
-    spectrumTickRef.current = tick;
-    gsap.ticker.add(tick);
-  }, [resetPeakHold, stopSpectrumLoop]);
   const startSpectrumFadeOutFromEvent = useEffectEvent(startSpectrumFadeOut);
   const notifyStatusChange = useCallback(
     (status: AudioStatusType) => {
@@ -300,270 +217,14 @@ export function useAudioController({
     onPlaybackIntent?.();
   }, [onPlaybackIntent]);
 
-  // Hands the current element's Web Audio nodes to the caller and nulls the node +
-  // buffer refs. A graph belongs to the one element its MediaElementSource was
-  // created for, so a source switch releases it at once: `ensureSpectrumAnalyzer`
-  // reuses whatever the refs hold, and a stale graph there would leave the next
-  // track playing past the analyzer.
-  const releaseAudioGraph = useCallback((): AudioGraphNodes => {
-    const nodes: AudioGraphNodes = {
-      source: mediaSourceRef.current,
-      splitter: channelSplitterRef.current,
-      analysers: analysersRef.current,
-      gain: gainNodeRef.current,
-    };
-    mediaSourceRef.current = null;
-    channelSplitterRef.current = null;
-    analysersRef.current = null;
-    gainNodeRef.current = null;
-    spectrumDataRef.current = null;
-    return nodes;
-  }, []);
-
-  // Releases and disconnects the current graph. Shared by teardownSpectrum and the
-  // ensureSpectrumAnalyzer catch path. It does NOT stop the loop or close the
-  // context: those steps differ per call site (teardown closes the context; the
-  // catch leaves it open for a rebuild).
-  const disconnectAudioGraphNodes = useCallback(() => {
-    disconnectAudioGraph(releaseAudioGraph());
-  }, [releaseAudioGraph]);
-
-  const teardownSpectrum = useCallback(() => {
-    stopSpectrumLoop();
-    disconnectAudioGraphNodes();
-
-    const audioContext = audioContextRef.current;
-    audioContextRef.current = null;
-    if (audioContext && audioContext.state !== AudioContextState.Closed) {
-      audioContext.onstatechange = null;
-      void audioContext.close().catch(() => {
-        // Closing can fail in interrupted browser audio sessions. The audio
-        // element is disposed independently, so there is nothing else to do.
-      });
-    }
-  }, [disconnectAudioGraphNodes, stopSpectrumLoop]);
-
-  const startSpectrumLoop = useCallback(() => {
-    const analysers = analysersRef.current;
-    if (!analysers || spectrumTickRef.current !== null) return;
-
-    const data: StereoSpectrumData = spectrumDataRef.current ?? {
-      left: new Uint8Array(analysers.left.frequencyBinCount),
-      right: new Uint8Array(analysers.right.frequencyBinCount),
-      leftTime: new Uint8Array(analysers.left.fftSize),
-      rightTime: new Uint8Array(analysers.right.fftSize),
-    };
-    spectrumDataRef.current = data;
-    const frame = getSpectrumFrame();
-
-    const tick = () => {
-      const now = performance.now();
-      if (now - spectrumLastUpdateRef.current < SPECTRUM_UPDATE_MS) return;
-      spectrumLastUpdateRef.current = now;
-      analysers.left.getByteFrequencyData(data.left);
-      analysers.right.getByteFrequencyData(data.right);
-      analysers.left.getByteTimeDomainData(data.leftTime);
-      analysers.right.getByteTimeDomainData(data.rightTime);
-      // Bands straight into the store buffers (zero allocation per tick).
-      resolveSpectrumBandsInto(data.left, SPECTRUM_CHANNEL_BAND_COUNT, frame.leftBands);
-      resolveSpectrumBandsInto(data.right, SPECTRUM_CHANNEL_BAND_COUNT, frame.rightBands);
-      // Smoothed levels — the previous value is the store's last write.
-      const nextLeftLevel = resolveStereoLevel(resolveTimeDomainRms(data.leftTime), frame.levels[0] ?? 0);
-      const nextRightLevel = resolveStereoLevel(resolveTimeDomainRms(data.rightTime), frame.levels[1] ?? 0);
-      writeSpectrumLevels(nextLeftLevel, nextRightLevel);
-
-      const nextLeftHold = advancePeakHold(peakHoldLeftRef.current, nextLeftLevel, now);
-      const nextRightHold = advancePeakHold(peakHoldRightRef.current, nextRightLevel, now);
-      peakHoldLeftRef.current = nextLeftHold;
-      peakHoldRightRef.current = nextRightHold;
-      writeSpectrumPeakHold(nextLeftHold.level, nextRightHold.level);
-      publishSpectrumFrame();
-    };
-
-    spectrumTickRef.current = tick;
-    gsap.ticker.add(tick);
-  }, []);
-
-  /**
-   * Wires up (or reuses) the Web Audio spectrum pipeline for the given audio
-   * element and returns a promise that resolves to `true` once the
-   * AudioContext is in the `running` state.
-   *
-   * **Critical timing contract:** callers MUST invoke this from inside a
-   * user-gesture synchronous stack (e.g. a click handler), and BEFORE
-   * `audio.play()`. Two browser policies enforce this:
-   *
-   *   1. `new AudioContext()` and `audioContext.resume()` both consume
-   *      transient user activation. If `resume()` first runs in a microtask
-   *      scheduled after `audio.play()` has resolved, the activation may
-   *      already be consumed or expired — particularly on Safari, and on
-   *      Chrome with a cold HTTP cache or a slow CDN. The browser then
-   *      silently leaves the context `suspended`. Audio still plays because
-   *      `play()` captured its own activation earlier, but the analyser
-   *      receives no samples and the watchdog interval cannot lift the
-   *      suspension without a fresh gesture. This is the exact failure mode
-   *      where preview playback works but the VFD spectrum stays dark and
-   *      a page reload "fixes" it (warm cache → fast play() → activation
-   *      still alive when resume() runs).
-   *
-   *   2. `createMediaElementSource(audio)` should run before `audio.play()`
-   *      so the element streams through the AudioContext from the first
-   *      sample. Wiring up an already-playing element is supported but
-   *      prone to brief routing glitches.
-   *
-   * To honour both, this function performs ALL synchronous work — context
-   * construction, source/splitter/analyser creation, connections — before
-   * yielding, and only returns a promise for the `resume()` round trip.
-   * Callers that await the returned promise from a `.then()` chain after
-   * `audio.play()` are fine because the `resume()` call itself was issued
-   * synchronously while the gesture was still alive.
-   */
-  const ensureSpectrumAnalyzer = useCallback(
-    (audio: HTMLAudioElement): Promise<boolean> => {
-      // Fast path: pipeline already wired. Reuse and only nudge the context
-      // if it has slipped back to `suspended`. resume() is fired synchronously
-      // (not awaited) so the caller's gesture window is preserved.
-      if (analysersRef.current) {
-        const existingContext = audioContextRef.current;
-        if (!existingContext) return Promise.resolve(false);
-        if (existingContext.state === AudioContextState.Running) return Promise.resolve(true);
-        if (existingContext.state === AudioContextState.Suspended) {
-          return existingContext
-            .resume()
-            .then(() => existingContext.state === AudioContextState.Running)
-            .catch(() => false);
-        }
-        return Promise.resolve(false);
-      }
-
-      const AudioContextConstructor = getAudioContextConstructor();
-      if (!AudioContextConstructor) return Promise.resolve(false);
-
-      const audioContext = audioContextRef.current ?? new AudioContextConstructor();
-      audioContextRef.current = audioContext;
-
-      // Install the state-change handler before connections so a context
-      // that flips back to `running` after an interruption (route change,
-      // audio focus loss, system audio session pause) re-kicks the spectrum
-      // loop without waiting for the watchdog interval.
-      audioContext.onstatechange = () => {
-        if (audioContext.state === AudioContextState.Running) {
-          if (!audio.paused && !audio.ended) startSpectrumLoop();
-          return;
-        }
-        stopSpectrumLoop({ clearBands: false });
-        if (!audio.paused && !audio.ended && audioContext.state === AudioContextState.Suspended) {
-          // resume() in a state-change callback has no fresh user gesture.
-          // It succeeds when the browser itself interrupted the session
-          // (e.g. after a tab refocus), and fails silently when the autoplay
-          // policy demands a new gesture. In the latter case the analyser
-          // stays dark until the user clicks play/pause again.
-          void audioContext
-            .resume()
-            .then(() => {
-              if (audioContext.state === AudioContextState.Running && !audio.paused && !audio.ended)
-                startSpectrumLoop();
-            })
-            .catch(() => {
-              clearSpectrumFrame();
-              resetPeakHold();
-            });
-        }
-      };
-
-      // Wire splitter + analysers + media source SYNCHRONOUSLY. The fragile
-      // call is `createMediaElementSource(audio)`: it can only be invoked
-      // once per HTMLAudioElement (subsequent calls throw InvalidStateError)
-      // and it taints the analyser to zeros if the audio source is not
-      // CORS-clean. The catch tears the partial pipeline down so playback
-      // still proceeds when the analyser branch is unavailable.
-      try {
-        const splitter = audioContext.createChannelSplitter(2);
-        const leftAnalyser = audioContext.createAnalyser();
-        const rightAnalyser = audioContext.createAnalyser();
-        for (const analyser of [leftAnalyser, rightAnalyser]) {
-          analyser.fftSize = 128;
-          analyser.smoothingTimeConstant = 0.66;
-        }
-
-        // The GainNode sits between the media source and the destination
-        // so the teardown path can ramp the signal down before the audio
-        // element is paused and the context is closed. The splitter that
-        // feeds the analysers is connected AFTER the gain node, so the
-        // VFD visualisation matches what is heard at all times — during
-        // the teardown fade the spectrum dims along with the audio.
-        const gain = audioContext.createGain();
-        gain.gain.value = 1;
-
-        const source = audioContext.createMediaElementSource(audio);
-        source.connect(gain);
-        gain.connect(audioContext.destination);
-        gain.connect(splitter);
-        splitter.connect(leftAnalyser, 0);
-        splitter.connect(rightAnalyser, 1);
-
-        gainNodeRef.current = gain;
-        mediaSourceRef.current = source;
-        channelSplitterRef.current = splitter;
-        analysersRef.current = { left: leftAnalyser, right: rightAnalyser };
-        spectrumDataRef.current = {
-          left: new Uint8Array(leftAnalyser.frequencyBinCount),
-          right: new Uint8Array(rightAnalyser.frequencyBinCount),
-          leftTime: new Uint8Array(leftAnalyser.fftSize),
-          rightTime: new Uint8Array(rightAnalyser.fftSize),
-        };
-      } catch {
-        disconnectAudioGraphNodes();
-        clearSpectrumFrame();
-        resetPeakHold();
-        return Promise.resolve(false);
-      }
-
-      // Kick resume() while the gesture is still alive on this synchronous
-      // tick. Returning the promise (instead of awaiting) keeps the caller's
-      // surrounding control flow synchronous up to the .then() chain — and
-      // that is exactly how the surrounding gesture activation survives.
-      if (audioContext.state === AudioContextState.Running) return Promise.resolve(true);
-      return audioContext
-        .resume()
-        .then(() => audioContext.state === AudioContextState.Running)
-        .catch(() => false);
-    },
-    [disconnectAudioGraphNodes, resetPeakHold, startSpectrumLoop, stopSpectrumLoop],
-  );
-
-  // Watchdog for the spectrum render loop while playback is active. The
-  // initial wire-up happens synchronously inside togglePlay (so the user
-  // gesture window is honoured), and the AudioContext's `onstatechange`
-  // handler restarts the loop whenever the context flips back to `running`.
-  // This watchdog only covers the narrower case where the rAF loop stopped
-  // without a matching state-change event — e.g. after `stopSpectrumLoop`
-  // was invoked while the player is still in the `playing` phase. Calling
-  // `ensureSpectrumAnalyzer` from here would not help: at this point we are
-  // far outside the original user gesture, so `audioContext.resume()` would
-  // silently leave a suspended context untouched.
-  useEffect(() => {
-    if (state.phase !== PlayerPhase.Playing) return;
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const recoverSpectrum = () => {
-      if (audio.paused || audio.ended) return;
-      if (!analysersRef.current) return;
-      if (audioContextRef.current?.state !== AudioContextState.Running) return;
-      if (spectrumTickRef.current !== null) return;
-      startSpectrumLoop();
-    };
-
-    // No immediate call: the spectrum loop is started directly from
-    // togglePlay after the user click, before this effect runs. The
-    // watchdog only needs to cover after-the-fact rAF stalls, which is
-    // exactly what the periodic interval handles. (Triggering a state-
-    // mutating helper here at mount also trips React Doctor's
-    // no-adjust-state-on-prop-change rule.)
-    const recoveryTimer = window.setInterval(recoverSpectrum, SPECTRUM_RECOVERY_CHECK_MS);
-    return () => window.clearInterval(recoveryTimer);
-  }, [startSpectrumLoop, state.phase]);
+  useSpectrumWatchdog({
+    phase: state.phase,
+    audioRef,
+    analysersRef,
+    audioContextRef,
+    spectrumTickRef,
+    startSpectrumLoop,
+  });
 
   // Starts playback on the given element: the load-bearing gesture-synchronous
   // AudioContext/gain setup, then audio.play() with the startup fade. Extracted
@@ -645,6 +306,8 @@ export function useAudioController({
       startSpectrumLoop,
       stopProgressRewind,
       stopSpectrumLoop,
+      audioContextRef,
+      gainNodeRef,
     ],
   );
   // Decides how a source switch (a previewUrl change on the mounted hub) proceeds.
@@ -801,7 +464,16 @@ export function useAudioController({
       detachOldElement();
       window.setTimeout(finalizeGraph, 0);
     };
-  }, [effectiveUrl, stopProgressLoop, stopProgressRewind, stopSpectrumLoop, releaseAudioGraph, teardownSpectrum]);
+  }, [
+    effectiveUrl,
+    stopProgressLoop,
+    stopProgressRewind,
+    stopSpectrumLoop,
+    releaseAudioGraph,
+    teardownSpectrum,
+    analysersRef,
+    audioContextRef,
+  ]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
