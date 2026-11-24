@@ -6,7 +6,9 @@
  * only in the backend route they call, so both hand their request here.
  */
 
-import { createApiErrorBody, type McErrorCode, PENDING_SPONSORSHIP_BODY_MAX_BYTES } from "@musiccloud/shared";
+import { type McErrorCode, PENDING_SPONSORSHIP_BODY_MAX_BYTES } from "@musiccloud/shared";
+
+import { apiErrorResponse, relayHeaders } from "@/api/proxy-response";
 
 /** The status a body above the limit is refused with: 413, as the backend's own body limit answers it. */
 const PAYLOAD_TOO_LARGE_STATUS = 413;
@@ -41,10 +43,7 @@ const FORWARDED_HEADERS = ["Content-Type", "Retry-After"] as const;
  * @returns The response, with a fresh error ID and `Cache-Control: no-store`.
  */
 export function sponsorshipErrorResponse(status: number, code: McErrorCode): Response {
-  return new Response(JSON.stringify(createApiErrorBody(code, { errorId: crypto.randomUUID() })), {
-    status,
-    headers: { "Content-Type": JSON_CONTENT_TYPE, "Cache-Control": NO_STORE },
-  });
+  return apiErrorResponse(status, code, { "Cache-Control": NO_STORE });
 }
 
 /**
@@ -108,10 +107,9 @@ export async function relaySponsorshipRequest(
   if (body === null) return sponsorshipErrorResponse(PAYLOAD_TOO_LARGE_STATUS, PAYLOAD_TOO_LARGE_CODE);
 
   const upstream = await forward(body);
-  const headers = new Headers({ "Content-Type": JSON_CONTENT_TYPE, "Cache-Control": NO_STORE });
-  for (const name of FORWARDED_HEADERS) {
-    const value = upstream.headers.get(name);
-    if (value) headers.set(name, value);
-  }
+  const headers = relayHeaders(upstream, FORWARDED_HEADERS, {
+    "Content-Type": JSON_CONTENT_TYPE,
+    "Cache-Control": NO_STORE,
+  });
   return new Response(await upstream.text(), { status: upstream.status, headers });
 }

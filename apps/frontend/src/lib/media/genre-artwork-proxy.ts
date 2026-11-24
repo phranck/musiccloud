@@ -7,6 +7,7 @@
  */
 import { decodeFormPathSegment, visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
+import { relayHeaders } from "@/api/proxy-response";
 
 /**
  * Fetches one genre artwork from the backend.
@@ -34,6 +35,9 @@ const DEFAULT_CONTENT_TYPE = "image/jpeg";
  * artwork's policy, which the backend sends for every non-fallback tile.
  */
 const DEFAULT_CACHE_CONTROL = "public, max-age=31536000, immutable";
+
+/** The backend headers a streamed artwork passes on, each replacing its default above. */
+const FORWARDED_HEADERS = ["Content-Type", "Cache-Control"] as const;
 
 /**
  * Builds the `GET` handler of a genre artwork proxy page.
@@ -64,10 +68,10 @@ export function createGenreArtworkProxy(fetchArtwork: GenreArtworkFetcher): APIR
       const body = await response.arrayBuffer();
       return new Response(body, {
         status: OK,
-        headers: {
-          "Content-Type": response.headers.get("Content-Type") ?? DEFAULT_CONTENT_TYPE,
-          "Cache-Control": response.headers.get("Cache-Control") ?? DEFAULT_CACHE_CONTROL,
-        },
+        headers: relayHeaders(response, FORWARDED_HEADERS, {
+          "Content-Type": DEFAULT_CONTENT_TYPE,
+          "Cache-Control": DEFAULT_CACHE_CONTROL,
+        }),
       });
     } catch {
       return new Response(null, { status: SERVICE_UNAVAILABLE });

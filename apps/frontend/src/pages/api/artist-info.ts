@@ -1,9 +1,16 @@
-import { createApiErrorBody, visitorAddress } from "@musiccloud/shared";
+import { visitorAddress } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 import { fetchArtistInfo } from "@/api/client";
+import { badRequestResponse, relayHeaders } from "@/api/proxy-response";
 
 export const prerender = false;
+
+/** The `Content-Type` of the answer when the backend names none: JSON. */
+const DEFAULT_CONTENT_TYPE = "application/json";
+
+/** The backend headers the answer passes on unchanged: what the body is and how long it may be cached. */
+const FORWARDED_HEADERS = ["Content-Type", "Cache-Control"] as const;
 
 /**
  * Proxy GET /api/artist-info?name=&artistEntityId=&region= → backend
@@ -21,12 +28,7 @@ export const GET: APIRoute = async ({ request, url, clientAddress }) => {
   const shortId = url.searchParams.get("shortId") ?? "";
   const refresh = url.searchParams.get("refresh") === "profile" ? "profile" : undefined;
 
-  if (!name.trim() && !artistEntityId.trim()) {
-    return new Response(JSON.stringify(createApiErrorBody("MC-REQ-0001", { errorId: crypto.randomUUID() })), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  if (!name.trim() && !artistEntityId.trim()) return badRequestResponse();
 
   const res = await fetchArtistInfo(name, region || undefined, visitorAddress({ request, clientAddress }), {
     shortId: shortId || undefined,
@@ -34,12 +36,8 @@ export const GET: APIRoute = async ({ request, url, clientAddress }) => {
     refresh,
   });
 
-  const headers = new Headers({ "Content-Type": res.headers.get("Content-Type") ?? "application/json" });
-  const cacheControl = res.headers.get("Cache-Control");
-  if (cacheControl) headers.set("Cache-Control", cacheControl);
-
   return new Response(res.body, {
     status: res.status,
-    headers,
+    headers: relayHeaders(res, FORWARDED_HEADERS, { "Content-Type": DEFAULT_CONTENT_TYPE }),
   });
 };
