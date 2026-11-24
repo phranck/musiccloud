@@ -63,6 +63,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { splitArtistNames } from "../_shared/artists.js";
+import { withQueryParam } from "../_shared/browser-fetch.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import { logCandidateScore, pickBestCandidate, searchMatchResult, trackScoreLogger } from "../_shared/rank.js";
@@ -136,6 +137,9 @@ interface NapsterArtistSearchResponse {
 /** The environment variable that holds the Napster API key. Without it every request fails with `MC-CFG-7001`. */
 const NAPSTER_API_KEY_VARIABLE = "NAPSTER_API_KEY";
 
+/** How long one Napster API request may take, 5 s. */
+const NAPSTER_REQUEST_TIMEOUT_MS = 5000;
+
 /** The prefix of every Napster track ID the API can look up, as in `tra.262370664`. */
 const NAPSTER_TRACK_ID_PREFIX = "tra.";
 
@@ -165,8 +169,7 @@ function getApiKey(): string {
  */
 async function napsterFetch(endpoint: string): Promise<Response> {
   const apiKey = getApiKey();
-  const separator = endpoint.includes("?") ? "&" : "?";
-  return fetchWithTimeout(`${API_BASE}${endpoint}${separator}apikey=${apiKey}`, {}, 5000);
+  return fetchWithTimeout(withQueryParam(`${API_BASE}${endpoint}`, "apikey", apiKey), {}, NAPSTER_REQUEST_TIMEOUT_MS);
 }
 
 function artworkUrl(albumId: string): string {

@@ -29,7 +29,6 @@
  * every capability of QQ Music's consumer API.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -43,6 +42,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { fetchProviderPage } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import {
   requireProviderCollection,
@@ -57,7 +57,6 @@ import {
   trackScoreLogger,
   usableTracks,
 } from "../_shared/rank.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /** Writes the per-track score debug line of a QQ Music search. */
 const logQQMusicTrackScore = trackScoreLogger("QQ Music");
@@ -108,20 +107,8 @@ interface QQMusicSearchEnvelope {
   [SEARCH_MODULE]?: { code?: number; data?: { body?: QQMusicSearchBody } };
 }
 
-async function qqmusicFetch(url: string, init?: RequestInit, timeoutMs = 8000): Promise<Response> {
-  return fetchWithTimeout(
-    url,
-    {
-      ...init,
-      headers: {
-        Referer: "https://y.qq.com/",
-        "User-Agent": SCRAPER_USER_AGENT,
-        ...init?.headers,
-      },
-    },
-    timeoutMs,
-  );
-}
+/** The page QQ Music expects its API calls to come from, sent as `Referer`. */
+const QQMUSIC_REFERER = "https://y.qq.com/";
 
 /**
  * Runs the desktop client's search, which also stands in for a lookup by id.
@@ -142,16 +129,19 @@ async function search(
   perPage: number,
   kind: ResourceKind,
 ): Promise<QQMusicSearchBody> {
-  const response = await qqmusicFetch("https://u.y.qq.com/cgi-bin/musicu.fcg", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      [SEARCH_MODULE]: {
-        method: "DoSearchForQQMusicDesktop",
-        module: SEARCH_MODULE,
-        param: { num_per_page: perPage, page_num: 1, query, search_type: searchType },
-      },
-    }),
+  const response = await fetchProviderPage("https://u.y.qq.com/cgi-bin/musicu.fcg", {
+    headers: { Referer: QQMUSIC_REFERER },
+    init: {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        [SEARCH_MODULE]: {
+          method: "DoSearchForQQMusicDesktop",
+          module: SEARCH_MODULE,
+          param: { num_per_page: perPage, page_num: 1, query, search_type: searchType },
+        },
+      }),
+    },
   });
   if (!response.ok) throw serviceHttpError(Service.QQMusic, response.status, kind, query, Operation.Search);
 

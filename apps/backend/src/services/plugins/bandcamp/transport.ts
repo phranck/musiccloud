@@ -15,6 +15,7 @@
 import { execFile } from "node:child_process";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
+import { ENGLISH_ACCEPT_LANGUAGE, PAGE_ACCEPT } from "../_shared/browser-fetch.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /** The executable this module runs. It is part of the `alpine/nodejs` base image the backend runs on. */
@@ -69,10 +70,10 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const WRITE_OUT_FORMAT = "%{stderr}%{http_code}\n%{redirect_url}\n%{content_type}";
 
 /** The `Accept` header a browser sends for a page. */
-const ACCEPT_HEADER = "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+const ACCEPT_HEADER = `Accept: ${PAGE_ACCEPT}`;
 
 /** The `Accept-Language` header, so Bandcamp answers in English. */
-const ACCEPT_LANGUAGE_HEADER = "Accept-Language: en-US,en;q=0.9";
+const ACCEPT_LANGUAGE_HEADER = `Accept-Language: ${ENGLISH_ACCEPT_LANGUAGE}`;
 
 /** The `Content-Type` header of a request that POSTs JSON, such as Bandcamp's app endpoints. */
 const JSON_CONTENT_TYPE_HEADER = "Content-Type: application/json";

@@ -31,7 +31,6 @@
  * owns acceptance, negative-cache persistence, and recording artwork policy.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
@@ -44,6 +43,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { fetchProviderPage, JSON_ACCEPT, type ProviderPageOptions } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
@@ -55,7 +55,6 @@ import {
   trackScoreLogger,
   usableTracks,
 } from "../_shared/rank.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /** Writes the per-track score debug line of an Audiomack search. */
 const logAudiomackTrackScore = trackScoreLogger("Audiomack");
@@ -98,18 +97,8 @@ interface AudiomackAlbumSearchResponse {
   results?: AudiomackAlbumResult[];
 }
 
-async function audiomackFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  return fetchWithTimeout(
-    url,
-    {
-      headers: {
-        "User-Agent": SCRAPER_USER_AGENT,
-        Accept: "application/json",
-      },
-    },
-    timeoutMs,
-  );
-}
+/** How every Audiomack request goes out: asking for JSON, within the default timeout. */
+const AUDIOMACK_REQUEST: ProviderPageOptions = { accept: JSON_ACCEPT };
 
 function mapSong(song: AudiomackSong): NormalizedTrack {
   // Audiomack uses "artist" as single string, may contain "feat." or ","
@@ -135,7 +124,7 @@ function mapSong(song: AudiomackSong): NormalizedTrack {
 async function searchSongs(query: string): Promise<AudiomackSong[]> {
   // Audiomack public search endpoint (no OAuth needed for search)
   const searchUrl = `https://api.audiomack.com/v1/music/search?q=${encodeURIComponent(query)}&show=songs&limit=5`;
-  const response = await audiomackFetch(searchUrl);
+  const response = await fetchProviderPage(searchUrl, AUDIOMACK_REQUEST);
   // A search without results is an empty list, so an error status or an
   // unreadable body is a failure rather than an answer.
   if (!response.ok) {
@@ -169,7 +158,7 @@ function audiomackPageMetadata(html: string): Pick<NormalizedTrack, "title" | "a
 async function fetchTrackPage(artistSlug: string, trackSlug: string): Promise<NormalizedTrack | null> {
   // Fetch track page for OG tags as fallback
   const url = `https://audiomack.com/${artistSlug}/song/${trackSlug}`;
-  const response = await audiomackFetch(url);
+  const response = await fetchProviderPage(url, AUDIOMACK_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) {
     throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Track, `${artistSlug}/${trackSlug}`);
@@ -202,7 +191,7 @@ function mapAlbumResult(album: AudiomackAlbumResult): NormalizedAlbum {
 
 async function fetchAlbumPage(artistSlug: string, albumSlug: string): Promise<NormalizedAlbum | null> {
   const url = `https://audiomack.com/${artistSlug}/album/${albumSlug}`;
-  const response = await audiomackFetch(url);
+  const response = await fetchProviderPage(url, AUDIOMACK_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) {
     throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Album, `${artistSlug}/${albumSlug}`);
@@ -220,7 +209,7 @@ async function fetchAlbumPage(artistSlug: string, albumSlug: string): Promise<No
 
 async function searchAudiomackAlbums(query: string): Promise<AudiomackAlbumResult[]> {
   const searchUrl = `https://api.audiomack.com/v1/music/search?q=${encodeURIComponent(query)}&show=albums&limit=5`;
-  const response = await audiomackFetch(searchUrl);
+  const response = await fetchProviderPage(searchUrl, AUDIOMACK_REQUEST);
   if (!response.ok) {
     throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Album, query, Operation.Search);
   }

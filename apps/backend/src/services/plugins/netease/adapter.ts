@@ -46,7 +46,6 @@
  * findByIsrc returns null; cross-service matching uses bounded text search.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
@@ -65,6 +64,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { fetchProviderPage, type ProviderPageOptions } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { safeNumericProviderCode } from "../_shared/provider-response.js";
 import {
@@ -75,7 +75,6 @@ import {
   trackScoreLogger,
   usableTracks,
 } from "../_shared/rank.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /** Writes the per-track score debug line of a NetEase search. */
 const logNetEaseTrackScore = trackScoreLogger("NetEase");
@@ -156,21 +155,16 @@ const SEARCH_RESULT_FIELDS = {
   [SearchType.Artist]: { list: "artists", count: "artistCount" },
 } as const;
 
-async function neteaseFetch(url: string, init?: RequestInit, timeoutMs = 8000): Promise<Response> {
-  return fetchWithTimeout(
-    url,
-    {
-      ...init,
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Referer: "https://music.163.com/",
-        "User-Agent": SCRAPER_USER_AGENT,
-        ...init?.headers,
-      },
-    },
-    timeoutMs,
-  );
-}
+/**
+ * How every NetEase request goes out, within the default timeout: as a form
+ * post from the NetEase web player, which the API expects on reads as well.
+ */
+const NETEASE_REQUEST: ProviderPageOptions = {
+  headers: {
+    "Content-Type": "application/x-www-form-urlencoded",
+    Referer: "https://music.163.com/",
+  },
+};
 
 /**
  * Reads the body of a NetEase answer and checks that the call ran.
@@ -221,9 +215,9 @@ async function search<Result>(
   query: string,
 ): Promise<Result> {
   const params = new URLSearchParams({ s: query, type, offset: "0", limit: "5" });
-  const response = await neteaseFetch("https://music.163.com/api/search/get", {
-    method: "POST",
-    body: params.toString(),
+  const response = await fetchProviderPage("https://music.163.com/api/search/get", {
+    ...NETEASE_REQUEST,
+    init: { method: "POST", body: params.toString() },
   });
   if (!response.ok) throw serviceHttpError(Service.NetEase, response.status, kind, query, Operation.Search);
 
@@ -259,7 +253,7 @@ function mapSong(song: NetEaseSong): NormalizedTrack {
 async function getTrackById(songId: string): Promise<NormalizedTrack | null> {
   const url = `https://music.163.com/api/song/detail?ids=[${songId}]&id=${songId}`;
 
-  const response = await neteaseFetch(url);
+  const response = await fetchProviderPage(url, NETEASE_REQUEST);
   if (!response.ok) throw serviceHttpError(Service.NetEase, response.status, ResourceKind.Track, songId);
 
   // A song id NetEase does not have answers code 200 with an empty `songs` list.
@@ -293,7 +287,7 @@ function mapNetEaseAlbum(album: NetEaseAlbum, songCount?: number): NormalizedAlb
 }
 
 async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
-  const response = await neteaseFetch(`https://music.163.com/api/album/${albumId}`);
+  const response = await fetchProviderPage(`https://music.163.com/api/album/${albumId}`, NETEASE_REQUEST);
   if (!response.ok) throw serviceHttpError(Service.NetEase, response.status, ResourceKind.Album, albumId);
 
   const answer = await readAnswer<NetEaseAlbumDetailResponse>(response, `album ${albumId}`);
@@ -333,7 +327,7 @@ function mapNetEaseArtist(artist: NetEaseArtist): NormalizedArtist {
 }
 
 async function getArtistById(artistId: string): Promise<NormalizedArtist | null> {
-  const response = await neteaseFetch(`https://music.163.com/api/artist/${artistId}`);
+  const response = await fetchProviderPage(`https://music.163.com/api/artist/${artistId}`, NETEASE_REQUEST);
   if (!response.ok) throw serviceHttpError(Service.NetEase, response.status, ResourceKind.Artist, artistId);
 
   const answer = await readAnswer<NetEaseArtistDetailResponse>(response, `artist ${artistId}`);

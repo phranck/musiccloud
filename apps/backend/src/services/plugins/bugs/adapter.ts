@@ -30,7 +30,6 @@
  * parse-failure.
  */
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
@@ -43,12 +42,17 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { splitArtistNames } from "../_shared/artists.js";
+import {
+  ENGLISH_KOREAN_ACCEPT_LANGUAGE,
+  fetchProviderPage,
+  PAGE_ACCEPT,
+  type ProviderPageOptions,
+} from "../_shared/browser-fetch.js";
 import { bestSettledAlbum, bestSettledTrack } from "../_shared/candidates.js";
 import { searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { readProviderHtml } from "../_shared/provider-response.js";
 import { scrapeIds } from "../_shared/scrape-ids.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 // Bugs! URLs: music.bugs.co.kr/track/{trackId}
 const BUGS_TRACK_REGEX = /^https?:\/\/music\.bugs\.co\.kr\/track\/(\d+)/;
@@ -64,23 +68,12 @@ const BUGS_TRACK_LINK_PATTERN = /\/track\/(\d+)/g;
 /** An album id on the album search page, from an `/album/{id}` link. */
 const BUGS_ALBUM_LINK_PATTERN = /\/album\/(\d+)/g;
 
-async function bugsFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  return fetchWithTimeout(
-    url,
-    {
-      headers: {
-        "User-Agent": SCRAPER_USER_AGENT,
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9,ko;q=0.8",
-      },
-    },
-    timeoutMs,
-  );
-}
+/** How every Bugs! page is requested: as a browser page in English or Korean, within the default timeout. */
+const BUGS_PAGE_REQUEST: ProviderPageOptions = { accept: PAGE_ACCEPT, acceptLanguage: ENGLISH_KOREAN_ACCEPT_LANGUAGE };
 
 async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> {
   const url = `https://music.bugs.co.kr/track/${trackId}`;
-  const response = await bugsFetch(url);
+  const response = await fetchProviderPage(url, BUGS_PAGE_REQUEST);
   // A track Bugs! does not have redirects to a page answering 404, which is an
   // answer. Any other error status is a failure.
   if (response.status === 404) return null;
@@ -118,7 +111,7 @@ async function fetchTrackById(trackId: string): Promise<NormalizedTrack | null> 
 
 async function searchForTrackIds(query: string): Promise<string[]> {
   const searchUrl = `https://music.bugs.co.kr/search/track?q=${encodeURIComponent(query)}`;
-  const response = await bugsFetch(searchUrl);
+  const response = await fetchProviderPage(searchUrl, BUGS_PAGE_REQUEST);
   // A search without results answers 200 with no track links, so an error
   // status is a failure rather than an answer.
   if (!response.ok) {
@@ -132,7 +125,7 @@ async function searchForTrackIds(query: string): Promise<string[]> {
 
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
   const url = `https://music.bugs.co.kr/album/${albumId}`;
-  const response = await bugsFetch(url);
+  const response = await fetchProviderPage(url, BUGS_PAGE_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Album, albumId);
 
@@ -166,7 +159,7 @@ async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> 
 
 async function searchBugsAlbumIds(query: string): Promise<string[]> {
   const searchUrl = `https://music.bugs.co.kr/search/album?q=${encodeURIComponent(query)}`;
-  const response = await bugsFetch(searchUrl);
+  const response = await fetchProviderPage(searchUrl, BUGS_PAGE_REQUEST);
   if (!response.ok) {
     throw serviceHttpError(Service.Bugs, response.status, ResourceKind.Album, query, Operation.Search);
   }

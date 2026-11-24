@@ -54,6 +54,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
+import { withQueryParam } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection, requireProviderObject } from "../_shared/provider-response.js";
 import { pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
@@ -140,9 +141,21 @@ interface AudiusAlbumSearchResponse {
   data?: { albums?: AudiusPlaylistResponse[] };
 }
 
+/** How long one Audius API request may take, 5 s. */
+const AUDIUS_REQUEST_TIMEOUT_MS = 5000;
+
+/**
+ * Sends one request to the Audius API, naming this app as Audius asks of every caller.
+ *
+ * @param endpoint - The path below `API_BASE`, with or without a query string.
+ * @returns The raw response, which the caller checks for `ok`.
+ */
 async function audiusFetch(endpoint: string): Promise<Response> {
-  const separator = endpoint.includes("?") ? "&" : "?";
-  return fetchWithTimeout(`${API_BASE}${endpoint}${separator}app_name=${APP_NAME}`, {}, 5000);
+  return fetchWithTimeout(
+    withQueryParam(`${API_BASE}${endpoint}`, "app_name", APP_NAME),
+    {},
+    AUDIUS_REQUEST_TIMEOUT_MS,
+  );
 }
 
 /**

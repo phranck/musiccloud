@@ -1,5 +1,4 @@
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -14,6 +13,7 @@ import type {
   ServiceAdapter,
 } from "../../types";
 import { splitArtistNames } from "../_shared/artists.js";
+import { fetchProviderPage, type ProviderPageOptions } from "../_shared/browser-fetch.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { JSON_LD_ALBUM_TYPE, JSON_LD_RECORDING_TYPE, JSON_LD_SCRIPT_PATTERN, readJsonLd } from "../_shared/json-ld.js";
 import {
@@ -23,7 +23,6 @@ import {
   searchMatchResult,
   trackScoreLogger,
 } from "../_shared/rank.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
  * @file Pandora adapter: internal API + page-scrape hybrid.
@@ -112,7 +111,7 @@ async function getCsrfToken(): Promise<string | null> {
 
 async function fetchCsrfToken(): Promise<string | null> {
   try {
-    const response = await pandoraFetch(PANDORA_BASE, 5000);
+    const response = await fetchProviderPage(PANDORA_BASE, PANDORA_HOMEPAGE_REQUEST);
     // set-cookie headers need special handling across environments
     const setCookies = response.headers.getSetCookie?.() ?? [];
     const setCookie = setCookies.join("; ") || response.headers.get("set-cookie") || "";
@@ -133,9 +132,11 @@ async function fetchCsrfToken(): Promise<string | null> {
 
 // --- Fetch helpers ---
 
-async function pandoraFetch(url: string, timeoutMs = 8000): Promise<Response> {
-  return fetchWithTimeout(url, { headers: { "User-Agent": SCRAPER_USER_AGENT } }, timeoutMs);
-}
+/** How long the homepage fetch for the CSRF token may take, 5 s, shorter than the default page timeout. */
+const PANDORA_HOMEPAGE_TIMEOUT_MS = 5000;
+
+/** How the homepage is requested for its CSRF cookie: with the user agent alone, within {@link PANDORA_HOMEPAGE_TIMEOUT_MS}. */
+const PANDORA_HOMEPAGE_REQUEST: ProviderPageOptions = { timeoutMs: PANDORA_HOMEPAGE_TIMEOUT_MS };
 
 async function pandoraApiFetch(endpoint: string, body: unknown): Promise<Response> {
   // The pair goes along when the homepage handed one out. Where it does not,
@@ -145,19 +146,10 @@ async function pandoraApiFetch(endpoint: string, body: unknown): Promise<Respons
     ? { "X-CsrfToken": csrfToken, Cookie: `csrftoken=${csrfToken}` }
     : {};
 
-  return fetchWithTimeout(
-    `${PANDORA_BASE}${endpoint}`,
-    {
-      method: "POST",
-      headers: {
-        "User-Agent": SCRAPER_USER_AGENT,
-        "Content-Type": "application/json",
-        ...csrfHeaders,
-      },
-      body: JSON.stringify(body),
-    },
-    8000,
-  );
+  return fetchProviderPage(`${PANDORA_BASE}${endpoint}`, {
+    headers: { "Content-Type": "application/json", ...csrfHeaders },
+    init: { method: "POST", body: JSON.stringify(body) },
+  });
 }
 
 // --- Track data types ---
@@ -354,7 +346,7 @@ function mapAlbumData(data: PandoraAlbumData, sourceId: string): NormalizedAlbum
  */
 async function fetchAlbumByPath(albumPath: string): Promise<NormalizedAlbum | null> {
   const pageUrl = `${PANDORA_BASE}/artist/${albumPath}`;
-  const response = await pandoraFetch(pageUrl);
+  const response = await fetchProviderPage(pageUrl);
   if (response.status === 404) return null;
   if (!response.ok) throw serviceHttpError(Service.Pandora, response.status, ResourceKind.Album, albumPath);
 
@@ -429,7 +421,7 @@ export const pandoraAdapter = {
 
   async getTrack(trackPath: string): Promise<NormalizedTrack> {
     const pageUrl = `${PANDORA_BASE}/artist/${trackPath}`;
-    const response = await pandoraFetch(pageUrl);
+    const response = await fetchProviderPage(pageUrl);
 
     if (!response.ok) {
       throw serviceHttpError(Service.Pandora, response.status, ResourceKind.Track, trackPath);
