@@ -8,6 +8,12 @@
  * `preValidation` hook, so a request without a session is refused before its
  * body is validated, and after the rate limiter has counted it.
  *
+ * The profile, sign-in address and picture routes live in
+ * `developer-profile.ts`, and the GDPR export and account deletion in
+ * `developer-account-data.ts`. {@link devAuthRoutes} registers both, so every
+ * route keeps the scope it had. The account payload lives in
+ * `developer-account-response.ts` and is re-exported here.
+ *
  * ## Why a separate surface from admin-auth
  *
  * Developer accounts are self-service portal users, not dashboard
@@ -45,34 +51,19 @@
  *
  * ## Brute-force throttle
  *
- * `/login` and `/request-reset` share a dedicated per-IP {@link RateLimiter}
- * ({@link credentialRateLimiter}) — deliberately NOT the global `apiRateLimiter`
- * bucket used by the public resolve/share surface, so portal credential traffic
- * is throttled on its own budget without coupling to public-API limits.
+ * `/login` and `/request-reset` share a dedicated per-IP `RateLimiter`, the
+ * `credentialRateLimiter` in `developer-credential-throttle.ts`. It is
+ * deliberately NOT the global `apiRateLimiter` bucket used by the public
+ * resolve/share surface, so portal credential traffic is throttled on its own
+ * budget without coupling to public-API limits.
  */
-import {
-  EmailAction,
-  EmailRecipientKind,
-  ENDPOINTS,
-  IMAGE_UPLOAD_MAX_BYTES,
-  MAX_DISPLAY_NAME_LENGTH,
-  validatePasswordLength,
-} from "@musiccloud/shared";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { EmailAction, EmailRecipientKind, ENDPOINTS, validatePasswordLength } from "@musiccloud/shared";
+import type { FastifyInstance } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository, getTierRepository } from "../db/index.js";
-import {
-  EMAIL_TAKEN_CODE,
-  INVALID_EMAIL_CODE,
-  isValidEmailAddress,
-  normalizeEmailAddress,
-} from "../lib/email-address.js";
+import { EMAIL_TAKEN_CODE, INVALID_EMAIL_CODE, normalizeEmailAddress } from "../lib/email-address.js";
 import { requireEnv } from "../lib/env.js";
-import { isGravatarAddress } from "../lib/gravatar.js";
-import { IMAGE_UPLOAD_BODY_LIMIT_BYTES, ImageUploadRefusal, parseImageDataUrl } from "../lib/image-upload.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
-import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
-import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import {
   ACCOUNT_SUSPENDED_BODY,
   AuthProvider,
@@ -82,31 +73,31 @@ import {
   hashPassword,
   issueDeveloperSession,
   SESSION_COOKIE_NAME,
-  sha256Hex,
   TokenPurpose,
   verifyPassword,
 } from "../services/developer-auth.js";
 import { mayCreateDeveloperAccount, PORTAL_CLOSED_CODE } from "../services/developer-portal-access.js";
 import { triggerEmailAction } from "../services/email-actions.js";
-import { erasePersonalData } from "../services/gdpr-erase.js";
-import { buildPersonalDataExport } from "../services/gdpr-export.js";
 import { resolveSignupTierId } from "../services/signup-tier.js";
+import { devAccountDataRoutes } from "./developer-account-data.js";
+import { buildAccountResponse } from "./developer-account-response.js";
+import { throttleCredentials } from "./developer-credential-throttle.js";
 import { applyInvitationPass, readRequestInvitationPass } from "./developer-portal-invitations.js";
+import { devProfileRoutes } from "./developer-profile.js";
+
+export {
+  AvatarSource,
+  type AvatarSourceValue,
+  buildAccountResponse,
+  isAvatarSource,
+  resolveAvatarUrl,
+} from "./developer-account-response.js";
 
 /** Verification-token lifetime: 24 hours from issuance. */
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Password-reset-token lifetime: 1 hour from issuance. */
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
-
-/**
- * How long a confirmation link for a new sign-in address lives.
- *
- * A day, like the verification link it resembles: both ask somebody to prove
- * they can read a mailbox, and both are followed from wherever that mailbox is
- * rather than straight away.
- */
-const CHANGE_EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Postgres SQLSTATE for a `unique_violation`, raised when a concurrent insert collides on a unique constraint. */
 const PG_UNIQUE_VIOLATION = "23505";
@@ -135,177 +126,10 @@ function isDuplicateEmailError(error: unknown): boolean {
 }
 
 /**
- * Dedicated per-IP throttle for credential endpoints (`/login`,
- * `/request-reset`): 10 requests per 60 seconds. Separate from the global
- * `apiRateLimiter` so portal brute-force protection has its own budget and does
- * not consume (or get consumed by) the public-API quota. Module-scoped so the
- * sliding window persists across requests for the lifetime of the process.
- */
-const credentialRateLimiter = new RateLimiter(10, 60_000);
-
-/**
- * `preHandler` that throttles credential endpoints per client IP via
- * {@link credentialRateLimiter}. On exhaustion it sends a `429` with the shared
- * rate-limit envelope and `Retry-After` header; otherwise it passes through.
- *
- * @param request - incoming request; `request.ip` is the throttle key.
- * @param reply - responds with `429` when the per-IP window is exhausted.
- */
-async function throttleCredentials(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  const check = credentialRateLimiter.check(request.ip);
-  if (check.limited) {
-    await sendRateLimitError(reply, check);
-  }
-}
-
-/**
- * Shapes an internal {@link DeveloperAccount} row into the public account
- * payload returned by `/signup`, `/login` and `/me`. Centralized so the
- * endpoints cannot drift apart (the portal store assumes one shape) and so the
- * `passwordHash` field is *never* serialized to the client.
- *
- * @param account - row as returned by the developer repository.
- * @param tierName - Display name of the account's assigned tier, or `null`.
- *   Only `/me` resolves it (the portal renders every protected page from a
- *   fresh `/me`); the signup/login/OAuth responses pass the default `null`.
- * @returns The wire-level account object: `emailVerifiedAt` is collapsed to the
- *   boolean `emailVerified`, and `passwordHash` to the boolean `hasPassword`.
- *   The portal reads `hasPassword` to decide whether `/delete-account` needs a
- *   password confirmation, which a GitHub-only account cannot give.
- *   `portalAccessGrantedAt` is collapsed to the boolean `portalAccess`, which
- *   the portal's gate asks while the portal is closed, and `createdAt` (epoch
- *   ms) is rendered as an ISO string for JSON-safe transport. The raw
- *   `passwordHash`, `status` and `updatedAt`/`lastLoginAt` are intentionally
- *   omitted.
- */
-export function buildAccountResponse(account: DeveloperAccount, tierName: string | null = null) {
-  return {
-    id: account.id,
-    email: account.email,
-    emailVerified: account.emailVerifiedAt !== null,
-    hasPassword: account.passwordHash !== null,
-    displayName: account.displayName,
-    pendingEmail: account.pendingEmail,
-    firstName: account.firstName,
-    lastName: account.lastName,
-    avatarUrl: resolveAvatarUrl(account),
-    providerAvatarUrl: account.avatarUrl,
-    uploadedAvatarUrl: account.uploadedAvatarUrl,
-    gravatarUrl: account.gravatarUrl,
-    avatarSource: account.avatarSource,
-    technicalContactEmail: account.technicalContactEmail,
-    portalAccess: account.portalAccessGrantedAt !== null,
-    tierName,
-    createdAt: new Date(account.createdAt).toISOString(),
-  };
-}
-
-/** What `avatarSource` may hold, which is also what the check constraint allows. */
-export const AvatarSource = {
-  /** The picture an identity provider handed over, which today means GitHub. */
-  Provider: "provider",
-  /** The picture the developer uploaded. */
-  Upload: "upload",
-  /** The picture Gravatar answered with. */
-  Gravatar: "gravatar",
-} as const;
-
-/** One of the sources in {@link AvatarSource}. */
-export type AvatarSourceValue = (typeof AvatarSource)[keyof typeof AvatarSource];
-
-/**
- * Whether a value from a request body names one of the three sources.
- *
- * @param value - What the body carried.
- * @returns Whether it is a source the column accepts.
- */
-function isAvatarSource(value: unknown): value is AvatarSourceValue {
-  return typeof value === "string" && (Object.values(AvatarSource) as string[]).includes(value);
-}
-
-/** Where the direct lookup asks whether an address has a picture of its own. */
-const GRAVATAR_PREFIX = "https://www.gravatar.com/avatar/";
-
-/** Where a profile is asked for, which is the second place a picture can be. */
-const GRAVATAR_PROFILE = "https://gravatar.com";
-
-/** How long to wait for Gravatar before giving up on the lookup. */
-const GRAVATAR_TIMEOUT_MS = 4_000;
-
-/** How wide a Gravatar is asked for, which is what the portal draws it at. */
-const GRAVATAR_SIZE = 256;
-
-/**
- * The picture that is actually shown.
- *
- * A developer may hold three at once and chooses between them. Where they have
- * not chosen, or where the one they chose is gone, the first of the three that
- * exists is shown rather than nothing: an account with a picture should not
- * look like one without.
- *
- * @param account - The account as stored.
- * @returns The picture to show, or `null` where there is none.
- */
-function resolveAvatarUrl(account: DeveloperAccount): string | null {
-  const chosen =
-    account.avatarSource === AvatarSource.Upload
-      ? account.uploadedAvatarUrl
-      : account.avatarSource === AvatarSource.Gravatar
-        ? account.gravatarUrl
-        : account.avatarSource === AvatarSource.Provider
-          ? account.avatarUrl
-          : null;
-
-  return chosen ?? account.uploadedAvatarUrl ?? account.gravatarUrl ?? account.avatarUrl;
-}
-
-/**
- * Finds the picture Gravatar holds for one hashed address.
- *
- * Two questions, because Gravatar answers them differently. The first asks
- * whether that address has a picture of its own, with `d=404` so the answer is
- * a yes or a no rather than a placeholder image. The second asks the profile,
- * because an account holds several addresses and assigns its picture to one of
- * them: an address that is on the account without being the one the picture
- * hangs on answers no to the first question whilst its owner can see their own
- * face on gravatar.com. Asking only the first reports "no Gravatar" to somebody
- * who plainly has one.
- *
- * @param hash - The SHA-256 of the lowercased address.
- * @returns The picture's address, or `null` where there is none.
- * @throws When Gravatar could not be reached, which is not the same as no.
- */
-async function findGravatar(hash: string): Promise<string | null> {
-  const direct = `${GRAVATAR_PREFIX}${hash}?s=${GRAVATAR_SIZE}`;
-  const response = await fetch(`${direct}&d=404`, {
-    method: "HEAD",
-    signal: AbortSignal.timeout(GRAVATAR_TIMEOUT_MS),
-  });
-  if (response.ok) return direct;
-  if (response.status !== 404) throw new Error(`gravatar answered ${response.status}`);
-
-  const profile = await fetch(`${GRAVATAR_PROFILE}/${hash}.json`, {
-    signal: AbortSignal.timeout(GRAVATAR_TIMEOUT_MS),
-  });
-  if (profile.status === 404) return null;
-  if (!profile.ok) throw new Error(`gravatar answered ${profile.status}`);
-
-  const payload = (await profile.json()) as { entry?: { thumbnailUrl?: unknown }[] };
-  const thumbnail = payload.entry?.[0]?.thumbnailUrl;
-
-  // The address comes from Gravatar rather than from this code, so it is
-  // checked before it is stored and rendered.
-  if (!isGravatarAddress(thumbnail)) return null;
-
-  const parsed = new URL(thumbnail);
-  parsed.searchParams.set("s", String(GRAVATAR_SIZE));
-  return parsed.toString();
-}
-
-/**
  * Registers the developer-portal email/password auth routes (signup, verify,
- * login, request-reset, reset-password, logout, me, delete-account) under
- * `/api/dev/auth/*`.
+ * login, request-reset, reset-password, logout, me) under `/api/dev/auth/*`,
+ * and the route groups of `developer-profile.ts` and
+ * `developer-account-data.ts` beside them.
  *
  * All routes validate their JSON body manually (mirroring `admin-auth.ts`) and
  * return the standard `{ error, message }` envelope on failure. Only `/login`
@@ -622,466 +446,9 @@ export async function devAuthRoutes(app: FastifyInstance) {
     return reply.send({ account: buildAccountResponse(account, tierName) });
   });
 
-  /**
-   * PATCH /api/dev/auth/profile
-   * Sets or clears the caller's display name and technical contact address.
-   *
-   * Each field is optional and only what the body carries is written, so the
-   * two screens that edit them do not overwrite each other. Sending `null`
-   * clears a field.
-   *
-   * The contact address is where the operator writes when an application on
-   * this account needs a person who can act. It is not verified, and nothing
-   * that only the account holder may read is sent to it. The portal says so
-   * where the field is entered, so a developer is not led to believe it can
-   * receive a password reset.
-   */
-  app.patch(ENDPOINTS.dev.auth.profile, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
-    const body = request.body as {
-      displayName?: string | null;
-      firstName?: string | null;
-      lastName?: string | null;
-      avatarSource?: string | null;
-      gravatarUrl?: string | null;
-      technicalContactEmail?: string | null;
-    } | null;
-    const named =
-      body &&
-      (body.displayName !== undefined ||
-        body.firstName !== undefined ||
-        body.lastName !== undefined ||
-        body.avatarSource !== undefined ||
-        body.gravatarUrl !== undefined ||
-        body.technicalContactEmail !== undefined);
-    if (!named) {
-      return reply.status(400).send({
-        error: "INVALID_REQUEST",
-        message: "displayName, firstName, lastName, avatarSource or technicalContactEmail is required.",
-      });
-    }
-
-    const changes: {
-      displayName?: string | null;
-      firstName?: string | null;
-      lastName?: string | null;
-      avatarSource?: string | null;
-      gravatarUrl?: string | null;
-      technicalContactEmail?: string | null;
-    } = {};
-
-    // The two names follow the display name in every respect, including that an
-    // empty field and an absent one are the same state.
-    for (const field of ["firstName", "lastName"] as const) {
-      const value = body[field];
-      if (value === undefined) continue;
-      if (value === null) {
-        changes[field] = null;
-        continue;
-      }
-      if (typeof value !== "string") {
-        return reply.status(400).send({ error: "INVALID_REQUEST", message: `${field} must be a string.` });
-      }
-      const trimmed = value.trim();
-      if (trimmed.length > MAX_DISPLAY_NAME_LENGTH) {
-        return reply.status(400).send({
-          error: "INVALID_REQUEST",
-          message: `${field} may be at most ${MAX_DISPLAY_NAME_LENGTH} characters.`,
-        });
-      }
-      changes[field] = trimmed === "" ? null : trimmed;
-    }
-
-    if (body.gravatarUrl !== undefined) {
-      if (body.gravatarUrl === null) {
-        changes.gravatarUrl = null;
-      } else {
-        // The address was handed to the browser by Gravatar and comes back from
-        // it, so it is checked again here rather than trusted on the way in.
-        if (!isGravatarAddress(body.gravatarUrl)) {
-          return reply
-            .status(400)
-            .send({ error: "INVALID_REQUEST", message: "gravatarUrl must be a Gravatar address." });
-        }
-        changes.gravatarUrl = body.gravatarUrl;
-      }
-    }
-
-    if (body.avatarSource !== undefined) {
-      if (body.avatarSource !== null && !isAvatarSource(body.avatarSource)) {
-        return reply.status(400).send({
-          error: "INVALID_REQUEST",
-          message: `avatarSource must be one of ${Object.values(AvatarSource).join(", ")}.`,
-        });
-      }
-      changes.avatarSource = body.avatarSource;
-    }
-
-    if (body.displayName !== undefined) {
-      if (body.displayName === null) {
-        changes.displayName = null;
-      } else {
-        if (typeof body.displayName !== "string") {
-          return reply.status(400).send({ error: "INVALID_REQUEST", message: "displayName must be a string." });
-        }
-        const trimmed = body.displayName.trim();
-        if (trimmed.length > MAX_DISPLAY_NAME_LENGTH) {
-          return reply.status(400).send({
-            error: "INVALID_REQUEST",
-            message: `displayName may be at most ${MAX_DISPLAY_NAME_LENGTH} characters.`,
-          });
-        }
-        // An empty field means "no display name", which is the same state as an
-        // absent one, so both store null rather than an empty string.
-        changes.displayName = trimmed === "" ? null : trimmed;
-      }
-    }
-
-    if (body.technicalContactEmail !== undefined) {
-      let technicalContactEmail: string | null = null;
-      if (body.technicalContactEmail !== null) {
-        if (typeof body.technicalContactEmail !== "string") {
-          return reply
-            .status(400)
-            .send({ error: "INVALID_REQUEST", message: "technicalContactEmail must be a string." });
-        }
-        const trimmed = body.technicalContactEmail.trim();
-        // An empty field means "no technical contact", which is the same state
-        // as an absent one, so both store null rather than an empty string.
-        if (trimmed !== "") {
-          if (!isValidEmailAddress(trimmed)) {
-            return reply.status(400).send({ error: "INVALID_REQUEST", message: "technicalContactEmail is not valid." });
-          }
-          technicalContactEmail = trimmed;
-        }
-      }
-      changes.technicalContactEmail = technicalContactEmail;
-    }
-
-    const repo = await getDeveloperRepository();
-    const updated = await repo.updateDeveloperAccount(request.developerAccountId as string, changes);
-    if (!updated) {
-      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
-    }
-    return reply.send({ account: buildAccountResponse(updated, null) });
-  });
-
-  /**
-   * POST /api/dev/auth/change-email
-   * Asks to sign in with a different address.
-   *
-   * Nothing moves here. The account keeps its address until the link sent to
-   * the new one is followed, so a typo costs a second attempt rather than the
-   * account. The password is required because a session left open on a
-   * borrowed machine must not be enough to take an account over by moving its
-   * address.
-   *
-   * The new address hears that it has to confirm; the old one hears that a
-   * change was asked for, which is how a change nobody asked for gets noticed.
-   */
-  app.post(
-    ENDPOINTS.dev.auth.changeEmail,
-    { preValidation: app.authenticateDeveloper, preHandler: throttleCredentials },
-    async (request, reply) => {
-      const account = request.developerAccount!;
-      const body = request.body as { email?: string; password?: string } | null;
-
-      if (!body?.email) {
-        return reply.status(400).send({ error: "INVALID_REQUEST", message: "email is required." });
-      }
-
-      // A GitHub-only account has no password to confirm with, so it cannot take
-      // this path. Offering it without the confirmation would be the weaker door
-      // on the same house.
-      if (account.passwordHash === null) {
-        return reply.status(403).send({
-          error: "PASSWORD_REQUIRED",
-          message: "This account signs in through GitHub, so its address is the one GitHub holds.",
-        });
-      }
-      if (!body.password || !(await verifyPassword(body.password, account.passwordHash))) {
-        return reply.status(403).send({ error: "INVALID_CREDENTIALS", message: "That password is not right." });
-      }
-
-      const email = normalizeEmailAddress(body.email);
-      if (!email) {
-        return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
-      }
-      if (email === account.email) {
-        return reply
-          .status(400)
-          .send({ error: "INVALID_REQUEST", message: "That is already the address you sign in with." });
-      }
-
-      const repo = await getDeveloperRepository();
-      if (await repo.findDeveloperAccountByEmail(email)) {
-        return reply.status(409).send(createApiErrorResponse(EMAIL_TAKEN_CODE));
-      }
-
-      const { raw, hash } = generateEmailToken();
-      await repo.createDeveloperEmailToken({
-        accountId: account.id,
-        purpose: TokenPurpose.ChangeEmail,
-        tokenHash: hash,
-        expiresAt: new Date(Date.now() + CHANGE_EMAIL_TOKEN_TTL_MS),
-      });
-      const updated = await repo.updateDeveloperAccount(account.id, {
-        pendingEmail: email,
-        pendingEmailRequestedAt: new Date(),
-      });
-      if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
-
-      // A pending address nobody was told about is worse than no change at all:
-      // the page would report a link that never left the building. Where the
-      // confirmation cannot be sent, the request is taken back.
-      try {
-        await triggerEmailAction(EmailAction.DeveloperEmailChangeRequested, {
-          to: { email },
-          recipient: { kind: EmailRecipientKind.DeveloperAccount, email, displayName: account.displayName },
-          context: { confirmUrl: `${requireEnv("DEVELOPER_URL")}/confirm-email?token=${raw}`, newEmail: email },
-        });
-      } catch (error) {
-        request.log.error({ err: error }, "failed to send the address-change confirmation");
-        await repo.updateDeveloperAccount(account.id, { pendingEmail: null, pendingEmailRequestedAt: null });
-        return reply.status(503).send({
-          error: "EMAIL_UNAVAILABLE",
-          message: "The confirmation could not be sent, so nothing was changed. Please try again.",
-        });
-      }
-
-      // The old address is told, never asked. A failure to reach it must not
-      // stop a change the account holder did ask for.
-      try {
-        await triggerEmailAction(EmailAction.DeveloperEmailChangeNotified, {
-          to: { email: account.email },
-          recipient: {
-            kind: EmailRecipientKind.DeveloperAccount,
-            email: account.email,
-            displayName: account.displayName,
-          },
-          context: { newEmail: email },
-        });
-      } catch (error) {
-        request.log.error({ err: error }, "failed to notify the previous address of a change");
-      }
-
-      return reply.send({ account: buildAccountResponse(updated, null) });
-    },
-  );
-
-  /**
-   * DELETE /api/dev/auth/change-email
-   * Drops a change that has not been confirmed.
-   *
-   * The token is left to expire rather than hunted down: following it after
-   * this finds no pending address and changes nothing.
-   */
-  app.delete(ENDPOINTS.dev.auth.changeEmail, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
-    const repo = await getDeveloperRepository();
-    const updated = await repo.updateDeveloperAccount(request.developerAccountId as string, {
-      pendingEmail: null,
-      pendingEmailRequestedAt: null,
-    });
-    if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
-    return reply.send({ account: buildAccountResponse(updated, null) });
-  });
-
-  /**
-   * POST /api/dev/auth/confirm-email-change
-   * Redeems the confirmation token and moves the address.
-   *
-   * No session is required: the token is the proof, which is what lets somebody
-   * confirm from the device their new mailbox is on.
-   */
-  app.post(ENDPOINTS.dev.auth.confirmEmailChange, { preHandler: throttleCredentials }, async (request, reply) => {
-    const body = request.body as { token?: string } | null;
-    if (!body?.token) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "token is required." });
-    }
-
-    const repo = await getDeveloperRepository();
-    const record = await repo.findActiveDeveloperEmailToken(hashEmailToken(body.token), TokenPurpose.ChangeEmail);
-    if (!record) {
-      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
-    }
-
-    const account = await repo.findDeveloperAccountById(record.accountId);
-    if (!account?.pendingEmail) {
-      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
-    }
-
-    // Claim first, act second, so two requests carrying the same link cannot
-    // both pass and move the address twice.
-    if (!(await repo.consumeDeveloperEmailToken(record.id))) {
-      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
-    }
-
-    // The address may have been taken between the request and the
-    // confirmation, and the unique index is what actually decides.
-    if (await repo.findDeveloperAccountByEmail(account.pendingEmail)) {
-      return reply.status(409).send(createApiErrorResponse(EMAIL_TAKEN_CODE));
-    }
-
-    const updated = await repo.updateDeveloperAccount(account.id, {
-      email: account.pendingEmail,
-      pendingEmail: null,
-      pendingEmailRequestedAt: null,
-    });
-    if (!updated)
-      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
-
-    return reply.send({ ok: true });
-  });
-
-  /**
-   * POST /api/dev/auth/avatar
-   * Stores a picture the caller uploaded, as a `data:` URL, and shows it.
-   *
-   * The image rule is the one every upload route applies, `parseImageDataUrl`,
-   * so SVG is refused here as it is on the admin routes.
-   */
-  app.post(
-    ENDPOINTS.dev.auth.avatar,
-    { preValidation: app.authenticateDeveloper, bodyLimit: IMAGE_UPLOAD_BODY_LIMIT_BYTES },
-    async (request, reply) => {
-      const body = request.body as { dataUrl?: string } | null;
-      if (!body?.dataUrl) {
-        return reply.status(400).send({ error: "INVALID_REQUEST", message: "dataUrl is required." });
-      }
-      const image = parseImageDataUrl(body.dataUrl);
-      if (!image.ok) {
-        const message =
-          image.reason === ImageUploadRefusal.TooLarge
-            ? `Picture may be at most ${IMAGE_UPLOAD_MAX_BYTES / 1024 / 1024} MB.`
-            : "Only JPEG, PNG or WebP.";
-        return reply.status(400).send({ error: "INVALID_REQUEST", message });
-      }
-
-      const repo = await getDeveloperRepository();
-      // Uploading is choosing: nobody uploads a picture to keep looking like
-      // whatever they looked like before.
-      const updated = await repo.updateDeveloperAccount(request.developerAccountId as string, {
-        uploadedAvatarUrl: body.dataUrl,
-        avatarSource: AvatarSource.Upload,
-      });
-      if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
-      return reply.send({ account: buildAccountResponse(updated, null) });
-    },
-  );
-
-  /**
-   * DELETE /api/dev/auth/avatar
-   * Removes the uploaded picture and leaves the other two sources alone.
-   *
-   * The source falls back to whatever is left rather than to nothing, so
-   * removing an upload where a Gravatar exists shows the Gravatar.
-   */
-  app.delete(ENDPOINTS.dev.auth.avatar, { preValidation: app.authenticateDeveloper }, async (request, reply) => {
-    const account = request.developerAccount!;
-    const repo = await getDeveloperRepository();
-    const updated = await repo.updateDeveloperAccount(account.id, {
-      uploadedAvatarUrl: null,
-      avatarSource: account.avatarSource === AvatarSource.Upload ? null : account.avatarSource,
-    });
-    if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
-    return reply.send({ account: buildAccountResponse(updated, null) });
-  });
-
-  /**
-   * POST /api/dev/auth/avatar/gravatar
-   * Asks Gravatar whether the caller's address has a picture.
-   *
-   * On the server, and only when the caller asks. The request tells Automattic
-   * that an account exists here for that address, which is not something to do
-   * quietly whilst a page renders. `d=404` is what makes the answer a yes or a
-   * no rather than a placeholder image dressed as a picture.
-   */
-  app.post(
-    ENDPOINTS.dev.auth.gravatar,
-    { preValidation: app.authenticateDeveloper, preHandler: throttleCredentials },
-    async (request, reply) => {
-      const account = request.developerAccount!;
-      // Gravatar keys a picture by the hash of the trimmed, lowercased address,
-      // which is the form the address is stored in.
-      const email = normalizeEmailAddress(account.email);
-      if (!email) return reply.send({ found: false, gravatarUrl: null });
-      const hash = sha256Hex(email);
-
-      let url: string | null;
-      try {
-        url = await findGravatar(hash);
-      } catch {
-        return reply.status(502).send({ error: "GRAVATAR_UNAVAILABLE", message: "Gravatar could not be asked." });
-      }
-      const found = url !== null;
-
-      // Nothing is written here. A lookup is a question, and what the developer
-      // does with the answer is decided when they save.
-      return reply.send({ found, gravatarUrl: url });
-    },
-  );
-
-  /**
-   * GET /api/dev/auth/export
-   * The caller's complete personal-data package (GDPR Art. 15/20) as a JSON
-   * attachment: account (without secrets), auth identities, and the caller's
-   * registrations with token metadata.
-   */
-  app.get(ENDPOINTS.dev.auth.export, { preValidation: app.authenticateDeveloperSession }, async (request, reply) => {
-    const account = request.developerAccount!;
-    const pkg = await buildPersonalDataExport({ developerAccountId: account.id, email: account.email });
-    reply.header("content-disposition", 'attachment; filename="musiccloud-data-export.json"');
-    return reply.send(pkg);
-  });
-
-  /**
-   * POST /api/dev/auth/delete-account
-   * Permanently deletes the caller's own account (the dashboard's "Danger
-   * Zone"). Cascades to the account's identities, email tokens, API-access
-   * requests and clients (see `deleteDeveloperAccount`), then clears the
-   * session cookie. When the account has a password set, `body.password`
-   * must match it (401 `INVALID_CREDENTIALS` otherwise) — an extra
-   * confirmation for an irreversible action. A GitHub-only account
-   * (`hasPassword: false` on `/me`) has no password to confirm, so the body
-   * is not required.
-   */
-  app.post(
-    ENDPOINTS.dev.auth.deleteAccount,
-    { preValidation: app.authenticateDeveloperSession },
-    async (request, reply) => {
-      const account = request.developerAccount!;
-
-      if (account.passwordHash !== null) {
-        const body = request.body as { password?: string } | null;
-        const isValid = await verifyPassword(body?.password ?? "", account.passwordHash);
-        if (!isValid) {
-          return reply.status(401).send({ error: "INVALID_CREDENTIALS", message: "Incorrect password." });
-        }
-      }
-
-      // Optional farewell notification (MC-084): fired BEFORE the delete while
-      // the account data still exists; a mail failure must never block the
-      // deletion itself (mirrors the invite route's resilience semantics).
-      try {
-        await triggerEmailAction(EmailAction.DeveloperAccountDeleted, {
-          to: { email: account.email },
-          recipient: {
-            kind: EmailRecipientKind.DeveloperAccount,
-            email: account.email,
-            displayName: account.displayName,
-          },
-          context: {},
-        });
-      } catch (error) {
-        request.log.error({ err: error }, "failed to send account-deleted notification");
-      }
-
-      // GDPR-complete erasure (MC-085): delete the authenticated account; DB
-      // cascades clear identities, email tokens and API-access data.
-      await erasePersonalData(account.id);
-      reply.clearCookie(SESSION_COOKIE_NAME, clearedSessionCookieOptions());
-
-      app.log.info("[Developer] Account deleted");
-      return reply.send({ ok: true });
-    },
-  );
+  // Registered from here rather than from `server.ts`, so every test and every
+  // server that registers `devAuthRoutes` serves the whole `/api/dev/auth/*`
+  // surface, as it did before the routes moved to modules of their own.
+  await app.register(devProfileRoutes);
+  await app.register(devAccountDataRoutes);
 }
