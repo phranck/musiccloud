@@ -85,6 +85,45 @@ function filterOptions<T extends string>(options: DropdownOption<T>[], query: st
   return options.filter((option) => option.label.toLowerCase().includes(needle));
 }
 
+/**
+ * The highlight index that marks no option as highlighted. It is the value
+ * `Array.prototype.findIndex` returns for no match, so opening the list on a
+ * value no option has, or a search that matches nothing, lands on it.
+ */
+const NO_HIGHLIGHT = -1;
+
+/**
+ * Which way an arrow key moves the highlight. `Next` is ArrowDown, toward the
+ * end of the list, and `Previous` is ArrowUp, toward its start.
+ */
+const HighlightDirection = {
+  /** ArrowDown: one option toward the end, entering the list at its first option. */
+  Next: "next",
+  /** ArrowUp: one option toward the start, entering the list at its last option. */
+  Previous: "previous",
+} as const;
+
+/** One of the {@link HighlightDirection} values. */
+type HighlightDirection = (typeof HighlightDirection)[keyof typeof HighlightDirection];
+
+/**
+ * Moves the highlight one option along the list, wrapping around at either end.
+ *
+ * With nothing highlighted, {@link HighlightDirection.Next} starts at the first
+ * option and {@link HighlightDirection.Previous} at the last, so either arrow
+ * key enters the list at the end it points to.
+ *
+ * @param index - The highlighted option's index, or {@link NO_HIGHLIGHT}.
+ * @param count - How many options the list shows. Must be above zero.
+ * @param direction - See {@link HighlightDirection}.
+ * @returns The index of the option to highlight next.
+ */
+function stepHighlight(index: number, count: number, direction: HighlightDirection): number {
+  const forward = direction === HighlightDirection.Next;
+  if (index === NO_HIGHLIGHT) return forward ? 0 : count - 1;
+  return forward ? (index + 1) % count : (index - 1 + count) % count;
+}
+
 /** Props of {@link WidestLabel}. */
 interface WidestLabelProps<T extends string> {
   /** The chosen option, or `undefined` when none matches the value. */
@@ -158,7 +197,7 @@ export function Dropdown<T extends string = string>({
   minWidthFromOptions = false,
 }: DropdownProps<T>) {
   const [open, setOpen] = useState(false);
-  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [highlightIndex, setHighlightIndex] = useState(NO_HIGHLIGHT);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -228,11 +267,11 @@ export function Dropdown<T extends string = string>({
       switch (event.key) {
         case "ArrowDown":
           event.preventDefault();
-          if (count > 0) setHighlightIndex((index) => (index + 1) % count);
+          if (count > 0) setHighlightIndex((index) => stepHighlight(index, count, HighlightDirection.Next));
           break;
         case "ArrowUp":
           event.preventDefault();
-          if (count > 0) setHighlightIndex((index) => (index - 1 + count) % count);
+          if (count > 0) setHighlightIndex((index) => stepHighlight(index, count, HighlightDirection.Previous));
           break;
         case "Enter":
           event.preventDefault();
@@ -331,7 +370,7 @@ export function Dropdown<T extends string = string>({
                   onChange={(event) => {
                     const nextQuery = event.currentTarget.value;
                     setQuery(nextQuery);
-                    setHighlightIndex(filterOptions(options, nextQuery).length > 0 ? 0 : -1);
+                    setHighlightIndex(filterOptions(options, nextQuery).length > 0 ? 0 : NO_HIGHLIGHT);
                   }}
                   onKeyDown={handleOpenKey}
                 />
