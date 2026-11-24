@@ -12,7 +12,11 @@ const TABLE_FILE = "packages/shared/src/site-origins.ts";
  * copies them as they stand, so they stay written out.
  */
 const CONTRACT_EXAMPLE_FILES = [
-  "apps/backend/src/schemas/openapi-schemas.ts",
+  "apps/backend/src/schemas/catalog-openapi-schemas.ts",
+  "apps/backend/src/schemas/cc-openapi-schemas.ts",
+  "apps/backend/src/schemas/genre-openapi-schemas.ts",
+  "apps/backend/src/schemas/resolve-openapi-schemas.ts",
+  "apps/backend/src/schemas/share-openapi-schemas.ts",
   "packages/shared/src/email-variables.ts",
 ];
 

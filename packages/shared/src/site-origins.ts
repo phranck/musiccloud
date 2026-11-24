@@ -9,9 +9,9 @@
  * the dashboard, `PUBLIC_API_URL` in the portal) stay where they are and fall
  * back to this table.
  *
- * The example values inside the published contract, in `openapi-schemas.ts`
- * and `email-variables.ts`, are examples a reader copies, and they stay
- * written out.
+ * The example values inside the published contract, in the backend's
+ * `*-openapi-schemas.ts` domain modules and in `email-variables.ts`, are
+ * examples a reader copies, and they stay written out.
  */
 export const SITE_ORIGIN = {
   /** The public site, where short links resolve and share pages live. */
