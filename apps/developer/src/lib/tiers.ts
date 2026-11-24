@@ -61,7 +61,7 @@ export function formatTierPrice(raw: string, currency: string): string {
  * - `monthly`: the price from `PublicTier.price`, in `priceCurrency`.
  * - `yearly`: the price from `PublicTier.priceYearly`, in `priceYearlyCurrency`.
  */
-export type BillingPeriod = "monthly" | "yearly";
+export type BillingSwitchSide = "monthly" | "yearly";
 
 /**
  * Writes the price one side of the switch shows for a plan, in the currency
@@ -78,7 +78,7 @@ export type BillingPeriod = "monthly" | "yearly";
  * @returns The formatted price, or `null` when the plan has a price over
  *   neither period.
  */
-export function formatPeriodPrice(tier: PublicTier, period: BillingPeriod): string | null {
+export function formatPeriodPrice(tier: PublicTier, period: BillingSwitchSide): string | null {
   const monthly = { amount: tier.price, currency: tier.priceCurrency };
   const yearly = { amount: tier.priceYearly, currency: tier.priceYearlyCurrency };
   const [preferred, fallback] = period === "monthly" ? [monthly, yearly] : [yearly, monthly];
