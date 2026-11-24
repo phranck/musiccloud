@@ -42,11 +42,23 @@ export function artistNameForSearch(raw: string, service?: NormalizedTrack["sour
 }
 
 /**
+ * The credit an adapter reports when the provider names no artist at all.
+ *
+ * {@link splitArtistNames} falls back to it by default, and
+ * {@link artistNamesOrUnknown} answers it when the provider sent no artist list.
+ */
+export const UNKNOWN_ARTIST = "Unknown Artist";
+
+/**
  * Keeps full credits before distinct component interpretations without mutating metadata.
+ *
+ * Also deduplicates Spotify's search variants, which are not artist names but
+ * follow the same trimmed, case-insensitive rule.
+ *
  * @param candidates - Ordered lookup or identity terms; blank terms are discarded.
  * @returns Trimmed, case-insensitively distinct names in their supplied order.
  */
-function uniqueArtistNames(candidates: readonly string[]): string[] {
+export function uniqueArtistNames(candidates: readonly string[]): string[] {
   const seen = new Set<string>();
   return candidates
     .map((name) => name.trim())
@@ -80,14 +92,31 @@ export function artistIdentityNames(raw: string): string[] {
  * Splits provider metadata that represents several artists as one credit.
  *
  * @param raw - Combined credit, typically from a provider response.
- * @param fallback - Name for empty or unparseable input; defaults to Unknown Artist.
+ * @param fallback - Name for empty or unparseable input; defaults to {@link UNKNOWN_ARTIST}.
  * @returns A nonempty array of trimmed artist names.
  */
-export function splitArtistNames(raw: string | undefined | null, fallback = "Unknown Artist"): string[] {
+export function splitArtistNames(raw: string | undefined | null, fallback = UNKNOWN_ARTIST): string[] {
   if (!raw) return [fallback];
   const parts = raw
     .split(/[,&]/)
-    .map((a) => a.trim())
+    .map((part) => part.trim())
     .filter(Boolean);
   return parts.length > 0 ? parts : [fallback];
+}
+
+/**
+ * Reads the names of a structured provider artist list.
+ *
+ * Blank names are dropped. Only a list the provider left out becomes
+ * {@link UNKNOWN_ARTIST}; a list that is present but holds no usable name
+ * answers an empty array, as the adapters using this have always done.
+ *
+ * @param names - The provider's artist names in credit order, or `undefined`
+ *   when the response carries no artist list.
+ * @returns The nonblank names in their supplied order, `[UNKNOWN_ARTIST]` for
+ *   an absent list, or `[]` for a present list without a usable name.
+ */
+export function artistNamesOrUnknown(names: readonly (string | null | undefined)[] | undefined): string[] {
+  if (!names) return [UNKNOWN_ARTIST];
+  return names.filter((name): name is string => Boolean(name));
 }
