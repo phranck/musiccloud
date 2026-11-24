@@ -17,7 +17,7 @@ vi.mock("../lib/infra/logger.js", () => ({
 
 import { log } from "../lib/infra/logger.js";
 import { CreemPriceOutcome, getCreemCatalog } from "./creem-catalog.js";
-import { centsToEuroString, enrichTiersWithCreemPrices } from "./tier-pricing.js";
+import { enrichTiersWithCreemPrices } from "./tier-pricing.js";
 
 const mockedCatalog = vi.mocked(getCreemCatalog);
 
@@ -63,18 +63,6 @@ function makeTier(overrides: Partial<ApiTier>): ApiTier {
     ...overrides,
   };
 }
-
-describe("centsToEuroString", () => {
-  it("formats whole euros without decimals", () => {
-    expect(centsToEuroString(900)).toBe("9");
-    expect(centsToEuroString(9000)).toBe("90");
-    expect(centsToEuroString(149000)).toBe("1490");
-  });
-
-  it("formats fractional euros with two decimals", () => {
-    expect(centsToEuroString(990)).toBe("9.90");
-  });
-});
 
 describe("enrichTiersWithCreemPrices (MC-114)", () => {
   beforeEach(() => {

@@ -9,8 +9,11 @@ import {
   BILLING_PERIODS,
   type BillingPeriodValue,
   canPayWhatYouWant,
+  formatCents,
+  MIN_PRICE_CENTS,
   OFFER_CURRENCIES,
   type OfferCurrencyValue,
+  parsePriceToCents,
   TaxCategory,
   type TaxCategoryValue,
   TaxMode,
@@ -29,7 +32,7 @@ import {
   useDeletePlanOffer,
   useUpdatePlanOffer,
 } from "@/features/developer/hooks/useDeveloperData";
-import { periodLabel, priceCentsFromField, priceFieldValue } from "@/features/developer/offerFormat";
+import { periodLabel } from "@/features/developer/offerFormat";
 import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";
 
 const messages = dashboardCopy;
@@ -85,8 +88,8 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
   const [showMore, setShowMore] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
 
-  const price = priceDraft ?? priceFieldValue(offer.priceCents);
-  const priceCents = priceCentsFromField(price);
+  const price = priceDraft ?? formatCents(offer.priceCents);
+  const priceCents = parsePriceToCents(price);
   const priceChanged = priceCents !== undefined && priceCents !== offer.priceCents;
   const customerNamesAmount = canPayWhatYouWant(offer.billingPeriod);
 
@@ -305,7 +308,7 @@ export function PlanOffersSection({ tierId, offers }: PlanOffersSectionProps) {
           onClick={() => {
             const period = free[0];
             if (!period) return;
-            createOffer.mutate({ tierId, body: { billingPeriod: period, priceCents: 100 } });
+            createOffer.mutate({ tierId, body: { billingPeriod: period, priceCents: MIN_PRICE_CENTS } });
           }}
           disabled={free.length === 0 || createOffer.isPending}
           type="button"

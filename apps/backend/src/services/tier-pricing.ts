@@ -9,7 +9,7 @@
  */
 
 import type { ApiTier, TierOffer } from "@musiccloud/shared";
-import { BillingPeriod, type BillingPeriodValue } from "@musiccloud/shared";
+import { BillingPeriod, type BillingPeriodValue, formatCents } from "@musiccloud/shared";
 import { CreemKeyMissingError } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { type CreemCatalog, CreemPriceOutcome, getCreemCatalog } from "./creem-catalog.js";
@@ -24,19 +24,6 @@ import { type CreemCatalog, CreemPriceOutcome, getCreemCatalog } from "./creem-c
  *   the plan sells nothing yearly.
  */
 export type PricedTier = ApiTier & { price: string | null; priceYearly: string | null };
-
-/**
- * Formats an integer cent amount as the euro string the public tier list
- * carries: whole euros without decimals ("9", "1490"), fractional euros with
- * exactly two decimals ("9.90").
- *
- * @param cents - The amount in the smallest currency unit, as returned by Creem.
- * @returns The euro amount as a display string.
- */
-export function centsToEuroString(cents: number): string {
-  const euros = cents / 100;
-  return Number.isInteger(euros) ? String(euros) : euros.toFixed(2);
-}
 
 /**
  * Returns the tiers with their two headline prices, taken from the live Creem
@@ -112,9 +99,9 @@ function priceFromOffers(tiers: ApiTier[], offers: TierOffer[], catalog: CreemCa
 
     const priceFor = (period: BillingPeriodValue): string | null => {
       const fromCreem = live?.[period];
-      if (fromCreem) return centsToEuroString(fromCreem.price);
+      if (fromCreem) return formatCents(fromCreem.price);
       const offer = own.find((candidate) => candidate.billingPeriod === period);
-      return offer ? centsToEuroString(offer.priceCents) : null;
+      return offer ? formatCents(offer.priceCents) : null;
     };
 
     return { ...tier, price: priceFor(BillingPeriod.Monthly), priceYearly: priceFor(BillingPeriod.Yearly) };
