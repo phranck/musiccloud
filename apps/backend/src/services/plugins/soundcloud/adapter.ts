@@ -2,9 +2,8 @@ import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
-import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
-import { ALBUM_PREVIEW_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE } from "../../constants.js";
+import { ALBUM_PREVIEW_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -20,6 +19,7 @@ import type {
   ServiceAdapter,
 } from "../../types";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shared/rank.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
@@ -461,30 +461,11 @@ export const soundcloudAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const track = mapApiTrack(item, item.permalink_url?.replace("https://soundcloud.com/", "") ?? `search-${i}`);
-      const confidence = scoreSearchCandidate(query, track, i);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    const tracks = items.map((item, index) =>
+      mapApiTrack(item, item.permalink_url?.replace("https://soundcloud.com/", "") ?? `search-${index}`),
+    );
+    const { best, confidence } = pickBestCandidate(tracks, (track, index) => scoreSearchCandidate(query, track, index));
+    return searchMatchResult("track", best, confidence);
   },
 
   albumCapabilities: {
@@ -532,10 +513,7 @@ export const soundcloudAdapter = {
       }
     }
 
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    return searchMatchResult("album", bestMatch, bestConfidence);
   },
   // --- Artist support ---
 
@@ -582,35 +560,21 @@ export const soundcloudAdapter = {
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
     const items = await scSearch<ScUserData>("users", query.name, ResourceKind.Artist);
-    if (items.length === 0) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
+    /** The name a profile shows: its full name, else its username, else an empty string. */
+    const artistName = (item: ScUserData) => item.full_name || item.username || "";
+    const ranked = rankByArtistName(query.name, items, artistName);
+    if (!ranked) return searchMatchResult("artist", null, 0);
 
-    let bestArtist: NormalizedArtist | null = null;
-    let bestConfidence = 0;
-
-    for (const item of items) {
-      const artistName = item.full_name || item.username || "";
-      const confidence = calculateArtistNameConfidence(query.name, artistName);
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        const username = item.permalink_url?.replace("https://soundcloud.com/", "") ?? String(item.id);
-        bestArtist = {
-          sourceService: "soundcloud",
-          sourceId: username,
-          name: artistName,
-          imageUrl: item.avatar_url?.replace("-large", "-t500x500"),
-          webUrl: item.permalink_url ?? `https://soundcloud.com/${username}`,
-        };
-      }
-    }
-
-    if (!bestArtist || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return { found: true, artist: bestArtist, confidence: bestConfidence, matchMethod: "search" };
+    const { item } = ranked;
+    const username = item.permalink_url?.replace("https://soundcloud.com/", "") ?? String(item.id);
+    const artist: NormalizedArtist = {
+      sourceService: "soundcloud",
+      sourceId: username,
+      name: artistName(item),
+      imageUrl: item.avatar_url?.replace("-large", "-t500x500"),
+      webUrl: item.permalink_url ?? `https://soundcloud.com/${username}`,
+    };
+    return searchMatchResult("artist", artist, ranked.confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
 
