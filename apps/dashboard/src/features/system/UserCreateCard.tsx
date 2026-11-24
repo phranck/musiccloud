@@ -5,13 +5,13 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
+import { AdminRole } from "@musiccloud/shared";
 import { CopyIcon, PersonIcon, PlusCircleIcon, UserCheckIcon, UserPlusIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { dashboardCopy } from "@/copy/dashboard";
 import { useAuth } from "@/features/auth/AuthContext";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
-import { AdminRole } from "@/shared/constants/domain";
 import type { AdminUserInvite } from "@/shared/types/admin";
 import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
 import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";

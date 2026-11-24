@@ -1,4 +1,4 @@
-import { BANK_CONNECTION_DASHBOARD_PATH } from "@musiccloud/shared";
+import { AdminRole, BANK_CONNECTION_DASHBOARD_PATH } from "@musiccloud/shared";
 import { render } from "@testing-library/react";
 import { isValidElement } from "react";
 import { MemoryRouter, matchRoutes } from "react-router";
@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { RequireArea } from "@/features/auth/RequireArea";
 import { routes } from "@/routes";
-import { type AdminArea, AdminRole, canAccessArea } from "@/shared/constants/domain";
+import { type AdminArea, canAccessArea } from "@/shared/constants/domain";
 
 vi.mock("@/features/content/hooks/useAdminContent", () => ({
   useContentPages: () => ({ data: [] }),

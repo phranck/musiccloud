@@ -3,7 +3,7 @@
  *
  * Registered inside the admin scope in `server.ts`, so every handler runs
  * after `authenticateAdmin`. On top of the JWT gate, each handler pulls
- * the caller's full DB record via `getCaller` and enforces a second
+ * the caller's full DB record via `getAdminCaller` and enforces a second
  * permission layer.
  *
  * ## Permission model
@@ -56,17 +56,20 @@
  * - **DELETE** (`avatar`): clears the column.
  */
 import {
+  AdminRole,
   EmailAction,
   EmailRecipientKind,
   ENDPOINTS,
+  isAdminRole,
   ROUTE_TEMPLATES,
   validatePasswordLength,
 } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
-import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import { getAdminCaller } from "../lib/admin-caller.js";
+import { buildAdminUserResponse } from "../lib/admin-session.js";
 import { INVALID_EMAIL_CODE, normalizeEmailAddress } from "../lib/email-address.js";
 import { requireEnv } from "../lib/env.js";
 import { isGravatarAddress } from "../lib/gravatar.js";
@@ -75,25 +78,41 @@ import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { hashPassword } from "../services/developer-auth.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 
+/**
+ * The 400 body for a role outside `AdminRole`. A stored role of any other
+ * name would match neither the owner check nor the admin check, so the
+ * create and update handlers refuse it before writing.
+ */
+const INVALID_ROLE_BODY = {
+  error: "INVALID_REQUEST",
+  message: `Role must be one of: ${Object.values(AdminRole).join(", ")}.`,
+} as const;
+
+/**
+ * Registers the admin user management routes: list, invite, update, delete
+ * and the three avatar routes. See the file header for the permission model.
+ *
+ * @param app - The admin scope, whose `authenticateAdmin` gate runs first.
+ */
 export default async function adminUserRoutes(app: FastifyInstance) {
   // GET /api/admin/users
   app.get(ENDPOINTS.admin.users.list, async () => {
     const repo = await getAdminRepository();
     const users = await repo.listAdminUsers();
-    return users.map(toResponse);
+    return users.map(buildAdminUserResponse);
   });
 
   // POST /api/admin/users (owner only)
   app.post(ENDPOINTS.admin.users.list, async (request, reply) => {
-    const caller = await getCaller(request);
-    if (!caller || caller.role !== "owner") {
+    const caller = await getAdminCaller(request);
+    if (!caller || caller.role !== AdminRole.Owner) {
       return reply.status(403).send({ error: "FORBIDDEN" });
     }
 
     const body = request.body as {
       username?: string;
       email?: string;
-      role?: string;
+      role?: unknown;
     } | null;
     if (!body?.username || !body?.email) {
       return reply.status(400).send({ error: "username and email required" });
@@ -102,6 +121,10 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const email = normalizeEmailAddress(body.email);
     if (!email) return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
 
+    // An absent or empty role invites an admin.
+    const role = body.role || AdminRole.Admin;
+    if (!isAdminRole(role)) return reply.status(400).send(INVALID_ROLE_BODY);
+
     const repo = await getAdminRepository();
     const id = nanoid();
     const inviteToken = nanoid(48);
@@ -109,8 +132,6 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     // tokens. Work factor 10 is fine for one-time tokens that expire in
     // a week; bcrypt 12 (used on real passwords) is overkill here.
     const inviteTokenHash = await bcrypt.hash(inviteToken, 10);
-
-    const role = body.role || "admin";
 
     await repo.createAdminUser({
       id,
@@ -143,19 +164,17 @@ export default async function adminUserRoutes(app: FastifyInstance) {
         context: { inviteUrl },
       });
     } catch (error) {
-      // Mail send must not roll back user creation: the invite URL is
-      // returned in the response and remains copy-pasteable from the UI
-      // even if email delivery fails. `triggerEmailAction` can now throw for
-      // reasons beyond "SMTP failed" (e.g. no enabled template bound to
-      // AdminInviteSent, or a bound template's required variable this route
-      // does not supply) — those are still just logged here, not surfaced
-      // as a failed user creation, matching the previous resilience
-      // behavior.
+      // Mail send must not roll back user creation, because the invite URL
+      // is returned in the response and stays copy-pasteable from the UI
+      // even when email delivery fails. `triggerEmailAction` also throws when
+      // no enabled template is bound to AdminInviteSent or when a bound
+      // template needs a variable this route does not supply. Those failures
+      // are logged here and never reported as a failed user creation.
       request.log.error({ err: error, userId: id }, "failed to send welcome email");
     }
 
     return reply.status(201).send({
-      user: toResponse(user!),
+      user: buildAdminUserResponse(user!),
       inviteUrl,
     });
   });
@@ -163,11 +182,11 @@ export default async function adminUserRoutes(app: FastifyInstance) {
   // PATCH /api/admin/users/:id
   app.patch<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.users.detail, async (request, reply) => {
     const { id } = request.params;
-    const caller = await getCaller(request);
+    const caller = await getAdminCaller(request);
     if (!caller) return reply.status(401).send({ error: "UNAUTHORIZED" });
 
     // Field updates: owner can edit any user, everyone else only themselves.
-    if (caller.role !== "owner" && caller.id !== id) {
+    if (caller.role !== AdminRole.Owner && caller.id !== id) {
       return reply.status(403).send({ error: "FORBIDDEN" });
     }
 
@@ -198,9 +217,10 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     // demoting themselves to admin (which would leave the system with
     // no owner and no way back through the UI).
     if (body.role !== undefined) {
-      if (caller.role !== "owner" || caller.id === id) {
+      if (caller.role !== AdminRole.Owner || caller.id === id) {
         return reply.status(403).send({ error: "FORBIDDEN" });
       }
+      if (!isAdminRole(body.role)) return reply.status(400).send(INVALID_ROLE_BODY);
       updates.role = body.role;
     }
 
@@ -212,14 +232,14 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const updated = await repo.updateAdminUser(id, updates);
     if (!updated) return reply.status(404).send({ error: "User not found" });
 
-    return toResponse(updated);
+    return buildAdminUserResponse(updated);
   });
 
   // DELETE /api/admin/users/:id (owner only)
   app.delete<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.users.detail, async (request, reply) => {
     const { id } = request.params;
-    const caller = await getCaller(request);
-    if (!caller || caller.role !== "owner") {
+    const caller = await getAdminCaller(request);
+    if (!caller || caller.role !== AdminRole.Owner) {
       return reply.status(403).send({ error: "FORBIDDEN" });
     }
     // Self-deletion would strand the system without an owner in the
@@ -240,9 +260,9 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     { bodyLimit: IMAGE_UPLOAD_BODY_LIMIT_BYTES },
     async (request, reply) => {
       const { id } = request.params;
-      const caller = await getCaller(request);
+      const caller = await getAdminCaller(request);
       if (!caller) return reply.status(401).send({ error: "UNAUTHORIZED" });
-      if (caller.role !== "owner" && caller.id !== id) {
+      if (caller.role !== AdminRole.Owner && caller.id !== id) {
         return reply.status(403).send({ error: "FORBIDDEN" });
       }
 
@@ -260,16 +280,16 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       const updated = await repo.updateAdminUser(id, { avatarUrl: body.dataUrl });
       if (!updated) return reply.status(404).send({ error: "User not found" });
 
-      return toResponse(updated);
+      return buildAdminUserResponse(updated);
     },
   );
 
   // PATCH /api/admin/users/:id/avatar (gravatar)
   app.patch<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.users.avatar, async (request, reply) => {
     const { id } = request.params;
-    const caller = await getCaller(request);
+    const caller = await getAdminCaller(request);
     if (!caller) return reply.status(401).send({ error: "UNAUTHORIZED" });
-    if (caller.role !== "owner" && caller.id !== id) {
+    if (caller.role !== AdminRole.Owner && caller.id !== id) {
       return reply.status(403).send({ error: "FORBIDDEN" });
     }
 
@@ -284,15 +304,15 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const updated = await repo.updateAdminUser(id, { avatarUrl: body.gravatarUrl });
     if (!updated) return reply.status(404).send({ error: "User not found" });
 
-    return toResponse(updated);
+    return buildAdminUserResponse(updated);
   });
 
   // DELETE /api/admin/users/:id/avatar
   app.delete<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.users.avatar, async (request, reply) => {
     const { id } = request.params;
-    const caller = await getCaller(request);
+    const caller = await getAdminCaller(request);
     if (!caller) return reply.status(401).send({ error: "UNAUTHORIZED" });
-    if (caller.role !== "owner" && caller.id !== id) {
+    if (caller.role !== AdminRole.Owner && caller.id !== id) {
       return reply.status(403).send({ error: "FORBIDDEN" });
     }
 
@@ -300,50 +320,6 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const updated = await repo.updateAdminUser(id, { avatarUrl: null });
     if (!updated) return reply.status(404).send({ error: "User not found" });
 
-    return toResponse(updated);
+    return buildAdminUserResponse(updated);
   });
-}
-
-/**
- * Resolves the caller's full DB record from the verified JWT payload.
- * Used by every mutating endpoint instead of trusting `request.user`
- * directly: the payload contains only `sub` and `role`, but the
- * permission rules here need the fresh DB row (the user's role may have
- * changed since the token was issued, and we want the latest truth).
- *
- * @param request - incoming Fastify request, post `jwtVerify` hook
- * @returns the admin user record, or `null` if the token is malformed or
- *          the referenced user has since been deleted
- */
-async function getCaller(request: { user?: unknown }) {
-  const payload = request.user as { sub?: string; role?: string } | undefined;
-  if (!payload?.sub) return null;
-  const repo = await getAdminRepository();
-  return repo.findAdminById(payload.sub);
-}
-
-/**
- * Shapes a DB `AdminUser` row into the public response. Critically,
- * strips every sensitive column (`passwordHash`, `inviteTokenHash`,
- * `inviteExpiresAt`) by inclusion list rather than exclusion list, so
- * adding a new sensitive column cannot accidentally leak it through this
- * endpoint.
- *
- * @param user - row from the admin repository
- * @returns the API-safe user payload
- */
-function toResponse(user: AdminUser) {
-  return {
-    id: user.id,
-    username: user.username,
-    email: user.email ?? undefined,
-    role: user.role as "owner" | "admin" | "moderator",
-    isOwner: user.role === "owner",
-    firstName: user.firstName,
-    lastName: user.lastName,
-    avatarUrl: user.avatarUrl,
-    sessionTimeoutMinutes: user.sessionTimeoutMinutes,
-    createdAt: new Date(user.createdAt).toISOString(),
-    lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt).toISOString() : null,
-  };
 }

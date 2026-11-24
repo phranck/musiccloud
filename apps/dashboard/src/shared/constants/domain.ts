@@ -1,10 +1,6 @@
-export const AdminRole = {
-  Owner: "owner",
-  Admin: "admin",
-  Moderator: "moderator",
-} as const;
+import { AdminRole } from "@musiccloud/shared";
 
-export type AdminRole = (typeof AdminRole)[keyof typeof AdminRole];
+/** The roles the user editor offers: `admin` and `moderator`. */
 export type EditableAdminRole = typeof AdminRole.Admin | typeof AdminRole.Moderator;
 
 /**

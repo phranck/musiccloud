@@ -1,8 +1,7 @@
-import { ENDPOINTS } from "@musiccloud/shared";
+import { type AdminUserResponse, ENDPOINTS } from "@musiccloud/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, type ReactNode, use, useCallback, useEffect, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
-import type { AdminUser } from "@/shared/types/admin";
 
 const TOKEN_KEY = "admin_token";
 
@@ -20,7 +19,7 @@ function getTokenExpiry(): number | null {
 }
 
 interface AuthState {
-  user: AdminUser | null;
+  user: AdminUserResponse | null;
   isLoading: boolean;
   needsSetup: boolean;
   login: (username: string, password: string) => Promise<void>;
@@ -43,9 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: meData,
     isError: meIsError,
     isLoading: meIsLoading,
-  } = useQuery<AdminUser | null>({
+  } = useQuery<AdminUserResponse | null>({
     queryKey: authMeQueryKey,
-    queryFn: () => api.get<AdminUser>(ENDPOINTS.admin.auth.me),
+    queryFn: () => api.get<AdminUserResponse>(ENDPOINTS.admin.auth.me),
     retry: false,
   });
 
@@ -74,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (username: string, password: string) => {
-      const result = await api.post<{ token: string; user: AdminUser }>(ENDPOINTS.admin.auth.login, {
+      const result = await api.post<{ token: string; user: AdminUserResponse }>(ENDPOINTS.admin.auth.login, {
         username,
         password,
       });

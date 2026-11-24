@@ -2,11 +2,11 @@
  * @file Admin dashboard authentication (setup, login, me, refresh).
  *
  * Registered at the root scope in `server.ts` (unauth), because the
- * endpoints here are how an admin first obtains a JWT. Routes that
- * require an existing session verify the Bearer token inline via
- * `request.jwtVerify()` rather than through the `authenticateAdmin`
- * decorator, because the handlers need the decoded payload to look up
- * the user anyway.
+ * endpoints here are how an admin first obtains a JWT. The two routes that
+ * require an existing session, `me` and `refresh`, run `authenticateAdmin`
+ * as their own `preHandler`, which leaves the decoded payload on
+ * `request.user` for the handler to look the user up by. A token that passes
+ * the gate without a `sub` claim is refused with 403.
  *
  * ## First-run setup
  *
@@ -28,11 +28,12 @@
  *
  * ## JWT shape and lifetime
  *
- * Tokens carry `sub`, `username`, `role: "admin"`, and `dbRole`. `role`
- * is hardcoded to `"admin"` because `authenticateAdmin` checks that exact
- * string; `dbRole` preserves the real user role (`owner`/`admin`/
- * `moderator`) for finer-grained authorization in downstream handlers.
- * Lifetime is 24h (vs 1h on the public API): admin sessions are
+ * `signAdminToken` in `lib/admin-session.ts` signs every token here. Tokens
+ * carry `sub`, `username`, `role` and `dbRole`. `role` is always
+ * `ADMIN_TOKEN_ROLE`, the claim `authenticateAdmin` checks; `dbRole`
+ * preserves the real user role (`owner`/`admin`/`moderator`) for
+ * finer-grained authorization in downstream handlers. The lifetime is
+ * `ADMIN_TOKEN_LIFETIME`, 24h (vs 1h on the public API): admin sessions are
  * interactive and a shorter expiry would thrash the dashboard.
  *
  * The refresh endpoint issues a new 24h token provided the current one
@@ -45,13 +46,18 @@
  * must not block or fail the login response, so the promise's rejection
  * is swallowed.
  */
-import { ENDPOINTS, ROUTE_TEMPLATES, validatePasswordLength } from "@musiccloud/shared";
+import { AdminRole, ENDPOINTS, ROUTE_TEMPLATES, validatePasswordLength } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { nanoid } from "nanoid";
-import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import {
+  type AdminTokenSigner,
+  buildAdminUserResponse,
+  readAdminTokenSubject,
+  signAdminToken,
+} from "../lib/admin-session.js";
 import { hashPassword, verifyPassword } from "../services/developer-auth.js";
 
 interface SetupBody {
@@ -65,36 +71,21 @@ interface LoginBody {
 }
 
 /**
- * Shapes an internal `AdminUser` row into the public user payload returned
- * by `/login` and `/me`. Centralized here so the two endpoints cannot
- * drift apart accidentally (they are consumed by the same React store on
- * the dashboard, which assumes one shape).
- *
- * Fields coerced here, not in the DB layer:
- * - `email` goes from DB `null` to wire-level `undefined` (tells the
- *   frontend to omit the field rather than render an empty value).
- * - `createdAt`/`lastLoginAt` become ISO strings for JSON-safe transport.
- *
- * @param user - row as returned by the admin repository
- * @returns user payload with DB types normalised for the dashboard client
+ * The refusal of `me` and `refresh` for a token that passed `authenticateAdmin`
+ * without a `sub` claim, in the shape the gate uses for a wrong role.
  */
-function buildUserResponse(user: AdminUser) {
-  return {
-    id: user.id,
-    username: user.username,
-    email: user.email ?? undefined,
-    role: user.role as "owner" | "admin" | "moderator",
-    isOwner: user.role === "owner",
-    firstName: user.firstName,
-    lastName: user.lastName,
-    avatarUrl: user.avatarUrl,
-    sessionTimeoutMinutes: user.sessionTimeoutMinutes,
-    createdAt: new Date(user.createdAt).toISOString(),
-    lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt).toISOString() : null,
-  };
-}
+const MISSING_SUBJECT_BODY = { error: "FORBIDDEN", message: "Admin access required." } as const;
 
+/**
+ * Registers the admin setup, login, current-user, invite and refresh routes.
+ *
+ * @param app - The root Fastify instance, which carries `app.jwt` and the
+ *   `authenticateAdmin` decorator.
+ */
 async function adminAuthRoutes(app: FastifyInstance) {
+  /** The token signer handed to {@link signAdminToken}, bound to this instance's key. */
+  const signToken: AdminTokenSigner = (payload, options) => app.jwt.sign(payload, options);
+
   /**
    * GET /api/admin/auth/setup-status
    * Returns whether first-run setup is required (no admin users exist yet).
@@ -139,7 +130,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
     }
 
     const passwordHash = await hashPassword(password);
-    await repo.createAdminUser({ id: nanoid(), username, passwordHash, role: "owner" });
+    await repo.createAdminUser({ id: nanoid(), username, passwordHash, role: AdminRole.Owner });
 
     app.log.info("[Admin] First admin user created");
     return reply.status(201).send({ message: "Admin user created." });
@@ -166,45 +157,31 @@ async function adminAuthRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid username or password." });
     }
 
-    const token = app.jwt.sign(
-      { sub: user.id, username: user.username, role: "admin", dbRole: user.role },
-      { expiresIn: "24h" },
-    );
+    const token = signAdminToken(signToken, user);
 
     // Update last login timestamp (fire and forget)
     repo.updateLastLogin(user.id).catch(() => undefined);
 
-    return reply.send({ token, user: buildUserResponse(user) });
+    return reply.send({ token, user: buildAdminUserResponse(user) });
   });
   /**
    * GET /api/admin/auth/me
    * Returns the currently authenticated admin user from the JWT.
    */
-  app.get(ENDPOINTS.admin.auth.me, async (request, reply) => {
-    const authHeader = request.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });
-    }
-
-    try {
-      await request.jwtVerify();
-    } catch {
-      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired token." });
-    }
-
-    const payload = request.user as { sub?: string; role?: string };
-    if (payload.role !== "admin" || !payload.sub) {
-      return reply.status(403).send({ error: "FORBIDDEN", message: "Admin access required." });
+  app.get(ENDPOINTS.admin.auth.me, { preHandler: app.authenticateAdmin }, async (request, reply) => {
+    const subject = readAdminTokenSubject(request.user);
+    if (!subject) {
+      return reply.status(403).send(MISSING_SUBJECT_BODY);
     }
 
     const repo = await getAdminRepository();
-    const user = await repo.findAdminById(payload.sub);
+    const user = await repo.findAdminById(subject);
 
     if (!user) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "User not found." });
     }
 
-    return reply.send(buildUserResponse(user));
+    return reply.send(buildAdminUserResponse(user));
   });
 
   /**
@@ -265,14 +242,11 @@ async function adminAuthRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: "INVALID_TOKEN", message: "Invite token is invalid or expired." });
     }
 
-    const token = app.jwt.sign(
-      { sub: user.id, username: user.username, role: "admin", dbRole: user.role },
-      { expiresIn: "24h" },
-    );
+    const token = signAdminToken(signToken, user);
 
     repo.updateLastLogin(user.id).catch(() => undefined);
 
-    return reply.send({ token, user: buildUserResponse(user) });
+    return reply.send({ token, user: buildAdminUserResponse(user) });
   });
 
   /**
@@ -280,33 +254,19 @@ async function adminAuthRoutes(app: FastifyInstance) {
    * Issues a new JWT for the currently authenticated admin user.
    * Requires a valid (non-expired) JWT.
    */
-  app.post(ENDPOINTS.admin.auth.refresh, async (request, reply) => {
-    const authHeader = request.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });
-    }
-
-    try {
-      await request.jwtVerify();
-    } catch {
-      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired token." });
-    }
-
-    const payload = request.user as { sub?: string; role?: string };
-    if (payload.role !== "admin" || !payload.sub) {
-      return reply.status(403).send({ error: "FORBIDDEN", message: "Admin access required." });
+  app.post(ENDPOINTS.admin.auth.refresh, { preHandler: app.authenticateAdmin }, async (request, reply) => {
+    const subject = readAdminTokenSubject(request.user);
+    if (!subject) {
+      return reply.status(403).send(MISSING_SUBJECT_BODY);
     }
 
     const repo = await getAdminRepository();
-    const user = await repo.findAdminById(payload.sub);
+    const user = await repo.findAdminById(subject);
     if (!user) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "User not found." });
     }
 
-    const token = app.jwt.sign(
-      { sub: user.id, username: user.username, role: "admin", dbRole: user.role },
-      { expiresIn: "24h" },
-    );
+    const token = signAdminToken(signToken, user);
 
     return reply.send({ token });
   });

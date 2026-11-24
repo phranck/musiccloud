@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminUser } from "../db/admin-repository.js";
 
 const mockRepo = {
+  createAdminUser: vi.fn(),
   findAdminById: vi.fn(),
   listAdminUsers: vi.fn(),
   updateAdminUser: vi.fn(),
@@ -82,6 +83,53 @@ describe("admin user contract", () => {
     expect(response.statusCode).toBe(200);
     expect(mockRepo.updateAdminUser).toHaveBeenCalledWith("admin-2", { email: "new@example.com" });
     expect(response.json()).not.toHaveProperty("locale");
+    await app.close();
+  });
+});
+
+describe("admin user roles", () => {
+  it("refuses to invite a user with a role outside owner, admin and moderator", async () => {
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.users.list,
+      payload: { username: "newcomer", email: "newcomer@example.com", role: "superuser" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "INVALID_REQUEST" });
+    expect(mockRepo.createAdminUser).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("refuses to give another user a role outside owner, admin and moderator", async () => {
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: ROUTE_TEMPLATES.admin.users.detail.replace(":id", "admin-2"),
+      payload: { role: "root" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "INVALID_REQUEST" });
+    expect(mockRepo.updateAdminUser).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("promotes another user to moderator", async () => {
+    mockRepo.updateAdminUser.mockResolvedValue(makeAdmin({ id: "admin-2", role: "moderator" }));
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: ROUTE_TEMPLATES.admin.users.detail.replace(":id", "admin-2"),
+      payload: { role: "moderator" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(mockRepo.updateAdminUser).toHaveBeenCalledWith("admin-2", { role: "moderator" });
     await app.close();
   });
 });

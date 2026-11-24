@@ -23,6 +23,7 @@ vi.mock("bcryptjs", () => ({
   },
 }));
 
+import authPlugin from "../plugins/auth.js";
 import adminAuthRoutes from "./admin-auth.js";
 
 const TEST_JWT_SECRET = "test-admin-auth-secret-key-do-not-use-in-prod";
@@ -46,6 +47,7 @@ function makeAdmin(): AdminUser {
 async function buildApp() {
   const app = Fastify();
   await app.register(jwt, { secret: TEST_JWT_SECRET });
+  await app.register(authPlugin);
   await app.register(adminAuthRoutes);
   await app.ready();
   return app;
@@ -100,6 +102,77 @@ describe("admin auth user contract", () => {
 
     expect(response.statusCode).toBe(201);
     expect(mockRepo.createAdminUser).toHaveBeenCalledWith(expect.not.objectContaining({ locale: expect.anything() }));
+    await app.close();
+  });
+});
+
+describe("admin session routes", () => {
+  const sessionRoutes = [
+    ["GET", ENDPOINTS.admin.auth.me],
+    ["POST", ENDPOINTS.admin.auth.refresh],
+  ] as const;
+
+  it.each(sessionRoutes)("%s %s refuses a request without a Bearer token", async (method, url) => {
+    const app = await buildApp();
+
+    const response = await app.inject({ method, url });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({ error: "UNAUTHORIZED", message: "Authentication required." });
+    await app.close();
+  });
+
+  it.each(sessionRoutes)("%s %s refuses a token that does not verify", async (method, url) => {
+    const app = await buildApp();
+
+    const response = await app.inject({ method, url, headers: { authorization: "Bearer not-a-token" } });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({ error: "UNAUTHORIZED", message: "Invalid or expired token." });
+    await app.close();
+  });
+
+  it.each(sessionRoutes)("%s %s refuses a token with another role claim", async (method, url) => {
+    const app = await buildApp();
+    const token = app.jwt.sign({ sub: "admin-1", role: "developer" });
+
+    const response = await app.inject({ method, url, headers: { authorization: `Bearer ${token}` } });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({ error: "FORBIDDEN", message: "Admin access required." });
+    await app.close();
+  });
+
+  it.each(sessionRoutes)("%s %s refuses an admin token without a subject", async (method, url) => {
+    const app = await buildApp();
+    const token = app.jwt.sign({ role: "admin" });
+
+    const response = await app.inject({ method, url, headers: { authorization: `Bearer ${token}` } });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({ error: "FORBIDDEN", message: "Admin access required." });
+    expect(mockRepo.findAdminById).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("refresh signs a token the gate admits, carrying the stored role", async () => {
+    mockRepo.findAdminById.mockResolvedValue(makeAdmin());
+    const app = await buildApp();
+    const token = app.jwt.sign({ sub: "admin-1", role: "admin" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.auth.refresh,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(app.jwt.verify(response.json().token)).toMatchObject({
+      sub: "admin-1",
+      username: "owner",
+      role: "admin",
+      dbRole: "owner",
+    });
     await app.close();
   });
 });

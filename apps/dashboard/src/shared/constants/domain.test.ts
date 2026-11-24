@@ -1,6 +1,6 @@
+import { AdminRole } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
-
-import { AdminArea, AdminRole, canAccessArea, MINIMUM_ROLE_FOR_AREA } from "@/shared/constants/domain";
+import { AdminArea, canAccessArea, MINIMUM_ROLE_FOR_AREA } from "@/shared/constants/domain";
 
 describe("canAccessArea", () => {
   it.each([
