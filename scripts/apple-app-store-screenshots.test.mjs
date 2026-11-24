@@ -8,12 +8,14 @@ import test from "node:test";
 
 import {
   SCREENSHOT_SPECS,
+  assertValidCachedEntry,
   buildScreenshotSetPayload,
   collectAttachments,
   confirmScreenshot,
   createScreenshotReservation,
   executeUploadOperations,
   readImageSize,
+  selectSimulator,
   uploadScreenshots,
   validateScreenshot,
 } from "./apple-app-store-screenshots.mjs";
@@ -233,7 +235,15 @@ test("uploadScreenshots creates a missing empty set and verifies COMPLETE", asyn
     async post(path, body) {
       calls.push(["post", path, body]);
       if (path === "/v1/appScreenshotSets") return { data: { id: "set-id" } };
-      return { data: { id: `screenshot-${calls.length}`, attributes: { uploadOperations: [] } } };
+      const fileSize = body.data.attributes.fileSize;
+      return {
+        data: {
+          id: `screenshot-${calls.length}`,
+          attributes: {
+            uploadOperations: [{ method: "PUT", url: "https://upload.example/chunk", offset: 0, length: fileSize, requestHeaders: [] }],
+          },
+        },
+      };
     },
     async patch(path, body) {
       calls.push(["patch", path, body]);
@@ -245,6 +255,7 @@ test("uploadScreenshots creates a missing empty set and verifies COMPLETE", asyn
     displayType: "APP_DESKTOP",
     files,
     api,
+    fetchImpl: async () => ({ ok: true, status: 200 }),
   });
   assert.equal(results.length, 4);
   assert.ok(results.every(({ state }) => state === "COMPLETE"));
@@ -261,14 +272,19 @@ test("uploadScreenshots refuses a non-empty remote set", async () => {
   });
   const calls = [];
   const api = {
-    async get() {
-      return {
-        data: [{
-          id: "set-id",
-          attributes: { screenshotDisplayType: "APP_DESKTOP" },
-          relationships: { appScreenshots: { data: [{ id: "existing" }] } },
-        }],
-      };
+    async get(path) {
+      calls.push(["get", path]);
+      if (path.endsWith("/appScreenshotSets")) {
+        return {
+          data: [{
+            id: "set-id",
+            attributes: { screenshotDisplayType: "APP_DESKTOP" },
+            relationships: { appScreenshots: { data: [{ id: "existing" }] } },
+          }],
+        };
+      }
+      assert.equal(path, "/v1/appScreenshotSets/set-id/appScreenshots");
+      return { data: [{ id: "existing", type: "appScreenshots", attributes: { fileName: "existing.png" } }] };
     },
     async post(...args) {
       calls.push(args);
@@ -279,7 +295,11 @@ test("uploadScreenshots refuses a non-empty remote set", async () => {
     () => uploadScreenshots({ localizationId: "localization-id", displayType: "APP_DESKTOP", files, api }),
     /non-empty/,
   );
-  assert.equal(calls.length, 0);
+  assert.equal(calls.filter(([method]) => method === "post").length, 0);
+  assert.deepEqual(calls.filter(([method]) => method === "get").map(([, path]) => path), [
+    "/v1/appStoreVersionLocalizations/localization-id/appScreenshotSets",
+    "/v1/appScreenshotSets/set-id/appScreenshots",
+  ]);
 });
 
 test("uploadScreenshots dry-run validates files without any API call", async () => {
@@ -303,4 +323,63 @@ test("uploadScreenshots dry-run validates files without any API call", async () 
   });
   assert.equal(results.length, 4);
   assert.ok(results.every(({ state }) => state === "DRY_RUN"));
+});
+
+
+test("selectSimulator resolves an available model by name and newest runtime", () => {
+  const devices = {
+    "iOS 26.0": [{ udid: "older", name: "iPhone 18 Pro Max", isAvailable: true }],
+    "iOS 27.0": [
+      { udid: "b-device", name: "iPhone 18 Pro Max", isAvailable: true },
+      { udid: "a-device", name: "iPhone 18 Pro Max", isAvailable: true },
+      { udid: "c-device", name: "iPhone 17", isAvailable: true },
+    ],
+  };
+  assert.equal(selectSimulator(devices, "iPhone 18 Pro Max"), "iOS Simulator,id=a-device");
+  assert.throws(() => selectSimulator(devices, "iPad Pro 13-inch (M5)"), /iPad Pro 13-inch \(M5\)/);
+});
+
+test("assertValidCachedEntry accepts real content and rejects stale or incomplete entries", () => {
+  const entry = {
+    originalUrl: "https://open.spotify.com/track/example",
+    shortUrl: "https://musiccloud.io/example",
+    mediaType: "track",
+    artworkImageData: "real-image",
+    track: { title: "Track" },
+  };
+  assert.doesNotThrow(() => assertValidCachedEntry(entry, entry.originalUrl));
+  assert.throws(() => assertValidCachedEntry({ ...entry, originalUrl: "https://example.com" }, entry.originalUrl), /stale|originalUrl/);
+  assert.throws(() => assertValidCachedEntry({ ...entry, artworkImageData: "" }, entry.originalUrl), /artwork/);
+});
+
+test("validateScreenshot rejects a JPEG renamed as PNG", async () => {
+  const directory = temporaryDirectory();
+  const file = join(directory, "fake.png");
+  writePng(file, 1320, 2868);
+  execFileSync("sips", ["-s", "format", "jpeg", file], { stdio: "ignore" });
+  const spec = SCREENSHOT_SPECS.find(({ fileName }) => fileName === "iphone-home-light.png");
+  await assert.rejects(() => validateScreenshot(file, spec), /PNG|format/);
+});
+
+test("executeUploadOperations rejects missing, gapped, overlapping, and invalid ranges", async () => {
+  const directory = temporaryDirectory();
+  const file = join(directory, "image.png");
+  writeFileSync(file, Buffer.from("0123456789"));
+  const fetchImpl = async () => { throw new Error("fetch must not happen"); };
+  await assert.rejects(() => executeUploadOperations(file, [], fetchImpl), /operations|empty/);
+  await assert.rejects(
+    () => executeUploadOperations(file, [{ method: "PUT", url: "https://upload.example", offset: 2, length: 8, requestHeaders: [] }], fetchImpl),
+    /cover|offset/,
+  );
+  await assert.rejects(
+    () => executeUploadOperations(file, [
+      { method: "PUT", url: "https://upload.example", offset: 0, length: 6, requestHeaders: [] },
+      { method: "PUT", url: "https://upload.example", offset: 4, length: 6, requestHeaders: [] },
+    ], fetchImpl),
+    /overlap|cover/,
+  );
+  await assert.rejects(
+    () => executeUploadOperations(file, [{ method: "PUT", url: "https://upload.example", offset: 0, length: 1.5, requestHeaders: [] }], fetchImpl),
+    /integer/,
+  );
 });

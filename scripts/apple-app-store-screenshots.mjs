@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,6 +33,17 @@ function spec(fileName, testName, platform, displayType, width, height) {
   return { fileName, testId: `AppStoreScreenshotTests/${testName}()`, platform, displayType, width, height };
 }
 
+export function selectSimulator(devices, modelName) {
+  const candidates = Object.entries(devices).flatMap(([runtime, entries]) =>
+    entries
+      .filter(({ name, isAvailable }) => name === modelName && isAvailable)
+      .map(({ udid }) => ({ runtime, udid })),
+  );
+  if (!candidates.length) throw new Error(`No available simulator matches ${modelName}`);
+  candidates.sort((left, right) => right.runtime.localeCompare(left.runtime, undefined, { numeric: true }) || left.udid.localeCompare(right.udid));
+  return `iOS Simulator,id=${candidates[0].udid}`;
+}
+
 export function readImageSize(path) {
   if (!existsSync(path)) throw new Error(`Missing screenshot: ${path}`);
   const output = execFileSync("sips", ["-g", "pixelWidth", "-g", "pixelHeight", path], { encoding: "utf8" });
@@ -43,6 +54,9 @@ export function readImageSize(path) {
 }
 
 export async function validateScreenshot(path, expected) {
+  const output = execFileSync("sips", ["-g", "format", path], { encoding: "utf8" });
+  const format = output.match(/format:\s*(\S+)/)?.[1] ?? "unknown";
+  if (format !== "png") throw new Error(`${basename(path)} must have PNG format, got ${format}`);
   const { width, height } = readImageSize(path);
   if (width !== expected.width || height !== expected.height) {
     throw new Error(`${basename(path)} must be ${expected.width} x ${expected.height}, got ${width} x ${height}`);
@@ -92,6 +106,14 @@ async function fetchArtwork(url) {
   return bytes;
 }
 
+export function assertValidCachedEntry(entry, sourceUrl) {
+  if (entry.originalUrl !== sourceUrl) throw new Error(`Stale fixture: originalUrl does not match ${sourceUrl}`);
+  if (!entry.shortUrl || !entry.mediaType || !entry.artworkImageData) throw new Error("Fixture artwork or required metadata is missing");
+  if (entry.mediaType === "track" && !entry.track) throw new Error("Fixture track metadata is missing");
+  if (entry.mediaType === "album" && !entry.album) throw new Error("Fixture album metadata is missing");
+  if (entry.mediaType === "artist" && !entry.artist) throw new Error("Fixture artist metadata is missing");
+}
+
 export async function prepareFixtures() {
   const directory = join(repositoryRoot, ".tmp/ScreenshotFixtures");
   mkdirSync(directory, { recursive: true });
@@ -103,7 +125,10 @@ export async function prepareFixtures() {
   for (let index = 0; index < screenshotSources.length; index += 1) {
     const sourceUrl = screenshotSources[index];
     const file = join(directory, `${index}.json`);
-    if (existsSync(file)) continue;
+    if (existsSync(file)) {
+      assertValidCachedEntry(JSON.parse(readFileSync(file, "utf8")), sourceUrl);
+      continue;
+    }
     const resolved = await fetchJson("https://musiccloud.io/api/resolve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -124,7 +149,8 @@ export async function prepareFixtures() {
       artist: resolved.artist,
       serviceLinks: resolved.links ?? [],
     };
-    writeFileSync(file, JSON.stringify(entry));
+    writeFileSync(`${file}.tmp`, JSON.stringify(entry));
+    renameSync(`${file}.tmp`, file);
   }
 
   const ruby = `
@@ -216,13 +242,30 @@ export async function createScreenshotReservation(file, setId) {
 
 export async function executeUploadOperations(file, operations, fetchImpl = fetch) {
   const bytes = readFileSync(file);
-  for (const operation of operations) {
+  if (!bytes.length) throw new Error(`Cannot upload an empty file: ${basename(file)}`);
+  if (!Array.isArray(operations) || !operations.length) throw new Error("Upload operations are empty");
+  let expectedOffset = 0;
+  for (const operation of [...operations].sort((left, right) => left.offset - right.offset)) {
     const { method, url, offset, length } = operation;
-    if (offset < 0 || length < 0 || offset + length > bytes.length) {
-      throw new Error(`Invalid upload range ${offset}:${length} for ${basename(file)}`);
+    if (!method || !url || !Number.isInteger(offset) || !Number.isInteger(length) || length <= 0) {
+      throw new Error("Upload operation offsets and lengths must be integers");
     }
+    if (offset !== expectedOffset) {
+      const relation = offset < expectedOffset ? "overlap" : "gap";
+      throw new Error(`Upload operations do not cover the complete file (${relation} at byte ${expectedOffset})`);
+    }
+    if (offset + length > bytes.length) throw new Error(`Invalid upload range ${offset}:${length} for ${basename(file)}`);
+    expectedOffset = offset + length;
+  }
+  if (expectedOffset !== bytes.length) throw new Error("Upload operations do not cover the complete file");
+
+  for (const operation of operations) {
     const headers = Object.fromEntries((operation.requestHeaders ?? []).map(({ name, value }) => [name, value]));
-    const response = await fetchImpl(url, { method, headers, body: bytes.subarray(offset, offset + length) });
+    const response = await fetchImpl(operation.url, {
+      method: operation.method,
+      headers,
+      body: bytes.subarray(operation.offset, operation.offset + operation.length),
+    });
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
       throw new Error(`Screenshot upload failed with HTTP ${response.status}: ${detail}`);
@@ -274,6 +317,7 @@ export async function uploadScreenshots({
   files,
   inputDirectory,
   dryRun = false,
+  fetchImpl = fetch,
   api = dryRun ? undefined : createAscClient(),
 }) {
   const specs = SCREENSHOT_SPECS.filter((candidate) => candidate.displayType === displayType);
@@ -314,7 +358,7 @@ export async function uploadScreenshots({
     const reservation = await createScreenshotReservation(file, set.id);
     const created = await api.post("/v1/appScreenshots", reservation);
     const screenshot = created.data;
-    await executeUploadOperations(file, screenshot.attributes.uploadOperations ?? []);
+    await executeUploadOperations(file, screenshot.attributes.uploadOperations ?? [], fetchImpl);
     await confirmScreenshot(screenshot.id, checksums.get(file), api);
 
     let readback;
