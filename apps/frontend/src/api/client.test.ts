@@ -294,6 +294,11 @@ describe("forwarding a browser request to the backend", () => {
     ["fetchCcBandcamp", (client) => client.fetchCcBandcamp("123", "203.0.113.10")],
     ["fetchCcAudio", (client) => client.fetchCcAudio("123", null, "203.0.113.10")],
     ["fetchCcDownload", (client) => client.fetchCcDownload("123", "203.0.113.10")],
+    ["fetchGenreArtwork", (client) => client.fetchGenreArtwork("rock", "203.0.113.10")],
+    ["fetchCcGenreArtwork", (client) => client.fetchCcGenreArtwork("rock", "203.0.113.10")],
+    ["fetchSponsors", (client) => client.fetchSponsors("203.0.113.10")],
+    ["fetchSponsorAvatar", (client) => client.fetchSponsorAvatar("a".repeat(64), "203.0.113.10")],
+    ["fetchSharePreview", (client) => client.fetchSharePreview("abc123", "203.0.113.10")],
   ];
 
   function refusedConnection(): Error {

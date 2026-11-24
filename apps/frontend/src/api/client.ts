@@ -18,6 +18,13 @@ import {
   type SharePageResponse,
   type SupportPromptPayload,
 } from "@musiccloud/shared";
+import { errorCauseName, logIncident } from "./incident-log";
+
+/** The `component` of every incident this client logs. */
+const BACKEND_CLIENT_COMPONENT = "BackendClient";
+
+/** The `operation` of a backend request that failed before an answer arrived. */
+const BACKEND_REQUEST_OPERATION = "backend_request";
 
 export type BackendFetchResult<T> =
   | { kind: "success"; data: T }
@@ -120,24 +127,29 @@ function shareRequestExtra(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-/** Refresh an expired Deezer preview URL for a share. Returns `{ previewUrl: null }`
- *  if no preview can be produced; returns `null` on transport failure so the
- *  client can distinguish "no preview" from "refresh failed, try again later". */
-export async function fetchSharePreview(
-  shortId: string,
-  clientIp?: string,
-): Promise<{ previewUrl: string | null } | null> {
-  try {
-    const res = await fetchWithTimeout(
-      backendUrl(ENDPOINTS.v1.sharePreview(shortId)),
-      { headers: internalHeaders(forwardedForExtra(clientIp)) },
-      15000,
-    );
-    if (!res.ok) return null;
-    return (await res.json()) as { previewUrl: string | null };
-  } catch {
-    return null;
-  }
+/**
+ * How long the site waits for a refreshed share preview: 15 seconds, since the
+ * backend may ask Deezer for a fresh preview address first.
+ */
+const SHARE_PREVIEW_FETCH_TIMEOUT_MS = 15000;
+
+/**
+ * Refresh an expired Deezer preview URL for a share, for the Astro proxy at
+ * `pages/api/share-preview/[shortId].ts`.
+ *
+ * @param shortId - The share's short id.
+ * @param clientIp - The visitor's address, forwarded for the backend's rate limit.
+ * @returns The backend's response, unread: `{ previewUrl }` with `null` when no
+ *   preview can be produced, the backend's error envelope for a refusal, or
+ *   the error envelope of {@link forwardToBackend} when the backend did not
+ *   answer, so "no preview" stays apart from "refresh failed".
+ */
+export async function fetchSharePreview(shortId: string, clientIp?: string): Promise<Response> {
+  return forwardToBackend(
+    backendUrl(ENDPOINTS.v1.sharePreview(shortId)),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    SHARE_PREVIEW_FETCH_TIMEOUT_MS,
+  );
 }
 
 /** Stream a CC track's audio from the backend `ccAudio` proxy. Returns the raw
@@ -287,16 +299,14 @@ function transportFailureResult(error: unknown): Extract<BackendFetchResult<neve
   // Without this the id shown to the visitor exists only on their screen, so a
   // reported incident has nothing to look up. The cause is logged here and only
   // its recognised shape reaches the message.
-  console.error(
-    JSON.stringify({
-      component: "BackendClient",
-      errorCode: code,
-      errorId,
-      operation: "backend_request",
-      outcome: timedOut ? "timed_out" : "transport_failed",
-      cause: failureCode ?? (error instanceof Error ? error.name : "unknown"),
-    }),
-  );
+  logIncident({
+    component: BACKEND_CLIENT_COMPONENT,
+    errorCode: code,
+    errorId,
+    operation: BACKEND_REQUEST_OPERATION,
+    outcome: timedOut ? "timed_out" : "transport_failed",
+    cause: failureCode ?? errorCauseName(error),
+  });
 
   return { kind: "error", statusCode: timedOut ? 504 : 503, error: body };
 }
@@ -397,10 +407,11 @@ export async function resolveCcTrack(
  * timeout is generous — on a cache purge the browser kicks off ~250
  * parallel tile requests and Jimp-based rendering is CPU-bound, so
  * under contention a single tile can legitimately wait well past 15 s
- * for its turn on the event loop.
+ * for its turn on the event loop. When no answer arrives, the error envelope
+ * of {@link forwardToBackend} is returned instead.
  */
 export async function fetchGenreArtwork(genreKey: string, clientIp?: string): Promise<Response> {
-  return fetchWithTimeout(
+  return forwardToBackend(
     backendUrl(ENDPOINTS.v1.genreArtwork(genreKey)),
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     60000,
@@ -420,10 +431,11 @@ const SPONSORING_FETCH_TIMEOUT_MS = 5000;
  *
  * @param avatarId - The picture's id, the SHA-256 of its bytes.
  * @param clientIp - The visitor's address, forwarded for the backend's rate limit.
- * @returns The backend's response, unread.
+ * @returns The backend's response, unread, or the error envelope of
+ *   {@link forwardToBackend} when the backend did not answer.
  */
 export async function fetchSponsorAvatar(avatarId: string, clientIp?: string): Promise<Response> {
-  return fetchWithTimeout(
+  return forwardToBackend(
     backendUrl(ENDPOINTS.v1.sponsorAvatar(avatarId)),
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     SPONSORING_FETCH_TIMEOUT_MS,
@@ -435,10 +447,11 @@ export async function fetchSponsorAvatar(avatarId: string, clientIp?: string): P
  * Astro proxy can serve them to the sponsor wall from the site's own origin.
  *
  * @param clientIp - The visitor's address, forwarded for the backend's rate limit.
- * @returns The backend's response, unread.
+ * @returns The backend's response, unread, or the error envelope of
+ *   {@link forwardToBackend} when the backend did not answer.
  */
 export async function fetchSponsors(clientIp?: string): Promise<Response> {
-  return fetchWithTimeout(
+  return forwardToBackend(
     backendUrl(ENDPOINTS.v1.sponsors),
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     SPONSORING_FETCH_TIMEOUT_MS,
@@ -537,10 +550,11 @@ export async function fetchEmailAsset(id: string, clientIp?: string): Promise<Re
  * (Content-Type, Cache-Control). The timeout is generous for the same reason as
  * the commercial route: a cache purge fans out many parallel tile requests and
  * Jimp-based rendering is CPU-bound, so a single tile can legitimately wait past
- * 15 s for its turn on the event loop.
+ * 15 s for its turn on the event loop. When no answer arrives, the error
+ * envelope of {@link forwardToBackend} is returned instead.
  */
 export async function fetchCcGenreArtwork(genreKey: string, clientIp?: string): Promise<Response> {
-  return fetchWithTimeout(
+  return forwardToBackend(
     backendUrl(ENDPOINTS.v1.ccGenreArtwork(genreKey)),
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     60000,

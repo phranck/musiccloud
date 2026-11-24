@@ -1,6 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { apiErrorResponse, badRequestResponse, createResolveRoute, relayHeaders } from "./proxy-response";
+import {
+  apiErrorResponse,
+  backendUnavailableResponse,
+  badRequestResponse,
+  createResolveRoute,
+  relayErrorResponse,
+  relayHeaders,
+} from "./proxy-response";
 
 /** The visitor address every resolve request in these tests comes from. */
 const VISITOR_ADDRESS = "203.0.113.10";
@@ -79,7 +86,76 @@ describe("badRequestResponse", () => {
   });
 });
 
+describe("relayErrorResponse", () => {
+  it("passes on the backend's status, body and Content-Type and nothing else", async () => {
+    const backendBody = JSON.stringify({ error: "MC-RES-0003", errorId: "backend-incident", message: "Gone." });
+    const upstream = new Response(backendBody, {
+      status: 404,
+      headers: { "Content-Type": "application/json", "Set-Cookie": "session=1" },
+    });
+
+    const response = relayErrorResponse(upstream);
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("Content-Type")).toBe("application/json");
+    expect(response.headers.get("Set-Cookie")).toBeNull();
+    await expect(response.text()).resolves.toBe(backendBody);
+  });
+});
+
+describe("backendUnavailableResponse", () => {
+  /** The route name the tests pass as the failing operation. */
+  const OPERATION = "test_proxy";
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("answers 503 with MC-SYS-0002 in the error envelope", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = backendUnavailableResponse(new TypeError("terminated"), OPERATION);
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Content-Type")).toBe("application/json");
+    await expect(response.json()).resolves.toMatchObject({ error: "MC-SYS-0002", errorId: expect.any(String) });
+  });
+
+  it("logs the error ID of the body with the route and the cause's name, never its message", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = backendUnavailableResponse(new TypeError("secret detail at 10.0.0.5"), OPERATION);
+    const body = await response.json();
+
+    expect(errorLog).toHaveBeenCalledTimes(1);
+    const logLine = String(errorLog.mock.calls[0]?.[0]);
+    expect(JSON.parse(logLine)).toEqual({
+      component: "ApiProxy",
+      errorCode: "MC-SYS-0002",
+      errorId: body.errorId,
+      operation: OPERATION,
+      outcome: "body_interrupted",
+      cause: "TypeError",
+    });
+    expect(logLine).not.toContain("secret detail");
+  });
+});
+
 describe("createResolveRoute", () => {
+  it("refuses a body that is not JSON with 400 and MC-REQ-0001 without asking the backend", async () => {
+    const resolve = vi.fn();
+    const route = createResolveRoute(resolve);
+
+    const response = (await route({
+      request: new Request(`${VISITOR_ORIGIN}/api/resolve`, { method: "POST", body: "{not json" }),
+      clientAddress: VISITOR_ADDRESS,
+    } as Parameters<typeof route>[0])) as Response;
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "MC-REQ-0001", errorId: expect.any(String) });
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
   it("forwards the body, the visitor address and the origin to the backend call", async () => {
     const resolve = vi.fn().mockResolvedValue(new Response("{}"));
     const route = createResolveRoute(resolve);
