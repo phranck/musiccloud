@@ -19,6 +19,19 @@ import { resolveAcrossServices, resolvedTrackLink } from "./fan-out.js";
 import type { ResolutionResult, ResolvedLink } from "./types.js";
 
 /**
+ * How long, in milliseconds, the page fetch of {@link scrapeTrackFromPage}
+ * waits before it gives up and the scrape counts as failed. Eight seconds.
+ */
+const PAGE_SCRAPE_TIMEOUT_MS = 8000;
+
+/**
+ * Confidence of the link a scrape-resolved URL came in on. It stays below
+ * `IDENTIFIER_MATCH_CONFIDENCE` (`1`), because the page metadata was matched
+ * by text search rather than read through the service's own API. `0.9`.
+ */
+const SCRAPED_SOURCE_LINK_CONFIDENCE = 0.9;
+
+/**
  * Scrape OG meta tags from a music service page to extract title and artist.
  * Used as fallback when the source adapter has no API credentials.
  *
@@ -44,7 +57,7 @@ async function scrapeTrackFromPage(
         },
         redirect: "follow",
       },
-      8000,
+      PAGE_SCRAPE_TIMEOUT_MS,
     );
 
     if (!response.ok) return null;
@@ -168,7 +181,7 @@ export async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceI
       service: sourceServiceId,
       displayName: PLATFORM_CONFIG[sourceServiceId].label,
       url,
-      confidence: 0.9,
+      confidence: SCRAPED_SOURCE_LINK_CONFIDENCE,
       matchMethod: "search",
       artworkUrl: pickRecordingArtworkUrl(scraped.artworkUrl, [], sourceServiceId),
     },
