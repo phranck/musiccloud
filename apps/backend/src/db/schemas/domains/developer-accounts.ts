@@ -1,8 +1,8 @@
 import { DEVELOPER_ACCOUNT_STATUSES } from "@musiccloud/shared";
 import { sql } from "drizzle-orm";
 import { check, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { tiers } from "../postgres.js";
 import { adminUsers } from "./admin-users.js";
+import { tiers } from "./billing.js";
 import { sqlValueList } from "./column-types.js";
 
 // ============================================================================
