@@ -155,20 +155,44 @@ function audiomackPageMetadata(html: string): Pick<NormalizedTrack, "title" | "a
   };
 }
 
-async function fetchTrackPage(artistSlug: string, trackSlug: string): Promise<NormalizedTrack | null> {
-  // Fetch track page for OG tags as fallback
-  const url = `https://audiomack.com/${artistSlug}/song/${trackSlug}`;
+/** The path segment of an Audiomack resource page: `song` for a track, `album` for an album. */
+type AudiomackPageSegment = "song" | "album";
+
+/** What a resource page yields: the identity both a track and an album carry. */
+type AudiomackPageResource = Pick<
+  NormalizedTrack,
+  "sourceService" | "sourceId" | "title" | "artists" | "artworkUrl" | "webUrl"
+>;
+
+/**
+ * Reads a track or album from its public Audiomack page.
+ *
+ * @param artistSlug - The artist segment of the page URL.
+ * @param segment - `song` for a track page, `album` for an album page.
+ * @param slug - The resource segment of the page URL.
+ * @param kind - The resource kind an HTTP failure names.
+ * @returns The page identity with `artistSlug/slug` as its id, or `null` when
+ *   Audiomack answers 404 or the page has no OG title.
+ * @throws When Audiomack answers with another error status.
+ */
+async function fetchResourcePage(
+  artistSlug: string,
+  segment: AudiomackPageSegment,
+  slug: string,
+  kind: ResourceKind,
+): Promise<AudiomackPageResource | null> {
+  const url = `https://audiomack.com/${artistSlug}/${segment}/${slug}`;
   const response = await fetchProviderPage(url, AUDIOMACK_REQUEST);
   if (response.status === 404) return null;
   if (!response.ok) {
-    throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Track, `${artistSlug}/${trackSlug}`);
+    throw serviceHttpError(Service.AudioMack, response.status, kind, `${artistSlug}/${slug}`);
   }
 
   const metadata = audiomackPageMetadata(await response.text());
   if (!metadata) return null;
   return {
     sourceService: "audiomack",
-    sourceId: `${artistSlug}/${trackSlug}`,
+    sourceId: `${artistSlug}/${slug}`,
     ...metadata,
     webUrl: url,
   };
@@ -186,24 +210,6 @@ function mapAlbumResult(album: AudiomackAlbumResult): NormalizedAlbum {
     artists: artistParts.length > 0 ? artistParts : ["Unknown Artist"],
     artworkUrl: album.image || album.image_base || undefined,
     webUrl: album.url || `https://audiomack.com/${album.url_slug}`,
-  };
-}
-
-async function fetchAlbumPage(artistSlug: string, albumSlug: string): Promise<NormalizedAlbum | null> {
-  const url = `https://audiomack.com/${artistSlug}/album/${albumSlug}`;
-  const response = await fetchProviderPage(url, AUDIOMACK_REQUEST);
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw serviceHttpError(Service.AudioMack, response.status, ResourceKind.Album, `${artistSlug}/${albumSlug}`);
-  }
-
-  const metadata = audiomackPageMetadata(await response.text());
-  if (!metadata) return null;
-  return {
-    sourceService: "audiomack",
-    sourceId: `${artistSlug}/${albumSlug}`,
-    ...metadata,
-    webUrl: url,
   };
 }
 
@@ -237,7 +243,7 @@ export const audiomackAdapter: ServiceAdapter = {
     if (parts.length !== 2) {
       throw new Error(`Audiomack: Invalid track ID format: ${trackId}`);
     }
-    const track = await fetchTrackPage(parts[0], parts[1]);
+    const track = await fetchResourcePage(parts[0], "song", parts[1], ResourceKind.Track);
     if (!track) {
       throw serviceNotFoundError(Service.AudioMack, ResourceKind.Track, trackId);
     }
@@ -287,7 +293,7 @@ export const audiomackAdapter: ServiceAdapter = {
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
     const parts = albumId.split("/");
     if (parts.length !== 2) throw new Error(`Audiomack: Invalid album ID: ${albumId}`);
-    const album = await fetchAlbumPage(parts[0], parts[1]);
+    const album = await fetchResourcePage(parts[0], "album", parts[1], ResourceKind.Album);
     if (!album) throw serviceNotFoundError(Service.AudioMack, ResourceKind.Album, albumId);
     return album;
   },
