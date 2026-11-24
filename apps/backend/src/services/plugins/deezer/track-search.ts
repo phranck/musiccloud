@@ -12,21 +12,13 @@
  */
 
 import type { ArtistTopTrack } from "@musiccloud/shared";
-import { deezerGet } from "./deezer-response.js";
+import { type DeezerListedTrack, deezerGet } from "./deezer-response.js";
 
 const SEARCH_LIMIT = 3;
 
-interface DeezerSearchTrackHit {
-  id: number;
-  title: string;
-  duration: number;
-  link: string;
-  album: { title?: string; cover_medium?: string; cover_big?: string };
-  artist: { name: string };
-}
-
+/** Deezer's `/search/track` answer, of which only the hit list is read. */
 interface DeezerSearchTrackResponse {
-  data?: DeezerSearchTrackHit[];
+  data?: DeezerListedTrack[];
 }
 
 export type DeezerTrackEnrichment = Pick<ArtistTopTrack, "artworkUrl" | "albumName" | "durationMs" | "deezerUrl">;

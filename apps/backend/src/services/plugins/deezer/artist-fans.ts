@@ -7,8 +7,14 @@
  * resolver internals not needed here).
  */
 
-import { deezerGet } from "./deezer-response.js";
+import { deezerArtistPath, deezerGet } from "./deezer-response.js";
 
+/**
+ * The part of Deezer's `/artist/{id}` answer this module reads.
+ *
+ * @property id - Deezer's artist id.
+ * @property nb_fan - How many Deezer users follow the artist, absent when Deezer sends no count.
+ */
 interface DeezerArtistResponse {
   id: number | string;
   nb_fan?: number;
@@ -22,6 +28,6 @@ interface DeezerArtistResponse {
  * @throws {UpstreamUnavailableError} when Deezer did not answer.
  */
 export async function fetchDeezerFanCount(artistId: string): Promise<number | null> {
-  const data = await deezerGet<DeezerArtistResponse>(`/artist/${encodeURIComponent(artistId)}`, "artist lookup");
+  const data = await deezerGet<DeezerArtistResponse>(deezerArtistPath(artistId), "artist lookup");
   return typeof data?.nb_fan === "number" ? data.nb_fan : null;
 }
