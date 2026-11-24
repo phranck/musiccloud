@@ -47,12 +47,22 @@ import { bestSettledAlbum, bestSettledTrack } from "../_shared/candidates.js";
 import { searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { readProviderHtml } from "../_shared/provider-response.js";
+import { scrapeIds } from "../_shared/scrape-ids.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 // Bugs! URLs: music.bugs.co.kr/track/{trackId}
 const BUGS_TRACK_REGEX = /^https?:\/\/music\.bugs\.co\.kr\/track\/(\d+)/;
 // Bugs! album URLs: music.bugs.co.kr/album/{albumId}
 const BUGS_ALBUM_REGEX = /^https?:\/\/music\.bugs\.co\.kr\/album\/(\d+)/;
+
+/** How many search hits the adapter fetches pages for, 5. */
+const BUGS_SEARCH_ID_LIMIT = 5;
+
+/** A track id on the track search page, from a `/track/{id}` link. */
+const BUGS_TRACK_LINK_PATTERN = /\/track\/(\d+)/g;
+
+/** An album id on the album search page, from an `/album/{id}` link. */
+const BUGS_ALBUM_LINK_PATTERN = /\/album\/(\d+)/g;
 
 async function bugsFetch(url: string, timeoutMs = 8000): Promise<Response> {
   return fetchWithTimeout(
@@ -117,19 +127,7 @@ async function searchForTrackIds(query: string): Promise<string[]> {
 
   const html = await readProviderHtml(response, Service.Bugs, "track search");
 
-  // Extract track IDs from href="/track/{id}" patterns
-  const trackIds: string[] = [];
-  const seen = new Set<string>();
-  const idMatches = html.matchAll(/\/track\/(\d+)/g);
-  for (const m of idMatches) {
-    if (m[1] && !seen.has(m[1])) {
-      seen.add(m[1]);
-      trackIds.push(m[1]);
-    }
-    if (trackIds.length >= 5) break;
-  }
-
-  return trackIds;
+  return scrapeIds(html, BUGS_TRACK_LINK_PATTERN, BUGS_SEARCH_ID_LIMIT);
 }
 
 async function fetchAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
@@ -174,17 +172,7 @@ async function searchBugsAlbumIds(query: string): Promise<string[]> {
   }
 
   const html = await readProviderHtml(response, Service.Bugs, "album search");
-  const albumIds: string[] = [];
-  const seen = new Set<string>();
-  const idMatches = html.matchAll(/\/album\/(\d+)/g);
-  for (const m of idMatches) {
-    if (m[1] && !seen.has(m[1])) {
-      seen.add(m[1]);
-      albumIds.push(m[1]);
-    }
-    if (albumIds.length >= 5) break;
-  }
-  return albumIds;
+  return scrapeIds(html, BUGS_ALBUM_LINK_PATTERN, BUGS_SEARCH_ID_LIMIT);
 }
 
 export const bugsAdapter: ServiceAdapter = {

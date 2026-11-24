@@ -69,6 +69,7 @@ import type {
 import { bestSettledAlbum, throwIfSearchIncomplete } from "../_shared/candidates.js";
 import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { type IsoDurationFormat, MS_PER_SECOND, parseIsoDurationMs } from "../_shared/duration.js";
+import { JSON_LD_ALBUM_TYPE, JSON_LD_RECORDING_TYPE, readJsonLd } from "../_shared/json-ld.js";
 import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
 import { pickBestTrack, searchMatchResult, trackScoreLogger } from "../_shared/rank.js";
@@ -178,19 +179,6 @@ async function bandcampFetch(
   }
 }
 
-function parseJsonLd(html: string): BandcampJsonLd | null {
-  const match = /application\/ld\+json">\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
-  if (!match?.[1]) return null;
-
-  try {
-    const data = JSON.parse(match[1]) as BandcampJsonLd;
-    if (data["@type"] !== "MusicRecording") return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
 async function fetchTrackByUrl(trackUrl: string): Promise<NormalizedTrack | null> {
   const response = await bandcampFetch(trackUrl, ResourceKind.Track, trackUrl);
   // A page Bandcamp does not have answers 404, which is an answer. Any other
@@ -203,7 +191,7 @@ async function fetchTrackByUrl(trackUrl: string): Promise<NormalizedTrack | null
   const tralbumData = parseTralbumData(html);
 
   // Try JSON-LD first
-  const jsonLd = parseJsonLd(html);
+  const jsonLd = readJsonLd<BandcampJsonLd>(html, JSON_LD_RECORDING_TYPE);
   if (jsonLd?.name) {
     const artist =
       embedData?.artist ?? embedData?.album_embed_data?.artist ?? tralbumData?.current?.artist ?? jsonLd.byArtist?.name;
@@ -430,16 +418,16 @@ async function findBestBandcampMatch(query: SearchQuery, results: BandcampSearch
   return match;
 }
 
+/**
+ * Reads an album page's `MusicAlbum` block.
+ *
+ * @param html - A Bandcamp album page.
+ * @returns The block, or `null` when the page has none, it is not an album
+ *   block, or it carries no name.
+ */
 function parseAlbumJsonLd(html: string): BandcampAlbumJsonLd | null {
-  const match = /application\/ld\+json">\s*(\{[\s\S]*?\})\s*<\/script>/i.exec(html);
-  if (!match?.[1]) return null;
-  try {
-    const data = JSON.parse(match[1]) as BandcampAlbumJsonLd;
-    if (data["@type"] !== "MusicAlbum" || !data.name) return null;
-    return data;
-  } catch {
-    return null;
-  }
+  const data = readJsonLd<BandcampAlbumJsonLd>(html, JSON_LD_ALBUM_TYPE);
+  return data?.name ? data : null;
 }
 
 async function fetchAlbumByUrl(albumUrl: string): Promise<NormalizedAlbum | null> {
