@@ -15,7 +15,7 @@ import Foundation
 /// `apps/frontend/src/components/background/BackgroundScene.tsx`), so a change
 /// in the dashboard reaches the website and the app alike. The backend
 /// validates the object against the ranges of `SHADER_NUMBER_SPECS` in
-/// `packages/shared/src/design-tokens.ts` before it serves it.
+/// `packages/shared/src/design-tokens/model.ts` before it serves it.
 ///
 /// Every field falls back on its own. A field the answer lacks, or one that
 /// is not a finite number or a `#rrggbb` color, keeps the value written here.
