@@ -80,7 +80,6 @@ vi.mock("../services/cc/cc-share-response.js", () => ({
       artistInfo: ARTIST_INFO,
     }),
   ),
-  ccTrackToPersistData: vi.fn((track: unknown) => track),
   toApiCcTrack: vi.fn((track: Record<string, unknown>) => ({
     jamendoId: track.jamendoId,
     title: track.title,

@@ -7,8 +7,8 @@
  *
  * ## Two operations
  *
- *  - **Browse** (`runCcGenreBrowse`): Jamendo's curated genre stations
- *    (`GET /radios`) become the browse-grid tiles.
+ *  - **Browse** (`runCcGenreBrowse`): the curated table of Jamendo genre tags
+ *    in `jamendo/genres.ts` becomes the browse-grid tiles.
  *  - **Search** (`runCcGenreSearch`): a `genre: <name>` query returns three
  *    columns — tracks, albums and artists — all derived from a single Jamendo
  *    `GET /tracks?tags=<name>` query (albums/artists deduped from the track
@@ -182,10 +182,9 @@ async function deriveArtistColumn(tracks: CcTrack[], limit: number): Promise<Api
 }
 
 /**
- * Builds the CC genre browse grid from Jamendo's curated radio stations.
+ * Builds the CC genre browse grid from the curated Jamendo genre table.
  *
  * @returns A `genre-browse` response whose tiles are Jamendo genres.
- * @throws Error on missing Jamendo client id or API failure.
  */
 export async function runCcGenreBrowse(): Promise<ResolveCcGenreBrowseResponse> {
   const genres = await getCcGenres();

@@ -3,7 +3,7 @@
  *
  * Two layers: raw response shapes exactly as Jamendo returns them
  * (`Jamendo*Raw`, snake_case), and clean CC domain objects the rest of the
- * backend consumes (`Cc*`, camelCase). The client maps raw → domain.
+ * backend consumes (`Cc*`, camelCase). `map.ts` maps raw → domain.
  */
 
 import type { CcMusicInfo, CcTrackStats } from "@musiccloud/shared";
@@ -55,8 +55,8 @@ export interface JamendoTrackRaw {
    * Present only when the request adds `include=musicinfo`. The nested `tags`
    * drive tag-based similarity (`tags.genres`, read by `getSimilarCcTracks`) and
    * the CC details card (instruments, mood); the scalar classifiers feed the
-   * details card's vocal / tempo / language rows. All fields best-effort —
-   * Jamendo populates them unevenly.
+   * details card's vocal / tempo / language rows. All fields are best-effort,
+   * because Jamendo populates them unevenly.
    */
   musicinfo?: {
     vocalinstrumental?: string;
@@ -79,7 +79,7 @@ export interface JamendoTrackRaw {
   };
   /**
    * Present only when the request adds `include=licenses`. CC clause flags plus
-   * the Jamendo Pro licensing flags — every value is the string `"true"` or
+   * the Jamendo Pro licensing flags. Every value is the string `"true"` or
    * `"false"`, not a boolean.
    */
   licenses?: {
@@ -126,7 +126,7 @@ export interface JamendoArtistRaw {
  * A Jamendo genre in musiccloud's domain shape. Drives the CC browse grid:
  * `name` feeds `tags=<name>` track searches and the genre-artwork cover
  * lookup; `displayName` is the human label. The set is a hand-curated list of
- * Jamendo genre tags (see `CC_GENRES` in `client.ts`) — Jamendo has no
+ * Jamendo genre tags (see `CC_GENRES` in `genres.ts`), because Jamendo has no
  * dedicated "top genres" endpoint.
  *
  * No tile-cover field: the browse tile cover is the procedurally generated
@@ -170,6 +170,85 @@ export interface CcTrack {
   proLicensing?: boolean;
   /** Jamendo Pro licensing page for the track (`prourl`). */
   proUrl?: string;
+}
+
+/** One field name of {@link CcTrack}. */
+export type CcTrackField = keyof CcTrack;
+
+/**
+ * Marks every field of {@link CcTrack} once, in wire order. The `satisfies`
+ * clause makes the compiler reject a table that misses a field of `CcTrack` or
+ * names one it does not have, so a new track field is added here and in the
+ * interface and every projection derived from {@link CC_TRACK_FIELDS} carries
+ * it. The order is the key order of the wire track that `toApiCcTrack` in
+ * `cc-share-response.ts` emits.
+ */
+const CC_TRACK_FIELD_TABLE = {
+  jamendoId: true,
+  title: true,
+  artistName: true,
+  jamendoArtistId: true,
+  albumName: true,
+  jamendoAlbumId: true,
+  albumPosition: true,
+  artworkUrl: true,
+  durationMs: true,
+  releaseDate: true,
+  licenseCcurl: true,
+  streamUrl: true,
+  downloadUrl: true,
+  downloadAllowed: true,
+  waveform: true,
+  shareUrl: true,
+  musicInfo: true,
+  stats: true,
+  proLicensing: true,
+  proUrl: true,
+} as const satisfies Record<CcTrackField, true>;
+
+/**
+ * Every field of {@link CcTrack}, in wire order. The persist payload
+ * (`ccTrackToPersistData` in `cc-persist-data.ts`) carries all of them.
+ */
+export const CC_TRACK_FIELDS = Object.keys(CC_TRACK_FIELD_TABLE) as CcTrackField[];
+
+/**
+ * The fields that place a track inside its album. They are persisted, but the
+ * wire track omits them, and the share-page row carries only `albumPosition`.
+ */
+const CC_TRACK_ALBUM_PLACEMENT_FIELDS = ["jamendoAlbumId", "albumPosition"] as const satisfies readonly CcTrackField[];
+
+/** One field of {@link CcTrack} that the wire track carries. */
+export type CcTrackWireField = Exclude<CcTrackField, (typeof CC_TRACK_ALBUM_PLACEMENT_FIELDS)[number]>;
+
+/**
+ * The fields of {@link CcTrack} the wire track (`ApiCcTrack`) carries, in wire
+ * order: {@link CC_TRACK_FIELDS} without the album placement fields.
+ */
+export const CC_TRACK_WIRE_FIELDS = CC_TRACK_FIELDS.filter(
+  (field): field is CcTrackWireField => !(CC_TRACK_ALBUM_PLACEMENT_FIELDS as readonly CcTrackField[]).includes(field),
+);
+
+/**
+ * Copies the named fields of a track-shaped object into a new object, in the
+ * order of `fields`. Every named field is set, an absent one as `undefined`, so
+ * the result has the same keys whatever the source left out.
+ *
+ * @typeParam Source - The object read from, such as a {@link CcTrack}.
+ * @typeParam Field - The fields copied.
+ * @param source - The object to copy from.
+ * @param fields - The fields to copy, in output order.
+ * @returns A new object holding exactly `fields`.
+ */
+export function pickTrackFields<Source extends object, Field extends keyof Source>(
+  source: Source,
+  fields: readonly Field[],
+): Pick<Source, Field> {
+  const picked = {} as Pick<Source, Field>;
+  for (const field of fields) {
+    picked[field] = source[field];
+  }
+  return picked;
 }
 
 /** A Creative-Commons album in domain shape. */

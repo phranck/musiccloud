@@ -84,7 +84,8 @@ function dedupeByArtist(tracks: CcTrack[]): CcTrack[] {
  *
  * Two throttled Jamendo calls: `getCcArtistMusicInfo` for the profile, plus
  * `getSimilarCcTracks` (skipped when there is no seed track). Both funnel
- * through `jamendoFetch`, so the shared burst throttle still holds. Both are
+ * through the Jamendo transport in `jamendo/transport.ts`, so the shared burst
+ * throttle still holds. Both are
  * best-effort: the column's core data is `columnTracks` (read from the DB on the
  * share page), so a Jamendo hiccup degrades the enrichment to an empty similar
  * list / null profile instead of throwing — the share page never 404s on it.

@@ -34,8 +34,9 @@ const CC_CACHE_KEY_PREFIX = "cc:";
  * Finds the cover and the display name of a CC genre artwork, from Jamendo only.
  *
  * Prefers the curated station's cleaned label (e.g. "Drum & Bass") over a
- * title-cased key. `getCcGenres` is memoized, so this never refetches
- * `/radios` per tile. The cover comes from a representative Jamendo album.
+ * title-cased key. `getCcGenres` returns the static table in
+ * `services/cc/jamendo/genres.ts`, so the name costs no Jamendo request. The
+ * cover comes from a representative Jamendo album.
  *
  * @param genreKey - The normalized genre key, without the `cc:` prefix.
  * @returns The Jamendo cover URL, `null` when Jamendo has none, and the display name.
