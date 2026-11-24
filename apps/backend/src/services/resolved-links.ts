@@ -14,6 +14,7 @@ import { type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import type { PersistTrackData, PreviewRow } from "../db/repository.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
+import { isPreviewFresh } from "../lib/preview-url.js";
 import { isValidServiceId, type ServiceAdapter, type ServiceId } from "./types.js";
 
 /**
@@ -116,17 +117,15 @@ export function fromCachedLinks(rows: readonly CachedLinkRow[]): CachedResolvedL
  *
  * @param previews - The preview rows stored for the entity.
  * @param now - The current time in unix milliseconds. Defaults to `Date.now()`.
- * @returns `true` when at least one row of a known service has no expiry or
- *   expires after `now`; `false` when every such row has expired or there is
- *   no row at all.
+ * @returns `true` when at least one row of a known service passes
+ *   `isPreviewFresh`; `false` when every such row has expired or there is no
+ *   row at all.
  */
 export function isStoredPreviewFresh(
   previews: readonly Pick<PreviewRow, "service" | "expiresAt">[],
   now: number = Date.now(),
 ): boolean {
-  return previews.some(
-    (preview) => isValidServiceId(preview.service) && (preview.expiresAt === null || preview.expiresAt.getTime() > now),
-  );
+  return previews.some((preview) => isValidServiceId(preview.service) && isPreviewFresh(preview.expiresAt, now));
 }
 
 /**

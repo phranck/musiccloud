@@ -254,7 +254,8 @@ export const ALBUM_ARTIST_FIELDS_SELECT = `${ALBUM_ARTISTS_SELECT}, ${ALBUM_ARTI
  * Among those, Deezer comes first and then the most recently observed row.
  * `isPreviewRefreshNeeded` and `isAlbumPreviewRefreshNeeded` skip the Deezer
  * refresh while any row is unexpired, which is only safe because this order
- * then picks that row.
+ * then picks that row. `isPreviewFresh` and `preferredPreviewCandidate` in
+ * `lib/preview-url.ts` state the same rule for rows and URLs in memory.
  *
  * @param alias - The alias the subquery gives `track_previews` or `album_previews`.
  * @returns The `ORDER BY` expression list, without the keyword.
