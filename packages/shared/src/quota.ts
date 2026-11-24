@@ -40,9 +40,9 @@ export interface UsageShare {
  * A project whose plan grants nothing has no denominator, and saying so is
  * more useful than dividing by a number that does not exist. A grant of zero or
  * less counts as nothing granted, because dividing by it says nothing either.
- * The percentage is clamped at 100 for the bar, whilst `exhausted` and the
- * label still report the real situation, because a bar cannot show 130 per
- * cent and a warning should.
+ * The percentage is clamped at 100 for the bar, while `exhausted` and the
+ * label still report the real situation, because a bar cannot show 130
+ * percent and a warning should.
  *
  * @param used - Requests counted in the window.
  * @param granted - What the plan allows in it, or `null` when it grants nothing.
@@ -59,6 +59,23 @@ export function usageShare(used: number, granted: number | null): UsageShare {
   };
 }
 
+/** The unit after a per-minute quota figure, as in `"60 requests/minute"`. */
+export const PER_MINUTE_QUOTA_UNIT = "requests/minute";
+
+/** The unit after a per-day quota figure, as in `"10,000 requests/day"`. */
+export const PER_DAY_QUOTA_UNIT = "requests/day";
+
+/**
+ * A quota figure as every label writes it, grouped the same on every server.
+ * The pricing card uses it on its own to set the figure apart from its unit.
+ *
+ * @param count - The number of requests.
+ * @returns The figure in US grouping, for example `"10,000"`.
+ */
+export function formatQuotaCount(count: number): string {
+  return QUOTA_NUMBER_FORMAT.format(count);
+}
+
 /**
  * The per-minute quota as a sentence fragment.
  *
@@ -67,7 +84,7 @@ export function usageShare(used: number, granted: number | null): UsageShare {
  */
 export function perMinuteQuotaLabel(requestsPerMinute: number | null): string {
   if (requestsPerMinute === null) return NO_ACTIVE_PLAN_LABEL;
-  return `${QUOTA_NUMBER_FORMAT.format(requestsPerMinute)} requests/minute`;
+  return `${formatQuotaCount(requestsPerMinute)} ${PER_MINUTE_QUOTA_UNIT}`;
 }
 
 /**
@@ -78,7 +95,7 @@ export function perMinuteQuotaLabel(requestsPerMinute: number | null): string {
  */
 export function perDayQuotaLabel(requestsPerDay: number | null): string {
   if (requestsPerDay === null) return NO_ACTIVE_PLAN_LABEL;
-  return `${QUOTA_NUMBER_FORMAT.format(requestsPerDay)} requests/day`;
+  return `${formatQuotaCount(requestsPerDay)} ${PER_DAY_QUOTA_UNIT}`;
 }
 
 /**

@@ -10,7 +10,7 @@
  * The plans are fetched here rather than passed in, so a caller cannot supply a
  * list of its own and quietly show something the tiers do not say.
  */
-import { perDayQuotaLabel, perMinuteQuotaLabel } from "@musiccloud/shared";
+import { formatQuotaCount, PER_DAY_QUOTA_UNIT, PER_MINUTE_QUOTA_UNIT } from "@musiccloud/shared";
 import RollingText from "@/components/RollingText.astro";
 import { TierIcon } from "@/components/TierIcon";
 import { CoinIcon, TickCircleIcon } from "@/lib/icons";
@@ -85,8 +85,12 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
               )}
               {tier.description && <p class="w-full text-left text-lg text-fg-muted">{tier.description}</p>}
               <div class="w-full space-y-1 text-left text-lg text-fg-muted">
-                <p>{perMinuteQuotaLabel(tier.requestsPerMinute)}</p>
-                <p>{perDayQuotaLabel(tier.requestsPerDay)}</p>
+                <p>
+                  <span class="text-fg font-medium">{formatQuotaCount(tier.requestsPerMinute)}</span> {PER_MINUTE_QUOTA_UNIT}
+                </p>
+                <p>
+                  <span class="text-fg font-medium">{formatQuotaCount(tier.requestsPerDay)}</span> {PER_DAY_QUOTA_UNIT}
+                </p>
               </div>
               {tier.features.length > 0 && (
                 <ul class="pricing-feature-list flex w-full flex-col gap-1.5 text-left text-body">
