@@ -171,7 +171,7 @@ export interface ServiceAdapter {
 
 // ─── Genre-search Types ─────────────────────────────────────────────────────
 
-/** Result of a genre-based discovery search, which runs on Last.fm (`genre-search/lastfm.ts`). */
+/** Result of a genre-based discovery search, which runs on Last.fm (`genre-search/lastfm-search.ts`). */
 export interface GenreSearchResult {
   tracks: NormalizedTrack[];
   albums: NormalizedAlbum[];

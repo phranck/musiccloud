@@ -24,7 +24,8 @@ import {
   isValidGenreKey,
   normalizeGenreKey,
 } from "../services/genre-artwork/index.js";
-import { getCachedGenreCoverUrl, getGenreCoverUrl } from "../services/genre-search/lastfm.js";
+import { getCachedGenreCoverUrl } from "../services/genre-search/browse-grid.js";
+import { getGenreCoverUrl } from "../services/genre-search/lastfm-api.js";
 
 export default async function genreArtworkRoutes(app: FastifyInstance) {
   app.get<{ Params: { genreKey: string } }>(

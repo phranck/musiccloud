@@ -34,7 +34,9 @@ import type {
   NormalizedArtist,
   NormalizedTrack,
 } from "../types.js";
-import { getGenreBrowseGrid, isLastfmAvailable, lastfmSearchByGenre } from "./lastfm.js";
+import { getGenreBrowseGrid } from "./browse-grid.js";
+import { isLastfmAvailable } from "./lastfm-api.js";
+import { lastfmSearchByGenre } from "./lastfm-search.js";
 import { GENRE_QUERY_PREFIX_PATTERN, parseGenreQuery } from "./parser.js";
 
 export type { ParsedGenreQuery } from "./parser.js";

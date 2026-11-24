@@ -60,7 +60,7 @@ import { artistEntityIdSchema } from "../docs/public-response-schema.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { toAdminArtistEntityDetail } from "../services/artist-identity/admin.js";
 import { clearAllArtworks } from "../services/genre-artwork/index.js";
-import { resetBrowseCache } from "../services/genre-search/lastfm.js";
+import { resetBrowseCache } from "../services/genre-search/browse-grid.js";
 
 export default async function adminDataRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.tracks.list, async (request) => {
