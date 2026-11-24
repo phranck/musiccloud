@@ -10,5 +10,11 @@
     "path": "/folapondis/album/9-4108363",
     "status": 200,
     "tags": ["<meta property=\"og:title\" content=\"9 by FOLA: Listen on Audiomack\"/>"]
+  },
+  {
+    "service": "audiomack",
+    "path": "/drake/song/gods-plan",
+    "status": 200,
+    "tags": ["<meta property=\"og:title\" content=\"God&#x27;s Plan by Drake: Listen on Audiomack\"/>"]
   }
 ]
