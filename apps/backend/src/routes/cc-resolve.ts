@@ -23,10 +23,10 @@ import type {
 import { ENDPOINTS, parseJamendoLink } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getCcRepository, getRepository } from "../db/index.js";
-import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { siteResolveRateLimiter } from "../lib/infra/rate-limiter.js";
+import { shortUrlOrigin } from "../lib/server/allowed-origin.js";
 import { shortUrlFor } from "../lib/server/short-url.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
 import { ccCandidateIdForJamendoLink, resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
@@ -39,8 +39,6 @@ import {
 import type { CcAlbum, CcArtist, CcTrack } from "../services/cc/jamendo/types.js";
 import { GenreQueryParseError, isGenreBrowseQuery, isGenreSearchQuery } from "../services/genre-search/index.js";
 import { resolveAlbumVinylLayout, resolveTrackVinylLayout } from "../services/track-vinyl-layout.js";
-
-const ALLOWED_ORIGINS = requireEnvList("ALLOWED_ORIGINS");
 
 export default async function ccResolveRoutes(app: FastifyInstance) {
   app.post(
@@ -132,9 +130,13 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
       const selectedCandidate = body.selectedCandidate?.trim();
 
       if (!query && !selectedCandidate) {
-        return reply.status(400).send(ccError("INVALID_URL", "The 'query' or 'selectedCandidate' field is required."));
+        return reply.status(400).send(
+          createApiErrorResponse("INVALID_URL", {
+            overrideMessage: "The 'query' or 'selectedCandidate' field is required.",
+          }),
+        );
       }
-      const origin = getOrigin(request.headers.origin);
+      const origin = shortUrlOrigin(request.headers.origin);
 
       // CC genre discovery. Detected by the `genre:` prefix, handled
       // entirely from Jamendo (browse = `/radios`, search = `/tracks?tags=`).
@@ -149,7 +151,7 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
           return reply.send(await runCcGenreSearch(query));
         } catch (err) {
           if (err instanceof GenreQueryParseError) {
-            return reply.status(400).send(ccError("INVALID_URL", err.message));
+            return reply.status(400).send(createApiErrorResponse("INVALID_URL", { overrideMessage: err.message }));
           }
           throw err;
         }
@@ -163,7 +165,7 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
       if (candidate) {
         const resolved = await resolveCcCandidate(candidate);
         if (!resolved) {
-          return reply.status(404).send(ccError("TRACK_NOT_FOUND"));
+          return reply.status(404).send(createApiErrorResponse("TRACK_NOT_FOUND"));
         }
         switch (resolved.kind) {
           case "album":
@@ -180,30 +182,6 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
       return reply.send(disambiguation);
     },
   );
-}
-
-/**
- * Picks a whitelisted origin for the minted short URL.
- *
- * @param headerOrigin - raw `Origin` header.
- * @returns a whitelisted origin string.
- */
-function getOrigin(headerOrigin?: string): string {
-  if (headerOrigin && ALLOWED_ORIGINS.includes(headerOrigin)) {
-    return headerOrigin;
-  }
-  return ALLOWED_ORIGINS[0];
-}
-
-/**
- * Builds the wire-format error payload (same shape as the commercial route).
- *
- * @param code - error code from the shared table.
- * @param overrideMessage - optional message override.
- * @returns the error response body.
- */
-function ccError(code: string, overrideMessage?: string) {
-  return createApiErrorResponse(code, { overrideMessage });
 }
 
 /**
