@@ -4,9 +4,9 @@ import {
   DashboardActionStatus,
   DashboardButtonVariant,
 } from "@musiccloud/dashboard-ui";
+import { AdminRole } from "@musiccloud/shared";
 import { FileTextIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useState } from "react";
-
 import { ItemCard } from "@/components/ui/Card";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -14,7 +14,7 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAdminUsers, useDeleteUser } from "@/features/system/hooks/useAdminUsers";
-import { AdminArea, AdminRole, canAccessArea } from "@/shared/constants/domain";
+import { AdminArea, canAccessArea } from "@/shared/constants/domain";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 import { UserAvatar } from "./UserAvatar";

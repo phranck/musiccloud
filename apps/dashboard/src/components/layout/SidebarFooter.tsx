@@ -4,12 +4,12 @@ import {
   DashboardButtonVariant,
   DashboardIconButton,
 } from "@musiccloud/dashboard-ui";
+import type { AdminRole } from "@musiccloud/shared";
 import { SignOutIcon, UserCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { dashboardCopy } from "@/copy/dashboard";
 import { UserAvatar } from "@/features/system/UserAvatar";
 import { formatAdminName } from "@/lib/format";
-import type { AdminRole } from "@/shared/types/admin";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 const SKIP_KEY = "logout-skip-confirm";

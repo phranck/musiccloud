@@ -1,19 +1,4 @@
-import type { AdminRole } from "../constants/domain";
-
-export type { AdminRole };
-
-export interface AdminUser {
-  id: string;
-  username: string;
-  email?: string;
-  role: AdminRole;
-  firstName?: string | null;
-  lastName?: string | null;
-  avatarUrl?: string | null;
-  sessionTimeoutMinutes?: number | null;
-  createdAt: string;
-  lastLoginAt: string | null;
-}
+import type { AdminUserResponse } from "@musiccloud/shared";
 
 export interface AdminStats {
   tracks: number;
@@ -34,8 +19,14 @@ export interface AdminLogin {
   password: string;
 }
 
+/**
+ * The answer to inviting a dashboard user.
+ *
+ * @property user - The new user, who has not signed in yet.
+ * @property inviteUrl - The single-use address where the invitee sets a password.
+ */
 export interface AdminUserInvite {
-  user: AdminUser;
+  user: AdminUserResponse;
   inviteUrl: string;
 }
 

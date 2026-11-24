@@ -5,7 +5,7 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { type AdminUserResponse, ENDPOINTS } from "@musiccloud/shared";
 import { useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { dashboardCopy } from "@/copy/dashboard";
@@ -13,7 +13,7 @@ import { AuthBackground } from "@/features/auth/AuthBackground";
 import { useAuth } from "@/features/auth/AuthContext";
 import { AuthLogo } from "@/features/auth/AuthLogo";
 import { api } from "@/lib/api";
-import type { AdminInviteState, AdminUser } from "@/shared/types/admin";
+import type { AdminInviteState } from "@/shared/types/admin";
 
 interface UiState {
   phase: InvitePhase;
@@ -111,7 +111,7 @@ export function InvitePage() {
 
     dispatch({ type: InviteActionType.SubmitStart });
     try {
-      await api.post<AdminUser>(ENDPOINTS.admin.invite.accept, { token, password });
+      await api.post<AdminUserResponse>(ENDPOINTS.admin.invite.accept, { token, password });
       await refresh();
       navigate("/");
     } catch (err) {

@@ -10,7 +10,7 @@
  */
 
 import { DashboardActionButton, DashboardActionId } from "@musiccloud/dashboard-ui";
-import { formatEuroCents, type SiteVariableName, SPONSORING_LIMITS } from "@musiccloud/shared";
+import { AdminRole, formatEuroCents, type SiteVariableName, SPONSORING_LIMITS } from "@musiccloud/shared";
 import { BankIcon, CoinsIcon, MedalIcon, NoteIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
@@ -32,7 +32,6 @@ import {
   toSponsoringConfig,
   toSponsoringForm,
 } from "@/features/sponsoring/sponsoringForm";
-import { AdminRole } from "@/shared/constants/domain";
 import { FormLabel, formInputClass } from "@/shared/ui/FormPrimitives";
 
 /** The dashboard's copy. */

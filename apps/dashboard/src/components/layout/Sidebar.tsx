@@ -1,4 +1,4 @@
-import { BANK_CONNECTION_DASHBOARD_PATH, type ContentPageSummary } from "@musiccloud/shared";
+import { type AdminRole, BANK_CONNECTION_DASHBOARD_PATH, type ContentPageSummary } from "@musiccloud/shared";
 import {
   BankIcon,
   CaretCircleDoubleDownIcon,
@@ -58,7 +58,6 @@ import { SUPPORT_PROMPTS_PATH } from "@/features/sponsoring/supportPromptPaths";
 import { useBankConnection } from "@/features/sponsoring/useBankConnection";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import { AdminArea, canAccessArea } from "@/shared/constants/domain";
-import type { AdminRole } from "@/shared/types/admin";
 
 const SIDEBAR_GROUP_STORAGE_KEYS = ["sidebar-pages-open", "sidebar-email-templates-open"] as const;
 

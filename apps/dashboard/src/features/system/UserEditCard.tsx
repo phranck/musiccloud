@@ -5,7 +5,7 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
-import { IMAGE_UPLOAD_ACCEPT } from "@musiccloud/shared";
+import { AdminRole, type AdminUserResponse, IMAGE_UPLOAD_ACCEPT } from "@musiccloud/shared";
 import { DownloadIcon, TrashIcon, TrayArrowUpIcon, UserCircleIcon } from "@phosphor-icons/react";
 import md5 from "blueimp-md5";
 import { type ChangeEvent, type Reducer, type RefObject, useEffect, useReducer, useRef } from "react";
@@ -14,8 +14,7 @@ import type { DashboardCopy } from "@/copy/dashboard";
 import { dashboardCopy } from "@/copy/dashboard";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
-import { AdminArea, AdminRole, canAccessArea, type EditableAdminRole } from "@/shared/constants/domain";
-import type { AdminUser } from "@/shared/types/admin";
+import { AdminArea, canAccessArea, type EditableAdminRole } from "@/shared/constants/domain";
 import { AlertDialog } from "@/shared/ui/AlertDialog";
 import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
 import { FormLabel, formInputClass } from "@/shared/ui/FormPrimitives";
@@ -75,13 +74,13 @@ type UserEditDraftAction =
 interface UserEditCardFormProps {
   common: DashboardCopy["common"];
   logoutConfirmLabel: string;
-  me: AdminUser | null;
+  me: AdminUserResponse | null;
   onClose: () => void;
   onSaved: () => void;
   refreshAuth: () => Promise<void>;
   savedPhase: ReturnType<typeof useSaveNotification>["phase"];
   showSaved: ReturnType<typeof useSaveNotification>["show"];
-  user: AdminUser;
+  user: AdminUserResponse;
   usersMessages: DashboardCopy["users"];
 }
 
@@ -107,7 +106,7 @@ const userEditDraftReducer: Reducer<UserEditDraftState, UserEditDraftAction> = (
   }
 };
 
-function createInitialDraft(user: AdminUser): UserEditDraftState {
+function createInitialDraft(user: AdminUserResponse): UserEditDraftState {
   const logoutConfirm = localStorage.getItem("logout-skip-confirm") !== "true";
   return {
     username: user.username,
@@ -215,7 +214,7 @@ function UserProfileFields({
   canChangeRole: boolean;
   draft: UserEditDraftState;
   logoutConfirmLabel: string;
-  me: AdminUser | null;
+  me: AdminUserResponse | null;
   onFieldChange: (field: UserEditField, value: string) => void;
   onLogoutConfirmChange: (value: boolean) => void;
   onRoleChange: (value: EditableRole) => void;
