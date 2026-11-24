@@ -9,11 +9,12 @@
  * ## Error shape
  *
  * Deezer signals errors by returning `200 OK` with an `{ error: { ... } }`
- * body rather than HTTP status codes. The lookups and searches read their
- * answers through `deezerGet`, which treats code `800` ("no data") as
+ * body rather than HTTP status codes. Every lookup and search reads its
+ * answer through `readDeezerJson`, which treats code `800` ("no data") as
  * a miss and every other error as a failure, so a rate limit is never
  * recorded as "Deezer does not carry this track". `getTrack`, `getAlbum` and
- * `getArtist` keep `isDeezerError` and report the object as not found.
+ * `getArtist` turn that miss into the per-service not-found error, and a
+ * refused request stays an `UpstreamUnavailableError`.
  *
  * ## Bounded catalogue search
  *
@@ -70,8 +71,8 @@ import {
   trackSearchTexts,
 } from "../_shared/track-search-query.js";
 import { pickDeezerArtistImage } from "./artist-image.js";
-import { rankDeezerArtistSearch } from "./artist-search.js";
-import { deezerFetch, deezerGet } from "./deezer-response.js";
+import { type DeezerArtistSearchHit, rankDeezerArtistSearch } from "./artist-search.js";
+import { deezerFetch, deezerGet, readDeezerJson } from "./deezer-response.js";
 
 const DEEZER_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/;
 const DEEZER_ALBUM_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?album\/(\d+)/;
@@ -158,12 +159,36 @@ function mapAlbum(raw: DeezerAlbumResponse): NormalizedAlbum {
   };
 }
 
-interface DeezerErrorResponse {
-  error: { type: string; message: string; code: number };
-}
+/**
+ * Looks one Deezer object up by its id, for `getTrack`, `getAlbum` and
+ * `getArtist`.
+ *
+ * Only Deezer's "no data" answer means the object does not exist. Every other
+ * error body, such as code `4` for the quota, is a failure, so a link Deezer
+ * carries is never answered with "not found" while Deezer refuses requests.
+ *
+ * @param path - The lookup path below the API root, such as `/track/3135556`.
+ * @param kind - What is looked up, which names the resource in the error.
+ * @param id - The Deezer id being looked up, as the caller received it.
+ * @returns The parsed object, not yet validated.
+ * @throws {ResolveError} with the per-service HTTP code from `serviceHttpError`
+ *   for an error status, or the per-service not-found code from
+ *   `serviceNotFoundError` when Deezer has no such object.
+ * @throws {UpstreamUnavailableError} for any other error body or a body that
+ *   is not JSON.
+ */
+async function lookupDeezerObject<Body>(path: string, kind: ResourceKind, id: string): Promise<Body> {
+  const response = await deezerFetch(path);
 
-function isDeezerError(data: unknown): data is DeezerErrorResponse {
-  return typeof data === "object" && data !== null && "error" in data;
+  if (!response.ok) {
+    throw serviceHttpError(Service.Deezer, response.status, kind, id);
+  }
+
+  const data = await readDeezerJson<Body>(response, `${kind} lookup`);
+  if (data === null) {
+    throw serviceNotFoundError(Service.Deezer, kind, id);
+  }
+  return data;
 }
 
 /**
@@ -289,21 +314,16 @@ export const deezerAdapter = {
    * Fetches source metadata and validates consumed fields before normalization.
    * @param trackId - Deezer recording id from URL detection or candidate selection.
    * @returns Recording metadata with identifiers, preview, and supplied artwork.
-   * @throws Provider or malformed-response errors rather than accepting corrupt metadata.
+   * @throws {ResolveError} for an error status, or when Deezer has no such recording.
+   * @throws {UpstreamUnavailableError} when Deezer refused the request, such as
+   *   for the quota, or answered with malformed metadata.
    */
   async getTrack(trackId: string): Promise<NormalizedTrack> {
-    const response = await deezerFetch(`/track/${encodeURIComponent(trackId)}`);
-
-    if (!response.ok) {
-      throw serviceHttpError(Service.Deezer, response.status, ResourceKind.Track, trackId);
-    }
-
-    const data = await response.json();
-
-    if (isDeezerError(data)) {
-      throw serviceNotFoundError(Service.Deezer, ResourceKind.Track, trackId, data.error.message);
-    }
-
+    const data = await lookupDeezerObject<unknown>(
+      `/track/${encodeURIComponent(trackId)}`,
+      ResourceKind.Track,
+      trackId,
+    );
     assertDeezerRecording(data);
     return mapTrack(data);
   },
@@ -413,25 +433,21 @@ export const deezerAdapter = {
     return match ? match[1] : null;
   },
 
+  /**
+   * Fetches an album with its tracklist, from which the top track's preview is taken.
+   * @param albumId - Deezer album id from URL detection or a stored link.
+   * @returns The normalized album.
+   * @throws {ResolveError} for an error status, or when Deezer has no such album.
+   * @throws {UpstreamUnavailableError} when Deezer refused the request, such as
+   *   for the quota, or answered with a body that is not JSON.
+   */
   async getAlbum(albumId: string): Promise<NormalizedAlbum> {
-    const response = await deezerFetch(`/album/${encodeURIComponent(albumId)}`);
-
-    if (!response.ok) {
-      throw serviceHttpError(Service.Deezer, response.status, ResourceKind.Album, albumId);
-    }
-
-    const data = await response.json();
-
-    if (isDeezerError(data)) {
-      throw serviceNotFoundError(
-        Service.Deezer,
-        ResourceKind.Album,
-        albumId,
-        (data as DeezerErrorResponse).error.message,
-      );
-    }
-
-    return mapAlbum(data as DeezerAlbumResponse);
+    const data = await lookupDeezerObject<DeezerAlbumResponse>(
+      `/album/${encodeURIComponent(albumId)}`,
+      ResourceKind.Album,
+      albumId,
+    );
+    return mapAlbum(data);
   },
 
   async findAlbumByUpc(upc: string): Promise<NormalizedAlbum | null> {
@@ -485,18 +501,20 @@ export const deezerAdapter = {
     return match ? match[1] : null;
   },
 
+  /**
+   * Fetches an artist by id. Deezer's stock silhouette counts as no picture.
+   * @param artistId - Deezer artist id from URL detection.
+   * @returns The normalized artist.
+   * @throws {ResolveError} for an error status, or when Deezer has no such artist.
+   * @throws {UpstreamUnavailableError} when Deezer refused the request, such as
+   *   for the quota, or answered with a body that is not JSON.
+   */
   async getArtist(artistId: string): Promise<NormalizedArtist> {
-    const response = await deezerFetch(`/artist/${encodeURIComponent(artistId)}`);
-
-    if (!response.ok) {
-      throw serviceHttpError(Service.Deezer, response.status, ResourceKind.Artist, artistId);
-    }
-
-    const data = await response.json();
-
-    if (isDeezerError(data)) {
-      throw serviceNotFoundError(Service.Deezer, ResourceKind.Artist, artistId, data.error.message);
-    }
+    const data = await lookupDeezerObject<DeezerArtistSearchHit>(
+      `/artist/${encodeURIComponent(artistId)}`,
+      ResourceKind.Artist,
+      artistId,
+    );
 
     return {
       sourceService: "deezer",

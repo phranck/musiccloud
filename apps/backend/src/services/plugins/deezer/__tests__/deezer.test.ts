@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
+import { ResolveError } from "../../../../lib/resolve/errors";
 import { deezerAdapter } from "../adapter";
 import recordedAlbumSearch from "./fixtures/random-access-memories-search.json";
 
@@ -161,7 +162,7 @@ describe("Deezer: getTrack", () => {
       ),
     );
 
-    await expect(deezerAdapter.getTrack("999999")).rejects.toThrow(/Deezer: Track not found: 999999 \(no data\)/);
+    await expect(deezerAdapter.getTrack("999999")).rejects.toThrow("Deezer: Track not found: 999999");
   });
 
   it("should use cover_big as fallback when cover_xl is missing", async () => {
@@ -728,6 +729,51 @@ describe("Deezer: artist pictures", () => {
     );
 
     expect((await deezerAdapter.getArtist("27")).imageUrl).toBe("https://cdn/daft-punk.jpg");
+  });
+});
+
+// =============================================================================
+// direct lookups and Deezer error codes
+// =============================================================================
+
+/** The error body Deezer answers with `200 OK` once the request quota is used up. */
+const DEEZER_QUOTA_ERROR = { error: { type: "Exception", message: "Quota limit exceeded", code: 4 } };
+
+/** The error body Deezer answers with `200 OK` when the requested object does not exist. */
+const DEEZER_NO_DATA_ERROR = { error: { type: "DataException", message: "no data", code: 800 } };
+
+/**
+ * The three lookups by id, each with the word its not-found message uses.
+ * A source link of any kind runs through one of them.
+ */
+const DIRECT_LOOKUPS = [
+  { name: "getTrack", kindLabel: "Track", lookup: (id: string) => deezerAdapter.getTrack(id) },
+  { name: "getAlbum", kindLabel: "Album", lookup: (id: string) => deezerAdapter.getAlbum(id) },
+  { name: "getArtist", kindLabel: "Artist", lookup: (id: string) => deezerAdapter.getArtist(id) },
+];
+
+describe("Deezer: direct lookups and Deezer error codes", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * A quota answer says nothing about the catalogue, so it has to read as a
+   * temporary failure. Read as not found, a link to a track Deezer carries
+   * would be answered with "not found" for as long as the quota lasts.
+   */
+  it.each(DIRECT_LOOKUPS)("$name reports a quota error as a temporary failure", async ({ lookup }) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(DEEZER_QUOTA_ERROR));
+
+    await expect(lookup("3135556")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
+  it.each(DIRECT_LOOKUPS)("$name reports Deezer's no-data answer as not found", async ({ lookup, kindLabel }) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(DEEZER_NO_DATA_ERROR));
+
+    const failure = lookup("999999");
+    await expect(failure).rejects.toBeInstanceOf(ResolveError);
+    await expect(failure).rejects.toThrow(`Deezer: ${kindLabel} not found: 999999`);
   });
 });
 
