@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DynamicRateLimiter, RateLimiter } from "@/lib/infra/rate-limiter";
+import { DAY_WINDOW_MS, MINUTE_WINDOW_SECONDS } from "@/lib/infra/rate-limit-policy";
+import {
+  DynamicRateLimiter,
+  projectDayRateLimiter,
+  projectMinuteRateLimiter,
+  RateLimiter,
+  registrationDayRateLimiter,
+  registrationMinuteRateLimiter,
+} from "@/lib/infra/rate-limiter";
+
+/** Milliseconds per second, to compare a check's window in seconds with a window in milliseconds. */
+const MS_PER_SECOND = 1000;
 
 describe("RateLimiter", () => {
   beforeEach(() => {
@@ -174,5 +185,21 @@ describe("DynamicRateLimiter", () => {
 
     expect(limiter.check("client-1", 1).limited).toBe(false);
     expect(limiter.check("client-1", 1).limited).toBe(false);
+  });
+});
+
+describe("project and registration quota limiters", () => {
+  it("enforce over the exported minute and day windows", () => {
+    process.env.DISABLE_RATE_LIMIT = "true";
+    try {
+      for (const limiter of [projectMinuteRateLimiter, registrationMinuteRateLimiter]) {
+        expect(limiter.check("window-probe", 1).windowSeconds).toBe(MINUTE_WINDOW_SECONDS);
+      }
+      for (const limiter of [projectDayRateLimiter, registrationDayRateLimiter]) {
+        expect(limiter.check("window-probe", 1).windowSeconds * MS_PER_SECOND).toBe(DAY_WINDOW_MS);
+      }
+    } finally {
+      delete process.env.DISABLE_RATE_LIMIT;
+    }
   });
 });

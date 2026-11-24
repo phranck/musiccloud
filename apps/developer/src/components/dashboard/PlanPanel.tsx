@@ -1,3 +1,4 @@
+import { perDayQuotaLabel, perMinuteQuotaLabel, quotaSummaryLabel } from "@musiccloud/shared";
 import { useCallback, useEffect, useState } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
@@ -7,7 +8,6 @@ import { type DeveloperProjectDto, getDeveloperProject, setDeveloperProjectPlan 
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
 import { CoinIcon, ForbiddenIcon } from "@/lib/icons";
 import { type PanelFailure, toPanelFailure } from "@/lib/projectsPanelState";
-import { perDayQuotaLabel, perMinuteQuotaLabel, quotaSummaryLabel } from "@/lib/quotaLabel";
 
 /**
  * A plan as this screen needs to describe it: what it is called, what it

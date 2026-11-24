@@ -5,6 +5,7 @@
 import { ENDPOINTS, type PublicTier } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getTierRepository } from "../db/index.js";
+import { DAY_WINDOW_HOURS, MINUTE_WINDOW_SECONDS } from "../lib/infra/rate-limit-policy.js";
 import { isFreeTier, isSelfServiceAssignableTier } from "../services/signup-tier.js";
 import { enrichTiersWithCreemPrices } from "../services/tier-pricing.js";
 
@@ -15,8 +16,7 @@ export default async function publicTiersRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Plans"],
         summary: "List public API plans",
-        description:
-          "Returns every public musiccloud API plan in ascending `sortOrder`, including rolling request limits, current display prices, selection availability, and feature labels. `requestsPerMinute` applies to a rolling `60`-second window and `requestsPerDay` to a rolling `24`-hour window. Prices are decimal strings in whole currency units rather than floating-point numbers, and each one names its currency as an ISO 4217 code in `priceCurrency` or `priceYearlyCurrency`; use `null` to detect billing intervals that are not offered, and `free` to tell a free plan from one sold over another interval.",
+        description: `Returns every public musiccloud API plan in ascending \`sortOrder\`, including rolling request limits, current display prices, selection availability, and feature labels. \`requestsPerMinute\` applies to a rolling \`${MINUTE_WINDOW_SECONDS}\`-second window and \`requestsPerDay\` to a rolling \`${DAY_WINDOW_HOURS}\`-hour window. Prices are decimal strings in whole currency units rather than floating-point numbers, and each one names its currency as an ISO 4217 code in \`priceCurrency\` or \`priceYearlyCurrency\`; use \`null\` to detect billing intervals that are not offered, and \`free\` to tell a free plan from one sold over another interval.`,
         response: {
           200: {
             description: "Public API plans in pricing-page display order.",

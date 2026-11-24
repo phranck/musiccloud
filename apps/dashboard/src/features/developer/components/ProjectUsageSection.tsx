@@ -1,4 +1,5 @@
-import { UsageChart, type UsageChartBucketValue } from "@musiccloud/dashboard-ui";
+import { UsageChart } from "@musiccloud/dashboard-ui";
+import { isNeverCalled, usageChartLabel, usageShare } from "@musiccloud/shared";
 import { ChartLine as ChartLineIcon } from "@phosphor-icons/react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { dashboardCopy } from "@/copy/dashboard";
@@ -7,28 +8,23 @@ import { useProjectUsage } from "@/features/developer/hooks/useDeveloperData";
 const messages = dashboardCopy;
 const dm = messages.developer;
 
-const NUMBER_FORMAT = new Intl.NumberFormat("en-US");
-
 /**
- * One window's usage against what the plan grants.
+ * One window's usage against what the plan grants, worded and measured by the
+ * shared `usageShare`, so it reads exactly as the developer portal's usage page.
  *
- * A project whose plan grants nothing has no denominator, and saying so beats
- * dividing by a number that does not exist. The bar is clamped at full whilst
- * the label still reports the real figures, because a bar cannot show more
- * than full and the numbers should.
+ * A window without a granted limit shows its count and no bar. The bar is
+ * clamped at full whilst the label still reports the real figures, because a
+ * bar cannot show more than full and the numbers should.
  */
 function UsageWindow({ label, used, granted }: { label: string; used: number; granted: number | null }) {
-  const percent = granted === null || granted <= 0 ? null : Math.min(Math.round((used / granted) * 100), 100);
-  const exhausted = granted !== null && granted > 0 && used >= granted;
+  const { label: figures, percent, exhausted } = usageShare(used, granted);
 
   return (
     <div>
       <div className="mb-1 flex items-center justify-between gap-3">
         <span className="text-xs font-medium text-[var(--ds-text-muted)]">{label}</span>
         <span className={`text-sm tabular-nums ${exhausted ? "text-amber-400" : "text-[var(--ds-text)]"}`}>
-          {granted === null
-            ? `${NUMBER_FORMAT.format(used)} · ${dm.usageNoLimit}`
-            : `${NUMBER_FORMAT.format(used)} / ${NUMBER_FORMAT.format(granted)}`}
+          {figures}
         </span>
       </div>
       {percent !== null && (
@@ -65,7 +61,7 @@ export interface ProjectUsageSectionProps {
 export function ProjectUsageSection({ projectId }: ProjectUsageSectionProps) {
   const { data, isLoading, isError } = useProjectUsage(projectId);
 
-  const neverCalled = data !== undefined && data.windows.day.total === 0 && data.range.total === 0;
+  const neverCalled = data !== undefined && isNeverCalled(data);
 
   return (
     <DashboardSection className="overflow-hidden">
@@ -87,11 +83,7 @@ export function ProjectUsageSection({ projectId }: ProjectUsageSectionProps) {
             {neverCalled ? (
               <p className="text-xs text-[var(--ds-text-muted)]">{dm.projectUsageNeverCalled}</p>
             ) : (
-              <UsageChart
-                points={data.range.buckets}
-                bucket={data.range.bucket as UsageChartBucketValue}
-                label={`${data.range.total} requests between ${data.range.from} and ${data.range.to}`}
-              />
+              <UsageChart points={data.range.buckets} bucket={data.range.bucket} label={usageChartLabel(data)} />
             )}
           </div>
         )}

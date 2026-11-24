@@ -1,5 +1,5 @@
 import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
-import { SubscriptionStatus } from "@musiccloud/shared";
+import { perDayQuotaLabel, perMinuteQuotaLabel, SubscriptionStatus } from "@musiccloud/shared";
 import { Gauge as GaugeIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -167,7 +167,7 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
               onChange={(event) => setMinuteDraft(event.target.value)}
             />
             <p className="mt-1 text-xs text-[var(--ds-text-muted)]">
-              {dm.projectEnforcedNow}: {project.effectiveRequestsPerMinute ?? dm.clientTrafficNoPlan}
+              {dm.projectEnforcedNow}: {perMinuteQuotaLabel(project.effectiveRequestsPerMinute)}
             </p>
           </div>
           <div>
@@ -181,7 +181,7 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
               onChange={(event) => setDayDraft(event.target.value)}
             />
             <p className="mt-1 text-xs text-[var(--ds-text-muted)]">
-              {dm.projectEnforcedNow}: {project.effectiveRequestsPerDay ?? dm.clientTrafficNoPlan}
+              {dm.projectEnforcedNow}: {perDayQuotaLabel(project.effectiveRequestsPerDay)}
             </p>
           </div>
         </div>

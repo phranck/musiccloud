@@ -118,8 +118,8 @@ describe("ProjectPlanSection", () => {
   it("shows the enforced figure beside each override", () => {
     renderSection(makeProject({ requestsPerMinute: 600, effectiveRequestsPerMinute: 600 }));
 
-    expect(screen.getByText("Enforced now: 600")).not.toBeNull();
-    expect(screen.getByText("Enforced now: 10000")).not.toBeNull();
+    expect(screen.getByText("Enforced now: 600 requests/minute")).not.toBeNull();
+    expect(screen.getByText("Enforced now: 10,000 requests/day")).not.toBeNull();
   });
 
   it("warns that an override grants nothing whilst the project has no plan", () => {

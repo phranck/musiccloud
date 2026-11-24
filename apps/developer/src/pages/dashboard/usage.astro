@@ -16,13 +16,13 @@ import { ApiContent } from "@/components/docs/ApiContent";
 import { ContentCard } from "@/components/docs/ContentCard";
 import { ContentPanel } from "@/components/docs/ContentPanel";
 import { UsageChart } from "@musiccloud/dashboard-ui";
+import { isNeverCalled, usageChartLabel, usageShare } from "@musiccloud/shared";
 import { iconForDashboardTab } from "@/lib/dashboardNavIcons";
 import { getOwnProjects, getProjectUsage } from "@/lib/apiAccessServer";
 import { DashboardTab } from "@/lib/dashboardTabs";
 import { DataIcon, DiagramIcon } from "@/lib/icons";
 import { projectPath } from "@/lib/projectPath";
 import { getDeveloperSession } from "@/lib/session";
-import { usageShare } from "@/lib/usageShare";
 
 export const prerender = false;
 
@@ -78,7 +78,7 @@ const PageIcon = iconForDashboardTab(DashboardTab.Usage);
         {reports.map(({ project, usage }) => {
           const minute = usage ? usageShare(usage.windows.minute.total, usage.quota.requestsPerMinute) : null;
           const day = usage ? usageShare(usage.windows.day.total, usage.quota.requestsPerDay) : null;
-          const neverCalled = usage !== null && usage.windows.day.total === 0 && usage.range.total === 0;
+          const neverCalled = usage !== null && isNeverCalled(usage);
           return (
             <ContentCard>
               <ContentCard.Header>
@@ -142,8 +142,8 @@ const PageIcon = iconForDashboardTab(DashboardTab.Usage);
                             <UsageChart
                               client:visible
                               points={usage.range.buckets}
-                              bucket={usage.range.bucket === "day" ? "day" : "hour"}
-                              label={`${usage.range.total} requests between ${usage.range.from} and ${usage.range.to}`}
+                              bucket={usage.range.bucket}
+                              label={usageChartLabel(usage)}
                             />
                           </div>
                         )}

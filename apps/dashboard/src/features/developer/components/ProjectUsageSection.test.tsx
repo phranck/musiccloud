@@ -56,8 +56,8 @@ describe("ProjectUsageSection", () => {
     mocks.fetchUsage.mockResolvedValue(makeUsage());
     renderSection();
 
-    expect(await screen.findByText("12 / 60")).not.toBeNull();
-    expect(screen.getByText("1,200 / 10,000")).not.toBeNull();
+    expect(await screen.findByText("12 of 60")).not.toBeNull();
+    expect(screen.getByText("1,200 of 10,000")).not.toBeNull();
   });
 
   it("says nothing is granted rather than dividing by a limit that does not exist", async () => {
@@ -68,18 +68,27 @@ describe("ProjectUsageSection", () => {
     expect(screen.getByText("1,200 · no limit granted")).not.toBeNull();
   });
 
+  it("treats a granted zero as no limit, the way the developer portal does", async () => {
+    mocks.fetchUsage.mockResolvedValue(makeUsage({ quota: { requestsPerMinute: 0, requestsPerDay: 0 } }));
+    renderSection();
+
+    expect(await screen.findByText("12 · no limit granted")).not.toBeNull();
+    expect(screen.getByText("1,200 · no limit granted")).not.toBeNull();
+    expect(screen.queryByText("1,200 / 0")).toBeNull();
+  });
+
   it("hands the chart the series and describes it for a reader who cannot see it", async () => {
     mocks.fetchUsage.mockResolvedValue(makeUsage());
     renderSection();
 
-    await screen.findByText("12 / 60");
+    await screen.findByText("12 of 60");
     // Recharts measures its container, which has no size under jsdom, so the
     // bars themselves are not rendered here. What this asserts is the part
     // that has to be right regardless: the chart is present and says what it
     // shows. The bars are the library's business and its own tests cover them.
     const chart = await screen.findByRole("figure");
     expect(chart.getAttribute("aria-label")).toBe(
-      "1200 requests between 2026-08-30T12:00:00.000Z and 2026-08-31T12:00:00.000Z",
+      "1,200 requests between 2026-08-30T12:00:00.000Z and 2026-08-31T12:00:00.000Z",
     );
   });
 

@@ -43,6 +43,7 @@ export * from "./percent-decoding.js";
 export * from "./platform.js";
 export * from "./plugins.js";
 export * from "./public-error-catalog.js";
+export * from "./quota.js";
 export * from "./record-id.js";
 export * from "./request-correlation.js";
 export * from "./safe-url.js";

@@ -7,10 +7,10 @@
  * Browser-side calls (the interactive panels) live in `apiAccessClient.ts`;
  * both share the same DTO shapes.
  */
-import { ENDPOINTS, visitorAddress } from "@musiccloud/shared";
+import { type ApiUsageReport, ENDPOINTS, visitorAddress } from "@musiccloud/shared";
 import type { AstroGlobal } from "astro";
 import { backendUrl, internalHeaders } from "@/lib/api";
-import type { ApiClientDto, DeveloperProjectDto, ProjectUsageDto } from "@/lib/apiAccessClient";
+import type { ApiClientDto, DeveloperProjectDto } from "@/lib/apiAccessClient";
 
 /** Session cookie name, in lockstep with `session.ts` / the backend. */
 const SESSION_COOKIE_NAME = "mc_dev_session";
@@ -54,7 +54,7 @@ export async function getOwnApiClients(astro: AstroGlobal): Promise<ApiClientDto
  * @param projectId - The project to report on.
  * @returns The usage report, or `null` when it could not be loaded.
  */
-export async function getProjectUsage(astro: AstroGlobal, projectId: string): Promise<ProjectUsageDto | null> {
+export async function getProjectUsage(astro: AstroGlobal, projectId: string): Promise<ApiUsageReport | null> {
   const sessionCookie = astro.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (!sessionCookie) return null;
 
@@ -65,7 +65,7 @@ export async function getProjectUsage(astro: AstroGlobal, projectId: string): Pr
       }),
     });
     if (!res.ok) return null;
-    return (await res.json()) as ProjectUsageDto;
+    return (await res.json()) as ApiUsageReport;
   } catch {
     return null;
   }

@@ -14,6 +14,7 @@ import {
   MAX_TIER_DESCRIPTION_LENGTH,
   MAX_TIER_DISABLE_REASON_LENGTH,
   MAX_TIER_NAME_LENGTH,
+  quotaSummaryLabel,
 } from "@musiccloud/shared";
 import {
   CheckCircle as CheckCircleIcon,
@@ -519,7 +520,7 @@ function useTierColumns(
         sortKey: (a) => a.requestsPerMinute,
         cell: (a) => (
           <span className="text-[var(--ds-text-muted)]">
-            {a.requestsPerMinute}/min &middot; {a.requestsPerDay}/day
+            {quotaSummaryLabel(a.requestsPerMinute, a.requestsPerDay)}
           </span>
         ),
       },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { RETENTION_DAY_MS } from "./api-access-retention.js";
+import { DAY_WINDOW_MS } from "../lib/infra/rate-limit-policy.js";
 import { APP_ATTEST_KEY_RETENTION_DAYS, sweepAppAttestKeyRetention } from "./app-attest-retention.js";
 
 describe("sweepAppAttestKeyRetention", () => {
@@ -13,6 +13,6 @@ describe("sweepAppAttestKeyRetention", () => {
     }, now);
 
     expect(removed).toBe(3);
-    expect(cutoff?.getTime()).toBe(now - APP_ATTEST_KEY_RETENTION_DAYS * RETENTION_DAY_MS);
+    expect(cutoff?.getTime()).toBe(now - APP_ATTEST_KEY_RETENTION_DAYS * DAY_WINDOW_MS);
   });
 });

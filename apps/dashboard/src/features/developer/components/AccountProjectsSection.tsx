@@ -1,4 +1,5 @@
 import { type ColumnDef, DataTable, DataTableScroll, StatusBadge } from "@musiccloud/dashboard-ui";
+import { quotaSummaryLabel } from "@musiccloud/shared";
 import { PencilSimple as PencilSimpleIcon, Stack as StackIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import { useNavigate } from "react-router";
@@ -13,23 +14,6 @@ import { formatEnglishDate } from "@/lib/format";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
-
-/**
- * The limits actually enforced on a project, as one line.
- *
- * A project without a granting plan has no quota rather than an
- * administrative one, so it says that instead of printing a number nothing
- * enforces.
- *
- * @param project - The project to describe.
- * @returns The limit line, or the no-plan label.
- */
-function limitsLabel(project: DeveloperProjectResponse): string {
-  if (project.effectiveRequestsPerMinute === null || project.effectiveRequestsPerDay === null) {
-    return dm.clientTrafficNoPlan;
-  }
-  return `${project.effectiveRequestsPerMinute}${dm.perMinute} · ${project.effectiveRequestsPerDay}${dm.perDay}`;
-}
 
 /**
  * Column definitions for the project table on a developer account.
@@ -71,7 +55,7 @@ function useProjectColumns(
         sortKey: (project) => project.effectiveRequestsPerMinute ?? 0,
         cell: (project) => (
           <span className="inline-flex items-center gap-1.5">
-            <span>{limitsLabel(project)}</span>
+            <span>{quotaSummaryLabel(project.effectiveRequestsPerMinute, project.effectiveRequestsPerDay)}</span>
             {hasLimitOverride(project.requestsPerMinute, project.requestsPerDay) && <CustomLimitBadge />}
           </span>
         ),
