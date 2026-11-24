@@ -744,9 +744,9 @@ export const MC_ERROR_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS|B
  * lookup. The record is keyed by every {@link ServiceId}, so a new service does
  * not compile until it has a prefix, and support decodes a code from here.
  *
- * The prefix `7` belongs to no service. It named a service that has since been
- * removed, so it is never handed to a new one, and a `7xxx` code quoted from an
- * older log cannot be read as another service's failure.
+ * The prefix `7` is reserved and is never given to a service, because codes
+ * with it still appear in stored logs and must not be read as another
+ * service's failure.
  */
 export const ADAPTER_ERROR_CODE_PREFIX: Record<ServiceId, string> = {
   "apple-music": "1",
