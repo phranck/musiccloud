@@ -8,13 +8,14 @@
  * supplies the official item count used for edition matching. No youtubei
  * endpoint, browser cookie, or JavaScript evaluation is involved.
  *
+ * Page fetching and parsing live in `music-page.ts`.
+ *
  * Only a recognized search document with no compatible album is a miss.
  * HTTP failures, consent or gateway pages, malformed hydration, missing
  * album details, and invalid item counts throw so negative cache entries
  * cannot turn an incomplete provider answer into a month-long absence.
  */
 import { Operation, ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { calculateArtistNameConfidence, stringSimilarity } from "../../../lib/resolve/normalize";
@@ -23,168 +24,29 @@ import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type { AlbumMatchResult, AlbumSearchQuery, NormalizedAlbum } from "../../types.js";
 import { artistIdentityNames } from "../_shared/artists.js";
 import { isFreeTextSearch, scoreAlbumCandidate, searchText } from "../_shared/confidence.js";
-import { readProviderHtml, requireProviderCollection } from "../_shared/provider-response.js";
-import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
 import { youtubeFetch } from "./api.js";
+import {
+  ALBUM_ID_PATTERN,
+  type AlbumCandidate,
+  artistNames,
+  fetchMusicPage,
+  isObject,
+  parseHydration,
+  type Renderer,
+  releaseYear,
+  requireSearchRoot,
+  searchCandidates,
+  textRuns,
+  visitObjects,
+} from "./music-page.js";
 
-const ALBUM_ID_PATTERN = /^OLAK5uy_[a-zA-Z0-9_-]+$/;
 const MIN_ALBUM_ARTIST_CONFIDENCE = 0.9;
 const PRIMARY_ARTIST_NAME_COUNT = 2;
-const HYDRATION_ENTRY_PATTERN =
-  /initialData\.push\(\{path: '((?:\\.|[^'])*)', params: JSON\.parse\('((?:\\.|[^'])*)'\), data: '((?:\\.|[^'])*)'\}\);/g;
-
-type JsonObject = Record<string, unknown>;
-
-interface TextRun {
-  text?: string;
-  navigationEndpoint?: {
-    browseEndpoint?: {
-      browseEndpointContextSupportedConfigs?: {
-        browseEndpointContextMusicConfig?: { pageType?: string };
-      };
-    };
-  };
-}
-
-interface YouTubeText {
-  simpleText?: string;
-  runs?: TextRun[];
-}
-
-interface Renderer {
-  title?: YouTubeText;
-  subtitle?: YouTubeText;
-  straplineTextOne?: YouTubeText;
-  flexColumns?: Array<{
-    musicResponsiveListItemFlexColumnRenderer?: { text?: YouTubeText };
-  }>;
-}
-
-interface AlbumCandidate {
-  sourceId: string;
-  title: string;
-  artists: string[];
-  releaseDate?: string;
-  totalTracks?: number;
-}
 
 interface PlaylistResource {
   id?: string;
   contentDetails?: { itemCount?: number };
-}
-
-function isObject(value: unknown): value is JsonObject {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function visitObjects(value: unknown, visit: (object: JsonObject) => void): void {
-  if (!isObject(value)) return;
-  visit(value);
-  for (const child of Object.values(value)) {
-    if (Array.isArray(child)) {
-      for (const item of child) visitObjects(item, visit);
-    } else {
-      visitObjects(child, visit);
-    }
-  }
-}
-
-function decodeHydrationString(value: string, path: "search" | "browse"): string {
-  try {
-    return JSON.parse(`"${value.replace(/\\x([0-9a-fA-F]{2})/g, "\\u00$1")}"`) as string;
-  } catch (cause) {
-    throw new UpstreamUnavailableError(
-      "youtube",
-      `YouTube Music ${path} search document has invalid hydration escapes`,
-      cause,
-    );
-  }
-}
-
-function parseHydration(html: string, path: "search" | "browse"): unknown {
-  for (const match of html.matchAll(HYDRATION_ENTRY_PATTERN)) {
-    if (decodeHydrationString(match[1], path) !== `/${path}`) continue;
-    const decoded = decodeHydrationString(match[3], path);
-    try {
-      return JSON.parse(decoded) as unknown;
-    } catch (cause) {
-      throw new UpstreamUnavailableError(
-        "youtube",
-        `YouTube Music ${path} search document has invalid hydration JSON`,
-        cause,
-      );
-    }
-  }
-  throw new UpstreamUnavailableError(
-    "youtube",
-    `YouTube Music ${path} search document lacks its expected hydration entry`,
-  );
-}
-
-async function fetchMusicPage(url: string, id: string, operation: Operation): Promise<string> {
-  const response = await fetchWithTimeout(
-    url,
-    { headers: { "User-Agent": SCRAPER_USER_AGENT, "Accept-Language": "en-US,en;q=0.9" } },
-    5000,
-  );
-  if (!response.ok) throw serviceHttpError(Service.YouTube, response.status, ResourceKind.Album, id, operation);
-  return readProviderHtml(response, Service.YouTube, `YouTube Music album ${operation}`);
-}
-
-function textRuns(value: YouTubeText | undefined): TextRun[] {
-  if (value?.runs) return value.runs;
-  return value?.simpleText ? [{ text: value.simpleText }] : [];
-}
-
-function artistNames(value: YouTubeText | undefined): string[] {
-  return textRuns(value)
-    .filter(
-      (run) =>
-        run.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig
-          ?.pageType === "MUSIC_PAGE_TYPE_ARTIST",
-    )
-    .map((run) => run.text?.trim() ?? "")
-    .filter(Boolean);
-}
-
-function releaseYear(value: YouTubeText | undefined): string | undefined {
-  return textRuns(value)
-    .map((run) => run.text?.trim())
-    .find((text) => text && /^\d{4}$/.test(text));
-}
-
-function collectPlaylistIds(value: unknown, ids = new Set<string>()): Set<string> {
-  visitObjects(value, (object) => {
-    const endpoint = object.watchPlaylistEndpoint;
-    if (!isObject(endpoint) || typeof endpoint.playlistId !== "string") return;
-    if (ALBUM_ID_PATTERN.test(endpoint.playlistId)) ids.add(endpoint.playlistId);
-  });
-  return ids;
-}
-
-function searchCandidates(data: unknown): AlbumCandidate[] {
-  const candidates: AlbumCandidate[] = [];
-  visitObjects(data, (object) => {
-    for (const key of ["musicCardShelfRenderer", "musicResponsiveListItemRenderer"] as const) {
-      const renderer = object[key];
-      if (!isObject(renderer)) continue;
-      const typed = renderer as Renderer;
-      const subtitle = typed.subtitle ?? typed.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text;
-      if (textRuns(subtitle)[0]?.text !== "Album") continue;
-      const titleText = typed.title ?? typed.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text;
-      const title = textRuns(titleText)[0]?.text?.trim();
-      const artists = artistNames(subtitle);
-      const playlistIds = [...collectPlaylistIds(renderer)];
-      if (!title || artists.length === 0 || playlistIds.length !== 1) continue;
-      candidates.push({
-        sourceId: playlistIds[0],
-        title,
-        artists,
-        releaseDate: releaseYear(subtitle),
-      });
-    }
-  });
-  return [...new Map(candidates.map((candidate) => [candidate.sourceId, candidate])).values()];
 }
 
 function albumIdentityMatches(query: AlbumSearchQuery, candidate: AlbumCandidate): boolean {
@@ -194,24 +56,6 @@ function albumIdentityMatches(query: AlbumSearchQuery, candidate: AlbumCandidate
   return wantedArtists.some((wanted) =>
     candidate.artists.some((actual) => calculateArtistNameConfidence(wanted, actual) >= MIN_ALBUM_ARTIST_CONFIDENCE),
   );
-}
-
-function requireSearchRoot(data: unknown): void {
-  if (!isObject(data) || !isObject(data.contents) || !isObject(data.contents.tabbedSearchResultsRenderer)) {
-    throw new UpstreamUnavailableError("youtube", "YouTube Music search document lacks its expected result root");
-  }
-  const tabs = data.contents.tabbedSearchResultsRenderer.tabs;
-  if (!Array.isArray(tabs)) {
-    throw new UpstreamUnavailableError("youtube", "YouTube Music search document lacks its result tabs");
-  }
-  const hasResultContents = tabs.some((tab) => {
-    if (!isObject(tab) || !isObject(tab.tabRenderer) || !isObject(tab.tabRenderer.content)) return false;
-    const sectionList = tab.tabRenderer.content.sectionListRenderer;
-    return isObject(sectionList) && Array.isArray(sectionList.contents);
-  });
-  if (!hasResultContents) {
-    throw new UpstreamUnavailableError("youtube", "YouTube Music search document lacks its result collections");
-  }
 }
 
 async function playlistDetails(ids: string[], operation: Operation): Promise<PlaylistResource[]> {
