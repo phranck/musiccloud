@@ -46,36 +46,17 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { adminUsers } from "./domains/admin-users.js";
 import { artistEntities } from "./domains/artist-identity.js";
 import { bytea, sqlValueList } from "./domains/column-types.js";
 
+export * from "./domains/admin-users.js";
 export * from "./domains/album-catalog.js";
 export * from "./domains/artist-credits.js";
 export * from "./domains/artist-identity.js";
 export * from "./domains/artist-profiles.js";
 export * from "./domains/track-catalog.js";
 export * from "./domains/vinyl-layouts.js";
-
-/**
- * Dashboard administrator accounts and invite state.
- * Stores authentication hashes, profile fields, role and optional
- * session timeout configuration for admin-only routes.
- */
-export const adminUsers = pgTable("admin_users", {
-  id: text("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
-  email: text("email"),
-  role: text("role").notNull().default("admin"),
-  firstName: text("first_name"),
-  lastName: text("last_name"),
-  avatarUrl: text("avatar_url"),
-  inviteTokenHash: text("invite_token_hash"),
-  inviteExpiresAt: timestamp("invite_expires_at", { withTimezone: true }),
-  sessionTimeoutMinutes: integer("session_timeout_minutes"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
-});
 
 // Artist cache for caching artist info from external services
 /**
