@@ -160,13 +160,29 @@ async function search(
   return body;
 }
 
+/** The CDN folder every QQ Music album cover lives in. */
+const QQMUSIC_ARTWORK_BASE = "https://y.qq.com/music/photo_new/";
+
+/** Edge length in pixels of the cover a track gets: `300`. */
+const QQMUSIC_TRACK_ARTWORK_SIZE = 300;
+
+/** Edge length in pixels of the cover an album gets: `500`, because the album share page renders it bigger. */
+const QQMUSIC_ALBUM_ARTWORK_SIZE = 500;
+
+/**
+ * Builds the CDN URL of an album cover.
+ *
+ * @param albumMid - The album mid, or `undefined` when QQ Music sends none.
+ * @param size - Edge length in pixels, {@link QQMUSIC_TRACK_ARTWORK_SIZE} or {@link QQMUSIC_ALBUM_ARTWORK_SIZE}.
+ * @returns `T002R<size>x<size>M000<albumMid>.jpg` under {@link QQMUSIC_ARTWORK_BASE}, or `undefined` without a mid.
+ */
+function qqMusicArtworkUrl(albumMid: string | undefined, size: number): string | undefined {
+  return albumMid ? `${QQMUSIC_ARTWORK_BASE}T002R${size}x${size}M000${albumMid}.jpg` : undefined;
+}
+
 function mapSong(song: QQMusicSong): NormalizedTrack {
   const artists = artistNamesOrUnknown(song.singer?.map((singer) => singer.name));
-
-  // QQ Music album art: https://y.qq.com/music/photo_new/T002R300x300M000{album_mid}.jpg
-  const artworkUrl = song.album?.mid
-    ? `https://y.qq.com/music/photo_new/T002R300x300M000${song.album.mid}.jpg`
-    : undefined;
+  const artworkUrl = qqMusicArtworkUrl(song.album?.mid, QQMUSIC_TRACK_ARTWORK_SIZE);
 
   return {
     sourceService: "qqmusic",
@@ -193,8 +209,7 @@ async function getTrackByMid(mid: string): Promise<NormalizedTrack | null> {
 
 function mapQQAlbum(album: QQMusicAlbum): NormalizedAlbum {
   const artists = artistNamesOrUnknown(album.singer?.map((singer) => singer.name));
-  // QQ Music album art: T002R500x500M000{album_mid}.jpg
-  const artworkUrl = album.mid ? `https://y.qq.com/music/photo_new/T002R500x500M000${album.mid}.jpg` : undefined;
+  const artworkUrl = qqMusicArtworkUrl(album.mid, QQMUSIC_ALBUM_ARTWORK_SIZE);
 
   return {
     sourceService: "qqmusic",
