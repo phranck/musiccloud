@@ -1,113 +1,82 @@
 import { describe, expect, it } from "vitest";
 import { parseClockDurationMs, parseIsoDurationMs } from "../duration.js";
 
-/*
- * The six parsers below are verbatim copies of the adapters' own parsers. They
- * are the reference the shared calls are checked against while the adapters
- * move over.
+/**
+ * Each adapter's call into the period parser, under the dialect the adapter
+ * passes. YouTube maps a miss to `0`, which its track contract reports.
  */
-
-/** Tidal's string branch, from `tidal/adapter.ts`. */
-function oldTidal(duration: string): number | undefined {
-  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(duration);
-  if (!match || !match.slice(1).some((component) => component !== undefined)) return undefined;
-  const hours = Number(match[1]) || 0;
-  const minutes = Number(match[2]) || 0;
-  const seconds = Number(match[3]) || 0;
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
-}
-
-/** Bandcamp's parser, from `bandcamp/adapter.ts`. */
-function oldBandcamp(iso: string): number | undefined {
-  const match = /^P(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
-  if (!match) return undefined;
-  const hours = parseInt(match[1] || "0", 10);
-  const minutes = parseInt(match[2] || "0", 10);
-  const seconds = parseInt(match[3] || "0", 10);
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
-}
-
-/** Melon's and Boomplay's parser, identical in `melon/adapter.ts` and `boomplay/adapter.ts`. */
-function oldMelonBoomplay(iso: string): number | undefined {
-  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
-  if (!match) return undefined;
-  const hours = parseInt(match[1] || "0", 10);
-  const minutes = parseInt(match[2] || "0", 10);
-  const seconds = parseInt(match[3] || "0", 10);
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
-}
-
-/** YouTube's parser, from `youtube/adapter.ts`. */
-function oldYouTube(iso: string): number {
-  const match = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(iso);
-  if (!match) return 0;
-  const hours = parseInt(match[1] ?? "0", 10);
-  const minutes = parseInt(match[2] ?? "0", 10);
-  const seconds = parseInt(match[3] ?? "0", 10);
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
-}
-
-/** Beatport's `length` branch, from `mapTrack` in `beatport/adapter.ts`. */
-function oldBeatport(length: string): number | undefined {
-  const parts = length.split(":");
-  if (parts.length !== 2) return undefined;
-  return (parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10)) * 1000;
-}
-
-/** Period inputs: the providers' own forms, fractional seconds, a missing `T`, misses and embedded periods. */
-const PERIOD_INPUTS = [
-  "PT4M30S",
-  "PT1H2M3S",
-  "PT03M45S",
-  "PT1H",
-  "PT45S",
-  "PT5M41.5S",
-  "PT0.25S",
-  "PT1.S",
-  "P00H03M45S",
-  "P3M45S",
-  "P1DT2H",
-  "PT",
-  "P",
-  "",
-  "abc",
-  "pt3m",
-  "PT3M45",
-  "PT4M30S ",
-  "xxPT4M30Syy",
-  "PT4M30.5S",
-  "T4M30S",
-];
-
-/** Clock inputs: Beatport's form, padded parts, the wrong part count and parts without digits. */
-const CLOCK_INPUTS = ["7:22", "07:05", "0:00", "12:3", "1:02:03", "722", "", "a:b", "7:2x", " 7:22"];
-
-/** Each adapter's call, as the adapter makes it. */
-const SHARED_CALLS = {
+const PERIOD_CALLS = {
   tidal: (text: string) => parseIsoDurationMs(text, { fractionalSeconds: true, requireComponent: true }),
   bandcamp: (text: string) => parseIsoDurationMs(text, { timeDesignator: false }),
   melonBoomplay: (text: string) => parseIsoDurationMs(text),
   youtube: (text: string) => parseIsoDurationMs(text, { embedded: true }) ?? 0,
 };
 
-/** The reference each call is checked against. */
-const OLD_PARSERS: Record<keyof typeof SHARED_CALLS, (text: string) => number | undefined> = {
-  tidal: oldTidal,
-  bandcamp: oldBandcamp,
-  melonBoomplay: oldMelonBoomplay,
-  youtube: oldYouTube,
-};
+/**
+ * One period input and what each adapter answers for it: Tidal, Bandcamp,
+ * Melon and Boomplay (one dialect), YouTube. The answers are the ones each
+ * adapter's own parser gave before the shared module existed.
+ */
+type PeriodRow = [
+  input: string,
+  tidal: number | undefined,
+  bandcamp: number | undefined,
+  melonBoomplay: number | undefined,
+  youtube: number,
+];
+
+/** The providers' own forms, fractional seconds, a missing `T`, misses and periods inside longer text. */
+const PERIOD_ROWS: PeriodRow[] = [
+  ["PT4M30S", 270000, undefined, 270000, 270000],
+  ["PT1H2M3S", 3723000, undefined, 3723000, 3723000],
+  ["PT03M45S", 225000, undefined, 225000, 225000],
+  ["PT1H", 3600000, undefined, 3600000, 3600000],
+  ["PT45S", 45000, undefined, 45000, 45000],
+  ["PT5M41.5S", 341500, undefined, undefined, 300000],
+  ["PT0.25S", 250, undefined, undefined, 0],
+  ["PT1.S", undefined, undefined, undefined, 0],
+  ["P00H03M45S", undefined, 225000, undefined, 0],
+  ["P3M45S", undefined, 225000, undefined, 0],
+  ["P1DT2H", undefined, undefined, undefined, 0],
+  ["PT", undefined, undefined, 0, 0],
+  ["P", undefined, 0, undefined, 0],
+  ["", undefined, undefined, undefined, 0],
+  ["abc", undefined, undefined, undefined, 0],
+  ["pt3m", undefined, undefined, undefined, 0],
+  ["PT3M45", undefined, undefined, undefined, 180000],
+  ["PT4M30S ", undefined, undefined, undefined, 270000],
+  ["xxPT4M30Syy", undefined, undefined, undefined, 270000],
+  ["PT4M30.5S", 270500, undefined, undefined, 240000],
+  ["T4M30S", undefined, undefined, undefined, 0],
+];
+
+/** One clock input and what Beatport's `mapTrack` read from it before the shared module existed. */
+const CLOCK_ROWS: Array<[input: string, expected: number | undefined]> = [
+  ["7:22", 442000],
+  ["07:05", 425000],
+  ["0:00", 0],
+  ["12:3", 723000],
+  ["1:02:03", undefined],
+  ["722", undefined],
+  ["", undefined],
+  ["a:b", Number.NaN],
+  ["7:2x", 422000],
+  [" 7:22", 442000],
+];
 
 describe("parseIsoDurationMs", () => {
-  for (const [adapter, call] of Object.entries(SHARED_CALLS)) {
-    it.each(PERIOD_INPUTS)(`answers ${adapter}'s old parser for %j`, (input) => {
-      expect(call(input)).toBe(OLD_PARSERS[adapter as keyof typeof SHARED_CALLS](input));
-    });
-  }
+  it.each(PERIOD_ROWS)("reads %j as each adapter always has", (input, tidal, bandcamp, melonBoomplay, youtube) => {
+    expect({
+      tidal: PERIOD_CALLS.tidal(input),
+      bandcamp: PERIOD_CALLS.bandcamp(input),
+      melonBoomplay: PERIOD_CALLS.melonBoomplay(input),
+      youtube: PERIOD_CALLS.youtube(input),
+    }).toEqual({ tidal, bandcamp, melonBoomplay, youtube });
+  });
 });
 
 describe("parseClockDurationMs", () => {
-  it.each(CLOCK_INPUTS)("answers Beatport's old parser for %j", (input) => {
-    expect(parseClockDurationMs(input)).toBe(oldBeatport(input));
+  it.each(CLOCK_ROWS)("reads %j as Beatport always has", (input, expected) => {
+    expect(parseClockDurationMs(input)).toBe(expected);
   });
 });

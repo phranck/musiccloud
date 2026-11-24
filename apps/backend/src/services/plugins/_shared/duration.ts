@@ -13,8 +13,11 @@ const SECONDS_PER_HOUR = 3600;
 /** Seconds in one minute, for the `M` component of a period and the minutes of a clock string. */
 const SECONDS_PER_MINUTE = 60;
 
-/** Milliseconds in one second, the unit every parser returns. */
-const MS_PER_SECOND = 1000;
+/**
+ * Milliseconds in one second: `1000`. Every parser here returns milliseconds,
+ * and an adapter whose provider sends plain seconds converts them with it.
+ */
+export const MS_PER_SECOND = 1000;
 
 /** The character between minutes and seconds in a clock string such as `7:22`. */
 const CLOCK_SEPARATOR = ":";
