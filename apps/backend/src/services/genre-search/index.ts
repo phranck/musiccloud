@@ -38,6 +38,7 @@ import { getGenreBrowseGrid } from "./browse-grid.js";
 import { isLastfmAvailable } from "./lastfm-api.js";
 import { lastfmSearchByGenre } from "./lastfm-search.js";
 import { GENRE_QUERY_PREFIX_PATTERN, parseGenreQuery } from "./parser.js";
+import { buildGenreSearchEnvelope } from "./search-envelope.js";
 
 export type { ParsedGenreQuery } from "./parser.js";
 export { GenreQueryParseError, parseGenreQuery } from "./parser.js";
@@ -85,8 +86,10 @@ export async function runGenreBrowse(): Promise<GenreBrowseResponse> {
 
 /**
  * Parse and run a genre-search query, returning the discriminated-union
- * response variant.
+ * response variant built by {@link buildGenreSearchEnvelope}.
  *
+ * @param queryString - The raw `genre: ...` query.
+ * @returns The `genre-search` response with the Last.fm candidates of every requested column.
  * @throws {GenreQueryParseError} on syntactic errors
  * @throws {NoGenreSearchAdapterError} when LASTFM_API_KEY is missing
  */
@@ -105,22 +108,12 @@ export async function runGenreSearch(queryString: string): Promise<GenreSearchRe
     artists: parsed.artists ?? 0,
   });
 
-  return {
-    status: "genre-search",
-    query: {
-      genres: parsed.genres,
-      vibe: parsed.vibe,
-      tracks: parsed.tracks,
-      albums: parsed.albums,
-      artists: parsed.artists,
-    },
-    results: {
-      tracks: parsed.tracks !== null ? raw.tracks.map(toTrackCandidate) : null,
-      albums: parsed.albums !== null ? raw.albums.map(toAlbumCandidate) : null,
-      artists: parsed.artists !== null ? raw.artists.map(toArtistCandidate) : null,
-    },
-    warnings: parsed.warnings,
-  };
+  // The Last.fm search was asked for each column's count, so its lists map as they are.
+  return buildGenreSearchEnvelope(parsed, {
+    tracks: () => raw.tracks.map(toTrackCandidate),
+    albums: () => raw.albums.map(toAlbumCandidate),
+    artists: () => raw.artists.map(toArtistCandidate),
+  });
 }
 
 /**
