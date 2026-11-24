@@ -862,6 +862,13 @@
       "when": 1794968625823,
       "tag": "0122_bank_account_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1795540899478,
+      "tag": "0123_drop_napster_rows",
+      "breakpoints": true
     }
   ]
 }
