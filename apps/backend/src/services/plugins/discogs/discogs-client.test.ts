@@ -258,14 +258,14 @@ describe("rate guard interval fallback", () => {
     // the second request would fire immediately. Assert the second call is held
     // back until the default 1100ms interval elapses.
     // A far-future fixed clock guarantees the first call sees a large positive
-    // `elapsed` (prior tests left lastRequestAt at a real, much earlier time),
-    // so it is not itself throttled.
+    // `elapsed` (prior tests left the throttle's last start at a real, much
+    // earlier time), so it is not itself throttled.
     vi.useFakeTimers({ now: 10_000_000_000_000 });
     try {
       process.env.DISCOGS_MIN_REQUEST_INTERVAL_MS = "fast";
       fetchMock.mockResolvedValue(jsonResponse(RELEASE_RESPONSE));
 
-      // First call establishes lastRequestAt with no prior delay.
+      // First call records the throttle's last start with no prior delay.
       await getRelease(15815903);
       expect(fetchMock).toHaveBeenCalledTimes(1);
 

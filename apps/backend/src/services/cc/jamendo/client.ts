@@ -11,6 +11,7 @@ import { createConcurrencyLimiter } from "../../../lib/concurrency.js";
 import { decodeHtmlEntities } from "../../../lib/html.js";
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
 import { log } from "../../../lib/infra/logger.js";
+import { createMinIntervalThrottle } from "../../../lib/infra/throttle.js";
 import { jamendoBioToHtml } from "./bio.js";
 import type {
   CcAlbum,
@@ -65,12 +66,17 @@ function requireClientId(): string {
 // limit: starts are at least `JAMENDO_MIN_GAP_MS` apart, and at most two
 // responses may be in flight. Combined with the permanent `genre_artworks`
 // cache (a genre's cover is fetched once, ever), steady-state load is near
-// zero — the only burst is the one-time browse-grid artwork generation, which
+// zero. The only burst is the one-time browse-grid artwork generation, which
 // this spaces out safely. The gap is env-overridable (tests set it to 0).
+
+/** The minimum gap in milliseconds between the starts of two Jamendo requests, read once at module load. */
 const JAMENDO_MIN_GAP_MS = Number(process.env.JAMENDO_MIN_GAP_MS ?? 350);
+/** How many Jamendo responses may be open at once. */
 const JAMENDO_MAX_IN_FLIGHT = 2;
+/** Caps the open Jamendo responses at `JAMENDO_MAX_IN_FLIGHT`. */
 const limitJamendoRequest = createConcurrencyLimiter(JAMENDO_MAX_IN_FLIGHT);
-let jamendoGate: Promise<void> = Promise.resolve();
+/** Spaces the starts of Jamendo requests by `JAMENDO_MIN_GAP_MS`. */
+const jamendoThrottle = createMinIntervalThrottle(JAMENDO_MIN_GAP_MS);
 
 /**
  * Longest one Jamendo request may take, its answer included. Start spacing and
@@ -84,17 +90,18 @@ const JAMENDO_REQUEST_TIMEOUT_MS = Number(process.env.JAMENDO_REQUEST_TIMEOUT_MS
 
 /**
  * Runs `task` when the next start slot is due, spaced by
- * {@link JAMENDO_MIN_GAP_MS} from the previous start. The gate tracks start
+ * {@link JAMENDO_MIN_GAP_MS} from the previous start. The throttle tracks start
  * times rather than completion, so independent slow responses overlap. The
  * limiter holds at most {@link JAMENDO_MAX_IN_FLIGHT} responses open and frees
  * a slot on every outcome, so one failed request never wedges the queue.
+ *
+ * @param task - The request to run once its start slot is due.
+ * @returns The task's result, settling as the task settles.
  */
 function throttleJamendo<T>(task: () => Promise<T>): Promise<T> {
-  return limitJamendoRequest(() => {
-    const result = jamendoGate.then(task);
-    const spacer = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, JAMENDO_MIN_GAP_MS));
-    jamendoGate = jamendoGate.then(spacer);
-    return result;
+  return limitJamendoRequest(async () => {
+    await jamendoThrottle.acquire();
+    return task();
   });
 }
 
