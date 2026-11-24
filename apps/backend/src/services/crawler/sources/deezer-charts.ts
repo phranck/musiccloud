@@ -21,6 +21,7 @@
  * run as an error and counts it towards the source's auto-disable, which an
  * empty success would never do.
  */
+import { sleep } from "../../../lib/infra/throttle.js";
 import { deezerGet } from "../../plugins/deezer/deezer-response.js";
 import {
   type Candidate,
@@ -36,7 +37,8 @@ interface DeezerChartTrackResponse {
   }>;
 }
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** The pause in milliseconds after each genre's chart request, which keeps a run under Deezer's soft cap. */
+const GENRE_REQUEST_SPACING_MS = 250;
 
 const DEFAULT_CONFIG = {
   genres: [0, 132, 116, 152, 113, 165, 153, 144, 75, 84, 464],
@@ -98,7 +100,7 @@ export const deezerChartsSource: CrawlerSource = {
           candidates.push({ kind: "url", url: track.link, isrc: track.isrc });
         }
       }
-      await sleep(250);
+      await sleep(GENRE_REQUEST_SPACING_MS);
     }
 
     return { candidates, nextCursor: null };

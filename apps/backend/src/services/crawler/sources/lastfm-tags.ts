@@ -7,6 +7,7 @@
  * existing resolver own canonical identity and persistence.
  */
 import { log } from "../../../lib/infra/logger.js";
+import { sleep } from "../../../lib/infra/throttle.js";
 import { lastFmApiKey, lastFmGet } from "../../plugins/lastfm/lastfm-response.js";
 import {
   type Candidate,
@@ -31,8 +32,6 @@ interface LastfmTagTracksResponse {
     track?: unknown;
   };
 }
-
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
