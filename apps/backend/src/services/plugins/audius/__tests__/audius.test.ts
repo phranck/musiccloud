@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
 import { audiusAdapter } from "../adapter";
 import recordedAlbumSearch from "./fixtures/current-album-search.json";
 
@@ -162,6 +163,19 @@ describe("Audius: getTrack", () => {
     const track = await audiusAdapter.getTrack("QxamW");
     expect(track.artworkUrl).toBe("https://medium.jpg");
   });
+
+  /**
+   * An answer without the `data` envelope is a broken reply, so it must surface
+   * as the provider's unavailability and never as a `TypeError` from mapping.
+   */
+  it.each([
+    ["a resolved link", "deadmau5/unlucky-work-in-progress-333797"],
+    ["a direct track id", "QxamW"],
+  ])("reports a missing track envelope for %s as a provider error", async (_label, trackId) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({}));
+
+    await expect(audiusAdapter.getTrack(trackId)).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
 });
 
 // =============================================================================
@@ -226,6 +240,13 @@ describe("Audius: getAlbum", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }));
 
     await expect(audiusAdapter.getAlbum("P5wZ0")).rejects.toThrow(/Album not found/);
+  });
+
+  /** A missing `data` list is a broken reply, not evidence that the album does not exist. */
+  it("reports a missing album envelope as a provider error rather than not found", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({}));
+
+    await expect(audiusAdapter.getAlbum("P5wZ0")).rejects.toBeInstanceOf(UpstreamUnavailableError);
   });
 });
 

@@ -56,10 +56,26 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
-import { requireProviderCollection } from "../_shared/provider-response.js";
+import { requireProviderCollection, requireProviderObject } from "../_shared/provider-response.js";
 
 const API_BASE = "https://api.audius.co/v1";
 const APP_NAME = "music_cloud";
+
+/**
+ * Fixed request descriptions passed to the shared provider response checks, which put
+ * them into the `UpstreamUnavailableError` message when an answer lacks its envelope.
+ *
+ * - `TrackLookup`: a single track, through the resolve endpoint or `/tracks/{id}`.
+ * - `AlbumLookup`: a single playlist or album, through the resolve endpoint or `/playlists/{id}`.
+ * - `TrackSearch`: `/tracks/search`.
+ * - `AlbumSearch`: `/search/full?kind=albums`.
+ */
+const AudiusOperation = {
+  TrackLookup: "track lookup",
+  AlbumLookup: "album lookup",
+  TrackSearch: "track search",
+  AlbumSearch: "album search",
+} as const;
 
 // audius.co/{handle}/{slug}, where the slug segment is not `album` or `playlist`.
 const AUDIUS_TRACK_REGEX = /(?:https?:\/\/)?audius\.co\/([^/]+\/(?!(?:album|playlist)(?:[/?#\s]|$))[^/?\s]+)/;
@@ -92,8 +108,12 @@ interface AudiusSearchResponse {
   data: AudiusTrackResponse[];
 }
 
+/**
+ * Audius answers a single track inside a `data` object. The field is optional here
+ * because a broken reply may omit it, and `readTrackDetail` refuses that reply.
+ */
 interface AudiusTrackDetailResponse {
-  data: AudiusTrackResponse;
+  data?: AudiusTrackResponse;
 }
 
 interface AudiusPlaylistResponse {
@@ -123,6 +143,22 @@ interface AudiusAlbumSearchResponse {
 async function audiusFetch(endpoint: string): Promise<Response> {
   const separator = endpoint.includes("?") ? "&" : "?";
   return fetchWithTimeout(`${API_BASE}${endpoint}${separator}app_name=${APP_NAME}`, {}, 5000);
+}
+
+/**
+ * Reads a successful single-track answer and maps it, refusing a reply without its envelope.
+ *
+ * Both track lookups share this, the resolve endpoint for path-style ids and
+ * `/tracks/{id}` for opaque ids, because Audius wraps the track the same way in both.
+ *
+ * @param response - Provider response whose status the caller has already checked as ok.
+ * @returns The normalized track.
+ * @throws {UpstreamUnavailableError} When the body has no `data` object, so the resolver
+ *   treats the reply as an outage rather than failing later with a `TypeError`.
+ */
+async function readTrackDetail(response: Response): Promise<NormalizedTrack> {
+  const body = (await response.json()) as AudiusTrackDetailResponse;
+  return mapTrack(requireProviderObject(body.data, Service.Audius, AudiusOperation.TrackLookup));
 }
 
 function mapTrack(raw: AudiusTrackResponse): NormalizedTrack {
@@ -160,7 +196,8 @@ async function fetchAlbumById(playlistId: string): Promise<NormalizedAlbum | nul
   const response = await audiusFetch(endpoint);
   if (!response.ok) throw serviceHttpError(Service.Audius, response.status, ResourceKind.Album, playlistId);
   const data = (await response.json()) as AudiusPlaylistDetailResponse;
-  const playlist = data.data?.[0];
+  // An empty list means no such playlist; a missing list is a broken reply.
+  const [playlist] = requireProviderCollection(data.data, Service.Audius, AudiusOperation.AlbumLookup);
   if (!playlist?.is_album) return null;
   return mapPlaylist(playlist);
 }
@@ -173,7 +210,7 @@ async function searchAudiusAlbums(query: string): Promise<NormalizedAlbum[]> {
     throw serviceHttpError(Service.Audius, response.status, ResourceKind.Album, query, Operation.Search);
   }
   const data = (await response.json()) as AudiusAlbumSearchResponse;
-  return requireProviderCollection(data.data?.albums, Service.Audius, "album search")
+  return requireProviderCollection(data.data?.albums, Service.Audius, AudiusOperation.AlbumSearch)
     .filter((p) => p.is_album)
     .slice(0, 5)
     .map(mapPlaylist);
@@ -203,8 +240,7 @@ export const audiusAdapter = {
         throw serviceHttpError(Service.Audius, response.status, ResourceKind.Track, trackId, Operation.Resolve);
       }
 
-      const data = (await response.json()) as AudiusTrackDetailResponse;
-      return mapTrack(data.data);
+      return readTrackDetail(response);
     }
 
     // Direct track ID lookup
@@ -214,8 +250,7 @@ export const audiusAdapter = {
       throw serviceHttpError(Service.Audius, response.status, ResourceKind.Track, trackId);
     }
 
-    const data = (await response.json()) as AudiusTrackDetailResponse;
-    return mapTrack(data.data);
+    return readTrackDetail(response);
   },
 
   async findByIsrc(_isrc: string): Promise<NormalizedTrack | null> {
@@ -233,7 +268,7 @@ export const audiusAdapter = {
     }
 
     const data = (await response.json()) as AudiusSearchResponse;
-    const items = requireProviderCollection(data.data, Service.Audius, "track search");
+    const items = requireProviderCollection(data.data, Service.Audius, AudiusOperation.TrackSearch);
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };
