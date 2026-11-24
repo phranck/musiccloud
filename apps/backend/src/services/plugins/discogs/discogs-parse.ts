@@ -7,6 +7,7 @@
  */
 
 import type { VinylLayout, VinylSide } from "@musiccloud/shared";
+import { parseReleaseYear } from "../../../lib/release-date.js";
 
 /**
  * A single entry from the Discogs Master Versions endpoint
@@ -17,9 +18,10 @@ import type { VinylLayout, VinylSide } from "@musiccloud/shared";
  * API response into a typed list before calling `selectOriginalVinylVersion`.
  *
  * @property id - Discogs release ID of this pressing.
- * @property released - Release year string as returned by the API, e.g. `"1959"`.
- *   May carry extra characters; only the leading four digits are used for
- *   year comparison.
+ * @property released - Release date string as returned by the API, e.g. `"1959"`
+ *   or `"1959-03-00"`. Only its leading year is used for year comparison, read
+ *   by `parseReleaseYear`. Discogs sends an empty string when it knows no date,
+ *   and such a version ranks after every version with a known year.
  * @property format - Comma-joined format descriptor returned by the API,
  *   e.g. `"LP, Album, Stereo"` or `"LP, Album, Reissue, Mono"`.
  * @property country - Two-letter country code of the pressing, when present.
@@ -89,8 +91,13 @@ export function sideLabelFromPosition(position: string): string | null {
  * 1. Keep only versions whose `format` contains `"Vinyl"` or `"LP"`
  *    (case-insensitive). All other formats (CD, Cassette, …) are discarded.
  * 2. Drop versions whose `format` contains `"Reissue"` (case-insensitive).
- * 3. Among the remaining candidates, pick the one with the smallest year
- *    derived from the leading four digits of the `released` field.
+ * 3. Among the remaining candidates, pick the one with the smallest year,
+ *    read from the `released` field by `parseReleaseYear`.
+ *
+ * A candidate whose `released` field is empty or does not open with a year
+ * has an unknown year and ranks after every candidate with a known year, so it
+ * is returned only when no surviving candidate has a year. Among several such
+ * candidates the first one in the input wins.
  *
  * @param versions - Array of version entries from the Discogs Master Versions
  *   endpoint (`GET /masters/{id}/versions`).
@@ -101,16 +108,17 @@ export function selectOriginalVinylVersion(versions: DiscogsMasterVersion[]): Di
   const VINYL_RE = /\b(vinyl|lp)\b/i;
   const REISSUE_RE = /\breissue\b/i;
 
-  const candidates = versions.filter((v) => VINYL_RE.test(v.format) && !REISSUE_RE.test(v.format));
+  const candidates = versions.filter((version) => VINYL_RE.test(version.format) && !REISSUE_RE.test(version.format));
 
   if (candidates.length === 0) {
     return null;
   }
 
   return candidates.reduce((best, current) => {
-    const bestYear = Number.parseInt(best.released.slice(0, 4), 10);
-    const currentYear = Number.parseInt(current.released.slice(0, 4), 10);
-    return currentYear < bestYear ? current : best;
+    const currentYear = parseReleaseYear(current.released);
+    if (currentYear === null) return best;
+    const bestYear = parseReleaseYear(best.released);
+    return bestYear === null || currentYear < bestYear ? current : best;
   });
 }
 

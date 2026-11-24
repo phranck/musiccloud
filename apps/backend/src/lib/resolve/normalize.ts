@@ -47,6 +47,7 @@
  */
 
 import type { ServiceId } from "../../services/types";
+import { parseReleaseYear } from "../release-date.js";
 
 export function normalizeTitle(title: string, service: ServiceId): string {
   if (service === "youtube") {
@@ -162,12 +163,12 @@ export function calculateAlbumConfidence(
     score += (artistScore / source.artists.length) * 0.35;
   }
 
-  // Release year match (15%)
-  if (source.releaseDate && candidate.releaseDate) {
-    const srcYear = source.releaseDate.slice(0, 4);
-    const candYear = candidate.releaseDate.slice(0, 4);
-    if (srcYear === candYear) score += 0.15;
-    else if (Math.abs(Number(srcYear) - Number(candYear)) === 1) score += 0.07;
+  // Release year match (15%). An unknown year on either side adds nothing.
+  const sourceYear = parseReleaseYear(source.releaseDate);
+  const candidateYear = parseReleaseYear(candidate.releaseDate);
+  if (sourceYear !== null && candidateYear !== null) {
+    if (sourceYear === candidateYear) score += 0.15;
+    else if (Math.abs(sourceYear - candidateYear) === 1) score += 0.07;
   }
 
   // Track count match (15%)
