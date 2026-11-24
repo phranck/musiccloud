@@ -27,6 +27,7 @@ import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { siteResolveRateLimiter } from "../lib/infra/rate-limiter.js";
+import { shortUrlFor } from "../lib/server/short-url.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
 import { ccCandidateIdForJamendoLink, resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
 import {
@@ -224,7 +225,7 @@ async function persistCcTrackAndRespond(track: CcTrack, origin: string): Promise
   return {
     type: "cc-track",
     id: ccTrackId,
-    shortUrl: `${origin}/${shortId}`,
+    shortUrl: shortUrlFor(origin, shortId),
     track: { ...toApiCcTrack(track), vinylLayout },
   };
 }
@@ -266,7 +267,7 @@ async function persistCcAlbumAndRespond(
   return {
     type: "cc-album",
     id: ccAlbumId,
-    shortUrl: `${origin}/${shortId}`,
+    shortUrl: shortUrlFor(origin, shortId),
     album: { ...apiAlbum, vinylLayout },
     artistInfo,
   };
@@ -299,5 +300,5 @@ async function persistCcArtistAndRespond(
   });
 
   const { artist: apiArtist, artistInfo } = await buildCcArtistPayload(artist, topTracks);
-  return { type: "cc-artist", id: ccArtistId, shortUrl: `${origin}/${shortId}`, artist: apiArtist, artistInfo };
+  return { type: "cc-artist", id: ccArtistId, shortUrl: shortUrlFor(origin, shortId), artist: apiArtist, artistInfo };
 }
