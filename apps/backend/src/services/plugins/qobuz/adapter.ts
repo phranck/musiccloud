@@ -1,4 +1,5 @@
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
+import { ExpiringValueCache, throwOnEmpty } from "../../../lib/infra/expiring-value-cache";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
@@ -45,7 +46,7 @@ import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
  * cached token, the cache is cleared and a fresh login
  * is attempted once; that single retry covers cases where Qobuz
  * invalidated the token early (on password change, server cycle,
- * etc.). Login request coalescing via `authTokenPromise` ensures a
+ * etc.). Login request coalescing in the `authToken` cache ensures a
  * burst of resolves does not re-login N times on cache miss. A login that
  * fails keeps the token it had, or none. A request refused for want of a
  * token answers 401 and throws, so it never becomes a stored miss.
@@ -104,27 +105,40 @@ function getAppId(): string {
 
 // --- User auth token management ---
 
-let cachedAuthToken: string | null = null;
-let authTokenFetchedAt = 0;
-let authTokenPromise: Promise<string | null> | null = null;
-const AUTH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+/** How long a user auth token is reused before the next login: 24 hours. */
+const AUTH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 interface QobuzLoginResponse {
   user_auth_token?: string;
 }
 
-async function getAuthToken(): Promise<string | null> {
-  if (cachedAuthToken && Date.now() - authTokenFetchedAt < AUTH_TOKEN_TTL_MS) {
-    return cachedAuthToken;
-  }
+/**
+ * The user auth token. A failed login answers the token from before, however
+ * old, because the catalog answers without a token too.
+ */
+const authToken = new ExpiringValueCache<string>({
+  load: throwOnEmpty(fetchAuthToken, "Qobuz user auth token"),
+  timeToLiveMs: AUTH_TOKEN_TTL_MS,
+  keepStaleOnFailure: true,
+});
 
-  if (authTokenPromise) return authTokenPromise;
-  authTokenPromise = fetchAuthToken().finally(() => {
-    authTokenPromise = null;
-  });
-  return authTokenPromise;
+/**
+ * Answers the user auth token, logging in when there is none or it has aged out.
+ *
+ * @returns The token, the one from before when a login fails, or `null` when
+ *   no account is configured or no login has succeeded yet. Never throws,
+ *   because `fetchAuthToken` reports every failure as `null`.
+ */
+function getAuthToken(): Promise<string | null> {
+  return authToken.get().catch(() => null);
 }
 
+/**
+ * Logs in with `QOBUZ_EMAIL` and `QOBUZ_PASSWORD`.
+ *
+ * @returns The new user auth token, or `null` when no account is configured
+ *   or the login fails in any way. Failures are logged, never thrown.
+ */
 async function fetchAuthToken(): Promise<string | null> {
   const email = process.env.QOBUZ_EMAIL;
   const password = process.env.QOBUZ_PASSWORD;
@@ -152,22 +166,20 @@ async function fetchAuthToken(): Promise<string | null> {
 
     if (!response.ok) {
       log.error("Qobuz", "Login failed:", response.status);
-      return cachedAuthToken;
+      return null;
     }
 
     const data = await readJson<QobuzLoginResponse>(response, "login");
     if (data.user_auth_token) {
-      cachedAuthToken = data.user_auth_token;
-      authTokenFetchedAt = Date.now();
       log.debug("Qobuz", "User authenticated successfully");
-      return cachedAuthToken;
+      return data.user_auth_token;
     }
 
     log.error("Qobuz", "Login response missing user_auth_token");
-    return cachedAuthToken;
+    return null;
   } catch (error) {
     log.error("Qobuz", "Login error:", error instanceof Error ? error.message : "Unknown");
-    return cachedAuthToken;
+    return null;
   }
 }
 
@@ -180,21 +192,20 @@ async function qobuzApiFetch(endpoint: string): Promise<Response> {
   };
 
   // Add auth token if available (required for geo-restricted regions)
-  const authToken = await getAuthToken();
-  if (authToken) {
-    headers["X-User-Auth-Token"] = authToken;
+  const sentToken = await getAuthToken();
+  if (sentToken) {
+    headers["X-User-Auth-Token"] = sentToken;
   }
 
   const response = await fetchWithTimeout(`${API_BASE}${endpoint}`, { headers }, 8000);
 
   // On 401, invalidate token and retry once with fresh login
-  if (response.status === 401 && authToken) {
+  if (response.status === 401 && sentToken) {
     log.debug("Qobuz", "Got 401, refreshing auth token");
-    cachedAuthToken = null;
-    authTokenFetchedAt = 0;
+    authToken.invalidate();
 
     const newToken = await getAuthToken();
-    if (newToken && newToken !== authToken) {
+    if (newToken && newToken !== sentToken) {
       headers["X-User-Auth-Token"] = newToken;
       return fetchWithTimeout(`${API_BASE}${endpoint}`, { headers }, 8000);
     }
@@ -584,7 +595,7 @@ export function _setAppIdForTest(appId: string): void {
   cachedAppId = appId;
 }
 
+/** Drops the cached user auth token, so the next request logs in again. Test-only. */
 export function _resetAuthTokenCache(): void {
-  cachedAuthToken = null;
-  authTokenFetchedAt = 0;
+  authToken.invalidate();
 }

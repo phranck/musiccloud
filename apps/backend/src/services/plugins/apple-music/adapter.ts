@@ -70,6 +70,7 @@
  */
 import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { importPKCS8, SignJWT } from "jose";
+import { ExpiringValueCache } from "../../../lib/infra/expiring-value-cache";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { ResolveError } from "../../../lib/resolve/errors";
@@ -203,25 +204,24 @@ function getStorefrontCascade(isrcHint?: string): string[] {
 /** Confidence at/above which {@link searchTrack} et al. early-exit the cascade. */
 const SEARCH_EARLY_EXIT_CONFIDENCE = 0.85;
 
-// Token cache: JWT is valid for 1 hour, we refresh 5 minutes early
+/** How long a signed developer JWT is valid, and how long the cache keeps any token: one hour. */
 const TOKEN_LIFETIME_SECONDS = 3600;
+/** How long before the end of {@link TOKEN_LIFETIME_SECONDS} a token is replaced: five minutes. */
 const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
+/** Milliseconds per second, for the lifetime the JWT states in seconds. */
+const MS_PER_SECOND = 1000;
 
-interface CachedJwt {
-  token: string;
-  expiresAt: number;
-}
-
-let cachedJwt: CachedJwt | null = null;
-let tokenPromise: Promise<string> | null = null;
-
+/**
+ * Generates the static or signed developer token.
+ *
+ * @returns `APPLE_MUSIC_TOKEN` when it is set, else a JWT signed with the MusicKit key.
+ * @throws {ResolveError} When the MusicKit settings are missing, the key cannot
+ *   be parsed, or signing fails.
+ */
 async function generateToken(): Promise<string> {
   // Legacy: support pre-generated static token for development
   const staticToken = process.env.APPLE_MUSIC_TOKEN;
-  if (staticToken) {
-    cachedJwt = { token: staticToken, expiresAt: Date.now() + TOKEN_LIFETIME_SECONDS * 1000 };
-    return staticToken;
-  }
+  if (staticToken) return staticToken;
 
   // Generate JWT from MusicKit credentials
   const keyId = process.env.APPLE_MUSIC_KEY_ID;
@@ -263,25 +263,24 @@ async function generateToken(): Promise<string> {
     throw new ResolveError("MC-AUTH-1501", `Apple Music JWT signing failed: ${(err as Error).message}`);
   }
 
-  cachedJwt = {
-    token,
-    expiresAt: Date.now() + TOKEN_LIFETIME_SECONDS * 1000,
-  };
-
   return token;
 }
 
-async function getDevToken(): Promise<string> {
-  // Return cached token if still valid
-  if (cachedJwt && Date.now() < cachedJwt.expiresAt - TOKEN_REFRESH_MARGIN_MS) {
-    return cachedJwt.token;
-  }
-  // Coalesce parallel refresh requests into one promise
-  if (tokenPromise) return tokenPromise;
-  tokenPromise = generateToken().finally(() => {
-    tokenPromise = null;
-  });
-  return tokenPromise;
+/** The developer token, shared by every request and refreshed {@link TOKEN_REFRESH_MARGIN_MS} early. */
+const devToken = new ExpiringValueCache<string>({
+  load: generateToken,
+  timeToLiveMs: TOKEN_LIFETIME_SECONDS * MS_PER_SECOND,
+  refreshMarginMs: TOKEN_REFRESH_MARGIN_MS,
+});
+
+/**
+ * Answers the cached developer token, generating one when it is missing or stale.
+ *
+ * @returns The bearer token for the Apple Music API.
+ * @throws {ResolveError} When no token can be generated.
+ */
+function getDevToken(): Promise<string> {
+  return devToken.get();
 }
 
 /**

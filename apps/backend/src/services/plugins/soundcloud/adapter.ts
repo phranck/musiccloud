@@ -1,4 +1,5 @@
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
+import { ExpiringValueCache, throwOnEmpty } from "../../../lib/infra/expiring-value-cache";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -37,7 +38,7 @@ import { pickBestCandidate, rankByArtistName, searchMatchResult } from "../_shar
  * - Cached for 24h. SoundCloud rotates these periodically; an
  *   expired id returns 401 on API calls, and `scApiFetch` then scrapes a
  *   fresh one and repeats the request once.
- * - Concurrent callers coalesce through `clientIdPromise` so a burst
+ * - Concurrent callers coalesce through `clientIdCache` so a burst
  *   of resolves does not re-fetch the homepage N times.
  * - When no client_id can be had, because the homepage failed or its
  *   hydration data carries none, `scApiFetch` throws.
@@ -89,47 +90,51 @@ const SC_API_BASE = "https://api-v2.soundcloud.com";
 
 // --- Client ID management ---
 
-let cachedClientId: string | null = null;
-let clientIdFetchedAt = 0;
-let clientIdPromise: Promise<string | null> | null = null;
-const CLIENT_ID_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+/** How long a scraped client_id is reused before the homepage is read again: 24 hours. */
+const CLIENT_ID_TTL_MS = 24 * 60 * 60 * 1000;
 
-async function getClientId(): Promise<string | null> {
-  if (cachedClientId && Date.now() - clientIdFetchedAt < CLIENT_ID_TTL_MS) {
-    return cachedClientId;
-  }
+/** The scraped client_id. A failed scrape answers the id from before, however old. */
+const clientIdCache = new ExpiringValueCache<string>({
+  load: throwOnEmpty(fetchClientId, "SoundCloud client_id"),
+  timeToLiveMs: CLIENT_ID_TTL_MS,
+  keepStaleOnFailure: true,
+});
 
-  // Promise coalescing: prevent parallel requests from each fetching independently
-  if (clientIdPromise) return clientIdPromise;
-  clientIdPromise = fetchClientId().finally(() => {
-    clientIdPromise = null;
-  });
-  return clientIdPromise;
+/**
+ * Answers the client_id, scraping the homepage when there is none or it has aged out.
+ *
+ * @returns The id, the one from before when a scrape fails, or `null` when no
+ *   scrape has succeeded yet. Never throws, because `fetchClientId` reports
+ *   every failure as `null`.
+ */
+function getClientId(): Promise<string | null> {
+  return clientIdCache.get().catch(() => null);
 }
 
+/**
+ * Scrapes a client_id from the homepage's hydration data.
+ *
+ * @returns The id, or `null` when the homepage fails or carries none. Failures
+ *   are never thrown.
+ */
 async function fetchClientId(): Promise<string | null> {
   try {
     const response = await fetchProviderPage("https://soundcloud.com", SOUNDCLOUD_REQUEST);
-    if (!response.ok) return cachedClientId;
+    if (!response.ok) return null;
 
     const html = await response.text();
     const match = /window\.__sc_hydration\s*=\s*(\[[\s\S]*?\]);\s*<\/script>/m.exec(html);
-    if (!match) return cachedClientId;
+    if (!match) return null;
 
     const hydration = JSON.parse(match[1]) as Array<{ hydratable: string; data: unknown }>;
     const apiClient = hydration.find((h) => h.hydratable === "apiClient");
     const id = (apiClient?.data as { id?: string })?.id;
 
-    if (id) {
-      cachedClientId = id;
-      clientIdFetchedAt = Date.now();
-      log.debug("SoundCloud", "Refreshed client_id");
-    }
-
-    return cachedClientId;
+    if (id) log.debug("SoundCloud", "Refreshed client_id");
+    return id || null;
   } catch {
     log.debug("SoundCloud", "Failed to refresh client_id");
-    return cachedClientId;
+    return null;
   }
 }
 
@@ -147,8 +152,7 @@ async function scApiFetch(endpoint: string): Promise<Response> {
 
   // A 401 means SoundCloud rotated the scraped client_id. One fresh scrape
   // replaces it, rather than every request failing until the cached id ages out.
-  cachedClientId = null;
-  clientIdFetchedAt = 0;
+  clientIdCache.invalidate();
   return scApiFetchWithClientId(endpoint);
 }
 
@@ -579,7 +583,7 @@ export const soundcloudAdapter = {
 } satisfies ServiceAdapter & Record<string, unknown>;
 
 // Export for testing
+/** Drops the cached client_id, so the next request scrapes the homepage again. Test-only. */
 export function _resetClientIdCache(): void {
-  cachedClientId = null;
-  clientIdFetchedAt = 0;
+  clientIdCache.invalidate();
 }
