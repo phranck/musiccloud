@@ -119,6 +119,43 @@ export function trackScoreLogger(
 }
 
 /**
+ * A track hit together with the position it scores and logs with.
+ *
+ * @property track - The normalized track.
+ * @property index - Its position in the service's answer, counted from `0`.
+ *   An adapter that skips unusable hits keeps the original position, so the
+ *   positional part of the score and the debug line stay as the service ranked.
+ */
+export interface PositionedTrack {
+  track: NormalizedTrack;
+  index: number;
+}
+
+/**
+ * Keeps the best of a list of positioned track hits and writes one debug line
+ * per hit.
+ *
+ * @param hits - The usable track hits in the order the service returned them.
+ * @param score - Scores one track; receives the track and its `index`.
+ * @param logScore - A logger from `trackScoreLogger`, called with each track,
+ *   its `index` and its score.
+ * @returns The best track and its score, the earliest one on a tie, or
+ *   `{ best: null, confidence: 0 }` when `hits` is empty.
+ */
+export function pickBestTrack(
+  hits: readonly PositionedTrack[],
+  score: (track: NormalizedTrack, index: number) => number,
+  logScore: (track: NormalizedTrack, index: number, confidence: number) => void,
+): BestCandidate<NormalizedTrack> {
+  const { best, confidence } = pickBestCandidate(
+    hits,
+    (hit) => score(hit.track, hit.index),
+    (hit, _position, hitConfidence) => logScore(hit.track, hit.index, hitConfidence),
+  );
+  return { best: best?.track ?? null, confidence };
+}
+
+/**
  * The entity and result shape of each kind of adapter search, keyed by the
  * field the found entity sits in.
  */

@@ -5,6 +5,7 @@ import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../../.
 import {
   logCandidateScore,
   pickBestCandidate,
+  pickBestTrack,
   rankByArtistName,
   searchMatchResult,
   trackScoreLogger,
@@ -95,6 +96,31 @@ describe("pickBestCandidate", () => {
       ["c", 2, 0.8],
     ]);
     expect(result).toEqual({ best: "b", confidence: 0.8 });
+  });
+});
+
+describe("pickBestTrack", () => {
+  it("scores and logs each track with its original position and returns the track", () => {
+    const logged: Array<[string, number, number]> = [];
+    const hits = [
+      { track: { ...track, sourceId: "a" }, index: 1 },
+      { track: { ...track, sourceId: "b" }, index: 3 },
+    ];
+    const result = pickBestTrack(
+      hits,
+      (_track, index) => index / 10,
+      (scoredTrack, index, confidence) => logged.push([scoredTrack.sourceId, index, confidence]),
+    );
+    expect(logged).toEqual([
+      ["a", 1, 0.1],
+      ["b", 3, 0.3],
+    ]);
+    expect(result).toEqual({ best: hits[1].track, confidence: 0.3 });
+  });
+
+  it("reports no track for an empty list", () => {
+    const ignoreScore = () => {};
+    expect(pickBestTrack([], () => 1, ignoreScore)).toEqual({ best: null, confidence: 0 });
   });
 });
 
