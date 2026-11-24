@@ -164,14 +164,12 @@ export default async function adminUserRoutes(app: FastifyInstance) {
         context: { inviteUrl },
       });
     } catch (error) {
-      // Mail send must not roll back user creation: the invite URL is
-      // returned in the response and remains copy-pasteable from the UI
-      // even if email delivery fails. `triggerEmailAction` can now throw for
-      // reasons beyond "SMTP failed" (e.g. no enabled template bound to
-      // AdminInviteSent, or a bound template's required variable this route
-      // does not supply) — those are still just logged here, not surfaced
-      // as a failed user creation, matching the previous resilience
-      // behavior.
+      // Mail send must not roll back user creation, because the invite URL
+      // is returned in the response and stays copy-pasteable from the UI
+      // even when email delivery fails. `triggerEmailAction` also throws when
+      // no enabled template is bound to AdminInviteSent or when a bound
+      // template needs a variable this route does not supply. Those failures
+      // are logged here and never reported as a failed user creation.
       request.log.error({ err: error, userId: id }, "failed to send welcome email");
     }
 
