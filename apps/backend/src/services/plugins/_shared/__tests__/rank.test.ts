@@ -9,6 +9,7 @@ import {
   rankByArtistName,
   searchMatchResult,
   trackScoreLogger,
+  usableTracks,
 } from "../rank.js";
 
 /** A track fixture; only its identity matters to the result shape. */
@@ -96,6 +97,21 @@ describe("pickBestCandidate", () => {
       ["c", 2, 0.8],
     ]);
     expect(result).toEqual({ best: "b", confidence: 0.8 });
+  });
+});
+
+describe("usableTracks", () => {
+  it("drops unusable hits without shifting the positions after them", () => {
+    const raw = [{ id: "a" }, { id: "" }, { id: "c" }];
+    const hits = usableTracks(
+      raw,
+      (item) => item.id !== "",
+      (item) => ({ ...track, sourceId: item.id }),
+    );
+    expect(hits.map((hit) => [hit.track.sourceId, hit.index])).toEqual([
+      ["a", 0],
+      ["c", 2],
+    ]);
   });
 });
 

@@ -63,6 +63,7 @@ import {
   pickBestTrack,
   searchMatchResult,
   trackScoreLogger,
+  usableTracks,
 } from "../_shared/rank.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
@@ -410,11 +411,8 @@ export const beatportAdapter: ServiceAdapter = {
 
     log.debug("Beatport", `Search returned ${tracks.length} tracks for: ${q}`);
 
-    const hits = tracks
-      .slice(0, BEATPORT_SEARCH_LIMIT)
-      .flatMap((bpTrack, index) => (bpTrack.id && bpTrack.name ? [{ track: mapTrack(bpTrack), index }] : []));
     const { best, confidence } = pickBestTrack(
-      hits,
+      usableTracks(tracks.slice(0, BEATPORT_SEARCH_LIMIT), (bpTrack) => Boolean(bpTrack.id && bpTrack.name), mapTrack),
       (track, index) => scoreSearchCandidate(query, track, index),
       logBeatportTrackScore,
     );

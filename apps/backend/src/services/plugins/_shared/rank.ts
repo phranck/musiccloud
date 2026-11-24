@@ -132,6 +132,25 @@ export interface PositionedTrack {
 }
 
 /**
+ * Maps the usable hits of a track search and keeps each one's original
+ * position.
+ *
+ * @param items - The raw hits in the order the service returned them.
+ * @param isUsable - Whether a raw hit carries what a track needs, such as an
+ *   id and a title. An unusable hit is dropped without shifting the positions
+ *   of the hits after it.
+ * @param toTrack - Maps one usable raw hit to its normalized track.
+ * @returns The usable hits as `PositionedTrack` entries, in service order.
+ */
+export function usableTracks<T>(
+  items: readonly T[],
+  isUsable: (item: T) => boolean,
+  toTrack: (item: T) => NormalizedTrack,
+): PositionedTrack[] {
+  return items.flatMap((item, index) => (isUsable(item) ? [{ track: toTrack(item), index }] : []));
+}
+
+/**
  * Keeps the best of a list of positioned track hits and writes one debug line
  * per hit.
  *

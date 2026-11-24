@@ -73,6 +73,7 @@ import {
   pickBestTrack,
   searchMatchResult,
   trackScoreLogger,
+  usableTracks,
 } from "../_shared/rank.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
@@ -395,9 +396,8 @@ export const neteaseAdapter: ServiceAdapter = {
 
     log.debug("NetEase", `Search returned ${songs.length} results for: ${q}`);
 
-    const hits = songs.flatMap((song, index) => (song.id && song.name ? [{ track: mapSong(song), index }] : []));
     const { best, confidence } = pickBestTrack(
-      hits,
+      usableTracks(songs, (song) => Boolean(song.id && song.name), mapSong),
       (track, index) => scoreSearchCandidate(query, track, index),
       logNetEaseTrackScore,
     );
