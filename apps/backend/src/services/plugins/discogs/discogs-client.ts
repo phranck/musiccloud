@@ -17,6 +17,7 @@
 
 import { SITE_ORIGIN } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
+import { createMinIntervalThrottle } from "../../../lib/infra/throttle.js";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable.js";
 import type { DiscogsMasterVersion, DiscogsRelease, DiscogsTrack } from "./discogs-parse.js";
 
@@ -35,20 +36,14 @@ const DISCOGS_SOURCE = "discogs";
 // Rate guard -- minimal in-process serialiser
 // ---------------------------------------------------------------------------
 
-/** Timestamp (ms) of the last outgoing Discogs request in this process. */
-let lastRequestAt = 0;
-
-/** Serial queue that reserves one Discogs request slot at a time. */
-let rateGuardQueue: Promise<void> = Promise.resolve();
-
 /**
  * Resolves the effective minimum inter-request interval in milliseconds.
  *
  * Reads `DISCOGS_MIN_REQUEST_INTERVAL_MS` from the environment. A missing or
  * non-numeric value (e.g. `"fast"`, empty string) falls back to
  * `DEFAULT_MIN_INTERVAL_MS`. The NaN guard is critical: without it a
- * non-numeric env value would produce `NaN`, and every `NaN < elapsed`
- * comparison in `rateGuard` is `false`, silently disabling the throttle.
+ * non-numeric env value would produce `NaN`, and a `NaN` wait in the throttle
+ * never holds a request back, silently disabling it.
  *
  * @returns The interval in milliseconds; never `NaN`.
  */
@@ -62,24 +57,11 @@ function resolveMinInterval(): number {
 }
 
 /**
- * Enforces the minimum inter-request interval configured via
- * `DISCOGS_MIN_REQUEST_INTERVAL_MS`. Awaits a short delay when the previous
- * request was issued too recently.
- *
- * @returns A promise that resolves once the guard interval has elapsed.
+ * The throttle every Discogs request in this process waits for. It reads the
+ * interval through `resolveMinInterval` on every turn, so a changed
+ * `DISCOGS_MIN_REQUEST_INTERVAL_MS` applies to the next request.
  */
-function rateGuard(): Promise<void> {
-  const guarded = rateGuardQueue.then(async () => {
-    const minInterval = resolveMinInterval();
-    const elapsed = Date.now() - lastRequestAt;
-    if (elapsed < minInterval) {
-      await new Promise<void>((resolve) => setTimeout(resolve, minInterval - elapsed));
-    }
-    lastRequestAt = Date.now();
-  });
-  rateGuardQueue = guarded.catch(() => undefined);
-  return guarded;
-}
+const discogsThrottle = createMinIntervalThrottle(resolveMinInterval);
 
 // ---------------------------------------------------------------------------
 // Internal fetch helper
@@ -116,7 +98,7 @@ function buildHeaders(): Record<string, string> {
  *   `fetchWithTimeout` rejects with on a network error or timeout.
  */
 async function discogsGet<T>(path: string): Promise<T> {
-  await rateGuard();
+  await discogsThrottle.acquire();
   const url = `${DISCOGS_BASE_URL}${path}`;
   const response = await fetchWithTimeout(url, { headers: buildHeaders() });
   if (!response.ok) {

@@ -5,8 +5,8 @@
  *
  * MusicBrainz is the provider the backend already speaks to that records life
  * spans and "member of band" relations, and its core data is CC0. Requests go
- * through the adapter's `mbFetch`, so they share its request gate and its
- * contact `User-Agent`.
+ * through `mbFetch` in the MusicBrainz transport, so they share the adapter's
+ * request gate and its contact `User-Agent`.
  */
 
 import { ResourceKind, Service } from "@musiccloud/shared";
@@ -18,7 +18,7 @@ import type {
   PartialDateRecord,
 } from "../../db/repository.js";
 import { serviceHttpError } from "../../lib/resolve/service-errors.js";
-import { mbFetch, parseMusicBrainzJson } from "../plugins/musicbrainz/adapter.js";
+import { mbFetch, parseMusicBrainzJson } from "../plugins/musicbrainz/transport.js";
 
 /** A date as MusicBrainz writes it: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`. */
 const MUSICBRAINZ_DATE_PATTERN = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/;
