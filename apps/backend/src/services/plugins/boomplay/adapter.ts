@@ -35,7 +35,6 @@ import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
-import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -45,8 +44,8 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { throwIfSearchIncomplete } from "../_shared/candidates.js";
-import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { bestSettledAlbum, bestSettledTrack } from "../_shared/candidates.js";
+import { searchText } from "../_shared/confidence.js";
 import { readProviderHtml } from "../_shared/provider-response.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
@@ -269,44 +268,7 @@ export const boomplayAdapter: ServiceAdapter = {
 
     // Step 2: Fetch each song page in parallel for JSON-LD metadata
     const trackResults = await Promise.allSettled(songIds.map((id) => fetchTrackById(id)));
-
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
-
-    for (let i = 0; i < trackResults.length; i++) {
-      const result = trackResults[i];
-      if (result.status !== "fulfilled" || !result.value) continue;
-
-      const track = result.value;
-      const confidence = scoreSearchCandidate(query, track, i);
-
-      log.debug(
-        "Boomplay",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-      );
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
-    }
-
-    throwIfSearchIncomplete(
-      trackResults,
-      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
-      Service.Boomplay,
-    );
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("Boomplay", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return bestSettledTrack(query, trackResults, Service.Boomplay, "Boomplay");
   },
 
   albumCapabilities: {
@@ -337,28 +299,6 @@ export const boomplayAdapter: ServiceAdapter = {
     log.debug("Boomplay", `Album search returned ${albumIds.length} IDs for: ${q}`);
 
     const albumResults = await Promise.allSettled(albumIds.map((id) => fetchAlbumById(id)));
-    let bestMatch: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const result of albumResults) {
-      if (result.status !== "fulfilled" || !result.value) continue;
-      const album = result.value;
-      const confidence = scoreAlbumCandidate(query, album);
-      log.debug("Boomplay", `  "${album.title}" -> confidence=${confidence.toFixed(3)}`);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = album;
-      }
-    }
-
-    throwIfSearchIncomplete(
-      albumResults,
-      Boolean(bestMatch && bestConfidence >= MATCH_MIN_CONFIDENCE),
-      Service.Boomplay,
-    );
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    return bestSettledAlbum(query, albumResults, Service.Boomplay, "Boomplay");
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

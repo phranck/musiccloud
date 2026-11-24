@@ -57,7 +57,20 @@ import type {
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
+import {
+  logCandidateScore,
+  pickBestCandidate,
+  pickBestTrack,
+  searchMatchResult,
+  trackScoreLogger,
+} from "../_shared/rank.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
+
+/** How many search hits a Beatport track or release search scores: the first `5`. */
+const BEATPORT_SEARCH_LIMIT = 5;
+
+/** Writes the per-track score debug line of a Beatport search. */
+const logBeatportTrackScore = trackScoreLogger("Beatport");
 
 // Beatport URLs: beatport.com/track/{slug}/{id}
 const BEATPORT_TRACK_REGEX = /^https?:\/\/(?:www\.)?beatport\.com\/track\/[^/]+\/(\d+)/;
@@ -397,38 +410,20 @@ export const beatportAdapter: ServiceAdapter = {
 
     log.debug("Beatport", `Search returned ${tracks.length} tracks for: ${q}`);
 
-    let bestMatch: NormalizedTrack | null = null;
-    let bestConfidence = 0;
+    const hits = tracks
+      .slice(0, BEATPORT_SEARCH_LIMIT)
+      .flatMap((bpTrack, index) => (bpTrack.id && bpTrack.name ? [{ track: mapTrack(bpTrack), index }] : []));
+    const { best, confidence } = pickBestTrack(
+      hits,
+      (track, index) => scoreSearchCandidate(query, track, index),
+      logBeatportTrackScore,
+    );
 
-    for (let i = 0; i < Math.min(tracks.length, 5); i++) {
-      const bpTrack = tracks[i];
-      if (!bpTrack.id || !bpTrack.name) continue;
-
-      const track = mapTrack(bpTrack);
-      const confidence = scoreSearchCandidate(query, track, i);
-
-      log.debug(
-        "Beatport",
-        `  [${i}] "${track.title}" by ${track.artists.join(", ")} -> confidence=${confidence.toFixed(3)}`,
-      );
-
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = track;
-      }
+    const match = searchMatchResult("track", best, confidence);
+    if (!match.found) {
+      log.debug("Beatport", `Best confidence ${confidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
     }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      log.debug("Beatport", `Best confidence ${bestConfidence.toFixed(3)} below threshold ${MATCH_MIN_CONFIDENCE}`);
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-
-    return {
-      found: true,
-      track: bestMatch,
-      confidence: bestConfidence,
-      matchMethod: "search",
-    };
+    return match;
   },
 
   albumCapabilities: {
@@ -460,23 +455,15 @@ export const beatportAdapter: ServiceAdapter = {
     const releases = extractSearchCollection<BeatportRelease>(nextData, "releases");
     if (releases.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
-    let bestMatch: NormalizedAlbum | null = null;
-    let bestConfidence = 0;
-
-    for (const release of releases.slice(0, 5)) {
-      if (!release.id || !release.name) continue;
-      const album = mapRelease(release);
-      const confidence = scoreAlbumCandidate(query, album);
-      log.debug("Beatport", `  "${release.name}" -> confidence=${confidence.toFixed(3)}`);
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence;
-        bestMatch = album;
-      }
-    }
-
-    if (!bestMatch || bestConfidence < MATCH_MIN_CONFIDENCE) {
-      return { found: false, confidence: bestConfidence, matchMethod: "search" };
-    }
-    return { found: true, album: bestMatch, confidence: bestConfidence, matchMethod: "search" };
+    const albums = releases
+      .slice(0, BEATPORT_SEARCH_LIMIT)
+      .filter((release) => release.id && release.name)
+      .map(mapRelease);
+    const { best, confidence } = pickBestCandidate(
+      albums,
+      (album) => scoreAlbumCandidate(query, album),
+      (album, _index, albumConfidence) => logCandidateScore("Beatport", `"${album.title}"`, albumConfidence),
+    );
+    return searchMatchResult("album", best, confidence);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;

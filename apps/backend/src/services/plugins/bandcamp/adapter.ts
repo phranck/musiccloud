@@ -66,11 +66,11 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { throwIfSearchIncomplete } from "../_shared/candidates.js";
-import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
+import { bestSettledAlbum, throwIfSearchIncomplete } from "../_shared/candidates.js";
+import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { extractOgTags } from "../_shared/og.js";
 import { requireProviderCollection } from "../_shared/provider-response.js";
-import { pickBestCandidate, pickBestTrack, searchMatchResult, trackScoreLogger } from "../_shared/rank.js";
+import { pickBestTrack, searchMatchResult, trackScoreLogger } from "../_shared/rank.js";
 import { type BandcampAccount, creditedRelease } from "./label-credits.js";
 import { bandcampTransport } from "./transport.js";
 
@@ -554,13 +554,6 @@ export const bandcampAdapter: ServiceAdapter = {
     if (results.length === 0) return { found: false, confidence: 0, matchMethod: "search" };
 
     const albumResults = await Promise.allSettled(results.map((r) => fetchAlbumByUrl(r.url)));
-    const albums = albumResults.flatMap((result) =>
-      result.status === "fulfilled" && result.value ? [result.value] : [],
-    );
-    const { best, confidence } = pickBestCandidate(albums, (album) => scoreAlbumCandidate(query, album));
-
-    const match = searchMatchResult("album", best, confidence);
-    throwIfSearchIncomplete(albumResults, match.found, Service.BandCamp);
-    return match;
+    return bestSettledAlbum(query, albumResults, Service.BandCamp);
   },
 } satisfies ServiceAdapter & Record<string, unknown>;
