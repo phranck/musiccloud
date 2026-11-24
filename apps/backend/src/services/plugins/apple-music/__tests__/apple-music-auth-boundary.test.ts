@@ -76,7 +76,7 @@ describe("Apple Music authenticated request boundary", () => {
   it("uses an existing static developer token without signing another token", async () => {
     process.env.APPLE_MUSIC_TOKEN = "static-test-token";
     fetchWithTimeoutMock.mockResolvedValue(new Response(null, { status: 200 }));
-    const { appleMusicFetch } = await import("../adapter.js");
+    const { appleMusicFetch } = await import("../token.js");
 
     await appleMusicFetch("/catalog/us/charts?types=songs");
 
@@ -93,7 +93,7 @@ describe("Apple Music authenticated request boundary", () => {
     importPKCS8Mock.mockResolvedValue({});
     signMock.mockResolvedValue("signed-test-token");
     fetchWithTimeoutMock.mockResolvedValue(new Response(null, { status: 200 }));
-    const { appleMusicFetch, assertAppleMusicDeveloperToken } = await import("../adapter.js");
+    const { appleMusicFetch, assertAppleMusicDeveloperToken } = await import("../token.js");
 
     await assertAppleMusicDeveloperToken();
     await appleMusicFetch("/catalog/at/charts?types=songs");

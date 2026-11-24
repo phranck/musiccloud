@@ -690,14 +690,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     httpStatus: 503,
     userMessage: "Apple Music is not configured on this server.",
     internalNote: "APPLE_MUSIC_KEY_ID + APPLE_MUSIC_TEAM_ID + APPLE_MUSIC_PRIVATE_KEY env vars are missing.",
-    source: "apps/backend/src/services/plugins/apple-music/adapter.ts generateToken",
+    source: "apps/backend/src/services/plugins/apple-music/token.ts generateToken",
   },
   "MC-AUTH-1501": {
     code: "MC-AUTH-1501",
     httpStatus: 503,
     userMessage: "Apple Music token signing failed on the server.",
     internalNote: "JWT signing threw: the private key is malformed or not valid PKCS8.",
-    source: "apps/backend/src/services/plugins/apple-music/adapter.ts generateToken",
+    source: "apps/backend/src/services/plugins/apple-music/token.ts generateToken",
   },
 
   // ─── Qobuz (group 2) ───────────────────────────────────────────────────────

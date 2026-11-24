@@ -1,20 +1,10 @@
 /**
  * @file Apple Music adapter: track + album + artist resolves against Apple's API.
  *
- * Credentialed, but the auth flow differs from OAuth-based services:
- * Apple Music uses a signed developer JWT rather than a client_id /
- * client_secret exchange. Required env vars:
- *
- * - `APPLE_MUSIC_KEY_ID`: 10-char key identifier from App Store Connect
- * - `APPLE_MUSIC_TEAM_ID`: 10-char team identifier
- * - `APPLE_MUSIC_PRIVATE_KEY`: the contents of the downloaded `.p8`
- *   private key (PKCS#8 PEM). Line breaks can be `\n`-escaped when
- *   the env var is set from a config UI; the loader handles both.
- *
- * `generateToken` signs with `jose`/ES256 or uses `APPLE_MUSIC_TOKEN`.
- * `getDevToken` owns the in-process cache and coalesces refreshes; its lifetime
- * and refresh margin are the constants beside that implementation, not a
- * catalog-cache lifetime. `warmAppleMusicToken` can prepare it at startup.
+ * Credentialed through a signed developer JWT. `token.ts` signs and caches it
+ * and holds `appleMusicFetch`, the authenticated request every call here uses.
+ * `storefront.ts` holds the storefront cascade for lookups without a
+ * URL-derived storefront.
  *
  * ## Storefront-specific IDs
  *
@@ -69,13 +59,8 @@
  * other service has one. Decided in issue #622.
  */
 import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
-import { importPKCS8, SignJWT } from "jose";
-import { ExpiringValueCache } from "../../../lib/infra/expiring-value-cache";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
-import { log } from "../../../lib/infra/logger";
-import { ResolveError } from "../../../lib/resolve/errors";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
-import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
+import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AdapterCapabilities,
   AlbumCapabilities,
@@ -93,8 +78,15 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
-import { requireProviderCollection, requireProviderObject } from "../_shared/provider-response.js";
-import { type BestCandidate, pickBestCandidate, searchMatchResult } from "../_shared/rank.js";
+import { requireProviderCollection } from "../_shared/provider-response.js";
+import { searchMatchResult } from "../_shared/rank.js";
+import {
+  appleMusicHttpError,
+  getStorefrontCascade,
+  StorefrontCascadeOutcome,
+  searchAcrossStorefronts,
+} from "./storefront.js";
+import { appleMusicFetch } from "./token.js";
 
 /**
  * Apple Music URL regex - URL-based flows (detectUrl / detectAlbumUrl).
@@ -125,7 +117,6 @@ const APPLE_MUSIC_REGEX =
  */
 const APPLE_MUSIC_ARTIST_REGEX = /(?:https?:\/\/)?music\.apple\.com\/([a-z]{2})\/artist\/[^/]+\/(\d+)/;
 
-const API_BASE = "https://api.music.apple.com/v1";
 const DEFAULT_STOREFRONT = "us";
 
 /**
@@ -155,236 +146,6 @@ function parseStorefrontId(input: string): { storefront: string; id: string } {
     return { storefront: input.slice(0, colonIdx).toLowerCase(), id: input.slice(colonIdx + 1) };
   }
   return { storefront: process.env.APPLE_MUSIC_STOREFRONT ?? DEFAULT_STOREFRONT, id: input };
-}
-
-/**
- * Fallback storefronts for cross-service queries that have no URL-derived
- * storefront (i.e. {@link findByIsrc}, {@link searchTrack}, {@link searchAlbum},
- * {@link searchArtist}). This is an explicit fallback sequence, not a claim
- * about catalog-size ranking. The attempt count is bounded.
- */
-const FALLBACK_STOREFRONTS = ["us", "gb", "de", "jp", "fr"] as const;
-
-/**
- * Maximum storefront attempts. Request timeouts belong to appleMusicFetch;
- * this bounds request count, not a guaranteed end-to-end latency.
- */
-const STOREFRONT_CASCADE_LIMIT = 5;
-
-/**
- * Builds the priority-ordered storefront list for catalog/search queries that
- * don't carry a storefront in the URL. Apple Music's catalog and search index
- * are per-storefront - a track present in `de` is invisible to a `us` query.
- *
- * Priority:
- * 1. ISRC country code (registrant - strongest signal when present)
- * 2. APPLE_MUSIC_STOREFRONT env override (operator preference)
- * 3. {@link FALLBACK_STOREFRONTS} (large global catalogs)
- *
- * Notes:
- * - An ISRC registrant prefix is only a lookup hint, not proof of regional
- *   availability or a supported Apple storefront. Unavailable storefronts
- *   fall through under StorefrontCascadeOutcome's status rules.
- * - The list is deduped (case-insensitive) and capped at
- *   {@link STOREFRONT_CASCADE_LIMIT}.
- */
-function getStorefrontCascade(isrcHint?: string): string[] {
-  const out: string[] = [];
-  const add = (s: string | null | undefined): void => {
-    const v = s?.toLowerCase();
-    if (v && /^[a-z]{2}$/.test(v) && !out.includes(v)) out.push(v);
-  };
-
-  if (isrcHint && isrcHint.length >= 2) add(isrcHint.slice(0, 2));
-  add(process.env.APPLE_MUSIC_STOREFRONT);
-  for (const s of FALLBACK_STOREFRONTS) add(s);
-  return out.slice(0, STOREFRONT_CASCADE_LIMIT);
-}
-
-/** Confidence at/above which {@link searchTrack} et al. early-exit the cascade. */
-const SEARCH_EARLY_EXIT_CONFIDENCE = 0.85;
-
-/** How long a signed developer JWT is valid, and how long the cache keeps any token: one hour. */
-const TOKEN_LIFETIME_SECONDS = 3600;
-/** How long before the end of {@link TOKEN_LIFETIME_SECONDS} a token is replaced: five minutes. */
-const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
-/** Milliseconds per second, for the lifetime the JWT states in seconds. */
-const MS_PER_SECOND = 1000;
-
-/**
- * Generates the static or signed developer token.
- *
- * @returns `APPLE_MUSIC_TOKEN` when it is set, else a JWT signed with the MusicKit key.
- * @throws {ResolveError} When the MusicKit settings are missing, the key cannot
- *   be parsed, or signing fails.
- */
-async function generateToken(): Promise<string> {
-  // Legacy: support pre-generated static token for development
-  const staticToken = process.env.APPLE_MUSIC_TOKEN;
-  if (staticToken) return staticToken;
-
-  // Generate JWT from MusicKit credentials
-  const keyId = process.env.APPLE_MUSIC_KEY_ID;
-  const teamId = process.env.APPLE_MUSIC_TEAM_ID;
-  const privateKeyPem = process.env.APPLE_MUSIC_PRIVATE_KEY;
-
-  if (!keyId || !teamId || !privateKeyPem) {
-    throw new ResolveError(
-      "MC-CFG-1001",
-      "Apple Music requires APPLE_MUSIC_KEY_ID + APPLE_MUSIC_TEAM_ID + APPLE_MUSIC_PRIVATE_KEY",
-    );
-  }
-
-  // The private key may be base64-encoded or raw PEM.
-  // Decode if it doesn't start with "-----BEGIN".
-  // Also replace literal \n sequences (common in .env files) with actual newlines.
-  const rawPem = privateKeyPem.startsWith("-----BEGIN")
-    ? privateKeyPem
-    : Buffer.from(privateKeyPem, "base64").toString("utf-8");
-  const pem = rawPem.replace(/\\n/g, "\n");
-
-  let privateKey: Awaited<ReturnType<typeof importPKCS8>>;
-  try {
-    privateKey = await importPKCS8(pem, "ES256");
-  } catch (err) {
-    throw new ResolveError("MC-AUTH-1501", `Apple Music private key could not be parsed: ${(err as Error).message}`);
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  let token: string;
-  try {
-    token = await new SignJWT({})
-      .setProtectedHeader({ alg: "ES256", kid: keyId })
-      .setIssuer(teamId)
-      .setIssuedAt(now)
-      .setExpirationTime(now + TOKEN_LIFETIME_SECONDS)
-      .sign(privateKey);
-  } catch (err) {
-    throw new ResolveError("MC-AUTH-1501", `Apple Music JWT signing failed: ${(err as Error).message}`);
-  }
-
-  return token;
-}
-
-/** The developer token, shared by every request and refreshed {@link TOKEN_REFRESH_MARGIN_MS} early. */
-const devToken = new ExpiringValueCache<string>({
-  load: generateToken,
-  timeToLiveMs: TOKEN_LIFETIME_SECONDS * MS_PER_SECOND,
-  refreshMarginMs: TOKEN_REFRESH_MARGIN_MS,
-});
-
-/**
- * Answers the cached developer token, generating one when it is missing or stale.
- *
- * @returns The bearer token for the Apple Music API.
- * @throws {ResolveError} When no token can be generated.
- */
-function getDevToken(): Promise<string> {
-  return devToken.get();
-}
-
-/**
- * Pre-warm the developer token at startup to avoid first-request latency.
- * The caller checks that the plugin is available, so this never tries to
- * sign a token without keys.
- */
-export async function warmAppleMusicToken(): Promise<void> {
-  try {
-    await assertAppleMusicDeveloperToken();
-    console.log("[Apple Music] Developer token pre-warmed");
-  } catch (e) {
-    console.error("[Apple Music] Token pre-warm failed:", (e as Error).message);
-  }
-}
-
-/**
- * Verifies that the configured static or signed developer-token profile is
- * usable without making a catalog request. Crawler enablement uses this so a
- * malformed key cannot defer discovery until after network work begins.
- */
-export async function assertAppleMusicDeveloperToken(): Promise<void> {
-  await getDevToken();
-}
-
-/**
- * Authenticated request against the Apple Music API. Not part of the public
- * adapter surface. It is exported for the `apple-music-charts` crawler source
- * (`services/crawler/sources/apple-music-charts.ts`), which reuses the token
- * cache and timeout instead of signing its own developer token.
- */
-export async function appleMusicFetch(endpoint: string): Promise<Response> {
-  const token = await getDevToken();
-  return fetchWithTimeout(
-    `${API_BASE}${endpoint}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    },
-    5000,
-  );
-}
-
-/**
- * Apple Music wrapper around {@link serviceHttpError} that adds the
- * storefront to the error context (Apple Music's regional 404 case is the
- * most common cause of "track not found" and the storefront is the key
- * diagnostic detail).
- */
-function appleMusicHttpError(status: number, kind: ResourceKind, id: string, storefront: string): ResolveError {
-  const err = serviceHttpError(Service.AppleMusic, status, kind, id);
-  if (err.context) (err.context as Record<string, string | number>).storefront = storefront;
-  return err;
-}
-
-/**
- * Keeps positive evidence without manufacturing a complete negative from a failed cascade.
- * A 404 storefront may be unavailable while another storefront answers; an
- * authentication, quota or server failure still prevents caching a clean miss.
- */
-class StorefrontCascadeOutcome {
-  private answered = false;
-  private lastFailure: { status: number; storefront: string } | null = null;
-
-  /** Records response status and returns whether its document may be decoded. */
-  record(response: Response, storefront: string): boolean {
-    if (response.ok) {
-      this.answered = true;
-      return true;
-    }
-    if (!this.lastFailure || response.status !== 404) {
-      this.lastFailure = { status: response.status, storefront };
-    }
-    return false;
-  }
-
-  /**
-   * Rejects incomplete negative evidence while retaining a validated positive match.
-   * @param kind - Resource being matched.
-   * @param id - Public lookup identifier or search title.
-   * @param matched - Whether a qualifying resource was found despite another failure.
-   * @throws The provider failure when no positive evidence resolves the uncertainty.
-   */
-  throwIfUnresolved(kind: ResourceKind, id: string, matched = false): void {
-    if (!this.lastFailure) return;
-    const { status, storefront } = this.lastFailure;
-    if (!matched && (!this.answered || status !== 404)) {
-      throw appleMusicHttpError(status, kind, id, storefront);
-    }
-    if (matched && status !== 404) {
-      log.deviation(
-        {
-          component: "Apple Music",
-          adapterId: Service.AppleMusic,
-          errorCode: "MC-API-0004",
-          operation: "storefront_catalog_lookup",
-          outcome: "positive_partial_storefronts",
-          status,
-          storefront,
-          kind,
-        },
-        appleMusicHttpError(status, kind, id, storefront),
-      );
-    }
-  }
 }
 
 interface AppleMusicSongAttributes {
@@ -436,24 +197,6 @@ interface AppleMusicAlbumResource {
   };
 }
 
-/**
- * Reads Apple's valid empty result object without accepting a missing search envelope.
- * @param results - Search results, where an absent category means no matching resources.
- * @param category - Requested resource category, whose present data must be an array.
- * @returns Reported resources or an empty list for an omitted category.
- * @throws When the root result object or a present category's collection is malformed.
- */
-function searchResources<Resource>(
-  results: Record<string, { data?: Resource[] }> | undefined,
-  category: "songs" | "albums" | "artists",
-): Resource[] {
-  const root = requireProviderObject(results, Service.AppleMusic, `${category} search`);
-  const resources = root[category];
-  return resources === undefined
-    ? []
-    : requireProviderCollection(resources?.data, Service.AppleMusic, `${category} search`);
-}
-
 function mapTrack(raw: AppleMusicSongResource): NormalizedTrack {
   const attrs = raw.attributes;
 
@@ -503,77 +246,6 @@ function mapAlbum(raw: AppleMusicAlbumResource): NormalizedAlbum {
     webUrl: attrs.url,
     tracks: tracks?.length ? tracks : undefined,
   };
-}
-
-/**
- * How many hits each storefront search asks Apple Music for: `5`.
- */
-const APPLE_MUSIC_SEARCH_LIMIT = 5;
-
-/**
- * One text search across the storefront cascade.
- *
- * @property category - The Apple search category, which is both the `types`
- *   parameter and the key of the results object: `"songs"`, `"albums"` or
- *   `"artists"`.
- * @property term - The search text, already URL-encoded.
- * @property kind - What is searched for, which a cascade failure names.
- * @property id - The title or name searched for, which a cascade failure names.
- * @property map - Turns one Apple resource into the normalized entity.
- * @property score - Scores one entity; receives its position in its
- *   storefront's hits, counted from `0`.
- * @property toResult - Turns the best entity across all storefronts and its
- *   score into the adapter result. Its `found` decides whether a failed
- *   storefront is only logged or thrown.
- */
-interface StorefrontSearch<Resource, Entity, Result extends { found: boolean }> {
-  category: "songs" | "albums" | "artists";
-  term: string;
-  kind: ResourceKind;
-  id: string;
-  map: (resource: Resource) => Entity;
-  score: (entity: Entity, index: number) => number;
-  toResult: (best: Entity | null, confidence: number) => Result;
-}
-
-/**
- * Searches each storefront of `getStorefrontCascade` and keeps the best hit
- * across all of them.
- *
- * Within one storefront the earliest of the highest scores wins, through
- * `pickBestCandidate`. A later storefront replaces the kept hit only when its
- * best scores strictly higher. The cascade stops once the kept hit reaches
- * `SEARCH_EARLY_EXIT_CONFIDENCE`, so the common case asks one storefront.
- *
- * @param search - What to search for and how to score and report it.
- * @returns The result `search.toResult` builds from the best hit.
- * @throws The provider failure of a storefront when no storefront answered,
- *   or when the result is a miss and a storefront failed with anything but
- *   `404`, because that miss would not be complete.
- */
-async function searchAcrossStorefronts<Resource, Entity, Result extends { found: boolean }>(
-  search: StorefrontSearch<Resource, Entity, Result>,
-): Promise<Result> {
-  let kept: BestCandidate<Entity> = { best: null, confidence: 0 };
-  const cascade = new StorefrontCascadeOutcome();
-
-  for (const storefront of getStorefrontCascade()) {
-    const response = await appleMusicFetch(
-      `/catalog/${storefront}/search?types=${search.category}&term=${search.term}&limit=${APPLE_MUSIC_SEARCH_LIMIT}`,
-    );
-    if (!cascade.record(response, storefront)) continue;
-
-    const data = await response.json();
-    const entities = searchResources<Resource>(data.results, search.category).map(search.map);
-    const storefrontBest = pickBestCandidate(entities, search.score);
-    if (storefrontBest.confidence > kept.confidence) kept = storefrontBest;
-
-    if (kept.confidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
-  }
-
-  const result = search.toResult(kept.best, kept.confidence);
-  cascade.throwIfUnresolved(search.kind, search.id, result.found);
-  return result;
 }
 
 const capabilities: AdapterCapabilities = {
@@ -724,7 +396,7 @@ export const appleMusicAdapter: ServiceAdapter = {
    * Text search for a track. Cascades across storefronts (see
    * {@link getStorefrontCascade}) keeping the best match across all attempted
    * stores; early-exits once a match reaches
-   * {@link SEARCH_EARLY_EXIT_CONFIDENCE} so the common case stays fast.
+   * `SEARCH_EARLY_EXIT_CONFIDENCE` in `storefront.ts` so the common case stays fast.
    */
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const text = searchText(query);
