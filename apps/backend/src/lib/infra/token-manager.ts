@@ -1,4 +1,26 @@
 import { fetchWithTimeout } from "../../lib/infra/fetch";
+import { ExpiringValueCache } from "./expiring-value-cache";
+
+/** Milliseconds per second, for the provider's `expires_in`, which counts seconds. */
+const MS_PER_SECOND = 1000;
+
+/**
+ * How long before its stated expiry a token is replaced: 60 s, because
+ * upstreams reject a request with 401 at the second of expiry.
+ */
+const TOKEN_REFRESH_MARGIN_MS = 60_000;
+
+/**
+ * One token as the token endpoint issued it.
+ *
+ * @property accessToken - The bearer token.
+ * @property expiresInSeconds - The `expires_in` of the answer: how many
+ *   seconds the token is valid from the moment it arrived.
+ */
+interface IssuedToken {
+  accessToken: string;
+  expiresInSeconds: number;
+}
 
 interface TokenManagerConfig {
   serviceName: string;
@@ -21,51 +43,54 @@ interface TokenManagerConfig {
  *    refresh"): without it, a burst of resolves arriving after token expiry
  *    each kicks off its own token POST. Upstreams then rate-limit the
  *    backend or, worse, invalidate earlier tokens once a new one is issued.
- *    `tokenPromise` holds the in-flight refresh; concurrent callers await
- *    the same promise.
+ *    The {@link ExpiringValueCache} holds the in-flight refresh; concurrent
+ *    callers await the same promise.
  *
  * 2. **60s early-refresh buffer**: the cache is treated as stale `expires_in
- *    - 60s` to avoid handing out a token whose validity ends mid-upstream
- *    call. Upstreams reject the request with 401 at the second of expiry,
- *    not a second before.
+ *    - 60s` ({@link TOKEN_REFRESH_MARGIN_MS}) to avoid handing out a token
+ *    whose validity ends mid-upstream call.
  *
  * `reset()` exists for Vitest: token state is per-instance and tests share
  * module-level singletons, so isolation requires a manual clear between
  * cases. Production never calls it.
  */
 export class TokenManager {
-  private cachedToken: { accessToken: string; expiresAt: number } | null = null;
-  private tokenPromise: Promise<string> | null = null;
+  /** The token and its lifetime, refreshed {@link TOKEN_REFRESH_MARGIN_MS} before it expires. */
+  private readonly token = new ExpiringValueCache<IssuedToken>({
+    load: () => this.fetchNewToken(),
+    timeToLiveMs: (issued) => issued.expiresInSeconds * MS_PER_SECOND,
+    refreshMarginMs: TOKEN_REFRESH_MARGIN_MS,
+  });
 
   constructor(private config: TokenManagerConfig) {}
 
+  /**
+   * Answers a valid access token, requesting a new one when the cached one is
+   * missing or within {@link TOKEN_REFRESH_MARGIN_MS} of its expiry.
+   *
+   * @returns The bearer token.
+   * @throws When the credentials are missing or the token request fails.
+   */
   async getAccessToken(): Promise<string> {
-    // 60s buffer before `expiresAt` (see class-level doc for rationale).
-    if (this.cachedToken && Date.now() < this.cachedToken.expiresAt - 60_000) {
-      return this.cachedToken.accessToken;
-    }
-
-    // Coalesce: if a refresh is already in flight, every other caller awaits
-    // the same promise instead of triggering a parallel POST.
-    if (this.tokenPromise) return this.tokenPromise;
-
-    this.tokenPromise = this.fetchNewToken().finally(() => {
-      this.tokenPromise = null;
-    });
-    return this.tokenPromise;
+    return (await this.token.get()).accessToken;
   }
 
   /** Reset cached token. Test-only: production singletons must not be reset. */
   reset(): void {
-    this.cachedToken = null;
-    this.tokenPromise = null;
+    this.token.reset();
   }
 
   isConfigured(): boolean {
     return !!(process.env[this.config.clientIdEnv] && process.env[this.config.clientSecretEnv]);
   }
 
-  private async fetchNewToken(): Promise<string> {
+  /**
+   * Requests a new token with the client-credentials grant.
+   *
+   * @returns The token and its lifetime as the provider states it.
+   * @throws When the credentials are missing or the provider answers an error status.
+   */
+  private async fetchNewToken(): Promise<IssuedToken> {
     const clientId =
       process.env[this.config.clientIdEnv] || (process.env[this.config.clientIdEnv] as string | undefined);
     const clientSecret =
@@ -94,12 +119,6 @@ export class TokenManager {
     }
 
     const data = await response.json();
-
-    this.cachedToken = {
-      accessToken: data.access_token,
-      expiresAt: Date.now() + data.expires_in * 1000,
-    };
-
-    return this.cachedToken.accessToken;
+    return { accessToken: data.access_token, expiresInSeconds: data.expires_in };
   }
 }

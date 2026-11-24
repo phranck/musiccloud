@@ -1,4 +1,5 @@
 import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
+import { ExpiringValueCache, throwOnEmpty } from "../../../lib/infra/expiring-value-cache";
 import { log } from "../../../lib/infra/logger";
 import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -46,7 +47,7 @@ import {
  * a CSRF token supplied BOTH in the `X-CsrfToken` header AND in a
  * `Cookie: csrftoken=...` value. The token itself is minted from the
  * `set-cookie` response when hitting the homepage, then cached for
- * 24h. `fetchCsrfToken` is coalesced through `csrfTokenPromise` so
+ * 24h. `fetchCsrfToken` is coalesced through the `csrfToken` cache so
  * concurrent requests share one homepage fetch.
  *
  * ## Two resolution paths
@@ -91,24 +92,33 @@ const IMG_BASE = "https://content-images.p-cdn.com/";
 
 // --- CSRF token management ---
 
-let cachedCsrfToken: string | null = null;
-let csrfTokenFetchedAt = 0;
-let csrfTokenPromise: Promise<string | null> | null = null;
-const CSRF_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+/** How long a CSRF token is reused before the homepage is read again: 24 hours. */
+const CSRF_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
-async function getCsrfToken(): Promise<string | null> {
-  if (cachedCsrfToken && Date.now() - csrfTokenFetchedAt < CSRF_TOKEN_TTL_MS) {
-    return cachedCsrfToken;
-  }
+/** The CSRF token. A failed homepage read answers the token from before, however old. */
+const csrfToken = new ExpiringValueCache<string>({
+  load: throwOnEmpty(fetchCsrfToken, "Pandora CSRF token"),
+  timeToLiveMs: CSRF_TOKEN_TTL_MS,
+  keepStaleOnFailure: true,
+});
 
-  // Promise coalescing: prevent parallel requests from each fetching independently
-  if (csrfTokenPromise) return csrfTokenPromise;
-  csrfTokenPromise = fetchCsrfToken().finally(() => {
-    csrfTokenPromise = null;
-  });
-  return csrfTokenPromise;
+/**
+ * Answers the CSRF token, reading the homepage when there is none or it has aged out.
+ *
+ * @returns The token, the one from before when a read fails, or `null` when
+ *   no read has produced one yet, as in a restricted region. Never throws,
+ *   because `fetchCsrfToken` reports every failure as `null`.
+ */
+function getCsrfToken(): Promise<string | null> {
+  return csrfToken.get().catch(() => null);
 }
 
+/**
+ * Reads a CSRF token from the `csrftoken` cookie the homepage sets.
+ *
+ * @returns The token, or `null` when the request fails or sets no such cookie.
+ *   Failures are never thrown.
+ */
 async function fetchCsrfToken(): Promise<string | null> {
   try {
     const response = await fetchProviderPage(PANDORA_BASE, PANDORA_HOMEPAGE_REQUEST);
@@ -117,16 +127,12 @@ async function fetchCsrfToken(): Promise<string | null> {
     const setCookie = setCookies.join("; ") || response.headers.get("set-cookie") || "";
     const match = /csrftoken=([^;]+)/.exec(setCookie);
 
-    if (match?.[1]) {
-      cachedCsrfToken = match[1];
-      csrfTokenFetchedAt = Date.now();
-      log.debug("Pandora", "Refreshed CSRF token");
-    }
-
-    return cachedCsrfToken;
+    if (!match?.[1]) return null;
+    log.debug("Pandora", "Refreshed CSRF token");
+    return match[1];
   } catch {
     log.debug("Pandora", "Failed to refresh CSRF token");
-    return cachedCsrfToken;
+    return null;
   }
 }
 
@@ -141,10 +147,8 @@ const PANDORA_HOMEPAGE_REQUEST: ProviderPageOptions = { timeoutMs: PANDORA_HOMEP
 async function pandoraApiFetch(endpoint: string, body: unknown): Promise<Response> {
   // The pair goes along when the homepage handed one out. Where it does not,
   // such as a restricted region, the search still answers without it.
-  const csrfToken = await getCsrfToken();
-  const csrfHeaders: Record<string, string> = csrfToken
-    ? { "X-CsrfToken": csrfToken, Cookie: `csrftoken=${csrfToken}` }
-    : {};
+  const token = await getCsrfToken();
+  const csrfHeaders: Record<string, string> = token ? { "X-CsrfToken": token, Cookie: `csrftoken=${token}` } : {};
 
   return fetchProviderPage(`${PANDORA_BASE}${endpoint}`, {
     headers: { "Content-Type": "application/json", ...csrfHeaders },
@@ -531,12 +535,16 @@ export const pandoraAdapter = {
 } satisfies ServiceAdapter & Record<string, unknown>;
 
 // Export for testing
+/** Drops the cached CSRF token, so the next search reads the homepage again. Test-only. */
 export function _resetCsrfTokenCache(): void {
-  cachedCsrfToken = null;
-  csrfTokenFetchedAt = 0;
+  csrfToken.invalidate();
 }
 
+/**
+ * Stores a CSRF token as if the homepage had just handed it out. Test-only.
+ *
+ * @param token - The token the next searches send.
+ */
 export function _setCsrfTokenForTest(token: string): void {
-  cachedCsrfToken = token;
-  csrfTokenFetchedAt = Date.now();
+  csrfToken.set(token);
 }
