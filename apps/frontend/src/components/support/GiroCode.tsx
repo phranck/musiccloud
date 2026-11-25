@@ -26,6 +26,17 @@ const GiroCodeDefault = {
   Corners: "extra-rounded",
 } as const;
 
+/**
+ * The corner radius of the code's white square, the same on all four corners.
+ *
+ * The square sits in the bottom-left corner of the transfer card's content,
+ * which clips it with `--mc-card-clip-radius`, the card's radius less its
+ * padding (`EmbossedCard`). The square takes that radius everywhere, so the
+ * clipped corner and the other three match. Outside a card, where the property
+ * is unset, it takes {@link SMALL_CORNER_RADIUS}.
+ */
+const GIRO_CODE_CORNER_RADIUS = `var(--mc-card-clip-radius, ${SMALL_CORNER_RADIUS})`;
+
 /** The format the renderer writes, which an `img` shows as it is. */
 const RENDER_FORMAT = "svg";
 
@@ -129,9 +140,7 @@ export function GiroCode({ payload, style, label }: GiroCodeProps) {
         height: size,
         padding: margin,
         background: style?.background ?? GiroCodeDefault.Background,
-        // Slightly rounded, so the white square sits on the card like the
-        // site's other surfaces rather than as a cut-out.
-        borderRadius: SMALL_CORNER_RADIUS,
+        borderRadius: GIRO_CODE_CORNER_RADIUS,
       }}
     >
       {drawing?.payload === payload && (

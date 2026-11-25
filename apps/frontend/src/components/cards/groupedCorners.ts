@@ -15,8 +15,8 @@ export const GROUPED_CORNER_FULL = "var(--neu-radius)";
 
 /**
  * The site's small corner: 5px, the most an interior corner between grouped
- * rows or tiles may take, and the slight rounding a plain square such as the
- * support ladder's GiroCode takes.
+ * rows or tiles may take, and the slight rounding a plain square takes where
+ * no card around it names a radius, such as the support ladder's GiroCode.
  */
 export const SMALL_CORNER_RADIUS = "5px";
 
