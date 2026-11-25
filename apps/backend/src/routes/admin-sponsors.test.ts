@@ -1,11 +1,11 @@
 /**
  * Route tests for the annual sponsors (`/api/admin/sponsoring/sponsors`).
  * Drives the real handlers and the shared request schema through
- * `app.inject`, with the sponsors service, the picture lookup, the copy step,
- * the picture store and the admin lookup mocked.
+ * `app.inject`, with the sponsors service, the picture lookup, the copy and
+ * upload step, the picture store and the admin lookup mocked.
  */
 import jwt from "@fastify/jwt";
-import { ENDPOINTS, type SponsorInput } from "@musiccloud/shared";
+import { ENDPOINTS, IMAGE_UPLOAD_MAX_BYTES, type SponsorInput } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
@@ -36,10 +36,11 @@ vi.mock("../services/sponsor-avatar.js", () => ({
 
 vi.mock("../services/sponsor-avatar-copy.js", () => ({
   copySponsorAvatar: vi.fn(async () => null),
+  storeSponsorAvatarImage: vi.fn(async () => ({ ok: true, avatarId: STORED_AVATAR_ID })),
 }));
 
 import { resolveSponsorAvatar } from "../services/sponsor-avatar.js";
-import { copySponsorAvatar } from "../services/sponsor-avatar-copy.js";
+import { copySponsorAvatar, storeSponsorAvatarImage } from "../services/sponsor-avatar-copy.js";
 import { createSponsor, deleteSponsor, updateSponsor } from "../services/sponsors.js";
 
 /** A valid sponsor who agreed to be named. */
@@ -54,6 +55,9 @@ const VALID: SponsorInput = {
   published: true,
   paidOn: "2026-11-17",
 };
+
+/** The bytes every upload test sends; the store is mocked, so they need not decode. */
+const UPLOAD_BYTES = Buffer.from("sponsor picture");
 
 let app: FastifyInstance;
 
@@ -232,6 +236,53 @@ describe("annual sponsor routes", () => {
 
     expect(res.statusCode).toBe(role === "moderator" ? 403 : 400);
     expect(resolveSponsorAvatar).not.toHaveBeenCalled();
+  });
+
+  it.each(["image/png", "image/jpeg"])("stores an uploaded %s and answers its id", async (mimeType) => {
+    const res = await send("POST", ENDPOINTS.admin.sponsoring.sponsorAvatarUpload, "owner", {
+      dataUrl: `data:${mimeType};base64,${UPLOAD_BYTES.toString("base64")}`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ avatarId: STORED_AVATAR_ID });
+    expect(storeSponsorAvatarImage).toHaveBeenCalledWith(UPLOAD_BYTES);
+  });
+
+  it.each<[string, string]>([
+    ["a WebP, which the decoder cannot read", `data:image/webp;base64,${UPLOAD_BYTES.toString("base64")}`],
+    ["an SVG", `data:image/svg+xml;base64,${UPLOAD_BYTES.toString("base64")}`],
+    ["something that is no data URL", "https://files.example/ada.png"],
+    [
+      "a picture past the upload cap",
+      `data:image/png;base64,${"A".repeat(Math.ceil(((IMAGE_UPLOAD_MAX_BYTES + 3) * 4) / 3))}`,
+    ],
+  ])("refuses %s with MC-REQ-0017 and stores nothing", async (_case, dataUrl) => {
+    const res = await send("POST", ENDPOINTS.admin.sponsoring.sponsorAvatarUpload, "admin", { dataUrl });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("MC-REQ-0017");
+    expect(storeSponsorAvatarImage).not.toHaveBeenCalled();
+  });
+
+  it("refuses a picture the decoder cannot read with MC-REQ-0017", async () => {
+    vi.mocked(storeSponsorAvatarImage).mockResolvedValueOnce({ ok: false, reason: "undecodable" });
+
+    const res = await send("POST", ENDPOINTS.admin.sponsoring.sponsorAvatarUpload, "admin", {
+      dataUrl: `data:image/png;base64,${UPLOAD_BYTES.toString("base64")}`,
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("MC-REQ-0017");
+  });
+
+  it.each<[string, string, unknown]>([
+    ["a moderator", "moderator", { dataUrl: `data:image/png;base64,${UPLOAD_BYTES.toString("base64")}` }],
+    ["a body without a picture", "admin", {}],
+  ])("refuses an upload by %s without storing anything", async (_case, role, payload) => {
+    const res = await send("POST", ENDPOINTS.admin.sponsoring.sponsorAvatarUpload, role, payload);
+
+    expect(res.statusCode).toBe(role === "moderator" ? 403 : 400);
+    expect(storeSponsorAvatarImage).not.toHaveBeenCalled();
   });
 
   it("refuses an id with characters a sponsor id never has", async () => {

@@ -1,5 +1,6 @@
 /**
- * @file Tests for copying a sponsor's picture into musiccloud's own store.
+ * @file Tests for copying a sponsor's picture into musiccloud's own store,
+ * downloaded or uploaded.
  *
  * The download is replaced by hand-built responses, because what is under test
  * is what this module does with the bytes; `fetchWithTimeout`'s destination
@@ -10,7 +11,7 @@ import { Jimp } from "jimp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchExternalResource } from "../lib/external-resource.js";
 import { log } from "../lib/infra/logger.js";
-import { copySponsorAvatar } from "./sponsor-avatar-copy.js";
+import { copySponsorAvatar, storeSponsorAvatarImage } from "./sponsor-avatar-copy.js";
 import { storeSponsorAvatar } from "./sponsor-avatars.js";
 
 vi.mock("../lib/external-resource.js", async (importOriginal) => ({
@@ -128,5 +129,39 @@ describe("copySponsorAvatar", () => {
 
     expect(await copySponsorAvatar(PICTURE_URL)).toBeNull();
     expect(store).not.toHaveBeenCalled();
+  });
+});
+
+describe("storeSponsorAvatarImage", () => {
+  beforeEach(() => {
+    store.mockReset();
+    store.mockResolvedValue(STORED_ID);
+  });
+
+  it("stores an uploaded portrait as a 256 pixel square PNG", async () => {
+    expect(await storeSponsorAvatarImage(await encodedImage(200, 300, "image/jpeg"))).toEqual({
+      ok: true,
+      avatarId: STORED_ID,
+    });
+
+    const decoded = await Jimp.read(store.mock.calls[0]?.[0] as Buffer);
+    expect(decoded.mime).toBe("image/png");
+    expect([decoded.width, decoded.height]).toEqual([256, 256]);
+  });
+
+  it.each([
+    ["a canvas past the decoder's limit", () => encodedImage(1, 4097, "image/png"), "canvas_too_large"],
+    ["bytes that are no image", async () => new TextEncoder().encode("not a picture"), "undecodable"],
+  ])("refuses %s without storing anything", async (_case, bytes, reason) => {
+    expect(await storeSponsorAvatarImage(await bytes())).toMatchObject({ ok: false, reason });
+    expect(store).not.toHaveBeenCalled();
+  });
+
+  it("throws when the store fails, because that says nothing about the picture", async () => {
+    store.mockRejectedValueOnce(new Error("database unavailable"));
+
+    await expect(storeSponsorAvatarImage(await encodedImage(10, 10, "image/png"))).rejects.toThrow(
+      "database unavailable",
+    );
   });
 });

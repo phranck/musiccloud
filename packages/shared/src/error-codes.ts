@@ -236,6 +236,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     internalNote: "A support prompt's last day lies before its first day. Nothing was written.",
     source: "apps/backend/src/routes/admin-support-prompts.ts acceptPromptInput",
   },
+  "MC-REQ-0017": {
+    code: "MC-REQ-0017",
+    httpStatus: 400,
+    userMessage: "This picture cannot be used. Please upload a JPEG or PNG of at most {maxMegabytes} MB.",
+    internalNote:
+      "An uploaded sponsor picture was not a base64 data URL of a JPEG or PNG, was larger than IMAGE_UPLOAD_MAX_BYTES, declared a canvas past the decoder's limit, or could not be decoded. WebP is refused because the backend's Jimp has no WebP decoder. Nothing was stored.",
+    source: "apps/backend/src/routes/admin-sponsors.ts sponsor picture upload",
+  },
   "MC-AUTH-0001": {
     code: "MC-AUTH-0001",
     httpStatus: 401,

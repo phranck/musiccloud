@@ -239,6 +239,7 @@ export const dashboardCopy = {
       invalidUrlMessage: "Invalid {platform} URL.",
     },
     sponsorPictureLabel: "Picture",
+    sponsorUploadPicture: "Upload picture",
     sponsorRefreshPicture: "Fetch picture again",
     sponsorRemovePicture: "Remove picture",
     sponsorNoPictureFound: "There is no picture behind this address.",

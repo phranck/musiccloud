@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   updateSponsor: vi.fn(),
   deleteSponsor: vi.fn(),
   resolveSponsorAvatar: vi.fn(),
+  uploadSponsorAvatar: vi.fn(),
 }));
 
 vi.mock("./api", async (importOriginal) => ({
@@ -18,6 +19,7 @@ vi.mock("./api", async (importOriginal) => ({
   updateSponsor: mocks.updateSponsor,
   deleteSponsor: mocks.deleteSponsor,
   resolveSponsorAvatar: mocks.resolveSponsorAvatar,
+  uploadSponsorAvatar: mocks.uploadSponsorAvatar,
 }));
 
 // The real header hands its actions to the layout's slot, which this test does not mount.
@@ -142,6 +144,47 @@ describe("SponsorsPage", () => {
         false,
       ),
     );
+  });
+
+  it("records an uploaded picture and keeps it when an address is entered afterwards", async () => {
+    mocks.uploadSponsorAvatar.mockResolvedValue({ avatarId: AVATAR_ID });
+    mocks.createSponsor.mockImplementation(async (input: SponsorInput) => ({ ...CURRENT, ...input, id: "s3" }));
+    renderPage();
+    await screen.findByText("Ada");
+
+    fireEvent.click(screen.getByRole("button", { name: sm.sponsorAdd }));
+    fireEvent.change(screen.getByLabelText(sm.sponsorNameLabel), { target: { value: "Linus" } });
+    const file = new File(["png"], "linus.png", { type: "image/png" });
+    const picker = screen.getByLabelText(sm.sponsorUploadPicture) as HTMLInputElement;
+    expect(picker.accept).toBe("image/jpeg,image/png");
+    fireEvent.change(picker, { target: { files: [file] } });
+
+    await waitFor(() => expect(mocks.uploadSponsorAvatar).toHaveBeenCalledWith(file));
+    expect((await screen.findByRole("img", { name: "Linus" })).getAttribute("src")).toContain(AVATAR_ID);
+
+    fireEvent.change(screen.getByLabelText(sm.sponsorSocialMediaEditor.urlPlaceholder), {
+      target: { value: "https://github.com/linus" },
+    });
+    const save = screen.getByRole("button", { name: dashboardCopy.common.save }) as HTMLButtonElement;
+    await waitFor(() => expect(save.disabled).toBe(false));
+    fireEvent.click(save);
+
+    await waitFor(() => expect(mocks.createSponsor).toHaveBeenCalled());
+    expect(mocks.resolveSponsorAvatar).not.toHaveBeenCalled();
+    expect(mocks.createSponsor.mock.calls[0]?.[0]).toMatchObject({ avatarId: AVATAR_ID });
+  });
+
+  it("says in the server's words why an uploaded picture was refused", async () => {
+    mocks.uploadSponsorAvatar.mockRejectedValue(new Error("This picture cannot be used."));
+    renderPage();
+    await screen.findByText("Ada");
+
+    fireEvent.click(screen.getByRole("button", { name: sm.sponsorAdd }));
+    fireEvent.change(screen.getByLabelText(sm.sponsorUploadPicture), {
+      target: { files: [new File(["gif"], "linus.gif", { type: "image/gif" })] },
+    });
+
+    expect((await screen.findByRole("alert")).textContent).toContain("This picture cannot be used.");
   });
 
   it("keeps Save off while an address does not fit its platform", async () => {
