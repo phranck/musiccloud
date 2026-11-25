@@ -17,6 +17,15 @@ import { SUPPORT_TEXT_CLASS } from "./supportType";
 /** The side of the picture and of the initial standing in for it, in pixels: 48. */
 const AVATAR_SIZE_PX = 48;
 
+/**
+ * The typographic marks around a sponsor's own sentence: `“` before it and `”`
+ * after it. The opening one hangs into the margin, 0.4em, so the sentence's
+ * later rows line up with its first letter.
+ */
+const OPENING_QUOTE = "“";
+/** See {@link OPENING_QUOTE}. */
+const CLOSING_QUOTE = "”";
+
 /** Props of {@link SponsorCard}. */
 export interface SponsorCardProps {
   /** The sponsor as the public route returned them. */
@@ -39,6 +48,9 @@ export interface SponsorCardProps {
  *
  * The name is the card's heading, an `h3` under the wall's own heading, so it
  * is set in the heading face at the size of the text around it.
+ *
+ * The sentence is the sponsor's own words, so it stands as a quotation, a
+ * `blockquote`, in italics and between quotation marks.
  *
  * A long name wraps after a whole word rather than being cut off, because
  * how much of it fits on one row depends on the browser's type. Only a
@@ -79,7 +91,15 @@ export function SponsorCard({ sponsor, since, left, duplicate = false }: Sponsor
             />
           </div>
         </div>
-        {sponsor.claim && <p className={`whitespace-pre-line ${SUPPORT_TEXT_CLASS}`}>{sponsor.claim}</p>}
+        {sponsor.claim && (
+          <blockquote>
+            <p className={`-indent-[0.4em] whitespace-pre-line pl-[0.4em] italic ${SUPPORT_TEXT_CLASS}`}>
+              {OPENING_QUOTE}
+              {sponsor.claim}
+              {CLOSING_QUOTE}
+            </p>
+          </blockquote>
+        )}
         <p className="mc-sponsor-wall__term">
           <span>Sponsor since {since}</span>
           <span aria-hidden="true">·</span>

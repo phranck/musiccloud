@@ -86,7 +86,8 @@ describe("SponsorWall", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe(ENDPOINTS.frontend.sponsors);
     expect(screen.getByText("355 days left")).toBeTruthy();
     expect(screen.getByText("Sponsor since 07/11/2026")).toBeTruthy();
-    expect(screen.getByText("Music for everybody.")).toBeTruthy();
+    // The sentence is the sponsor's own, quoted between quotation marks.
+    expect(screen.getByText("“Music for everybody.”").closest("blockquote")).not.toBeNull();
     expect(document.querySelector("img")?.getAttribute("src")).toBe(
       ENDPOINTS.frontend.sponsorAvatar(ADA.avatarId ?? ""),
     );
