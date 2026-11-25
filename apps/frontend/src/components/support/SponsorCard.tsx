@@ -21,10 +21,8 @@ const AVATAR_SIZE_PX = 48;
 export interface SponsorCardProps {
   /** The sponsor as the public route returned them. */
   sponsor: PublicSponsor;
-  /** The day their year began, written out, as the wide card shows it. */
+  /** The day their year began, in figures: `07/11/2026`. */
   since: string;
-  /** The same day in figures, for a card too narrow for the month's name. */
-  sinceShort: string;
   /** What is left of their year, as a phrase. */
   left: string;
   /**
@@ -45,7 +43,7 @@ export interface SponsorCardProps {
  * @param props - See {@link SponsorCardProps}.
  * @returns The card as an item of the wall's list.
  */
-export function SponsorCard({ sponsor, since, sinceShort, left, duplicate = false }: SponsorCardProps) {
+export function SponsorCard({ sponsor, since, left, duplicate = false }: SponsorCardProps) {
   return (
     <li className="mc-sponsor-wall__slot" aria-hidden={duplicate || undefined} inert={duplicate || undefined}>
       <ContentCard className="flex h-full flex-col gap-3">
@@ -76,10 +74,7 @@ export function SponsorCard({ sponsor, since, sinceShort, left, duplicate = fals
         </div>
         {sponsor.claim && <p className={`whitespace-pre-line ${SUPPORT_TEXT_CLASS}`}>{sponsor.claim}</p>}
         <p className="mc-sponsor-wall__term">
-          <span>
-            Sponsor since <span className="mc-sponsor-wall__date-long">{since}</span>
-            <span className="mc-sponsor-wall__date-short">{sinceShort}</span>
-          </span>
+          <span>Sponsor since {since}</span>
           <span aria-hidden="true">·</span>
           <span>{left}</span>
         </p>

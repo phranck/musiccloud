@@ -84,7 +84,7 @@ describe("SponsorWall", () => {
     expect(await screen.findByText("Ada")).toBeTruthy();
     expect(fetchMock.mock.calls[0]?.[0]).toBe(ENDPOINTS.frontend.sponsors);
     expect(screen.getByText("355 days left")).toBeTruthy();
-    expect(screen.getByText("7 November 2026")).toBeTruthy();
+    expect(screen.getByText("Sponsor since 07/11/2026")).toBeTruthy();
     expect(screen.getByText("Music for everybody.")).toBeTruthy();
     expect(document.querySelector("img")?.getAttribute("src")).toBe(
       ENDPOINTS.frontend.sponsorAvatar(ADA.avatarId ?? ""),
@@ -179,6 +179,6 @@ describe("SponsorWall", () => {
     expect(reduced).toMatch(
       /^@media \(prefers-reduced-motion: reduce\) \{\s+\.mc-sponsor-wall__rail\.is-moving \.mc-sponsor-wall__track \{\s+animation: none;/,
     );
-    expect(reduced).toMatch(/\.mc-sponsor-wall__rail \{\s+overflow-x: auto;/);
+    expect(reduced).toMatch(/\.mc-sponsor-wall__rail\.is-moving \{\s+overflow-x: auto;/);
   });
 });

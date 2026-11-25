@@ -46,6 +46,21 @@
   --mc-shadow-blur: 21px;
   --mc-shadow-rgb: 0, 0, 0;
 
+  /* How far a card's shadow reaches past the card on every side: twice the
+     blur plus the larger offset. Stated here, beside the figures it is read
+     from, because `.mc-card-shadow` draws into it and a container that clips,
+     such as the sponsor wall's rail, leaves that much room for it. The saved
+     tokens override the figures on this same element, so it follows them. */
+  --mc-card-shadow-gutter: calc(
+    2 * var(--mc-shadow-blur) +
+    max(
+      var(--mc-shadow-x),
+      calc(-1 * var(--mc-shadow-x)),
+      var(--mc-shadow-y),
+      calc(-1 * var(--mc-shadow-y))
+    )
+  );
+
   /* card (outer EmbossedCard / section card) */
   --card-day-t: rgba(0, 0, 0, 0.35);
   --card-day-sh: 0.3;
@@ -473,15 +488,6 @@ a.mc-cardlink {
 }
 
 .mc-card-shadow {
-  --mc-card-shadow-gutter: calc(
-    2 * var(--mc-shadow-blur) +
-    max(
-      var(--mc-shadow-x),
-      calc(-1 * var(--mc-shadow-x)),
-      var(--mc-shadow-y),
-      calc(-1 * var(--mc-shadow-y))
-    )
-  );
   position: absolute;
   inset: calc(-1 * var(--mc-card-shadow-gutter));
   z-index: -2;
