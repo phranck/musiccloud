@@ -37,6 +37,9 @@ export interface SponsorCardProps {
  * One sponsor: picture, name, the places they can be found, their sentence,
  * and since when and for how much longer they carry the year.
  *
+ * The name is the card's heading, an `h3` under the wall's own heading, so it
+ * is set in the heading face at the size of the text around it.
+ *
  * A long name wraps after a whole word rather than being cut off, because
  * how much of it fits on one row depends on the browser's type. Only a
  * single word longer than the row is broken inside.
@@ -67,14 +70,14 @@ export function SponsorCard({ sponsor, since, left, duplicate = false }: Sponsor
               {sponsor.name.slice(0, 1)}
             </span>
           )}
-          <span className="min-w-0">
-            <span className="block font-semibold break-words text-text-primary">{sponsor.name}</span>
+          <div className="min-w-0">
+            <h3 className="font-semibold break-words text-text-primary">{sponsor.name}</h3>
             <SocialMediaIcons
               socialMedia={sponsor.socialMedia}
               className="mt-1 flex items-center gap-2"
               itemClassName="text-text-secondary transition-colors hover:text-text-primary"
             />
-          </span>
+          </div>
         </div>
         {sponsor.claim && <p className={`whitespace-pre-line ${SUPPORT_TEXT_CLASS}`}>{sponsor.claim}</p>}
         <p className="mc-sponsor-wall__term">

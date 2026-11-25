@@ -81,7 +81,8 @@ describe("SponsorWall", () => {
     answer(payload([ADA]));
     render(<MarkdownHtml html={WALL} />);
 
-    expect(await screen.findByText("Ada")).toBeTruthy();
+    // The name is the card's heading, one level below the wall's own.
+    expect(await screen.findByRole("heading", { level: 3, name: "Ada" })).toBeTruthy();
     expect(fetchMock.mock.calls[0]?.[0]).toBe(ENDPOINTS.frontend.sponsors);
     expect(screen.getByText("355 days left")).toBeTruthy();
     expect(screen.getByText("Sponsor since 07/11/2026")).toBeTruthy();
