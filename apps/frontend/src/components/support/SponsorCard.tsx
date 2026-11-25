@@ -91,8 +91,10 @@ export function SponsorCard({ sponsor, since, left, duplicate = false }: Sponsor
           )}
           <div className="min-w-0">
             {/* The type is set on the wrapper, because the wall's prose reset makes
-                its headings inherit; see `.mc-sponsor-wall` in `global.css`. */}
-            <div className="font-semibold break-words text-text-primary">
+                its headings inherit; see `.mc-sponsor-wall` in `global.css`.
+                `.mc-sponsor-wall__name` trims the name to its letters, so the
+                picture centers on what is visible. */}
+            <div className="mc-sponsor-wall__name font-semibold break-words text-text-primary">
               <h3>{sponsor.name}</h3>
             </div>
             <SocialMediaIcons

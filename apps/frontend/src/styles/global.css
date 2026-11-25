@@ -569,6 +569,21 @@ button,
   line-height: var(--text-sm--line-height);
 }
 
+/* A sponsor's name, the card's heading, and the picture is centered against
+   it and the links below it as one group. That group has to start where the
+   letters start: the line height is the font size, and the space above the
+   capitals is trimmed off the heading's first line, so the box's top is the
+   capitals' top. The heading inherits the line height, because the prose reset
+   above sets it to `inherit`. Where a browser cannot trim, the name stands
+   about a pixel and a half lower than the picture's middle. */
+.mc-sponsor-wall__name {
+  line-height: 1;
+}
+
+.mc-sponsor-wall__name > h3 {
+  text-box: trim-start cap alphabetic;
+}
+
 /* A sponsor without a picture, shown by their initial. Its size is the
    picture's, which `SponsorCard` sets inline from `AVATAR_SIZE_PX`. */
 .mc-sponsor-wall__initial {
