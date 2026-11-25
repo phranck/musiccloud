@@ -15,10 +15,10 @@ import { ContentCard } from "@/components/cards/ContentCard";
 import { SUPPORT_TEXT_CLASS } from "./supportType";
 
 /**
- * The side of the picture and of the initial standing in for it, in pixels: 52.
+ * The side of the picture and of the initial standing in for it, in pixels: 50.
  * Both take it inline, so this is the only place the size is set.
  */
-const AVATAR_SIZE_PX = 52;
+const AVATAR_SIZE_PX = 50;
 
 /** The box {@link AVATAR_SIZE_PX} gives the picture and the initial alike. */
 const AVATAR_BOX_STYLE = { width: AVATAR_SIZE_PX, height: AVATAR_SIZE_PX } as const;
@@ -72,9 +72,7 @@ export function SponsorCard({ sponsor, since, left, duplicate = false }: Sponsor
   return (
     <li className="mc-sponsor-wall__slot" aria-hidden={duplicate || undefined} inert={duplicate || undefined}>
       <ContentCard className="flex h-full flex-col gap-3">
-        {/* The picture stands in the top-left corner, level with the name's
-            first row, however many rows the name and its links take. */}
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           {sponsor.avatarId ? (
             <img
               src={ENDPOINTS.frontend.sponsorAvatar(sponsor.avatarId)}
