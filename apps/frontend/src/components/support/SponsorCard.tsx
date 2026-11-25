@@ -37,6 +37,10 @@ export interface SponsorCardProps {
  * One sponsor: picture, name, the places they can be found, their sentence,
  * and since when and for how much longer they carry the year.
  *
+ * A long name wraps after a whole word rather than being cut off, because
+ * how much of it fits on one row depends on the browser's type. Only a
+ * single word longer than the row is broken inside.
+ *
  * The term sits at the foot of the card, pushed down, so cards whose
  * sentences differ in length still line up their last row.
  *
@@ -64,7 +68,7 @@ export function SponsorCard({ sponsor, since, left, duplicate = false }: Sponsor
             </span>
           )}
           <span className="min-w-0">
-            <span className="block truncate font-semibold text-text-primary">{sponsor.name}</span>
+            <span className="block font-semibold break-words text-text-primary">{sponsor.name}</span>
             <SocialMediaIcons
               socialMedia={sponsor.socialMedia}
               className="mt-1 flex items-center gap-2"
