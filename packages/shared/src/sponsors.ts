@@ -146,10 +146,46 @@ export const SPONSOR_AVATAR_REQUEST_SCHEMA = {
 } as const;
 
 /**
- * What the avatar route answers.
+ * The image types a sponsor's picture may be uploaded in: `image/jpeg` and
+ * `image/png`. They are the ones the backend can decode before it encodes the
+ * stored square, so the dashboard's file picker offers these and the upload
+ * route refuses every other type, WebP included, with `MC-REQ-0017`.
+ */
+export const SPONSOR_AVATAR_UPLOAD_MIME_TYPES = ["image/jpeg", "image/png"] as const;
+
+/** One of {@link SPONSOR_AVATAR_UPLOAD_MIME_TYPES}. */
+export type SponsorAvatarUploadMimeType = (typeof SPONSOR_AVATAR_UPLOAD_MIME_TYPES)[number];
+
+/**
+ * Whether a media type is one a sponsor's picture may be uploaded in.
+ *
+ * @param mimeType - The media type a file or a `data:` URL names, compared exactly.
+ * @returns Whether it is one of {@link SPONSOR_AVATAR_UPLOAD_MIME_TYPES}.
+ */
+export function isSponsorAvatarUploadMimeType(mimeType: string): mimeType is SponsorAvatarUploadMimeType {
+  return (SPONSOR_AVATAR_UPLOAD_MIME_TYPES as readonly string[]).includes(mimeType);
+}
+
+/**
+ * The request schema of the picture upload route: the file as a base64
+ * `data:` URL, as the dashboard's `fileToDataUrl` reads it. Its type and size
+ * are checked by the route, which answers `MC-REQ-0017` for either.
+ */
+export const SPONSOR_AVATAR_UPLOAD_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["dataUrl"],
+  properties: {
+    dataUrl: { type: "string", minLength: 1 },
+  },
+} as const;
+
+/**
+ * What the avatar lookup and the picture upload answer.
  *
  * @property avatarId - The id of the stored copy, or `null` when no profile led to a picture
- *   that could be read.
+ *   that could be read. The upload always answers an id, because it refuses a picture it
+ *   cannot store with `MC-REQ-0017`.
  */
 export interface SponsorAvatarResult {
   avatarId: string | null;

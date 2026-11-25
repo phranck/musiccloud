@@ -333,6 +333,8 @@ export const ENDPOINTS = {
       sponsorDetail: (id: string) => `/api/admin/sponsoring/sponsors/${encodeURIComponent(id)}`,
       /** POST: find, copy and store the picture behind a sponsor's profiles; answers its avatar id. Owner or admin. */
       sponsorAvatar: "/api/admin/sponsoring/sponsors/avatar",
+      /** POST: store a picture uploaded as a `data:` URL as a sponsor's picture; answers its avatar id. Owner or admin. */
+      sponsorAvatarUpload: "/api/admin/sponsoring/sponsors/avatar/upload",
       /** GET: every sponsorship request nobody has taken over yet, oldest first. Owner or admin. */
       requests: "/api/admin/sponsoring/requests",
       /** DELETE: remove one sponsorship request. Owner or admin. */

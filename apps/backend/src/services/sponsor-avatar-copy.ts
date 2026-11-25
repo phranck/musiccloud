@@ -1,11 +1,12 @@
 /**
- * @file Turns the address of a sponsor's picture into a copy musiccloud stores.
+ * @file Turns a sponsor's picture into a copy musiccloud stores, whether the
+ * picture was found behind an address or uploaded in the dashboard.
  *
- * This is the step lmaa.space does not have, because lmaa keeps the foreign
- * address. The picture is downloaded once through the guarded outbound fetch,
- * decoded, cut to a square and encoded again as PNG, so what is stored and
- * served is always an image this server wrote and never the bytes a foreign
- * host chose to send.
+ * The download is the step lmaa.space does not have, because lmaa keeps the
+ * foreign address. A downloaded picture goes through the guarded outbound
+ * fetch, and every picture, downloaded or uploaded, is decoded, cut to a
+ * square and encoded again as PNG, so what is stored and served is always an
+ * image this server wrote and never the bytes somebody else chose to send.
  */
 
 import { Jimp } from "jimp";
@@ -54,6 +55,56 @@ const LOG_COMPONENT = "SponsorAvatarCopy";
 const LOG_ERROR_CODE = "MC-SYS-0001";
 
 /**
+ * Why {@link storeSponsorAvatarImage} did not store a picture. The values are
+ * the stable tokens a log search filters on.
+ */
+export const SponsorAvatarImageRefusal = {
+  /** The header declares a side past {@link MAX_SOURCE_SIDE_PX}, so the picture is not decoded. */
+  CanvasTooLarge: "canvas_too_large",
+  /** Jimp cannot decode the bytes, as for a WebP, a truncated file or something that is no image. */
+  Undecodable: "undecodable",
+} as const;
+
+/** One of {@link SponsorAvatarImageRefusal}. */
+export type SponsorAvatarImageRefusalValue = (typeof SponsorAvatarImageRefusal)[keyof typeof SponsorAvatarImageRefusal];
+
+/**
+ * What {@link storeSponsorAvatarImage} did: stored the picture under an id, or
+ * refused it for a reason, with the decoder's error where there is one.
+ */
+export type StoredSponsorAvatarImage =
+  | { ok: true; avatarId: string }
+  | { ok: false; reason: SponsorAvatarImageRefusalValue; error?: unknown };
+
+/**
+ * Decodes a picture, cuts it to a {@link AVATAR_SIDE_PX} square, encodes it as
+ * PNG and stores it.
+ *
+ * A canvas past {@link MAX_SOURCE_SIDE_PX} is refused from its header before
+ * decoding. A failure to store the PNG is not a refusal and is thrown, because
+ * it says nothing about the picture.
+ *
+ * @param bytes - The picture's bytes as they were downloaded or uploaded.
+ * @returns The stored copy's id, or why the picture was refused.
+ */
+export async function storeSponsorAvatarImage(bytes: Uint8Array): Promise<StoredSponsorAvatarImage> {
+  const dimensions = parseImageDimensions(bytes);
+  if (dimensions && Math.max(dimensions.width, dimensions.height) > MAX_SOURCE_SIDE_PX) {
+    return { ok: false, reason: SponsorAvatarImageRefusal.CanvasTooLarge };
+  }
+
+  let png: Buffer;
+  try {
+    const image = await Jimp.read(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+    image.cover({ w: AVATAR_SIDE_PX, h: AVATAR_SIDE_PX });
+    png = await image.getBuffer(STORED_MIME);
+  } catch (error) {
+    return { ok: false, reason: SponsorAvatarImageRefusal.Undecodable, error };
+  }
+  return { ok: true, avatarId: await storeSponsorAvatar(png) };
+}
+
+/**
  * Downloads a picture, re-encodes it as a square PNG and stores it.
  *
  * Anything that is not a raster image Jimp can decode is refused: an SVG, a
@@ -83,19 +134,9 @@ export async function copySponsorAvatar(pictureUrl: string): Promise<string | nu
   const bytes = await readBodyWithLimit(response, MAX_SOURCE_BYTES);
   if (!bytes) return refuse(pictureUrl, "too_large");
 
-  const dimensions = parseImageDimensions(bytes);
-  if (dimensions && Math.max(dimensions.width, dimensions.height) > MAX_SOURCE_SIDE_PX) {
-    return refuse(pictureUrl, "canvas_too_large");
-  }
-
-  try {
-    const image = await Jimp.read(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength));
-    image.cover({ w: AVATAR_SIDE_PX, h: AVATAR_SIDE_PX });
-    const png = await image.getBuffer(STORED_MIME);
-    return await storeSponsorAvatar(png);
-  } catch (error) {
-    return refuse(pictureUrl, "undecodable", error);
-  }
+  const stored = await storeSponsorAvatarImage(bytes);
+  if (!stored.ok) return refuse(pictureUrl, stored.reason, stored.error);
+  return stored.avatarId;
 }
 
 /**

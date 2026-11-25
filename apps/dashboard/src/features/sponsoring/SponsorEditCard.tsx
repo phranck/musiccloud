@@ -12,7 +12,13 @@ import { useRef, useState } from "react";
 
 import { SaveErrorMessage } from "@/components/ui/SaveErrorMessage";
 import { dashboardCopy } from "@/copy/dashboard";
-import { createSponsor, LEDGER_QUERY_KEY, resolveSponsorAvatar, updateSponsor } from "@/features/sponsoring/api";
+import {
+  createSponsor,
+  LEDGER_QUERY_KEY,
+  resolveSponsorAvatar,
+  updateSponsor,
+  uploadSponsorAvatar,
+} from "@/features/sponsoring/api";
 import { localDay } from "@/features/sponsoring/donationForm";
 import { SponsorPictureEditor } from "@/features/sponsoring/SponsorPictureEditor";
 import {
@@ -53,8 +59,10 @@ export interface SponsorEditCardProps {
  *
  * The picture is looked up as the profiles are entered rather than when the
  * card is saved, and what comes back is the id of a copy musiccloud stored, so
- * no visitor's browser asks a sponsor's host for anything. Save stays off while
- * the backend would refuse a field. The amount is shown and never edited,
+ * no visitor's browser asks a sponsor's host for anything. A picture can also
+ * be uploaded, which is stored the same way and is then kept when an address
+ * changes. Save stays off while the backend would refuse a field or a picture
+ * is still on its way. The amount is shown and never edited,
  * because it is summed from the donations linked to the sponsor.
  *
  * @param props - See {@link SponsorEditCardProps}.
@@ -68,6 +76,13 @@ export function SponsorEditCard({ sponsor, onClose }: SponsorEditCardProps) {
   const [pictureMissing, setPictureMissing] = useState(false);
   /** What the last lookup asked about, so the same question is not asked twice. */
   const lastLookup = useRef(sponsor ? lookupKey(sponsor.socialMedia) : "");
+  /**
+   * The picture uploaded on this card, or `null` before any upload. While it is
+   * the picture shown, editing an address does not look a picture up, so the
+   * one the operator chose is not replaced behind their back. Fetching again by
+   * hand still does.
+   */
+  const uploadedAvatarId = useRef<string | null>(null);
   const problems = sponsorFormProblems(form);
   const title = sponsor ? sm.sponsorEditTitle : sm.sponsorCreateTitle;
 
@@ -92,6 +107,17 @@ export function SponsorEditCard({ sponsor, onClose }: SponsorEditCardProps) {
     },
   });
 
+  // Like the lookup, this writes a row of `sponsor_avatars` that no query
+  // reads until the card is saved, and the save invalidates the ledger then.
+  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => uploadSponsorAvatar(file),
+    onSuccess: (result) => {
+      uploadedAvatarId.current = result.avatarId;
+      if (result.avatarId) change({ avatarId: result.avatarId });
+    },
+  });
+
   function change(patch: Partial<SponsorForm>) {
     setForm((current) => ({ ...current, ...patch }));
   }
@@ -99,12 +125,21 @@ export function SponsorEditCard({ sponsor, onClose }: SponsorEditCardProps) {
   function fetchPicture(socialMedia: SocialMediaLinks) {
     lastLookup.current = lookupKey(socialMedia);
     setPictureMissing(false);
+    uploadMutation.reset();
     avatarMutation.mutate(socialMedia);
+  }
+
+  function uploadPicture(file: File) {
+    setPictureMissing(false);
+    avatarMutation.reset();
+    uploadMutation.mutate(file);
   }
 
   function handleSocialMediaChange(socialMedia: SocialMediaLinks) {
     change({ socialMedia });
-    if (shouldFetchPicture(socialMedia, lastLookup.current)) fetchPicture(socialMedia);
+    const keepsUpload =
+      uploadMutation.isPending || (form.avatarId !== null && form.avatarId === uploadedAvatarId.current);
+    if (!keepsUpload && shouldFetchPicture(socialMedia, lastLookup.current)) fetchPicture(socialMedia);
   }
 
   return (
@@ -123,17 +158,23 @@ export function SponsorEditCard({ sponsor, onClose }: SponsorEditCardProps) {
 
       <OverlayCard.Body>
         <div className="flex items-start gap-6">
-          <div className="flex flex-col items-center gap-2">
+          {/* 192px: the widest label, "Fetch picture again", is 127px in the
+              system font at 14px, and a button adds 48px of padding, gap, icon
+              and border around it. At 160px it broke onto two lines. */}
+          <div className="flex w-48 shrink-0 flex-col items-center gap-2">
             <SponsorPictureEditor
               avatarId={form.avatarId}
               displayName={form.name || title}
               canFetch={canFetchPicture(form.socialMedia)}
               isFetching={avatarMutation.isPending}
+              isUploading={uploadMutation.isPending}
               onFetch={() => fetchPicture(form.socialMedia)}
+              onUpload={uploadPicture}
               onRemove={() => change({ avatarId: null })}
             />
-            {pictureMissing && <p className="w-40 text-center text-xs text-amber-400">{sm.sponsorNoPictureFound}</p>}
+            {pictureMissing && <p className="text-center text-xs text-amber-400">{sm.sponsorNoPictureFound}</p>}
             {avatarMutation.isError && <SaveErrorMessage error={avatarMutation.error} />}
+            {uploadMutation.isError && <SaveErrorMessage error={uploadMutation.error} />}
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -245,7 +286,7 @@ export function SponsorEditCard({ sponsor, onClose }: SponsorEditCardProps) {
         <DashboardActionButton
           action={DashboardActionId.Save}
           label={messages.common.save}
-          disabled={problems.size > 0 || saveMutation.isPending || avatarMutation.isPending}
+          disabled={problems.size > 0 || saveMutation.isPending || avatarMutation.isPending || uploadMutation.isPending}
           onClick={() => saveMutation.mutate(form)}
           size="control"
           status={saveMutation.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}

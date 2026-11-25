@@ -26,6 +26,7 @@ import {
   type SupportPromptLimits,
 } from "@musiccloud/shared";
 import { api } from "@/lib/api";
+import { fileToDataUrl } from "@/lib/files";
 
 /** The query key of the sponsoring setting. */
 export const SPONSORING_CONFIG_QUERY_KEY = ["admin", "sponsoring", "config"] as const;
@@ -172,6 +173,20 @@ export function deleteSponsor(id: string): Promise<void> {
  */
 export function resolveSponsorAvatar(socialMedia: SocialMediaLinks): Promise<SponsorAvatarResult> {
   return api.post<SponsorAvatarResult>(ENDPOINTS.admin.sponsoring.sponsorAvatar, { socialMedia });
+}
+
+/**
+ * Uploads a picture chosen in the dashboard as a sponsor's picture. The
+ * backend decodes it, cuts it to the stored square and answers the copy's id;
+ * a file that is no JPEG or PNG, or is past the upload cap, is refused with
+ * `MC-REQ-0017`, which the request rejects with.
+ *
+ * @param file - The file from the picture's file input.
+ * @returns The stored copy's id.
+ */
+export async function uploadSponsorAvatar(file: File): Promise<SponsorAvatarResult> {
+  const dataUrl = await fileToDataUrl(file);
+  return api.post<SponsorAvatarResult>(ENDPOINTS.admin.sponsoring.sponsorAvatarUpload, { dataUrl });
 }
 
 /**
