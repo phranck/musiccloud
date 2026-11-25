@@ -28,7 +28,12 @@ import {
   toSponsorForm,
   toSponsorInput,
 } from "@/features/sponsoring/sponsorForm";
-import { canFetchPicture, lookupKey, shouldFetchPicture } from "@/features/sponsoring/sponsorPictureLookup";
+import {
+  canFetchPicture,
+  lookupKey,
+  mayReplacePicture,
+  shouldFetchPicture,
+} from "@/features/sponsoring/sponsorPictureLookup";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
 import { FormLabel, FormLabelText, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
@@ -60,8 +65,10 @@ export interface SponsorEditCardProps {
  * The picture is looked up as the profiles are entered rather than when the
  * card is saved, and what comes back is the id of a copy musiccloud stored, so
  * no visitor's browser asks a sponsor's host for anything. A picture can also
- * be uploaded, which is stored the same way and is then kept when an address
- * changes. Save stays off while the backend would refuse a field or a picture
+ * be uploaded, which is stored the same way. Editing an address only looks a
+ * picture up while the card shows none or shows one it fetched itself, so a
+ * picture stored with the sponsor or uploaded stays until the operator fetches
+ * again by hand. Save stays off while the backend would refuse a field or a picture
  * is still on its way. The amount is shown and never edited,
  * because it is summed from the donations linked to the sponsor.
  *
@@ -77,12 +84,13 @@ export function SponsorEditCard({ sponsor, onClose }: SponsorEditCardProps) {
   /** What the last lookup asked about, so the same question is not asked twice. */
   const lastLookup = useRef(sponsor ? lookupKey(sponsor.socialMedia) : "");
   /**
-   * The picture uploaded on this card, or `null` before any upload. While it is
-   * the picture shown, editing an address does not look a picture up, so the
-   * one the operator chose is not replaced behind their back. Fetching again by
-   * hand still does.
+   * The picture the last lookup on this card returned, or `null` before one
+   * returned a picture. Editing an address looks a picture up only while the
+   * card shows none or shows this one, as {@link mayReplacePicture} decides, so
+   * a stored or uploaded picture is not replaced behind the operator's back.
+   * Fetching again by hand still replaces it.
    */
-  const uploadedAvatarId = useRef<string | null>(null);
+  const fetchedAvatarId = useRef<string | null>(null);
   const problems = sponsorFormProblems(form);
   const title = sponsor ? sm.sponsorEditTitle : sm.sponsorCreateTitle;
 
@@ -102,8 +110,10 @@ export function SponsorEditCard({ sponsor, onClose }: SponsorEditCardProps) {
   const avatarMutation = useMutation({
     mutationFn: (socialMedia: SocialMediaLinks) => resolveSponsorAvatar(socialMedia),
     onSuccess: (result) => {
-      if (result.avatarId) change({ avatarId: result.avatarId });
-      else setPictureMissing(true);
+      if (result.avatarId) {
+        fetchedAvatarId.current = result.avatarId;
+        change({ avatarId: result.avatarId });
+      } else setPictureMissing(true);
     },
   });
 
@@ -113,7 +123,6 @@ export function SponsorEditCard({ sponsor, onClose }: SponsorEditCardProps) {
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadSponsorAvatar(file),
     onSuccess: (result) => {
-      uploadedAvatarId.current = result.avatarId;
       if (result.avatarId) change({ avatarId: result.avatarId });
     },
   });
@@ -137,9 +146,8 @@ export function SponsorEditCard({ sponsor, onClose }: SponsorEditCardProps) {
 
   function handleSocialMediaChange(socialMedia: SocialMediaLinks) {
     change({ socialMedia });
-    const keepsUpload =
-      uploadMutation.isPending || (form.avatarId !== null && form.avatarId === uploadedAvatarId.current);
-    if (!keepsUpload && shouldFetchPicture(socialMedia, lastLookup.current)) fetchPicture(socialMedia);
+    const keepsPicture = uploadMutation.isPending || !mayReplacePicture(form.avatarId, fetchedAvatarId.current);
+    if (!keepsPicture && shouldFetchPicture(socialMedia, lastLookup.current)) fetchPicture(socialMedia);
   }
 
   return (

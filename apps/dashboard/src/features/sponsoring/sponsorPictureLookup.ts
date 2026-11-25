@@ -53,3 +53,21 @@ export function shouldFetchPicture(socialMedia: SocialMediaLinks, lastKey: strin
   if (lookupKey(socialMedia) === lastKey) return false;
   return socialMedia.some(({ url }) => url?.startsWith("https://"));
 }
+
+/**
+ * Whether a lookup that starts on its own, because an address changed, may put
+ * its answer in place of the picture the card shows.
+ *
+ * It may fill an empty picture, and it may replace a picture an earlier lookup
+ * on the same card fetched. A picture that was stored with the sponsor or
+ * uploaded is the operator's choice, so it stays. Only "Fetch picture again"
+ * replaces that one, and it does not ask this function.
+ *
+ * @param avatarId - The picture the card shows, or `null` when it shows none.
+ * @param fetchedHere - The picture the last lookup on this card returned, or
+ *   `null` when no lookup on this card has returned one.
+ * @returns `true` when the card has no picture or shows the one it fetched itself.
+ */
+export function mayReplacePicture(avatarId: string | null, fetchedHere: string | null): boolean {
+  return avatarId === null || avatarId === fetchedHere;
+}

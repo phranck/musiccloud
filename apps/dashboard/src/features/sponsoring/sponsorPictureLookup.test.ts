@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { canFetchPicture, lookupKey, shouldFetchPicture } from "./sponsorPictureLookup";
+import { canFetchPicture, lookupKey, mayReplacePicture, shouldFetchPicture } from "./sponsorPictureLookup";
+
+describe("mayReplacePicture", () => {
+  it("fills a card that shows no picture", () => {
+    expect(mayReplacePicture(null, null)).toBe(true);
+  });
+
+  it("replaces the picture a lookup on this card fetched", () => {
+    expect(mayReplacePicture("fetched", "fetched")).toBe(true);
+  });
+
+  it("keeps a picture that was stored or uploaded", () => {
+    expect(mayReplacePicture("stored", null)).toBe(false);
+    expect(mayReplacePicture("uploaded", "fetched")).toBe(false);
+  });
+});
 
 describe("canFetchPicture", () => {
   it("says no when nothing is entered", () => {
