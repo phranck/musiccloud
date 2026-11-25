@@ -72,7 +72,9 @@ export function SponsorCard({ sponsor, since, left, duplicate = false }: Sponsor
   return (
     <li className="mc-sponsor-wall__slot" aria-hidden={duplicate || undefined} inert={duplicate || undefined}>
       <ContentCard className="flex h-full flex-col gap-3">
-        <div className="flex items-center gap-3">
+        {/* The picture stands in the top-left corner, level with the name's
+            first row, however many rows the name and its links take. */}
+        <div className="flex items-start gap-3">
           {sponsor.avatarId ? (
             <img
               src={ENDPOINTS.frontend.sponsorAvatar(sponsor.avatarId)}
