@@ -2,6 +2,11 @@
 @import "@fontsource/barlow/latin-500.css";
 @import "@fontsource/barlow/latin-600.css";
 @import "@fontsource/barlow/latin-700.css";
+/* Barlow Condensed, the face of every heading (`--font-heading` in global.css),
+   in the weights headings are set in: regular, semibold and bold. */
+@import "@fontsource/barlow-condensed/latin-400.css";
+@import "@fontsource/barlow-condensed/latin-600.css";
+@import "@fontsource/barlow-condensed/latin-700.css";
 @import "@fontsource/michroma/latin-400.css";
 @import "@fontsource/audiowide/latin-400.css";
 /* Iosevka Charon Mono — vinyl label imprint type. Monospace, weights 300/400/700
