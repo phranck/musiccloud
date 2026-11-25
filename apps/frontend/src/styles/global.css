@@ -72,6 +72,9 @@
 
   /* Typography */
   --font-sans: "Barlow", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* The face of every heading, `h1` to `h6`: Barlow Condensed, falling back to
+     the body's Barlow while it loads. The base rule below applies it. */
+  --font-heading: "Barlow Condensed", "Barlow", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-condensed: "Roboto Condensed", "Barlow", sans-serif;
   --font-mono: "SF Mono", "Fira Code", monospace;
 
@@ -156,6 +159,14 @@ button,
   }
   ::-moz-focus-inner {
     border: 0;
+  }
+}
+
+/* Every heading is set in the heading face, whatever component or page it sits
+   in. In `@layer base`, so a `font-*` utility on a single heading still wins. */
+@layer base {
+  :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--font-heading);
   }
 }
 

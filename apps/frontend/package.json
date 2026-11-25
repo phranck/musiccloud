@@ -17,6 +17,7 @@
     "@astrojs/react": "^4.4.2",
     "@fontsource/audiowide": "^5.2.7",
     "@fontsource/barlow": "^5.2.8",
+    "@fontsource/barlow-condensed": "^5.2.8",
     "@fontsource/iosevka-charon-mono": "^5.2.1",
     "@fontsource/michroma": "^5.2.8",
     "@fontsource/roboto-condensed": "^5.2.8",

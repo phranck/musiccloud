@@ -374,6 +374,9 @@ importers:
       '@fontsource/barlow':
         specifier: ^5.2.8
         version: 5.2.8
+      '@fontsource/barlow-condensed':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@fontsource/iosevka-charon-mono':
         specifier: ^5.2.1
         version: 5.2.1
