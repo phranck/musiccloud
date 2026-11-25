@@ -469,7 +469,12 @@ button,
   --mc-sponsor-run: calc(var(--mc-sponsor-count) * (var(--mc-sponsor-card-width) + var(--mc-sponsor-gap)));
   container-type: inline-size;
   display: flex;
-  overflow: hidden;
+  /* A moving row is masked to the rail's box, and the cards' shadow reaches
+     `--mc-card-shadow-gutter` past each card. The rail holds that much room
+     above and below and gives it back to the layout, so the shadow is drawn
+     whole and the wall's spacing stays as it is. */
+  padding-block: var(--mc-card-shadow-gutter);
+  margin-block: calc(-1 * var(--mc-card-shadow-gutter));
 }
 
 /* The space after a card belongs to the card rather than to the row, so the
@@ -487,8 +492,11 @@ button,
 /* A moving row fades at both ends rather than cutting a card off, so the edge
    reads as more coming. lmaa paints two strips of the page's color over it;
    here the row stands on a glass card whose material is not one color, so the
-   rail is masked instead. The mask sits on the rail, which does not move. */
+   rail is masked instead. The mask sits on the rail, which does not move.
+   Only a moving row is clipped; a row standing still keeps its cards' shadow
+   on every side, except across on the narrow screen below. */
 .mc-sponsor-wall__rail.is-moving {
+  overflow: hidden;
   mask-image: linear-gradient(
     to right,
     transparent,
@@ -524,31 +532,18 @@ button,
     animation: none;
   }
 
-  .mc-sponsor-wall__rail {
+  .mc-sponsor-wall__rail.is-moving {
     overflow-x: auto;
   }
 }
 
-/* The day is written out wherever there is room; the figures stand ready for
-   the narrow card. This rule comes first, because two rules of the same weight
-   are decided by their order. */
-.mc-sponsor-wall__date-short {
-  display: none;
-}
-
-/* One card per screen on a narrow one, with the next card peeking, and the
-   day in figures, because the month's name breaks that line first. */
+/* One card per screen on a narrow one, with the next card peeking. The row is
+   wider than the rail then, so the rail clips across; `clip` rather than
+   `hidden` leaves the other axis alone, so the shadow below still shows. */
 @media (max-width: 40rem) {
   .mc-sponsor-wall__rail {
     --mc-sponsor-card-width: 85cqw;
-  }
-
-  .mc-sponsor-wall__date-long {
-    display: none;
-  }
-
-  .mc-sponsor-wall__date-short {
-    display: inline;
+    overflow-x: clip;
   }
 }
 
@@ -561,8 +556,8 @@ button,
    wins inside prose and outside it alike.
 
    The size is the small step, 14px, a pixel under the 15px floor for a meta
-   line, because the line stands on one row: at 15px the day written out needs
-   308px and a card is at most 294px wide, at 14px it needs 288px. */
+   line, and the day is in figures, so the line stands on one row: it needs
+   238px, and the line has 294px on a card of the wide row. */
 :is(.mc-markdown .mc-sponsor-wall, .mc-sponsor-wall) .mc-sponsor-wall__term {
   display: flex;
   flex-wrap: wrap;
@@ -574,13 +569,28 @@ button,
   line-height: var(--text-sm--line-height);
 }
 
+/* A sponsor's name, the card's heading, and the picture is centered against
+   it and the links below it as one group. That group has to start where the
+   letters start: the line height is the font size, and the space above the
+   capitals is trimmed off the heading's first line, so the box's top is the
+   capitals' top. The heading inherits the line height, because the prose reset
+   above sets it to `inherit`. Where a browser cannot trim, the name stands
+   about a pixel and a half lower than the picture's middle. */
+.mc-sponsor-wall__name {
+  line-height: 1;
+}
+
+.mc-sponsor-wall__name > h3 {
+  text-box: trim-start cap alphabetic;
+}
+
+/* A sponsor without a picture, shown by their initial. Its size is the
+   picture's, which `SponsorCard` sets inline from `AVATAR_SIZE_PX`. */
 .mc-sponsor-wall__initial {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 3rem;
-  height: 3rem;
   border-radius: 999px;
   background: rgb(var(--color-accent-rgb) / 0.18);
   color: var(--color-text-primary);

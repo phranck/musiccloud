@@ -47,16 +47,11 @@ const RAMP_MS = 700;
 /** The language the site writes its days in, as it writes its amounts. */
 const DATE_LOCALE = "en-GB";
 
-/** The day a sponsorship began, written out: `7 November 2026`. */
-const LONG_DAY = new Intl.DateTimeFormat(DATE_LOCALE, {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
-/** The same day in figures, for a card too narrow for the month's name: `07/11/2026`. */
-const SHORT_DAY = new Intl.DateTimeFormat(DATE_LOCALE, {
+/**
+ * The day a sponsorship began, in figures: `07/11/2026`. A month's name makes
+ * the card's term line too long for one row of a card.
+ */
+const SPONSOR_DAY = new Intl.DateTimeFormat(DATE_LOCALE, {
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
@@ -74,14 +69,12 @@ export interface SponsorWallProps {
  *
  * @param sponsor - The sponsor.
  * @param today - The current day in UTC, `YYYY-MM-DD`, as the backend counts it.
- * @returns The day written out, in figures, and the days left as a phrase.
+ * @returns The day in figures and the days left as a phrase.
  */
 function termOf(sponsor: PublicSponsor, today: string) {
   const left = sponsorDaysLeft(sponsor.paidOn, today);
-  const day = new Date(`${sponsor.paidOn}T00:00:00Z`);
   return {
-    since: LONG_DAY.format(day),
-    sinceShort: SHORT_DAY.format(day),
+    since: SPONSOR_DAY.format(new Date(`${sponsor.paidOn}T00:00:00Z`)),
     left: left === 1 ? "1 day left" : `${left} days left`,
   };
 }

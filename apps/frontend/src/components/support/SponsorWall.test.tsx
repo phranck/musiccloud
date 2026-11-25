@@ -81,11 +81,13 @@ describe("SponsorWall", () => {
     answer(payload([ADA]));
     render(<MarkdownHtml html={WALL} />);
 
-    expect(await screen.findByText("Ada")).toBeTruthy();
+    // The name is the card's heading, one level below the wall's own.
+    expect(await screen.findByRole("heading", { level: 3, name: "Ada" })).toBeTruthy();
     expect(fetchMock.mock.calls[0]?.[0]).toBe(ENDPOINTS.frontend.sponsors);
     expect(screen.getByText("355 days left")).toBeTruthy();
-    expect(screen.getByText("7 November 2026")).toBeTruthy();
-    expect(screen.getByText("Music for everybody.")).toBeTruthy();
+    expect(screen.getByText("Sponsor since 07/11/2026")).toBeTruthy();
+    // The sentence is the sponsor's own, quoted between quotation marks.
+    expect(screen.getByText("“Music for everybody.”").closest("blockquote")).not.toBeNull();
     expect(document.querySelector("img")?.getAttribute("src")).toBe(
       ENDPOINTS.frontend.sponsorAvatar(ADA.avatarId ?? ""),
     );
@@ -179,6 +181,6 @@ describe("SponsorWall", () => {
     expect(reduced).toMatch(
       /^@media \(prefers-reduced-motion: reduce\) \{\s+\.mc-sponsor-wall__rail\.is-moving \.mc-sponsor-wall__track \{\s+animation: none;/,
     );
-    expect(reduced).toMatch(/\.mc-sponsor-wall__rail \{\s+overflow-x: auto;/);
+    expect(reduced).toMatch(/\.mc-sponsor-wall__rail\.is-moving \{\s+overflow-x: auto;/);
   });
 });
