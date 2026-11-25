@@ -83,7 +83,11 @@ export function SponsorCard({ sponsor, since, left, duplicate = false }: Sponsor
             </span>
           )}
           <div className="min-w-0">
-            <h3 className="font-semibold break-words text-text-primary">{sponsor.name}</h3>
+            {/* The type is set on the wrapper, because the wall's prose reset makes
+                its headings inherit; see `.mc-sponsor-wall` in `global.css`. */}
+            <div className="font-semibold break-words text-text-primary">
+              <h3>{sponsor.name}</h3>
+            </div>
             <SocialMediaIcons
               socialMedia={sponsor.socialMedia}
               className="mt-1 flex items-center gap-2"
