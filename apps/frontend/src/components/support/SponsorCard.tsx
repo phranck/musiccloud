@@ -14,8 +14,14 @@ import { ContentCard } from "@/components/cards/ContentCard";
 
 import { SUPPORT_TEXT_CLASS } from "./supportType";
 
-/** The side of the picture and of the initial standing in for it, in pixels: 48. */
-const AVATAR_SIZE_PX = 48;
+/**
+ * The side of the picture and of the initial standing in for it, in pixels: 52.
+ * Both take it inline, so this is the only place the size is set.
+ */
+const AVATAR_SIZE_PX = 52;
+
+/** The box {@link AVATAR_SIZE_PX} gives the picture and the initial alike. */
+const AVATAR_BOX_STYLE = { width: AVATAR_SIZE_PX, height: AVATAR_SIZE_PX } as const;
 
 /**
  * The typographic marks around a sponsor's own sentence: `“` before it and `”`
@@ -73,12 +79,13 @@ export function SponsorCard({ sponsor, since, left, duplicate = false }: Sponsor
               alt=""
               width={AVATAR_SIZE_PX}
               height={AVATAR_SIZE_PX}
-              className="size-12 shrink-0 rounded-full object-cover"
+              style={AVATAR_BOX_STYLE}
+              className="shrink-0 rounded-full object-cover"
               loading="lazy"
               decoding="async"
             />
           ) : (
-            <span className="mc-sponsor-wall__initial" aria-hidden="true">
+            <span className="mc-sponsor-wall__initial" style={AVATAR_BOX_STYLE} aria-hidden="true">
               {sponsor.name.slice(0, 1)}
             </span>
           )}
