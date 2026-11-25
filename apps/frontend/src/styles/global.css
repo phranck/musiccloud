@@ -553,16 +553,25 @@ button,
 }
 
 /* What a sponsorship says about itself, at the foot of the card, pushed down
-   so cards with sentences of different length line up their last row. */
-.mc-sponsor-wall__term {
+   so cards with sentences of different length line up their last row.
+
+   The selector carries three classes because the prose reset above sets every
+   `p` inside the wall to `inherit` with two classes and an element, and the
+   term is a `p`. `:is()` takes the weight of its heaviest branch, so the rule
+   wins inside prose and outside it alike.
+
+   The size is the small step, 14px, a pixel under the 15px floor for a meta
+   line, because the line stands on one row: at 15px the day written out needs
+   308px and a card is at most 294px wide, at 14px it needs 288px. */
+:is(.mc-markdown .mc-sponsor-wall, .mc-sponsor-wall) .mc-sponsor-wall__term {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.25rem;
   margin-top: auto;
-  color: var(--color-text-muted);
-  /* A meta line, at the 15px floor for one. */
-  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
 }
 
 .mc-sponsor-wall__initial {
