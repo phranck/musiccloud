@@ -15,6 +15,7 @@ import {
 import { BracketsSquareIcon, DotOutlineIcon, ListNumbersIcon, TextAlignJustifyIcon } from "@phosphor-icons/react";
 import * as React from "react";
 
+import { CODE_EDITOR_BASIC_SETUP, CODE_EDITOR_THEME_SPEC } from "./codeEditorTheme";
 import { ShortcodeReferencePanel } from "./ShortcodeReferencePanel";
 
 export interface MarkdownEditorProps {
@@ -110,69 +111,7 @@ const MarkdownCodeMirror = React.lazy(async () => {
   type LoadedEditorView = InstanceType<typeof EditorView>;
 
   const editorTheme = EditorView.theme({
-    "&": {
-      backgroundColor: "var(--ds-md-editor-bg, var(--ds-input-bg))",
-      color: "var(--ds-text)",
-      fontSize: "var(--source-font-size, 0.875rem)",
-    },
-    ".cm-editor": {
-      height: "100%",
-      minHeight: 0,
-    },
-    ".cm-scroller": {
-      overflowY: "auto",
-      overflowX: "auto",
-      overscrollBehavior: "contain",
-    },
-    ".cm-content": {
-      padding: "0.375rem 0.75rem",
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-      caretColor: "var(--color-primary)",
-    },
-    "&.cm-focused": {
-      outline: "none",
-    },
-    ".cm-activeLine": {
-      backgroundColor: "transparent",
-    },
-    "&.cm-focused .cm-cursor": {
-      borderLeftColor: "var(--color-primary)",
-    },
-    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-      backgroundColor: "color-mix(in srgb, var(--color-primary) 18%, transparent) !important",
-    },
-    "& ::selection": {
-      backgroundColor: "color-mix(in srgb, var(--color-primary) 18%, transparent)",
-      color: "inherit",
-    },
-    "& ::-moz-selection": {
-      backgroundColor: "color-mix(in srgb, var(--color-primary) 18%, transparent)",
-      color: "inherit",
-    },
-    ".cm-placeholder": {
-      color: "var(--ds-text-subtle)",
-      fontStyle: "normal",
-    },
-    // A column beside the text rather than a mark in front of each line, so it
-    // runs the full height and stays put whilst a long line scrolls past it.
-    ".cm-gutters": {
-      backgroundColor: "var(--ds-bg-elevated)",
-      color: "var(--ds-text-subtle)",
-      border: "none",
-      borderRight: "1px solid var(--ds-border)",
-    },
-    ".cm-lineNumbers .cm-gutterElement": {
-      padding: "0 0.5rem 0 0.75rem",
-      minWidth: "2.5rem",
-    },
-    // The numbers sit on the same rhythm as the lines they count. Left to
-    // inherit, the two drift apart by a whole line over enough of them.
-    ".cm-gutters, .cm-content": {
-      lineHeight: "1.5",
-    },
-    ".cm-activeLineGutter": {
-      backgroundColor: "transparent",
-    },
+    ...CODE_EDITOR_THEME_SPEC,
     // A visible space is drawn as a dot in a background image rather than as
     // text, so the colour is set there. CodeMirror's own is a fixed grey, which
     // reads as a smudge on this surface.
@@ -595,13 +534,7 @@ const MarkdownCodeMirror = React.lazy(async () => {
           className={className}
           height={height}
           minHeight={minHeight}
-          basicSetup={{
-            lineNumbers: false,
-            foldGutter: false,
-            highlightActiveLine: false,
-            highlightSelectionMatches: false,
-            tabSize: 2,
-          }}
+          basicSetup={CODE_EDITOR_BASIC_SETUP}
         />
       );
     },

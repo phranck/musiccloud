@@ -882,6 +882,7 @@ export const dashboardCopy = {
     jsonLabel: "Design token JSON",
     jsonHint: "Paste the settings JSON exported from the prototype here and save.",
     reset: "Discard changes",
+    format: "Format",
     validJson: "Valid JSON",
     invalidJson: "Invalid JSON",
     invalidValues: "{count} values out of range, defaults applied",

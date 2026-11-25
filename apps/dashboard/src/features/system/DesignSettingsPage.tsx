@@ -3,14 +3,19 @@ import { ENDPOINTS, parseDesignTokens } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
+import { JsonEditor } from "@/components/ui/JsonEditor";
 import { dashboardCopy } from "@/copy/dashboard";
 import { api } from "@/lib/api";
+import { formatJson } from "@/lib/formatJson";
 
 /** React Query key for the admin site-settings record. */
 const SITE_SETTINGS_KEY = ["admin", "site-settings"] as const;
 
 /** Store key holding the JSON-encoded design-token blob (matches the backend). */
 const DESIGN_TOKENS_KEY = "design_tokens";
+
+/** The id of the field's label, which names the editing area for assistive technology. */
+const JSON_LABEL_ID = "design-tokens-json-label";
 
 /** Loads the raw site-settings map (the design-token JSON lives under one key). */
 function fetchSiteSettings(): Promise<Record<string, string>> {
@@ -38,8 +43,13 @@ interface DraftValidation {
  * `design_tokens` site-setting, and picked up by the public frontend on its
  * next SSR render (no redeploy).
  *
- * The editor keeps an optional local `draft` over the fetched saved value
- * (`value = draft ?? savedJson`) so no effect is needed to seed editable state;
+ * The JSON stands in a `JsonEditor` with syntax colors and line numbers. The
+ * stored blob is shown formatted (`savedText`), and Format lays out pasted
+ * JSON the same way. Changes are measured against `savedText`, so formatting
+ * the stored blob alone leaves nothing to save.
+ *
+ * The page keeps an optional local `draft` over that text
+ * (`value = draft ?? savedText`) so no effect is needed to seed editable state;
  * a successful save clears the draft back to the (refetched) server truth.
  */
 export function DesignSettingsPage() {
@@ -49,9 +59,14 @@ export function DesignSettingsPage() {
 
   const settingsQuery = useQuery({ queryKey: SITE_SETTINGS_KEY, queryFn: fetchSiteSettings });
   const savedJson = settingsQuery.data?.[DESIGN_TOKENS_KEY] ?? "";
+  // The stored blob is shown formatted, because it is usually saved as one
+  // line. A blob that does not parse is shown as stored, so it can be repaired.
+  const savedText = useMemo(() => formatJson(savedJson) ?? savedJson, [savedJson]);
 
   const [draft, setDraft] = useState<string | null>(null);
-  const value = draft ?? savedJson;
+  const value = draft ?? savedText;
+  const formatted = formatJson(value);
+  const canFormat = formatted !== null && formatted !== value;
 
   const saveMutation = useMutation({
     mutationFn: (json: string) => api.patch(ENDPOINTS.admin.siteSettings.base, { [DESIGN_TOKENS_KEY]: json }),
@@ -69,7 +84,7 @@ export function DesignSettingsPage() {
     return { jsonOk: !jsonFatal, invalidValueCount: jsonFatal ? 0 : errors.length };
   }, [value]);
 
-  const isDirty = value !== savedJson;
+  const isDirty = value !== savedText;
   const canSave = validation.jsonOk && isDirty && !saveMutation.isPending;
 
   function handleChange(next: string): void {
@@ -91,17 +106,16 @@ export function DesignSettingsPage() {
       </div>
 
       <div className="grid gap-2">
-        <label htmlFor="design-tokens-json" className="text-sm font-medium text-[var(--ds-text)]">
+        <div id={JSON_LABEL_ID} className="text-sm font-medium text-[var(--ds-text)]">
           {m.jsonLabel}
-        </label>
+        </div>
         <p className="text-xs text-[var(--ds-text-muted)]">{m.jsonHint}</p>
-        <textarea
+        <JsonEditor
           id="design-tokens-json"
+          labelledBy={JSON_LABEL_ID}
           value={value}
-          onChange={(e) => handleChange(e.target.value)}
-          spellCheck={false}
-          disabled={settingsQuery.isLoading}
-          className="w-full min-h-[280px] rounded-lg border border-[var(--ds-border)] bg-[var(--ds-surface)] px-3 py-2 font-mono text-xs leading-relaxed text-[var(--ds-text)] resize-y focus:outline-none focus:ring-1 focus:ring-[var(--ds-accent)]"
+          onChange={handleChange}
+          readOnly={settingsQuery.isLoading}
         />
 
         <div className="flex items-center justify-between gap-4 min-h-5">
@@ -115,6 +129,15 @@ export function DesignSettingsPage() {
                 : m.validJson}
           </p>
           <div className="flex items-center gap-2 flex-none">
+            <DashboardButton
+              type="button"
+              onClick={() => formatted !== null && handleChange(formatted)}
+              disabled={!canFormat || saveMutation.isPending}
+              size="action"
+              variant={DashboardButtonVariant.Neutral}
+            >
+              {m.format}
+            </DashboardButton>
             {isDirty && (
               <DashboardButton
                 type="button"

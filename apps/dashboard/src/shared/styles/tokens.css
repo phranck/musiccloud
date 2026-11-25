@@ -223,6 +223,17 @@
   --md-shortcode-number: #e3b341;
   --md-shortcode-variable: #f778ba;
   --md-shortcode-unknown: #ff7b72;
+
+  /* JSON in the JSON editor.
+     Drawn from the shortcode palette, so both editors read as one scheme. A
+     key is named like a shortcode parameter and its value follows it, so the
+     same contrast holds: blue keys against green strings and amber numbers.
+     The literals true, false and null are purple, and the structure is grey. */
+  --json-key: var(--md-shortcode-attribute);
+  --json-string: var(--md-shortcode-string);
+  --json-number: var(--md-shortcode-number);
+  --json-literal: var(--md-shortcode-token);
+  --json-punctuation: var(--md-shortcode-bracket);
 }
 
 /* -- COMPONENT TOKENS ----------------------------------------- */
